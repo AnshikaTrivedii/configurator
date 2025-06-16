@@ -153,9 +153,9 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
         <div className="text-lg font-semibold text-gray-700">
           {getAspectRatioLabel()}
         </div>
-        <div className="text-sm text-gray-600">
-          Actual: {cabinetGrid.totalWidth} × {cabinetGrid.totalHeight} {config.unit}
-        </div>
+        {/* <div className="text-sm text-gray-600">
+          Actual: {toMeters(cabinetGrid.totalWidth)} × {toMeters(cabinetGrid.totalHeight)} m
+        </div> */}
       </div>
     </div>
   );

@@ -49,7 +49,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
               }`}
             >
-              All Cabinets
+              All Products
             </button>
             {categories.map((category) => (
               <button
