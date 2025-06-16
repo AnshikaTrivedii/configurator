@@ -5,6 +5,7 @@ import { DimensionControls } from './DimensionControls';
 import { AspectRatioSelector } from './AspectRatioSelector';
 import { DisplayPreview } from './DisplayPreview';
 import { ProductSelector } from './ProductSelector';
+import { ConfigurationSummary } from './ConfigurationSummary';
 import { Product } from '../types';
 
 export const DisplayConfigurator: React.FC = () => {
@@ -139,35 +140,13 @@ export const DisplayConfigurator: React.FC = () => {
 
           {/* Summary */}
           <div className="bg-white rounded-xl shadow-sm border p-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuration Summary</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="font-medium text-blue-900">Target Size</h4>
-                <p className="text-blue-700">
-                  {config.width} × {config.height} {config.unit}
-                </p>
-              </div>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h4 className="font-medium text-green-900">Actual Size</h4>
-                <p className="text-green-700">
-                  {cabinetGrid.totalWidth} × {cabinetGrid.totalHeight} {config.unit}
-                </p>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <h4 className="font-medium text-purple-900">Cabinet Grid</h4>
-                <p className="text-purple-700">
-                  {cabinetGrid.columns} × {cabinetGrid.rows} ({cabinetGrid.columns * cabinetGrid.rows} total)
-                </p>
-              </div>
-              <div className="bg-orange-50 p-4 rounded-lg">
-                <h4 className="font-medium text-orange-900">Total Cost</h4>
-                <p className="text-orange-700">
-                  {selectedProduct?.price 
-                    ? `$${(selectedProduct.price * cabinetGrid.columns * cabinetGrid.rows).toLocaleString()}`
-                    : 'Select cabinet for pricing'
-                  }
-                </p>
-              </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">Configuration Summary</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <ConfigurationSummary 
+                config={config} 
+                cabinetGrid={cabinetGrid} 
+                selectedProduct={selectedProduct} 
+              />
             </div>
           </div>
         </div>
