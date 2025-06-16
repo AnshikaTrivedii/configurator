@@ -23,7 +23,7 @@ export const products: Product[] = [
     maxPowerConsumption: 420,
     avgPowerConsumption: 150,
     weightPerCabinet: 4.5,
-    pdf: '/pdfs/bellatrix-indoor-cob-p0.9.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/Bellatrix+Series+Indoor+COB+P0.9.pdf'
   },
   {
     id: 'bellatrix-indoor-cob-p1.25',
@@ -271,7 +271,7 @@ export const products: Product[] = [
     id: 'orion-p18-digital-standee',
     name: 'Orion P1.8 Indoor Standee Display',
     category: 'Digital Standee Series',
-    image: '/products/digital-standee-series/orion-p18-digital-standee.png',
+    image: '/products/standee-series/Digital Standee Series SMD P1.8.png',
     resolution: { width: 344, height: 946 },
     cabinetDimensions: { width: 665, height: 1785 },
     moduleDimensions: { width: 320, height: 160 },
@@ -291,7 +291,7 @@ export const products: Product[] = [
     id: 'orion-p25-digital-standee',
     name: 'Orion P2.5 Indoor Standee Display',
     category: 'Digital Standee Series',
-    image: '/products/digital-standee-series/orion-p25-digital-standee.png',
+    image: '/products/standee-series/Digital Standee Series SMD P2.5.png',
     resolution: { width: 256, height: 704 },
     cabinetDimensions: { width: 665, height: 1785 },
     moduleDimensions: { width: 320, height: 160 },
@@ -311,7 +311,7 @@ export const products: Product[] = [
     id: 'orion-p4-digital-standee',
     name: 'Orion P4 Outdoor Standee Display',
     category: 'Digital Standee Series',
-    image: '/products/digital-standee-series/orion-p4-digital-standee.png',
+    image: '/products/standee-series/Digital Standee Series SMD P4.png',
     resolution: { width: 160, height: 440 },
     cabinetDimensions: { width: 665, height: 1785 },
     moduleDimensions: { width: 320, height: 160 },
