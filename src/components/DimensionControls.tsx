@@ -6,26 +6,42 @@ interface DimensionControlsProps {
   config: DisplayConfig;
   onWidthChange: (width: number) => void;
   onHeightChange: (height: number) => void;
+  selectedProduct?: {
+    cabinetDimensions: {
+      width: number;
+      height: number;
+    };
+  };
 }
 
 export const DimensionControls: React.FC<DimensionControlsProps> = ({
   config,
   onWidthChange,
-  onHeightChange
+  onHeightChange,
+  selectedProduct
 }) => {
+  // Get cabinet dimensions or use defaults (600x337.5mm)
+  const cabinetWidth = selectedProduct?.cabinetDimensions?.width || 600;
+  const cabinetHeight = selectedProduct?.cabinetDimensions?.height || 337.5;
+
   // Convert mm to meters for display
   const toMeters = (mm: number) => (mm / 1000).toFixed(3);
   const toMM = (m: number) => Math.round(m * 1000);
+  
+  // Step size in meters (100mm)
+  const stepSize = 0.1;
 
-  // Adjust value in mm, but display in meters
-  const adjustValue = (value: number, increment: number) => {
-    // Convert increment to mm (0.1m = 100mm)
-    const incrementMM = increment * 1000;
-    return Math.max(100, value + incrementMM);
+  // Adjust value by cabinet size
+  const adjustValue = (value: number, increment: number, isWidth: boolean) => {
+    const cabinetSize = isWidth ? cabinetWidth : cabinetHeight;
+    const currentCabinets = Math.round(value / cabinetSize);
+    const newCabinets = Math.max(1, currentCabinets + increment);
+    return newCabinets * cabinetSize;
   };
 
-  // Step size in meters (0.1m = 100mm)
-  const stepSize = 0.1;
+  // Calculate step sizes based on cabinet dimensions
+  const widthStep = cabinetWidth / 1000; // Convert mm to meters
+  const heightStep = cabinetHeight / 1000; // Convert mm to meters
 
   return (
     <div className="flex items-center gap-8">
@@ -37,7 +53,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
           <label className="text-sm font-medium text-gray-600">Width</label>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onWidthChange(adjustValue(config.width, -stepSize))}
+              onClick={() => onWidthChange(adjustValue(config.width, -1, true))}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
             >
               <Minus size={16} />
@@ -54,7 +70,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
               <span className="text-sm text-gray-500">m</span>
             </div>
             <button
-              onClick={() => onWidthChange(adjustValue(config.width, stepSize))}
+              onClick={() => onWidthChange(adjustValue(config.width, 1, true))}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
             >
               <Plus size={16} />
@@ -69,7 +85,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
           <label className="text-sm font-medium text-gray-600">Height</label>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onHeightChange(adjustValue(config.height, -stepSize))}
+              onClick={() => onHeightChange(adjustValue(config.height, -1, false))}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
               disabled={config.aspectRatio !== 'None'}
             >
@@ -88,7 +104,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
               <span className="text-sm text-gray-500">m</span>
             </div>
             <button
-              onClick={() => onHeightChange(adjustValue(config.height, stepSize))}
+              onClick={() => onHeightChange(adjustValue(config.height, 1, false))}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
               disabled={config.aspectRatio !== 'None'}
             >

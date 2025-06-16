@@ -60,6 +60,7 @@ export const DisplayConfigurator: React.FC = () => {
                 config={config}
                 onWidthChange={updateWidth}
                 onHeightChange={updateHeight}
+                selectedProduct={selectedProduct}
               />
               
               <AspectRatioSelector

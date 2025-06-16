@@ -8,20 +8,64 @@ const aspectRatios: AspectRatio[] = [
   { label: 'None', value: 0, name: 'None' }
 ];
 
-export const useDisplayCalculations = () => {
+export const useDisplayCalculations = (selectedProduct?: Product) => {
+  // Default cabinet size (600mm x 337.5mm)
+  const defaultCabinet = { width: 600, height: 337.5 };
+  
+  // Get current cabinet dimensions based on selected product or default
+  const getCabinetDimensions = () => {
+    return selectedProduct?.cabinetDimensions || defaultCabinet;
+  };
+
   const [config, setConfig] = useState<DisplayConfig>({
     width: 1800, // 3 cabinets * 600mm
-    height: 674,  // 2 cabinets * 337mm
+    height: 675,  // 2 cabinets * 337.5mm
     aspectRatio: 'None',
     unit: 'mm'
   });
 
-  const updateWidth = (width: number) => {
-    setConfig(prev => ({ ...prev, width }));
+  // Update width by adding/removing cabinets
+  const updateWidth = (newWidth: number, addCabinets = 0) => {
+    setConfig(prev => {
+      if (addCabinets !== 0) {
+        const cabinet = getCabinetDimensions();
+        const currentCabinets = Math.round(prev.width / cabinet.width);
+        const newCabinets = Math.max(1, currentCabinets + addCabinets);
+        const width = Math.round(newCabinets * cabinet.width);
+        
+        // If aspect ratio is locked, update height proportionally
+        if (prev.aspectRatio !== 'None') {
+          const ratio = aspectRatios.find(r => r.name === prev.aspectRatio)?.value || 1;
+          const height = Math.round(width / ratio);
+          return { ...prev, width, height };
+        }
+        
+        return { ...prev, width };
+      }
+      return { ...prev, width: newWidth };
+    });
   };
 
-  const updateHeight = (height: number) => {
-    setConfig(prev => ({ ...prev, height }));
+  // Update height by adding/removing cabinets
+  const updateHeight = (newHeight: number, addCabinets = 0) => {
+    setConfig(prev => {
+      if (addCabinets !== 0) {
+        const cabinet = getCabinetDimensions();
+        const currentCabinets = Math.round(prev.height / cabinet.height);
+        const newCabinets = Math.max(1, currentCabinets + addCabinets);
+        const height = Math.round(newCabinets * cabinet.height);
+        
+        // If aspect ratio is locked, update width proportionally
+        if (prev.aspectRatio !== 'None') {
+          const ratio = aspectRatios.find(r => r.name === prev.aspectRatio)?.value || 1;
+          const width = Math.round(height * ratio);
+          return { ...prev, width, height };
+        }
+        
+        return { ...prev, height };
+      }
+      return { ...prev, height: newHeight };
+    });
   };
 
   const updateAspectRatio = (aspectRatio: string) => {
