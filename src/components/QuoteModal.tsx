@@ -1,16 +1,43 @@
 import React, { useState } from 'react';
 import { X, Mail } from 'lucide-react';
 
+interface Product {
+  name: string;
+  pixelPitch?: number;
+  resolution?: {
+    width: number;
+    height: number;
+  };
+  cabinetDimensions?: {
+    width: number;
+    height: number;
+  };
+  // Add other product properties as needed
+}
+
+interface CabinetGrid {
+  columns: number;
+  rows: number;
+}
+
 type QuoteModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (message: string) => void;
-  selectedProduct?: {
-    name: string;
-    // Add other product details you want to show
-  };
-  config?: any; // Replace with your config type
-  cabinetGrid?: any; // Replace with your cabinet grid type
+  selectedProduct?: Product;
+  config?: any; 
+  cabinetGrid?: CabinetGrid; 
+};
+
+// Function to calculate greatest common divisor
+const gcd = (a: number, b: number): number => {
+  return b === 0 ? a : gcd(b, a % b);
+};
+
+// Function to calculate aspect ratio
+const calculateAspectRatio = (width: number, height: number): string => {
+  const divisor = gcd(width, height);
+  return `${width / divisor}:${height / divisor}`;
 };
 
 export const QuoteModal: React.FC<QuoteModalProps> = ({
@@ -18,7 +45,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   onClose,
   onSubmit,
   selectedProduct,
-  config,
   cabinetGrid
 }) => {
   const [message, setMessage] = useState('');
@@ -68,14 +94,41 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 {selectedProduct && (
                   <div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Product Details</h3>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p><span className="font-medium">Product:</span> {selectedProduct.name}</p>
-                      {/* Add more product details here */}
-                      {config && (
-                        <p><span className="font-medium">Configuration:</span> {JSON.stringify(config, null, 2)}</p>
+                    <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Product:</span>
+                        <span className="font-medium">{selectedProduct.name}</span>
+                      </div>
+                      {selectedProduct.pixelPitch && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Pixel Pitch:</span>
+                          <span>P{selectedProduct.pixelPitch}mm</span>
+                        </div>
+                      )}
+                      {selectedProduct.resolution && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Resolution:</span>
+                          <span>{selectedProduct.resolution.width} × {selectedProduct.resolution.height}</span>
+                        </div>
+                      )}
+                      {selectedProduct.resolution && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Aspect Ratio:</span>
+                          <span>{calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height)}</span>
+                        </div>
+                      )}
+                      {selectedProduct.cabinetDimensions && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Display Area:</span>
+                          <span>{(selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)} × 
+                                {(selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2)} m</span>
+                        </div>
                       )}
                       {cabinetGrid && (
-                        <p><span className="font-medium">Grid:</span> {cabinetGrid.columns} × {cabinetGrid.rows}</p>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Cabinet Grid:</span>
+                          <span>{cabinetGrid.columns} × {cabinetGrid.rows}</span>
+                        </div>
                       )}
                     </div>
                   </div>
