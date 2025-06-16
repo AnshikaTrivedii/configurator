@@ -62,11 +62,11 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   }
 
   return (
-    <div className="w-80 bg-white h-screen overflow-y-auto border-r border-gray-200 flex flex-col">
+    <div className="w-80 bg-white  overflow-y-auto border-r border-gray-200 flex flex-col">
       {/* Product Header */}
       <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center space-x-4 mb-4">
-          <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+        <div className="flex flex-col items-center space-x-4 mb-4">
+          <div className="w-full bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
             <img 
               src={selectedProduct.image} 
               alt={selectedProduct.name}
@@ -109,7 +109,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="flex-1 px-6 py-2 overflow-y-auto">
         {activeTab === 'dimensions' ? (
           <div className="space-y-6">
             <div>
@@ -260,7 +260,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
       </div>
 
       {/* Get a Quote Button */}
-      <div className="p-6 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200 ">
         <button
           onClick={() => setIsQuoteModalOpen(true)}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"

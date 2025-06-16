@@ -60,8 +60,8 @@ export const DisplayConfigurator: React.FC = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto text-center px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">Setup Display Dimensions</h1>
-          <p className="text-gray-600 mt-2">Configure your digital signage display using modular cabinets</p>
+          <h1 className="text-3xl font-bold text-gray-900">LED Configurator</h1>
+          <p className="text-gray-600 mt-2">Configure your digital signage display using wide range of products</p>
         </div>
       </div>
 
@@ -128,7 +128,40 @@ export const DisplayConfigurator: React.FC = () => {
                   <Package size={18} />
                   <span>Change Cabinet</span>
                 </button>
+                
               </div>
+               {selectedProduct && (
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div>
+                    <h4 className="font-medium text-gray-900">Category</h4>
+                    <p className="text-gray-600">{selectedProduct.category}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">Cabinet Size</h4>
+                    <p className="text-gray-600">
+                      {selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">Resolution</h4>
+                    <p className="text-gray-600">
+                      {selectedProduct.resolution.width} × {selectedProduct.resolution.height}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">Price per Cabinet</h4>
+                    <p className="text-gray-600">
+                      {selectedProduct.price ? `$${selectedProduct.price}` : 'Contact for pricing'}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">Total Cabinets</h4>
+                    <p className="text-gray-600">{cabinetGrid.columns * cabinetGrid.rows} units</p>
+                  </div>
+                </div>
+              </div>
+            )}
             </div>
 
             {/* Summary */}

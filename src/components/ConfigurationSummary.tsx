@@ -30,7 +30,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const inches = Math.round((diagonalInches % 12) * 16) / 16; // Round to nearest 1/16 inch
   
   // Calculate power consumption
-  const powerPerCabinet = selectedProduct.powerDraw || 91.7; // Default to 91.7W if not specified
+  const powerPerCabinet = selectedProduct.avgPowerConsumption || 91.7; // Default to 91.7W if not specified
   const avgPower = (powerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(1);
   const maxPower = (powerPerCabinet * 3 * cabinetGrid.columns * cabinetGrid.rows).toFixed(1); // Assuming 3x max power
 
