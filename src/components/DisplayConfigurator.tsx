@@ -85,6 +85,7 @@ export const DisplayConfigurator: React.FC = () => {
             cabinetGrid={cabinetGrid}
             onColumnsChange={handleColumnsChange}
             onRowsChange={handleRowsChange}
+            onSelectProductClick={() => setIsProductSelectorOpen(true)}
           />
         </div>
 
@@ -125,9 +126,9 @@ export const DisplayConfigurator: React.FC = () => {
                 <div className="flex items-center space-x-3">
                   <Package className="text-blue-500" size={24} />
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Selected Cabinet Product</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Select Product</h3>
                     <p className="text-gray-600">
-                      {selectedProduct ? selectedProduct.name : 'No cabinet product selected'}
+                      {selectedProduct ? selectedProduct.name : 'No product selected'}
                     </p>
                   </div>
                 </div>
@@ -137,7 +138,7 @@ export const DisplayConfigurator: React.FC = () => {
                   className="w-full sm:w-auto bg-gray-900 text-white px-6 py-2.5 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2"
                 >
                   <Package size={18} />
-                  <span>Change Cabinet</span>
+                  <span>Change Product</span>
                 </button>
                 
               </div>

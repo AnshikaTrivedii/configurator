@@ -8,6 +8,7 @@ interface ProductSidebarProps {
   cabinetGrid: CabinetGrid;
   onColumnsChange: (columns: number) => void;
   onRowsChange: (rows: number) => void;
+  onSelectProductClick: () => void;
 }
 
 export const ProductSidebar: React.FC<ProductSidebarProps> = ({
@@ -15,6 +16,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   cabinetGrid,
   onColumnsChange,
   onRowsChange,
+  onSelectProductClick,
 }) => {
   const [activeTab, setActiveTab] = useState<'dimensions' | 'power'>('dimensions');
   const [voltage, setVoltage] = useState<number>(220);
@@ -49,13 +51,18 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const VOLTAGE_OPTIONS = [110, 120, 208, 220, 230, 240];
   const AMPERAGE_OPTIONS = [15, 16, 20];
   
-  // Calculate max power in kW
-  const maxPowerKW = ((voltage * amperage) / 1000).toFixed(1);
+
   if (!selectedProduct) {
     return (
-      <div className="w-80 bg-white h-screen overflow-y-auto border-r border-gray-200 p-6">
-        <div className="text-center py-8">
-          <p className="text-gray-500">Select a product to configure</p>
+      <div className="w-80 bg-white h-screen overflow-y-auto border-r border-gray-200 p-6 flex flex-col items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">Select a product to begin</p>
+          <button
+            onClick={onSelectProductClick}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+          >
+            Select a Product
+          </button>
         </div>
       </div>
     );

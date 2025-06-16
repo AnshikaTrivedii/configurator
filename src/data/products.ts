@@ -43,7 +43,7 @@ export const products: Product[] = [
     maxPowerConsumption: 420,
     avgPowerConsumption: 150,
     weightPerCabinet: 4.5,
-    pdf: '/pdfs/bellatrix-indoor-cob-p1.25.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+COB+P1.25.pdf'
   },
   {
     id: 'bellatrix-indoor-cob-p1.5',
@@ -63,7 +63,7 @@ export const products: Product[] = [
     maxPowerConsumption: 420,
     avgPowerConsumption: 150,
     weightPerCabinet: 4.5,
-    pdf: '/pdfs/bellatrix-indoor-cob-p1.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+COB+P1.5.pdf'
   },
   {
     id: 'bellatrix-indoor-smd-p0.9',
@@ -83,7 +83,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: '/pdfs/bellatrix-indoor-smd-p0.9.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P0.9.pdf'
   },
   {
     id: 'bellatrix-indoor-smd-p1.25',
@@ -103,7 +103,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: '/pdfs/bellatrix-indoor-smd-p1.25.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P1.25.pdf'
   },
   {
     id: 'bellatrix-indoor-smd-p1.5',
@@ -123,7 +123,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: '/pdfs/bellatrix-indoor-smd-p1.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P1.5.pdf'
   },
   {
     id: 'bellatrix-indoor-smd-p1.8',
@@ -143,7 +143,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: '/pdfs/bellatrix-indoor-smd-p1.8.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P1.8.pdf'
   },
   {
     id: 'bellatrix-indoor-smd-p2.5',
@@ -163,7 +163,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 350,
     weightPerCabinet: 6.5,
-    pdf: '/pdfs/bellatrix-indoor-smd-p2.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P2.5.pdf'
   },
   {
     id: 'bellatrix-outdoor-smd-p2.5',
@@ -183,7 +183,7 @@ export const products: Product[] = [
     maxPowerConsumption: 700,
     avgPowerConsumption: 350,
     weightPerCabinet: 27,
-    pdf: '/pdfs/bellatrix-outdoor-smd-p2.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P2.5.pdf'
   },
   {
     id: 'bellatrix-outdoor-smd-p3',
@@ -203,7 +203,7 @@ export const products: Product[] = [
     maxPowerConsumption: 450,
     avgPowerConsumption: 250,
     weightPerCabinet: 16,
-    pdf: '/pdfs/bellatrix-outdoor-smd-p3.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P3.pdf'
   },
   {
     id: 'bellatrix-outdoor-smd-p4',
@@ -223,7 +223,7 @@ export const products: Product[] = [
     maxPowerConsumption: 700,
     avgPowerConsumption: 400,
     weightPerCabinet: 27,
-    pdf: '/pdfs/bellatrix-outdoor-smd-p4.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P4.pdf'
   },
   {
     id: 'bellatrix-outdoor-smd-p6.6',
@@ -243,7 +243,7 @@ export const products: Product[] = [
     maxPowerConsumption: 700,
     avgPowerConsumption: 400,
     weightPerCabinet: 27,
-    pdf: '/pdfs/bellatrix-outdoor-smd-p6.6.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P6.6.pdf'
   },
   {
     id: 'bellatrix-outdoor-smd-p10',
@@ -263,7 +263,7 @@ export const products: Product[] = [
     maxPowerConsumption: 750,
     avgPowerConsumption: 350,
     weightPerCabinet: 27,
-    pdf: '/pdfs/bellatrix-outdoor-smd-p10.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P10.pdf'
   },
 
   // Digital Standee Series
@@ -285,7 +285,7 @@ export const products: Product[] = [
     maxPowerConsumption: 400,
     avgPowerConsumption: 120,
     weightPerCabinet: 45,
-    pdf: '/pdfs/digital-standee-series-smd-p1.8.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P1.8.pdf'
   },
   {
     id: 'orion-p25-digital-standee',
@@ -305,7 +305,7 @@ export const products: Product[] = [
     maxPowerConsumption: 400,
     avgPowerConsumption: 120,
     weightPerCabinet: 45,
-    pdf: '/pdfs/digital-standee-series-smd-p2.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P2.5.pdf'
   },
   {
     id: 'orion-p4-digital-standee',
@@ -325,7 +325,7 @@ export const products: Product[] = [
     maxPowerConsumption: 750,
     avgPowerConsumption: 400,
     weightPerCabinet: 60,
-    pdf: '/pdfs/digital-standee-series-smd-p4.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P4.pdf'
   },
 
   // Rigel Series
@@ -348,7 +348,7 @@ export const products: Product[] = [
     maxPowerConsumption: 700,
     avgPowerConsumption: 300,
     weightPerCabinet: 27,
-    pdf: '/pdfs/rigel-outdoor-p2.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P2.5.pdf'
   },
   // Rigel Series Outdoor P3
   {
@@ -369,7 +369,7 @@ export const products: Product[] = [
     maxPowerConsumption: 450,
     avgPowerConsumption: 200,
     weightPerCabinet: 16,
-    pdf: '/pdfs/rigel-outdoor-p3.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P3.pdf'
   },
   // Rigel Series Outdoor P4
   {
@@ -390,7 +390,7 @@ export const products: Product[] = [
     maxPowerConsumption: 700,
     avgPowerConsumption: 300,
     weightPerCabinet: 27,
-    pdf: '/pdfs/rigel-outdoor-p4.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P4.pdf'
   },
   // Rigel Series Outdoor P6.6
   {
@@ -411,7 +411,7 @@ export const products: Product[] = [
     maxPowerConsumption: 700,
     avgPowerConsumption: 300,
     weightPerCabinet: 27,
-    pdf: '/pdfs/rigel-outdoor-p6.6.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P6.6.pdf'
   },
   // Rigel Series Outdoor P10
   {
@@ -432,7 +432,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 27,
-    pdf: '/pdfs/rigel-outdoor-p10.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P10.pdf'
   },
   // Rigel Series COB P1.5
   {
@@ -453,7 +453,7 @@ export const products: Product[] = [
     maxPowerConsumption: 420,
     avgPowerConsumption: 150,
     weightPerCabinet: 4.5,
-    pdf: '/pdfs/rigel-cob-p1.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+COB+P1.5.pdf'
   },
   // Rigel Series SMD P0.9
   {
@@ -474,7 +474,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: '/pdfs/rigel-smd-p0.9.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P0.9.pdf'
   },
   // Rigel Series SMD P1.5
   {
@@ -495,7 +495,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: '/pdfs/rigel-smd-p1.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P1.5.pdf'
   },
   // Rigel Series SMD P1.8
   {
@@ -516,7 +516,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: '/pdfs/rigel-smd-p1.8.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P1.8.pdf'
   },
   // Rigel Series SMD P1.25
   {
@@ -537,7 +537,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: '/pdfs/rigel-smd-p1.25.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P1.25.pdf'
   },
   // Rigel Series SMD P2.5
   {
@@ -558,7 +558,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: '/pdfs/rigel-smd-p2.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P2.5.pdf'
   },
   // Rigel Series P1.25
   {
@@ -579,7 +579,7 @@ export const products: Product[] = [
     maxPowerConsumption: 420,
     avgPowerConsumption: 150,
     weightPerCabinet: 4.5,
-    pdf: '/pdfs/rigel-cob-p1.25.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+COB+P1.25.pdf'
   },
   // Rigel Series P0.9
   {
@@ -600,7 +600,7 @@ export const products: Product[] = [
     maxPowerConsumption: 420,
     avgPowerConsumption: 150,
     weightPerCabinet: 4.5,
-    pdf: '/pdfs/rigel-cob-p0.9.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+COB+P0.9.pdf'
   },
   
   

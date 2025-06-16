@@ -36,7 +36,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-2xl font-bold text-gray-900">Select Cabinet Product</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Select Product</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
