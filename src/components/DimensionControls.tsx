@@ -13,11 +13,19 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
   onWidthChange,
   onHeightChange
 }) => {
+  // Convert mm to meters for display
+  const toMeters = (mm: number) => (mm / 1000).toFixed(3);
+  const toMM = (m: number) => Math.round(m * 1000);
+
+  // Adjust value in mm, but display in meters
   const adjustValue = (value: number, increment: number) => {
-    return Math.max(100, Number((value + increment).toFixed(0))); // Minimum 100mm
+    // Convert increment to mm (0.1m = 100mm)
+    const incrementMM = increment * 1000;
+    return Math.max(100, value + incrementMM);
   };
 
-  const stepSize = config.unit === 'mm' ? 50 : 0.1; // 50mm steps for mm, 0.1 for other units
+  // Step size in meters (0.1m = 100mm)
+  const stepSize = 0.1;
 
   return (
     <div className="flex items-center gap-8">
@@ -37,13 +45,13 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
             <div className="flex items-center gap-1 bg-white border rounded-lg px-3 py-2 min-w-[100px]">
               <input
                 type="number"
-                value={config.width}
-                onChange={(e) => onWidthChange(Number(e.target.value) || 100)}
+                value={toMeters(config.width)}
+                onChange={(e) => onWidthChange(toMM(Number(e.target.value)))}
                 className="w-full text-center outline-none"
-                step={0.001}
+                step={stepSize}
                 min={0.1}
               />
-              <span className="text-sm text-gray-500">{config.unit}</span>
+              <span className="text-sm text-gray-500">m</span>
             </div>
             <button
               onClick={() => onWidthChange(adjustValue(config.width, stepSize))}
@@ -70,14 +78,14 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
             <div className="flex items-center gap-1 bg-white border rounded-lg px-3 py-2 min-w-[100px]">
               <input
                 type="number"
-                value={Math.round(config.height)}
-                onChange={(e) => onHeightChange(Number(e.target.value) || 100)}
+                value={toMeters(config.height)}
+                onChange={(e) => onHeightChange(toMM(Number(e.target.value)))}
                 className="w-full text-center outline-none"
                 step={stepSize}
-                min={100}
+                min={0.1}
                 disabled={config.aspectRatio !== 'None'}
               />
-              <span className="text-sm text-gray-500">{config.unit}</span>
+              <span className="text-sm text-gray-500">m</span>
             </div>
             <button
               onClick={() => onHeightChange(adjustValue(config.height, stepSize))}
