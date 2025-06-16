@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Product, CabinetGrid } from '../types';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Mail } from 'lucide-react';
+import { QuoteModal } from './QuoteModal';
 
 interface ProductSidebarProps {
   selectedProduct: Product | undefined;
@@ -18,9 +19,38 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const [activeTab, setActiveTab] = useState<'dimensions' | 'power'>('dimensions');
   const [voltage, setVoltage] = useState<number>(220);
   const [amperage, setAmperage] = useState<number>(16);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+
+  const handleQuoteSubmit = (message: string) => {
+    // Here you would typically send the quote request to your backend
+    console.log('Quote request submitted with message:', message);
+    console.log('Selected product:', selectedProduct);
+    console.log('Configuration:', { voltage, amperage });
+    console.log('Cabinet grid:', cabinetGrid);
+  };
+
+  // Get the current configuration for the quote
+  const getCurrentConfig = () => {
+    const maxPowerKW = ((voltage * amperage) / 1000).toFixed(1);
+    return {
+      voltage: `${voltage}V`,
+      amperage: `${amperage}A`,
+      maxPower: `${maxPowerKW}kW`,
+      cabinetGrid: {
+        columns: cabinetGrid.columns,
+        rows: cabinetGrid.rows,
+        totalWidth: `${(cabinetGrid.totalWidth / 1000).toFixed(2)}m`,
+        totalHeight: `${(cabinetGrid.totalHeight / 1000).toFixed(2)}m`,
+        totalCabinets: cabinetGrid.columns * cabinetGrid.rows
+      }
+    }
+  };
   
   const VOLTAGE_OPTIONS = [110, 120, 208, 220, 230, 240];
   const AMPERAGE_OPTIONS = [15, 16, 20];
+  
+  // Calculate max power in kW
+  const maxPowerKW = ((voltage * amperage) / 1000).toFixed(1);
   if (!selectedProduct) {
     return (
       <div className="w-80 bg-white h-screen overflow-y-auto border-r border-gray-200 p-6">
@@ -228,6 +258,29 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
           </div>
         )}
       </div>
+
+      {/* Get a Quote Button */}
+      <div className="p-6 border-t border-gray-200">
+        <button
+          onClick={() => setIsQuoteModalOpen(true)}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
+        >
+          <Mail size={18} />
+          <span>Get a Quote</span>
+        </button>
+      </div>
+
+      {/* Quote Modal */}
+      {selectedProduct && (
+        <QuoteModal
+          isOpen={isQuoteModalOpen}
+          onClose={() => setIsQuoteModalOpen(false)}
+          onSubmit={handleQuoteSubmit}
+          selectedProduct={selectedProduct}
+          config={getCurrentConfig()}
+          cabinetGrid={cabinetGrid}
+        />
+      )}
     </div>
   );
 };
