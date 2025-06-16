@@ -141,13 +141,11 @@ export const DisplayConfigurator: React.FC = () => {
           {/* Summary */}
           <div className="bg-white rounded-xl shadow-sm border p-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">Configuration Summary</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              <ConfigurationSummary 
-                config={config} 
-                cabinetGrid={cabinetGrid} 
-                selectedProduct={selectedProduct} 
-              />
-            </div>
+            <ConfigurationSummary 
+              config={config} 
+              cabinetGrid={cabinetGrid} 
+              selectedProduct={selectedProduct} 
+            />
           </div>
         </div>
       </div>
