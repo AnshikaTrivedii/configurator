@@ -14,25 +14,30 @@ export interface Product {
     width: number;
     height: number;
   };
-  features: string[];
   price?: number;
   // Cabinet dimensions in mm
   cabinetDimensions: {
     width: number;
     height: number;
   };
-  pixelPitch: number;
-  brightness: number;
-  contrastRatio: string;
-  refreshRate: number;
-  depth: number;
-  environment: string;
-  powerDraw: number;
-  series: string;
-  sizeInInches: {
-    width: string;
-    height: string;
+  moduleDimensions: {
+    width: number;
+    height: number;
   };
+  moduleResolution: {
+    width: number;
+    height: number;
+  };
+  moduleQuantity: number;
+  pixelPitch: number;
+  pixelDensity: number;
+  brightness: number;
+  refreshRate: number;
+  environment: string;
+  maxPowerConsumption: number;
+  avgPowerConsumption: number;
+  weightPerCabinet: number;
+  pdf: string;
 }
 
 export interface AspectRatio {

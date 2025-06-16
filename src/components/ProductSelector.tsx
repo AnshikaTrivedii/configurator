@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { Product } from '../types';
+
+interface ProductWithOptionalSize extends Product {
+  sizeInInches?: {
+    width: string;
+    height: string;
+  };
+}
 import { products, categories } from '../data/products';
 
 interface ProductSelectorProps {
@@ -70,7 +77,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
         {/* Products grid */}
         <div className="p-6 overflow-y-auto max-h-[60vh]">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product: ProductWithOptionalSize) => (
               <div
                 key={product.id}
                 className={`relative bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
@@ -99,48 +106,37 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 {/* Product info */}
                 <div className="p-4">
                   <h3 className="font-semibold text-gray-900 text-lg mb-2">{product.name}</h3>
+                  <p className="text-sm text-gray-600 mb-3">{product.category}</p>
 
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-4">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                     <div>
-                      <p className="text-gray-500">Brightness</p>
-                      <p className="font-semibold text-gray-800">{product.brightness} nits</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Contrast Ratio</p>
-                      <p className="font-semibold text-gray-800">{product.contrastRatio}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Depth</p>
-                      <p className="font-semibold text-gray-800">{product.depth} mm</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Environment</p>
-                      <p className="font-semibold text-gray-800">{product.environment}</p>
+                      <p className="text-gray-500">Resolution</p>
+                      <p className="font-medium text-gray-800">
+                        {product.resolution.width} × {product.resolution.height} px
+                      </p>
                     </div>
                     <div>
                       <p className="text-gray-500">Pixel Pitch</p>
-                      <p className="font-semibold text-gray-800">{product.pixelPitch} mm</p>
+                      <p className="font-medium text-gray-800">{product.pixelPitch} mm</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Power Draw</p>
-                      <p className="font-semibold text-gray-800">{product.powerDraw} W/m²</p>
+                      <p className="text-gray-500">Brightness</p>
+                      <p className="font-medium text-gray-800">{product.brightness} nits</p>
                     </div>
                     <div>
                       <p className="text-gray-500">Refresh Rate</p>
-                      <p className="font-semibold text-gray-800">{product.refreshRate} Hz</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Resolution (w x h)</p>
-                      <p className="font-semibold text-gray-800">{product.resolution.width} px × {product.resolution.height} px</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Series</p>
-                      <p className="font-semibold text-gray-800">{product.series}</p>
+                      <p className="font-medium text-gray-800">{product.refreshRate} Hz</p>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-gray-500">Size (w x h)</p>
-                      <p className="font-semibold text-gray-800">{product.cabinetDimensions.width} mm × {product.cabinetDimensions.height} mm</p>
-                      <p className="text-gray-600 text-xs">{product.sizeInInches.width} × {product.sizeInInches.height}</p>
+                      <p className="text-gray-500">Cabinet Size (W × H)</p>
+                      <p className="font-medium text-gray-800">
+                        {product.cabinetDimensions.width} × {product.cabinetDimensions.height} mm
+                      </p>
+                      {product.sizeInInches && (
+                        <p className="text-gray-500 text-xs mt-1">
+                          {product.sizeInInches.width} × {product.sizeInInches.height} (in)
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -150,21 +146,13 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t bg-gray-50 flex justify-end space-x-3">
+        <div className="p-4 border-t bg-gray-50 flex justify-end">
           <button
             onClick={onClose}
-            className="px-6 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
-            Cancel
+            Done
           </button>
-          {selectedProduct && (
-            <button
-              onClick={onClose}
-              className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-            >
-              Use Selected Cabinet
-            </button>
-          )}
         </div>
       </div>
     </div>
