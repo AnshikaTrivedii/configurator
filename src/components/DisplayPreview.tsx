@@ -63,12 +63,27 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     return cabinets;
   };
 
+  // Convert current unit to meters
+  const toMeters = (value: number): string => {
+    switch (config.unit) {
+      case 'mm':
+        return (value / 1000).toFixed(3);
+      case 'px':
+        // Assuming 96 DPI for pixel to meter conversion
+        return (value * 0.0254 / 96).toFixed(3);
+      case 'ft':
+        return (value * 0.3048).toFixed(3);
+      default: // meters
+        return value.toFixed(3);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center space-y-6 py-8">
       {/* Top measurement */}
       <div className="flex items-center space-x-2">
         <div className="h-px bg-gray-300 w-8"></div>
-        <span className="text-sm text-gray-600 font-medium">{config.width} {config.unit}</span>
+        <span className="text-sm text-gray-600 font-medium">{toMeters(config.width)} m</span>
         <div className="h-px bg-gray-300 w-8"></div>
       </div>
 
@@ -78,7 +93,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
         <div className="flex flex-col items-center mr-4">
           <div className="w-px bg-gray-300 h-8"></div>
           <span className="text-sm text-gray-600 font-medium transform -rotate-90 whitespace-nowrap">
-            {config.height} {config.unit}
+            {toMeters(config.height)} m
           </span>
           <div className="w-px bg-gray-300 h-8"></div>
         </div>
@@ -122,7 +137,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
         <div className="flex flex-col items-center ml-4">
           <div className="w-px bg-gray-300 h-8"></div>
           <span className="text-sm text-gray-600 font-medium transform rotate-90 whitespace-nowrap">
-            {config.height} {config.unit}
+            {toMeters(config.height)} m
           </span>
           <div className="w-px bg-gray-300 h-8"></div>
         </div>
@@ -132,7 +147,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
       <div className="text-center space-y-2">
         <div className="flex items-center space-x-2">
           <div className="h-px bg-gray-300 w-8"></div>
-          <span className="text-sm text-gray-600 font-medium">{config.width} {config.unit}</span>
+          <span className="text-sm text-gray-600 font-medium">{toMeters(config.width)} m</span>
           <div className="h-px bg-gray-300 w-8"></div>
         </div>
         <div className="text-lg font-semibold text-gray-700">
