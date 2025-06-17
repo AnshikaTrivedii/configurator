@@ -34,6 +34,14 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const avgPower = (powerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(1);
   const maxPower = (powerPerCabinet * 3 * cabinetGrid.columns * cabinetGrid.rows).toFixed(1); // Assuming 3x max power
 
+  // Calculate pixel density (pixels per meter)
+  const pixelsPerMeterWidth = (selectedProduct.resolution.width * cabinetGrid.columns) / (config.width / 1000); // pixels per meter width
+  const pixelsPerMeterHeight = (selectedProduct.resolution.height * cabinetGrid.rows) / (config.height / 1000); // pixels per meter height
+  const pixelDensity = Math.round(pixelsPerMeterWidth * pixelsPerMeterHeight); // Total pixels per square meter
+  
+  // Calculate total pixels
+  const totalPixels = (selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows).toLocaleString();
+
   // Configuration items with icons and colors
   const configItems = [
     {
@@ -91,6 +99,20 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
       value: `${maxPower} W`,
       bgColor: 'bg-red-50',
       textColor: 'text-red-700'
+    },
+    {
+      icon: <Boxes className="w-5 h-5 text-green-500" />,
+      title: 'Pixel Density',
+      value: `${pixelDensity} px²/m²`,
+      bgColor: 'bg-green-50',
+      textColor: 'text-green-700'
+    },
+    {
+      icon: <Maximize2 className="w-5 h-5 text-cyan-500" />,
+      title: 'Total Pixels',
+      value: totalPixels,
+      bgColor: 'bg-cyan-50',
+      textColor: 'text-cyan-700'
     }
   ];
 

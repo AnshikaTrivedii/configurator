@@ -2,7 +2,180 @@ import { Product } from '../types';
 
 export const products: Product[] = [
 
+  // Orion P1.5 Flexible Series Indoor Display
+  {
+    id: "orion-p15-flexible-indoor",
+    name: "Orion P1.5mm Flexible Series LED display",
+    category: "Flexible Series",
+    image: "/products/flexible-series/Flexible Series Indoor P1.5.png", // Not provided in PDF
+    resolution: {
+      width: 213, // Calculated: 320mm ÷ 1.5mm pixel pitch
+      height: 107  // Calculated: 160mm ÷ 1.5mm pixel pitch
+    },
+    price: undefined, // Not provided in PDF
+    cabinetDimensions: {
+      width: 320, // Using module size as cabinet (flexible display)
+      height: 160
+    },
+    moduleDimensions: {
+      width: 320,
+      height: 160
+    },
+    moduleResolution: {
+      width: 213, // Calculated: 320mm ÷ 1.5mm pixel pitch
+      height: 107  // Calculated: 160mm ÷ 1.5mm pixel pitch
+    },
+    moduleQuantity: 1, // Single flexible module
+    pixelPitch: 1.5,
+    pixelDensity: 409600, // pixels/m²
+    brightness: 1000, // cd/m²
+    refreshRate: 3840, // Hz (minimum)
+    environment: "Indoor",
+    maxPowerConsumption: 700, // W
+    avgPowerConsumption: 350, // W
+    weightPerCabinet: 0, // Not specified in PDF
+    pdf: "Flexible Series Indoor P1.5.pdf"
+  },
 
+  // Orion P1.8 Flexible Series Indoor Display  
+  {
+    id: "orion-p18-flexible-indoor",
+    name: "Orion P1.8mm Flexible Series LED display",
+    category: "Flexible Series",
+    image: "/products/flexible-series/Flexible Series Indoor P1.8.png", // Not provided in PDF
+    resolution: {
+      width: 171, // Calculated: 320mm ÷ 1.875mm pixel pitch (spec shows 1.875mm)
+      height: 85   // Calculated: 160mm ÷ 1.875mm pixel pitch
+    },
+    price: undefined, // Not provided in PDF
+    cabinetDimensions: {
+      width: 320, // Using module size as cabinet (flexible display)
+      height: 160
+    },
+    moduleDimensions: {
+      width: 320,
+      height: 160
+    },
+    moduleResolution: {
+      width: 171, // Calculated: 320mm ÷ 1.875mm pixel pitch
+      height: 85   // Calculated: 160mm ÷ 1.875mm pixel pitch
+    },
+    moduleQuantity: 1, // Single flexible module
+    pixelPitch: 1.875, // Actual spec from PDF
+    pixelDensity: 284444, // pixels/m²
+    brightness: 1000, // cd/m²
+    refreshRate: 3840, // Hz (minimum)
+    environment: "Indoor",
+    maxPowerConsumption: 700, // W
+    avgPowerConsumption: 350, // W
+    weightPerCabinet: 0, // Not specified in PDF
+    pdf: "Flexible Series Indoor P1.8.pdf"
+  },
+
+  // Orion P2.5 Flexible Series Indoor Display
+  {
+    id: "orion-p25-flexible-indoor",
+    name: "Orion P2.5mm Flexible Series LED display",
+    category: "Flexible Series",
+    image: "/products/flexible-series/Flexible Series Indoor P2.5.png", // Not provided in PDF
+    resolution: {
+      width: 128, // Calculated: 320mm ÷ 2.5mm pixel pitch
+      height: 64   // Calculated: 160mm ÷ 2.5mm pixel pitch
+    },
+    price: undefined, // Not provided in PDF
+    cabinetDimensions: {
+      width: 320, // Using module size as cabinet (flexible display)
+      height: 160
+    },
+    moduleDimensions: {
+      width: 320,
+      height: 160
+    },
+    moduleResolution: {
+      width: 128, // Calculated: 320mm ÷ 2.5mm pixel pitch
+      height: 64   // Calculated: 160mm ÷ 2.5mm pixel pitch
+    },
+    moduleQuantity: 1, // Single flexible module
+    pixelPitch: 2.5,
+    pixelDensity: 160000, // pixels/m²
+    brightness: 1200, // cd/m²
+    refreshRate: 3840, // Hz (minimum)
+    environment: "Indoor",
+    maxPowerConsumption: 700, // W
+    avgPowerConsumption: 350, // W
+    weightPerCabinet: 0, // Not specified in PDF
+    pdf: "Flexible Series Indoor P2.5.pdf"
+  },
+
+  // Orion P3 Flexible Series Indoor Display
+  {
+    id: "orion-p3-flexible-indoor",
+    name: "Orion P3mm Flexible Series LED display",
+    category: "Flexible Series",
+    image: "/products/flexible-series/Flexible Series Indoor P3.png", // Not provided in PDF
+    resolution: {
+      width: 107, // Calculated: 320mm ÷ 3mm pixel pitch
+      height: 53   // Calculated: 160mm ÷ 3mm pixel pitch
+    },
+    price: undefined, // Not provided in PDF
+    cabinetDimensions: {
+      width: 320, // Using module size as cabinet (flexible display)
+      height: 160
+    },
+    moduleDimensions: {
+      width: 320,
+      height: 160
+    },
+    moduleResolution: {
+      width: 107, // Calculated: 320mm ÷ 3mm pixel pitch
+      height: 53   // Calculated: 160mm ÷ 3mm pixel pitch
+    },
+    moduleQuantity: 1, // Single flexible module
+    pixelPitch: 3.0,
+    pixelDensity: 111111, // pixels/m²
+    brightness: 1200, // cd/m²
+    refreshRate: 3840, // Hz (minimum)
+    environment: "Indoor",
+    maxPowerConsumption: 700, // W
+    avgPowerConsumption: 350, // W
+    weightPerCabinet: 0, // Not specified in PDF
+    pdf: "Flexible Series Indoor P3.pdf"
+  },
+
+  // Orion P4 Flexible Series Indoor Display
+  {
+    id: "orion-p4-flexible-indoor",
+    name: "Orion P4mm Flexible Series LED display",
+    category: "Flexible Series",
+    image: "/products/flexible-series/Flexible Series Indoor P4.png", // Not provided in PDF
+    resolution: {
+      width: 80, // Calculated: 320mm ÷ 4mm pixel pitch
+      height: 40  // Calculated: 160mm ÷ 4mm pixel pitch
+    },
+    price: undefined, // Not provided in PDF
+    cabinetDimensions: {
+      width: 320, // Using module size as cabinet (flexible display)
+      height: 160
+    },
+    moduleDimensions: {
+      width: 320,
+      height: 160
+    },
+    moduleResolution: {
+      width: 80, // Calculated: 320mm ÷ 4mm pixel pitch
+      height: 40  // Calculated: 160mm ÷ 4mm pixel pitch
+    },
+    moduleQuantity: 1, // Single flexible module
+    pixelPitch: 4.0,
+    pixelDensity: 62500, // pixels/m²
+    brightness: 1200, // cd/m²
+    refreshRate: 3840, // Hz (minimum)
+    environment: "Indoor",
+    maxPowerConsumption: 700, // W
+    avgPowerConsumption: 350, // W
+    weightPerCabinet: 0, // Not specified in PDF
+    pdf: "Flexible Series Indoor P4.pdf"
+  },
 
   // Bellatrix Series
   {
