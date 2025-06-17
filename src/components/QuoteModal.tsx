@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Mail } from 'lucide-react';
+import { submitQuoteRequest, QuoteRequest } from '../api/quote';
 
 interface Product {
   name: string;
@@ -53,23 +54,48 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedProduct) return;
+    
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const quoteData: QuoteRequest = {
+        product: {
+          name: selectedProduct.name,
+          pixelPitch: selectedProduct.pixelPitch,
+          resolution: selectedProduct.resolution,
+          cabinetDimensions: selectedProduct.cabinetDimensions,
+        },
+        cabinetGrid: cabinetGrid,
+        message: message,
+        displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
+          width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
+          height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+        } : undefined,
+        aspectRatio: selectedProduct.resolution ? 
+          calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined
+      };
+      
+      await submitQuoteRequest(quoteData);
+      
       onSubmit(message);
-      setIsSubmitting(false);
       setIsSubmitted(true);
       
-      // Reset form after 2 seconds
+      // Reset form after 10 seconds
       setTimeout(() => {
         setMessage('');
         setIsSubmitted(false);
         onClose();
-      }, 2000);
-    }, 1000);
+      }, 10000);
+    } catch (error) {
+      console.error('Error submitting quote:', error);
+      // You might want to show an error message to the user here
+      alert('Failed to submit quote request. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
