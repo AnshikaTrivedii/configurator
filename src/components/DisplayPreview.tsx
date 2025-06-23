@@ -82,7 +82,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
         cabinets.push(
           <div
             key={`${row}-${col}`}
-            className="absolute border border-gray-400 bg-white bg-opacity-30 backdrop-blur-sm flex items-center justify-center"
+            className="absolute border border-gray-400 bg-transparent flex items-center justify-center"
             style={{
               left: `${col * cabinetWidth}px`,
               top: `${row * cabinetHeight}px`,
@@ -91,7 +91,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             }}
           >
             {/* Cabinet content */}
-            <div className="text-white text-center text-xs opacity-80">
+            <div className="text-white text-center text-xs bg-black bg-opacity-40 px-2 py-1 rounded">
               <div className="font-semibold">
                 {selectedProduct ? selectedProduct.name.split(' ')[0] : 'Cabinet'}
               </div>
@@ -150,13 +150,15 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           style={{
             width: `${displayDimensions.width}px`,
             height: `${displayDimensions.height}px`,
-            backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
+            backgroundImage: backgroundImage 
+              ? `url(${backgroundImage})` 
+              : 'linear-gradient(to bottom right, #6366f1, #8b5cf6, #ec4899)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
             cursor: 'pointer',
             position: 'relative',
-            backgroundColor: backgroundImage ? 'transparent' : 'rgba(0, 0, 0, 0.05)'
+            backgroundColor: 'transparent'
           }}
           onClick={() => fileInputRef.current?.click()}
           onDragOver={handleDragOver}
