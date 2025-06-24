@@ -60,6 +60,15 @@ export interface Product {
   driveMethod?: string;
   storageTempHumidity?: string;
   certificates?: string;
+  ledConfiguration?: string;
+  minViewDistance?: string;
+  brightnessAdjustment?: string;
+  availableColorPalette?: string;
+  inputPowerFrequency?: string;
+  defectRate?: string;
+  dataTransferMethod?: string;
+  controlMethod?: string;
+  controlDistance?: string;
 }
 
 export interface AspectRatio {
