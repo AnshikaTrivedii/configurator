@@ -38,6 +38,21 @@ export interface Product {
   avgPowerConsumption: number;
   weightPerCabinet: number;
   pdf: string;
+  viewingAngle?: string;
+  colorDepth?: string;
+  voltage?: string;
+  serviceAccess?: string;
+  ipGrade?: string;
+  operatingTemperature?: string;
+  operatingHumidity?: string;
+  lifeTime?: number;
+  mtbf?: number;
+  ledChip?: string;
+  pcb?: string;
+  driverIC?: string;
+  powerSupply?: string;
+  controller?: string;
+  cabinetMaterial?: string;
 }
 
 export interface AspectRatio {
