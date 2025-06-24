@@ -38,8 +38,9 @@ const LEDPanelNode: React.FC<LEDPanelNodeProps> = ({ data }) => (
     )}
 
     {/* LED Panel Icon */}
-    <div className="flex justify-center mb-1">
+    <div className="flex justify-center mb-1 gap-1">
       <Monitor className="w-4 h-4 text-blue-600" />
+      <Cpu className="w-4 h-4 text-blue-400" />
     </div>
 
     {/* Label */}
