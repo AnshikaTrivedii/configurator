@@ -11,6 +11,8 @@ import { Product } from '../types';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
+import { PowerWiringView } from './PowerWiringView';
+import { DataWiringView } from './DataWiringView';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
 // See: https://github.com/wojtekmaj/react-pdf/wiki/Frequently-Asked-Questions#i-am-getting-error-warning-setting-up-fake-worker-failed-cannot-read-property-getdocument-of-undefined
@@ -30,8 +32,9 @@ export const DisplayConfigurator: React.FC = () => {
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
-    const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
+  const [activeView, setActiveView] = useState<'preview' | 'power' | 'data'>('preview');
 
   const cabinetGrid = calculateCabinetGrid(selectedProduct);
 
@@ -42,7 +45,6 @@ export const DisplayConfigurator: React.FC = () => {
     updateWidth(totalWidth);
     updateHeight(totalHeight);
   };
-
 
   // Update display when product changes
   useEffect(() => {
@@ -92,32 +94,29 @@ export const DisplayConfigurator: React.FC = () => {
         {/* Main content area */}
         <div className="flex-1 overflow-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-            {/* Controls */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <div className="space-y-6">
-                <DimensionControls
-                  config={config}
-                  onWidthChange={updateWidth}
-                  onHeightChange={updateHeight}
-                  selectedProduct={selectedProduct}
-                />
-                
-                <AspectRatioSelector
-                  aspectRatios={aspectRatios}
-                  selectedRatio={config.aspectRatio}
-                  onRatioChange={updateAspectRatio}
-                />
-              </div>
+            {/* View Toggle Buttons */}
+            <div className="flex gap-2 mb-4">
+              <button onClick={() => setActiveView('preview')} className={`px-4 py-2 rounded-lg font-medium border ${activeView === 'preview' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border-blue-600'}`}>Preview</button>
+              <button onClick={() => setActiveView('power')} className={`px-4 py-2 rounded-lg font-medium border ${activeView === 'power' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border-blue-600'}`}>Power Wiring</button>
+              <button onClick={() => setActiveView('data')} className={`px-4 py-2 rounded-lg font-medium border ${activeView === 'data' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border-blue-600'}`}>Data Wiring</button>
             </div>
 
-            {/* Preview */}
+            {/* Conditional View Rendering */}
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-              <DisplayPreview
-                config={config}
-                displayDimensions={displayDimensions}
-                selectedProduct={selectedProduct}
-                cabinetGrid={cabinetGrid}
-              />
+              {activeView === 'preview' && (
+                <DisplayPreview
+                  config={config}
+                  displayDimensions={displayDimensions}
+                  selectedProduct={selectedProduct}
+                  cabinetGrid={cabinetGrid}
+                />
+              )}
+              {activeView === 'power' && (
+                <PowerWiringView config={config} />
+              )}
+              {activeView === 'data' && (
+                <DataWiringView config={config} />
+              )}
             </div>
 
             {/* Product Selection Button */}
