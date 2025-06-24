@@ -26,9 +26,8 @@ const PowerNode: React.FC<PowerNodeProps> = ({ data }) => (
     />
 
     {/* Power Icon */}
-    <div className="flex justify-center mb-2 gap-1">
+    <div className="flex justify-center mb-2">
       <Power className="w-6 h-6 text-red-600" />
-      <Zap className="w-6 h-6 text-yellow-400" />
     </div>
 
     {/* Label */}
