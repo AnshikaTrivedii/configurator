@@ -53,6 +53,13 @@ export interface Product {
   powerSupply?: string;
   controller?: string;
   cabinetMaterial?: string;
+  ledType?: string;
+  contrastRatio?: string;
+  colorTemperature?: string;
+  frameChangingFrequently?: string;
+  driveMethod?: string;
+  storageTempHumidity?: string;
+  certificates?: string;
 }
 
 export interface AspectRatio {
