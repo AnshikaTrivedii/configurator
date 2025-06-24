@@ -19,6 +19,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   cabinetGrid
 }) => {
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [backgroundVideo, setBackgroundVideo] = useState<string | null>(null);
+  const [backgroundType, setBackgroundType] = useState<'image' | 'video' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -27,7 +29,15 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setBackgroundImage(event.target?.result as string);
+        if (file.type.startsWith('image/')) {
+          setBackgroundImage(event.target?.result as string);
+          setBackgroundVideo(null);
+          setBackgroundType('image');
+        } else if (file.type.startsWith('video/')) {
+          setBackgroundVideo(event.target?.result as string);
+          setBackgroundImage(null);
+          setBackgroundType('video');
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -45,12 +55,19 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
+    if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setBackgroundImage(event.target?.result as string);
+        if (file.type.startsWith('image/')) {
+          setBackgroundImage(event.target?.result as string);
+          setBackgroundVideo(null);
+          setBackgroundType('image');
+        } else if (file.type.startsWith('video/')) {
+          setBackgroundVideo(event.target?.result as string);
+          setBackgroundImage(null);
+          setBackgroundType('video');
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -59,6 +76,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   const removeBackground = (e: React.MouseEvent) => {
     e.stopPropagation();
     setBackgroundImage(null);
+    setBackgroundVideo(null);
+    setBackgroundType(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -150,9 +169,9 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           style={{
             width: `${displayDimensions.width}px`,
             height: `${displayDimensions.height}px`,
-            backgroundImage: backgroundImage 
+            backgroundImage: backgroundType === 'image' && backgroundImage 
               ? `url(${backgroundImage})` 
-              : 'linear-gradient(to bottom right, #6366f1, #8b5cf6, #ec4899)',
+              : backgroundType !== 'video' ? 'linear-gradient(to bottom right, #6366f1, #8b5cf6, #ec4899)' : undefined,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
@@ -165,19 +184,31 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
+          {/* Render video if uploaded */}
+          {backgroundType === 'video' && backgroundVideo && (
+            <video
+              src={backgroundVideo}
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ zIndex: 0 }}
+              autoPlay
+              loop
+              muted
+            />
+          )}
+          
           {/* Background upload interface */}
-          {!backgroundImage && (
+          {!backgroundImage && !backgroundVideo && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
               <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <p className="text-sm text-gray-600">Click to upload background image</p>
+              <p className="text-sm text-gray-600">Click to upload background image or video</p>
               <p className="text-xs text-gray-500 mt-1">or drag and drop</p>
             </div>
           )}
           
           {/* Remove background button */}
-          {backgroundImage && (
+          {(backgroundImage || backgroundVideo) && (
             <button
               onClick={removeBackground}
               className="absolute top-2 right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-1.5 transition-all duration-200"
@@ -195,7 +226,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
-            accept="image/*"
+            accept="image/*,video/*"
           />
           {/* Cabinet grid */}
           {renderCabinetGrid()}
@@ -244,9 +275,9 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
-            {backgroundImage ? 'Change Background' : 'Add Background'}
+            {backgroundType === 'video' && backgroundVideo ? 'Change Background Video' : backgroundType === 'image' && backgroundImage ? 'Change Background Image' : 'Add Background'}
           </button>
-          {backgroundImage && (
+          {backgroundType === 'video' && backgroundVideo && (
             <button
               onClick={removeBackground}
               className="px-3 py-1.5 text-sm text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors duration-200 flex items-center"
