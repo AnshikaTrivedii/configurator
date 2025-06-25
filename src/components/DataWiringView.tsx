@@ -10,11 +10,9 @@ import {
   Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-// If Configuration type is needed, import from types or adjust as necessary
-// import { Configuration } from '../types';
+import { Product, CabinetGrid } from '../types';
 
-// DataHubNode component
-const DataHubNode = ({ data }: { data: any }) => (
+const DataHubNode = ({ data }: any) => (
   <div className="relative bg-gradient-to-br from-blue-100 to-blue-200 border-3 border-blue-500 rounded-xl shadow-xl p-6 min-w-40 text-center">
     <div className="flex justify-center mb-2">
       <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -31,8 +29,7 @@ const DataHubNode = ({ data }: { data: any }) => (
   </div>
 );
 
-// DataCabinetNode component
-const DataCabinetNode = ({ data }: { data: any }) => (
+const DataCabinetNode = ({ data }: any) => (
   <div className="relative bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-400 rounded-lg shadow-md p-4 min-w-28 text-center">
     <div className="text-sm font-bold text-blue-700 mb-1">{data.label}</div>
     <div className="text-xs text-blue-500 font-medium uppercase tracking-wide">DATA</div>
@@ -53,18 +50,16 @@ const nodeTypes = {
   dataCabinet: DataCabinetNode,
 };
 
-// If you have a Configuration type, use it for the config prop
-type DataWiringViewProps = {
-  config: any; // Replace 'any' with 'Configuration' if available
-};
+interface Props {
+  product: Product;
+  cabinetGrid: CabinetGrid;
+}
 
-export const DataWiringView: React.FC<DataWiringViewProps> = ({ config }) => {
+const DataWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
   const generateNodesAndEdges = useMemo(() => {
-    const cabinetWidth = 0.5;
-    const cabinetHeight = 0.5;
-    const cabinetsHorizontal = Math.ceil(config.width / cabinetWidth);
-    const cabinetsVertical = Math.ceil(config.height / cabinetHeight);
-    const totalCabinets = cabinetsHorizontal * cabinetsVertical;
+    const cols = cabinetGrid.columns;
+    const rows = cabinetGrid.rows;
+    const totalCabinets = cols * rows;
 
     const nodes = [];
     const edges = [];
@@ -82,10 +77,10 @@ export const DataWiringView: React.FC<DataWiringViewProps> = ({ config }) => {
     const spacingY = 120;
 
     let nodeId = 1;
-    for (let row = 0; row < cabinetsVertical; row++) {
+    for (let row = 0; row < rows; row++) {
       const isEven = row % 2 === 0;
-      const rowStart = isEven ? 0 : cabinetsHorizontal - 1;
-      const rowEnd = isEven ? cabinetsHorizontal : -1;
+      const rowStart = isEven ? 0 : cols - 1;
+      const rowEnd = isEven ? cols : -1;
       const step = isEven ? 1 : -1;
 
       for (let col = rowStart; col !== rowEnd; col += step) {
@@ -95,7 +90,7 @@ export const DataWiringView: React.FC<DataWiringViewProps> = ({ config }) => {
           id: `cabinet-${nodeId}`,
           type: 'dataCabinet',
           position: { x: posX, y: posY },
-          data: { label: `Cabinet ${nodeId}` },
+          data: { label: `Cabinet ${nodeId}`, additionalInfo: "" },
         });
         nodeId++;
       }
@@ -113,10 +108,10 @@ export const DataWiringView: React.FC<DataWiringViewProps> = ({ config }) => {
       });
 
       for (let i = 1; i < totalCabinets; i++) {
-        const sourceRow = Math.floor((i - 1) / cabinetsHorizontal);
+        const sourceRow = Math.floor((i - 1) / cols);
         const isSourceRowEven = sourceRow % 2 === 0;
 
-        if (i % cabinetsHorizontal === 0) {
+        if (i % cols === 0) {
           // Vertical connection
           edges.push({
             id: `data-${i}-to-${i + 1}`,
@@ -151,19 +146,18 @@ export const DataWiringView: React.FC<DataWiringViewProps> = ({ config }) => {
     }
 
     return { nodes, edges };
-  }, [config]);
+  }, [cabinetGrid]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(generateNodesAndEdges.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(generateNodesAndEdges.edges);
 
   useEffect(() => {
-    const newData = generateNodesAndEdges;
-    setNodes(newData.nodes);
-    setEdges(newData.edges);
+    setNodes(generateNodesAndEdges.nodes);
+    setEdges(generateNodesAndEdges.edges);
   }, [generateNodesAndEdges, setNodes, setEdges]);
 
   return (
-    <div className="w-full h-full bg-gradient-to-br from-slate-50 to-slate-100" style={{ minHeight: 600 }}>
+    <div style={{ width: '100%', height: '600px', background: 'linear-gradient(to bottom right, #f8fafc, #e2e8f0)' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -183,4 +177,6 @@ export const DataWiringView: React.FC<DataWiringViewProps> = ({ config }) => {
       </ReactFlow>
     </div>
   );
-}; 
+};
+
+export default DataWiringView;
