@@ -172,7 +172,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             backgroundImage: backgroundType === 'image' && backgroundImage 
               ? `url(${backgroundImage})` 
               : backgroundType !== 'video' ? 'linear-gradient(to bottom right, #6366f1, #8b5cf6, #ec4899)' : undefined,
-            backgroundSize: 'cover',
+            backgroundSize: 'contain',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
             cursor: 'pointer',
@@ -188,7 +188,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           {backgroundType === 'video' && backgroundVideo && (
             <video
               src={backgroundVideo}
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-contain"
               style={{ zIndex: 0 }}
               autoPlay
               loop

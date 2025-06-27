@@ -18,7 +18,9 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   onRowsChange,
   onSelectProductClick,
 }) => {
-  const [activeTab, setActiveTab] = useState<'dimensions' | 'power'>('dimensions');
+  const [activeTab, setActiveTab] = useState<'dimensions' | 'power' | 'processing'>('dimensions');
+  const [processorType, setProcessorType] = useState<'video' | 'sending'>('video');
+  const [controller, setController] = useState('HDR Master 4K');
   const [voltage, setVoltage] = useState<number>(220);
   const [amperage, setAmperage] = useState<number>(16);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
@@ -112,6 +114,16 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
           >
             Power
           </button>
+          <button 
+            onClick={() => setActiveTab('processing')}
+            className={`flex-1 py-4 px-6 text-center text-sm font-medium ${
+              activeTab === 'processing' 
+                ? 'text-blue-600 border-b-2 border-blue-600' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Processor
+          </button>
         </nav>
       </div>
 
@@ -192,7 +204,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               </div>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'power' ? (
           <div className="space-y-6">
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-3">Power Configuration</h3>
@@ -261,6 +273,59 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center space-x-2 mb-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-blue-100 text-blue-600">
+                {/* Simple processor icon using SVG */}
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" stroke="#2563eb" strokeWidth="2"/><rect x="8" y="8" width="8" height="8" rx="1.5" stroke="#2563eb" strokeWidth="2"/></svg>
+              </span>
+              <span className="font-semibold text-lg text-gray-900">Processing</span>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                Select Processor
+                <span className="ml-1 text-blue-500 cursor-pointer" title="Choose the type of processor for your display.">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#2563eb" strokeWidth="2"/><text x="12" y="16" textAnchor="middle" fontSize="12" fill="#2563eb">i</text></svg>
+                </span>
+              </label>
+              <div className="flex space-x-2 mb-2">
+                <button
+                  className={`px-4 py-2 rounded font-medium ${processorType === 'video' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                  onClick={() => {
+                    setProcessorType('video');
+                    setController('HDR Master 4K');
+                  }}
+                >
+                  Video Processor
+                </button>
+                <button
+                  className={`px-4 py-2 rounded font-medium ${processorType === 'sending' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                  onClick={() => {
+                    setProcessorType('sending');
+                    setController('NovaPro UHD Jr');
+                  }}
+                >
+                  Sending Card
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Controller</label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={controller}
+                onChange={e => setController(e.target.value)}
+              >
+                {processorType === 'video' ? (
+                  <option>HDR Master 4K</option>
+                ) : (
+                  <option>NovaPro UHD Jr</option>
+                )}
+                {/* Add more options as needed */}
+              </select>
             </div>
           </div>
         )}
