@@ -19,8 +19,18 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   onSelectProductClick,
 }) => {
   const [activeTab, setActiveTab] = useState<'dimensions' | 'power' | 'processing'>('dimensions');
+  const videoProcessorOptions = [
+    'NovaPro UHD Jr',
+    'VX400',
+    'VX600',
+    'VX1000',
+    'VX Pro Series'
+  ];
+  const sendingCardOptions = [
+    'Novastar MSD300' // or your original sending card option
+  ];
   const [processorType, setProcessorType] = useState<'video' | 'sending'>('video');
-  const [controller, setController] = useState('HDR Master 4K');
+  const [controller, setController] = useState(videoProcessorOptions[0]);
   const [voltage, setVoltage] = useState<number>(220);
   const [amperage, setAmperage] = useState<number>(16);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
@@ -53,6 +63,11 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const VOLTAGE_OPTIONS = [110, 120, 208, 220, 230, 240];
   const AMPERAGE_OPTIONS = [15, 16, 20];
   
+  // When switching processorType, reset controller to the first option of the new type
+  const handleProcessorTypeChange = (type: 'video' | 'sending') => {
+    setProcessorType(type);
+    setController(type === 'video' ? videoProcessorOptions[0] : sendingCardOptions[0]);
+  };
 
   if (!selectedProduct) {
     return (
@@ -294,19 +309,13 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               <div className="flex space-x-2 mb-2">
                 <button
                   className={`px-4 py-2 rounded font-medium ${processorType === 'video' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-                  onClick={() => {
-                    setProcessorType('video');
-                    setController('HDR Master 4K');
-                  }}
+                  onClick={() => handleProcessorTypeChange('video')}
                 >
                   Video Processor
                 </button>
                 <button
                   className={`px-4 py-2 rounded font-medium ${processorType === 'sending' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-                  onClick={() => {
-                    setProcessorType('sending');
-                    setController('NovaPro UHD Jr');
-                  }}
+                  onClick={() => handleProcessorTypeChange('sending')}
                 >
                   Sending Card
                 </button>
@@ -319,12 +328,9 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                 value={controller}
                 onChange={e => setController(e.target.value)}
               >
-                {processorType === 'video' ? (
-                  <option>HDR Master 4K</option>
-                ) : (
-                  <option>NovaPro UHD Jr</option>
-                )}
-                {/* Add more options as needed */}
+                {(processorType === 'video' ? videoProcessorOptions : sendingCardOptions).map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
               </select>
             </div>
           </div>
