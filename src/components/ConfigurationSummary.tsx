@@ -18,8 +18,13 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   // Convert mm to meters with 3 decimal places
   const toMeters = (mm: number) => (mm / 1000).toFixed(3);
   
+  // Convert mm to inches with 2 decimal places
+  const toInches = (mm: number) => (mm / 25.4).toFixed(2);
+  
   // Calculate display area in square meters
   const displayArea = (config.width * config.height) / 1000000; // mm² to m²
+  // Calculate display area in square inches
+  const displayAreaInches = (config.width * config.height) / (25.4 * 25.4); // mm² to in²
   
   // Calculate diagonal in meters
   const diagonalMeters = Math.sqrt(Math.pow(config.width/1000, 2) + Math.pow(config.height/1000, 2));
@@ -47,7 +52,12 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     {
       icon: <Ruler className="w-5 h-5 text-blue-500" />,
       title: 'Size (w × h)',
-      value: `${toMeters(config.width)} m × ${toMeters(config.height)} m`,
+      value: (
+        <>
+          {toMeters(config.width)} m × {toMeters(config.height)} m<br />
+          ({toInches(config.width)} in × {toInches(config.height)} in)
+        </>
+      ),
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-700'
     },

@@ -24,10 +24,37 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   selectedProduct
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  
-  const filteredProducts = selectedCategory === 'All' 
-    ? products 
-    : products.filter(p => p.category === selectedCategory);
+  const [environment, setEnvironment] = useState<'Indoor' | 'Outdoor'>('Indoor');
+  const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
+
+  // Normalize environment for comparison
+  const normalizeEnv = (env: string) => env.trim().toLowerCase();
+  const normalizeType = (type: string | undefined) => (type || '').toLowerCase();
+
+  // Helper to check SMD/COB type
+  const getProductType = (product: Product) => {
+    if (product.ledType) {
+      if (normalizeType(product.ledType).includes('cob')) return 'COB';
+      if (normalizeType(product.ledType).includes('smd')) return 'SMD';
+    }
+    if (product.name.toLowerCase().includes('cob')) return 'COB';
+    if (product.name.toLowerCase().includes('smd')) return 'SMD';
+    return undefined;
+  };
+
+  let filteredProducts = products.filter(
+    (p) => normalizeEnv(p.environment) === normalizeEnv(environment)
+  );
+
+  if (environment === 'Indoor' && indoorType !== 'All') {
+    filteredProducts = filteredProducts.filter(
+      (p) => getProductType(p) === indoorType
+    );
+  }
+
+  filteredProducts = filteredProducts.filter(
+    (p) => selectedCategory === 'All' || p.category === selectedCategory
+  );
 
   if (!isOpen) return null;
 
@@ -44,6 +71,75 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
             <X size={24} />
           </button>
         </div>
+
+        {/* Environment filter */}
+        <div className="p-6 border-b bg-gray-50 flex gap-4 items-center">
+          <span className="font-medium text-gray-700">Environment:</span>
+          <button
+            onClick={() => { setEnvironment('Indoor'); setIndoorType('All'); }}
+            className={`px-4 py-2 rounded-lg border transition-all ${
+              environment === 'Indoor'
+                ? 'bg-blue-500 text-white border-blue-500'
+                : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+            }`}
+          >
+            Indoor
+          </button>
+          <button
+            onClick={() => { setEnvironment('Outdoor'); setIndoorType('All'); }}
+            className={`px-4 py-2 rounded-lg border transition-all ${
+              environment === 'Outdoor'
+                ? 'bg-blue-500 text-white border-blue-500'
+                : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+            }`}
+          >
+            Outdoor
+          </button>
+        </div>
+
+        {/* Outdoor info message */}
+        {environment === 'Outdoor' && (
+          <div className="p-6 border-b bg-gray-50 text-blue-700 font-medium">
+            All outdoor products are SMD.
+          </div>
+        )}
+
+        {/* Indoor type filter (SMD/COB) */}
+        {environment === 'Indoor' && (
+          <div className="p-6 border-b bg-gray-50 flex gap-4 items-center">
+            <span className="font-medium text-gray-700">Type:</span>
+            <button
+              onClick={() => setIndoorType('All')}
+              className={`px-4 py-2 rounded-lg border transition-all ${
+                indoorType === 'All'
+                  ? 'bg-blue-500 text-white border-blue-500'
+                  : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setIndoorType('SMD')}
+              className={`px-4 py-2 rounded-lg border transition-all ${
+                indoorType === 'SMD'
+                  ? 'bg-blue-500 text-white border-blue-500'
+                  : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+              }`}
+            >
+              SMD
+            </button>
+            <button
+              onClick={() => setIndoorType('COB')}
+              className={`px-4 py-2 rounded-lg border transition-all ${
+                indoorType === 'COB'
+                  ? 'bg-blue-500 text-white border-blue-500'
+                  : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+              }`}
+            >
+              COB
+            </button>
+          </div>
+        )}
 
         {/* Category filter */}
         <div className="p-6 border-b bg-gray-50">

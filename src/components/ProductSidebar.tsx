@@ -18,7 +18,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   onRowsChange,
   onSelectProductClick,
 }) => {
-  const [activeTab, setActiveTab] = useState<'dimensions' | 'power' | 'processing'>('dimensions');
+  const [activeTab, setActiveTab] = useState<'dimensions' | 'processing'>('dimensions');
   const videoProcessorOptions = [
     'NovaPro UHD Jr',
     'VX400',
@@ -31,25 +31,17 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   ];
   const [processorType, setProcessorType] = useState<'video' | 'sending'>('video');
   const [controller, setController] = useState(videoProcessorOptions[0]);
-  const [voltage, setVoltage] = useState<number>(220);
-  const [amperage, setAmperage] = useState<number>(16);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
 
   const handleQuoteSubmit = (message: string) => {
     // Here you would typically send the quote request to your backend
     console.log('Quote request submitted with message:', message);
     console.log('Selected product:', selectedProduct);
-    console.log('Configuration:', { voltage, amperage });
-    console.log('Cabinet grid:', cabinetGrid);
   };
 
   // Get the current configuration for the quote
   const getCurrentConfig = () => {
-    const maxPowerKW = ((voltage * amperage) / 1000).toFixed(1);
     return {
-      voltage: `${voltage}V`,
-      amperage: `${amperage}A`,
-      maxPower: `${maxPowerKW}kW`,
       cabinetGrid: {
         columns: cabinetGrid.columns,
         rows: cabinetGrid.rows,
@@ -59,9 +51,6 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
       }
     }
   };
-  
-  const VOLTAGE_OPTIONS = [110, 120, 208, 220, 230, 240];
-  const AMPERAGE_OPTIONS = [15, 16, 20];
   
   // When switching processorType, reset controller to the first option of the new type
   const handleProcessorTypeChange = (type: 'video' | 'sending') => {
@@ -83,6 +72,32 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
         </div>
       </div>
     );
+  }
+
+  // Calculate total pixels (width * height) only if selectedProduct is defined
+  const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
+  const totalPixelsMillion = totalPixels / 1_000_000;
+
+  // Controller selection logic based on pixel count in millions
+  const controllerMapping = [
+    { max: 0.65, name: 'TB2' },
+    { max: 1.3, name: 'TB40' },
+    { max: 2.3, name: 'TB60' },
+    { max: 1.3, name: 'VX1' },
+    { max: 2.6, name: 'VX400' },
+    { max: 2.6, name: 'VX400 Pro' },
+    { max: 3.9, name: 'VX600' },
+    { max: 3.9, name: 'VX600 Pro' },
+    { max: 6.5, name: 'VX1000' },
+    { max: 6.5, name: 'VX1000 Pro' },
+    { max: 13, name: '4K PRIME' },
+  ];
+  let selectedController = '4K PRIME';
+  for (const mapping of controllerMapping) {
+    if (totalPixelsMillion <= mapping.max) {
+      selectedController = mapping.name;
+      break;
+    }
   }
 
   return (
@@ -118,16 +133,6 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
             }`}
           >
             Dimensions
-          </button>
-          <button 
-            onClick={() => setActiveTab('power')}
-            className={`flex-1 py-4 px-6 text-center text-sm font-medium ${
-              activeTab === 'power' 
-                ? 'text-blue-600 border-b-2 border-blue-600' 
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Power
           </button>
           <button 
             onClick={() => setActiveTab('processing')}
@@ -219,77 +224,6 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               </div>
             </div>
           </div>
-        ) : activeTab === 'power' ? (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Power Configuration</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Voltage (V)
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={voltage}
-                      onChange={(e) => setVoltage(Number(e.target.value))}
-                      className="w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg bg-white border"
-                    >
-                      {VOLTAGE_OPTIONS.map((value) => (
-                        <option key={`voltage-${value}`} value={value}>
-                          {value} V
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                      <ChevronDown size={16} />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amperage (A)
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={amperage}
-                      onChange={(e) => setAmperage(Number(e.target.value))}
-                      className="w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg bg-white border"
-                    >
-                      {AMPERAGE_OPTIONS.map((value) => (
-                        <option key={`amperage-${value}`} value={value}>
-                          {value} A
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                      <ChevronDown size={16} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-gray-200 mt-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Power Summary</h3>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex justify-between">
-                      <span>Voltage:</span>
-                      <span className="font-medium text-gray-900">{voltage} V</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Amperage:</span>
-                      <span className="font-medium text-gray-900">{amperage} A</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Max Power:</span>
-                      <span className="font-medium text-gray-900">
-                        {((voltage * amperage) / 1000).toFixed(1)} kW
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         ) : (
           <div className="space-y-4 pt-2">
             <div className="flex items-center space-x-2 mb-2">
@@ -301,37 +235,15 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-                Select Processor
-                <span className="ml-1 text-blue-500 cursor-pointer" title="Choose the type of processor for your display.">
+                Selected Processor
+                <span className="ml-1 text-blue-500 cursor-pointer" title="Controller is automatically selected based on total pixels.">
                   <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#2563eb" strokeWidth="2"/><text x="12" y="16" textAnchor="middle" fontSize="12" fill="#2563eb">i</text></svg>
                 </span>
               </label>
-              <div className="flex space-x-2 mb-2">
-                <button
-                  className={`px-4 py-2 rounded font-medium ${processorType === 'video' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-                  onClick={() => handleProcessorTypeChange('video')}
-                >
-                  Video Processor
-                </button>
-                <button
-                  className={`px-4 py-2 rounded font-medium ${processorType === 'sending' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-                  onClick={() => handleProcessorTypeChange('sending')}
-                >
-                  Sending Card
-                </button>
+              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 font-semibold">
+                {selectedController}
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Controller</label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                value={controller}
-                onChange={e => setController(e.target.value)}
-              >
-                {(processorType === 'video' ? videoProcessorOptions : sendingCardOptions).map(option => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
+              <div className="text-xs text-gray-500 mt-1">Total Pixels: {totalPixels.toLocaleString()} ({totalPixelsMillion.toFixed(2)} million)</div>
             </div>
           </div>
         )}

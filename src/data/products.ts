@@ -628,27 +628,6 @@ export const products: Product[] = [
     weightPerCabinet: 4.5,
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+COB+P1.5.pdf'
   },
-  // Rigel Series SMD P0.9
-  {
-    id: 'rigel-smd-p0.9',
-    name: 'Rigel Indoor SMD P0.9',
-    category: 'Rigel Series',
-    image: '/products/rigel-series/indoor-P0.9.png',
-    resolution: { width: 667, height: 375 }, // Calculated from cabinet dimensions and pixel pitch
-    cabinetDimensions: { width: 600, height: 337.5 },
-    moduleDimensions: { width: 300, height: 168.75 },
-    moduleResolution: { width: 333, height: 188 }, // Calculated from module dimensions and pixel pitch
-    moduleQuantity: 2, // 2x1 modules
-    pixelPitch: 0.9,
-    pixelDensity: 1234444,
-    brightness: 700,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P0.9.pdf'
-  },
   // Rigel Series SMD P1.5
   {
     id: 'rigel-smd-p1.5',
@@ -776,42 +755,6 @@ export const products: Product[] = [
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+COB+P0.9.pdf'
   },
   
-  // Betel Series Indoor SMD P0.9
-  {
-    id: 'betel-indoor-smd-p0.9',
-    name: 'Betel Series Indoor SMD P0.9',
-    category: 'Betel Series',
-    image: '/products/Betel-series/indoor-0.91.png',
-    resolution: { width: 667, height: 375 },
-    cabinetDimensions: { width: 600, height: 337.5 },
-    moduleDimensions: { width: 300, height: 168.75 },
-    moduleResolution: { width: 333, height: 188 },
-    moduleQuantity: 4, // 2x2
-    pixelPitch: 0.9,
-    pixelDensity: 1234444,
-    brightness: 800,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/betel-series/Betelgeuse+Indoor+SMD+P0.9mm.pdf',
-    viewingAngle: '160/160',
-    colorDepth: '16 Bit',
-    voltage: '220v',
-    serviceAccess: 'Front',
-    ipGrade: '31/31',
-    operatingTemperature: '0℃~+50℃',
-    operatingHumidity: '0-50%',
-    lifeTime: 100000,
-    mtbf: 10000,
-    ledChip: 'Nation star Gold Bond',
-    pcb: '4 Layer',
-    driverIC: 'MBI/ICN',
-    powerSupply: 'Meanwell',
-    controller: 'Nova',
-    cabinetMaterial: 'Die Cast',
-  },
   // Betel Series Indoor SMD P1.25
   {
     id: 'betel-indoor-smd-p1.25',
