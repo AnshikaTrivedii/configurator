@@ -28,6 +28,8 @@ type QuoteModalProps = {
   selectedProduct?: Product;
   config?: any; 
   cabinetGrid?: CabinetGrid; 
+  processor?: string;
+  mode?: string;
 };
 
 // Function to calculate greatest common divisor
@@ -46,7 +48,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   onClose,
   onSubmit,
   selectedProduct,
-  cabinetGrid
+  config,
+  cabinetGrid,
+  processor,
+  mode
 }) => {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -154,6 +159,19 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                         <div className="flex justify-between">
                           <span className="text-gray-600">Cabinet Grid:</span>
                           <span>{cabinetGrid.columns} × {cabinetGrid.rows}</span>
+                        </div>
+                      )}
+                      {/* Processor and Mode */}
+                      {processor && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Processor:</span>
+                          <span>{processor}</span>
+                        </div>
+                      )}
+                      {mode && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Mode:</span>
+                          <span>{mode}</span>
                         </div>
                       )}
                     </div>

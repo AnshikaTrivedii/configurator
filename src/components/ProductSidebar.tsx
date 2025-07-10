@@ -9,6 +9,8 @@ interface ProductSidebarProps {
   onColumnsChange: (columns: number) => void;
   onRowsChange: (rows: number) => void;
   onSelectProductClick: () => void;
+  onControllerChange?: (controller: string) => void;
+  onModeChange?: (mode: string) => void;
 }
 
 export const ProductSidebar: React.FC<ProductSidebarProps> = ({
@@ -17,6 +19,8 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   onColumnsChange,
   onRowsChange,
   onSelectProductClick,
+  onControllerChange,
+  onModeChange
 }) => {
   const [activeTab, setActiveTab] = useState<'dimensions' | 'processing'>('dimensions');
   const videoProcessorOptions = [
@@ -32,6 +36,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const [processorType, setProcessorType] = useState<'video' | 'sending'>('video');
   const [controller, setController] = useState(videoProcessorOptions[0]);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
 
   const handleQuoteSubmit = (message: string) => {
     // Here you would typically send the quote request to your backend
@@ -55,27 +60,13 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   // When switching processorType, reset controller to the first option of the new type
   const handleProcessorTypeChange = (type: 'video' | 'sending') => {
     setProcessorType(type);
-    setController(type === 'video' ? videoProcessorOptions[0] : sendingCardOptions[0]);
+    const newController = type === 'video' ? videoProcessorOptions[0] : sendingCardOptions[0];
+    setController(newController);
+    if (onControllerChange) onControllerChange(newController);
   };
 
-  if (!selectedProduct) {
-    return (
-      <div className="w-80 bg-white h-screen overflow-y-auto border-r border-gray-200 p-6 flex flex-col items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">Select a product to begin</p>
-          <button
-            onClick={onSelectProductClick}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-          >
-            Select a Product
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // Calculate total pixels (width * height) only if selectedProduct is defined
-  const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
+  const totalPixels = selectedProduct ? (selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows) : 0;
   const totalPixelsMillion = totalPixels / 1_000_000;
 
   // Controller selection logic based on pixel count in millions
@@ -98,6 +89,32 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
       selectedController = mapping.name;
       break;
     }
+  }
+
+  // Call onControllerChange with the auto-selected controller whenever it changes
+  React.useEffect(() => {
+    if (onControllerChange) onControllerChange(selectedController);
+  }, [selectedController]);
+
+  // Call onModeChange when cloudSolution changes
+  React.useEffect(() => {
+    if (onModeChange && cloudSolution) onModeChange(cloudSolution);
+  }, [cloudSolution]);
+
+  if (!selectedProduct) {
+    return (
+      <div className="w-80 bg-white h-screen overflow-y-auto border-r border-gray-200 p-6 flex flex-col items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">Select a product to begin</p>
+          <button
+            onClick={onSelectProductClick}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+          >
+            Select a Product
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -236,14 +253,29 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
                 Selected Processor
-                <span className="ml-1 text-blue-500 cursor-pointer" title="Controller is automatically selected based on total pixels.">
-                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#2563eb" strokeWidth="2"/><text x="12" y="16" textAnchor="middle" fontSize="12" fill="#2563eb">i</text></svg>
-                </span>
               </label>
               <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 font-semibold">
                 {selectedController}
               </div>
               <div className="text-xs text-gray-500 mt-1">Total Pixels: {totalPixels.toLocaleString()} ({totalPixelsMillion.toFixed(2)} million)</div>
+            </div>
+            {/* Mode Selector - moved below processor */}
+            <div className="mt-4 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mode</label>
+              <div className="flex space-x-2">
+                <button
+                  className={`px-4 py-2 rounded-lg border font-medium transition-all ${cloudSolution === 'Synchronous' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-100'}`}
+                  onClick={() => setCloudSolution('Synchronous')}
+                >
+                  Synchronous
+                </button>
+                <button
+                  className={`px-4 py-2 rounded-lg border font-medium transition-all ${cloudSolution === 'Asynchronous' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-100'}`}
+                  onClick={() => setCloudSolution('Asynchronous')}
+                >
+                  Asynchronous
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -269,6 +301,8 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
           selectedProduct={selectedProduct}
           config={getCurrentConfig()}
           cabinetGrid={cabinetGrid}
+          processor={selectedController}
+          mode={cloudSolution || ''}
         />
       )}
     </div>

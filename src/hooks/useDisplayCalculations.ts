@@ -4,8 +4,8 @@ import { DisplayConfig, AspectRatio, CabinetGrid, Product } from '../types';
 // Predefined aspect ratios
 const aspectRatios: AspectRatio[] = [
   { label: '16:9', value: 16 / 9, name: '16:9' },
-  { label: '21:9', value: 21 / 9, name: '21:9' },
-  { label: '32:9', value: 32 / 9, name: '32:9' },
+  { label: '4:3', value: 4 / 3, name: '4:3' },
+  { label: '1:1', value: 1, name: '1:1' },
   { label: 'None', value: 0, name: 'None' }
 ];
 
@@ -70,21 +70,36 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
       setConfig(prev => ({ ...prev, aspectRatio }));
       return;
     }
-  
+
     const ratio = aspectRatios.find(r => r.name === aspectRatio)?.value || 1;
     const cabinet = getCabinetDimensions();
-  
-    // Choose a base: fix rows (can change this to fix columns if you prefer)
-    const rows = Math.max(1, Math.round(config.height / cabinet.height)); // ensure minimum 1 row
-    const height = rows * cabinet.height;
-  
-    // Calculate required columns to achieve selected aspect ratio
-    const columns = Math.max(1, Math.round((ratio * height) / cabinet.width));
-    const width = columns * cabinet.width;
-  
+
+    // Use the larger of current width or height as the base
+    const base = Math.max(config.width, config.height);
+    let newWidth, newHeight;
+    if (aspectRatio === '1:1') {
+      // Square
+      const sideCabinets = Math.max(1, Math.round(base / Math.max(cabinet.width, cabinet.height)));
+      const side = sideCabinets * Math.max(cabinet.width, cabinet.height);
+      newWidth = side;
+      newHeight = side;
+    } else {
+      // For other ratios
+      // Decide which dimension to use as base to maximize area
+      if (base === config.width) {
+        // Use width as base
+        newWidth = Math.max(1, Math.round(base / cabinet.width)) * cabinet.width;
+        newHeight = Math.max(1, Math.round((newWidth / ratio) / cabinet.height)) * cabinet.height;
+      } else {
+        // Use height as base
+        newHeight = Math.max(1, Math.round(base / cabinet.height)) * cabinet.height;
+        newWidth = Math.max(1, Math.round((newHeight * ratio) / cabinet.width)) * cabinet.width;
+      }
+    }
+
     setConfig({
-      width,
-      height,
+      width: newWidth,
+      height: newHeight,
       aspectRatio,
       unit: config.unit
     });

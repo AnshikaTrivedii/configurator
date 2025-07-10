@@ -13,12 +13,18 @@ import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 import DataWiringView from './DataWiringView';
 import PowerWiringView from './PowerWiringView';
+import { UserType } from './UserTypeModal';
+import { QuoteModal } from './QuoteModal';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
 // See: https://github.com/wojtekmaj/react-pdf/wiki/Frequently-Asked-Questions#i-am-getting-error-warning-setting-up-fake-worker-failed-cannot-read-property-getdocument-of-undefined
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
-export const DisplayConfigurator: React.FC = () => {
+interface DisplayConfiguratorProps {
+  userType: UserType | null;
+}
+
+export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userType }) => {
   const {
     config,
     aspectRatios,
@@ -35,6 +41,10 @@ export const DisplayConfigurator: React.FC = () => {
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState('preview');
+
+  // New state for processor/controller and mode
+  const [selectedController, setSelectedController] = useState<string>('');
+  const [selectedMode, setSelectedMode] = useState<string>('');
 
   const cabinetGrid = calculateCabinetGrid(selectedProduct);
 
@@ -85,6 +95,9 @@ export const DisplayConfigurator: React.FC = () => {
             onColumnsChange={handleColumnsChange}
             onRowsChange={handleRowsChange}
             onSelectProductClick={() => setIsProductSelectorOpen(true)}
+            // New props to get controller and mode
+            onControllerChange={setSelectedController}
+            onModeChange={setSelectedMode}
           />
         </div>
 
@@ -201,9 +214,14 @@ export const DisplayConfigurator: React.FC = () => {
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-900">Price per Cabinet</h4>
+                      <h4 className="font-medium text-gray-900">Price</h4>
                       <p className="text-gray-600">
-                        {selectedProduct.price ? `$${selectedProduct.price}` : 'Contact for pricing'}
+                        {(() => {
+                          let price = selectedProduct.price;
+                          if (userType === 'siChannel') price = selectedProduct.siChannelPrice;
+                          if (userType === 'reseller') price = selectedProduct.resellerPrice;
+                          return price ? `₹${price.toLocaleString('en-IN')}` : 'Contact for pricing';
+                        })()}
                       </p>
                     </div>
                     <div>
@@ -278,6 +296,9 @@ export const DisplayConfigurator: React.FC = () => {
                 config={config}
                 cabinetGrid={cabinetGrid}
                 selectedProduct={selectedProduct}
+                userType={userType}
+                processor={selectedController}
+                mode={selectedMode}
               />
             </div>
           </div>
@@ -291,6 +312,19 @@ export const DisplayConfigurator: React.FC = () => {
         onSelectProduct={handleProductSelect}
         selectedProduct={selectedProduct}
       />
+      {/* Quote Modal */}
+      {selectedProduct && (
+        <QuoteModal
+          isOpen={false} // You may need to control this with state if not already
+          onClose={() => {}}
+          onSubmit={() => {}}
+          selectedProduct={selectedProduct}
+          config={config}
+          cabinetGrid={cabinetGrid}
+          processor={selectedController}
+          mode={selectedMode}
+        />
+      )}
     </div>
   );
 };

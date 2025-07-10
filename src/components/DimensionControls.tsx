@@ -87,7 +87,6 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
             <button
               onClick={() => onHeightChange(adjustValue(config.height, -1, false))}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-              disabled={config.aspectRatio !== 'None'}
             >
               <Minus size={16} />
             </button>
@@ -99,14 +98,12 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
                 className="w-full text-center outline-none"
                 step={stepSize}
                 min={0.1}
-                disabled={config.aspectRatio !== 'None'}
               />
               <span className="text-sm text-gray-500">m</span>
             </div>
             <button
               onClick={() => onHeightChange(adjustValue(config.height, 1, false))}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-              disabled={config.aspectRatio !== 'None'}
             >
               <Plus size={16} />
             </button>

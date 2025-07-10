@@ -1,17 +1,24 @@
 import React from 'react';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { Ruler, Zap, ZapOff, Move3d, Monitor, Boxes, Square, Maximize2 } from 'lucide-react';
+import { UserType } from './UserTypeModal';
 
 interface ConfigurationSummaryProps {
   config: DisplayConfig;
   cabinetGrid: CabinetGrid;
   selectedProduct?: Product;
+  userType?: UserType | null;
+  processor?: string;
+  mode?: string;
 }
 
 export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   config,
   cabinetGrid,
-  selectedProduct
+  selectedProduct,
+  userType,
+  processor,
+  mode
 }) => {
   if (!selectedProduct) return null;
 
@@ -23,6 +30,9 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   
   // Calculate display area in square meters
   const displayArea = (config.width * config.height) / 1000000; // mm² to m²
+  // Calculate display area in square feet
+  const displayAreaFeet = displayArea * 10.7639;
+  
   // Calculate display area in square inches
   const displayAreaInches = (config.width * config.height) / (25.4 * 25.4); // mm² to in²
   
@@ -46,6 +56,13 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   
   // Calculate total pixels
   const totalPixels = (selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows).toLocaleString();
+
+  // Calculate total price based on user type and area in square feet
+  const totalCabinets = cabinetGrid.columns * cabinetGrid.rows;
+  let pricePerSqFt = selectedProduct.price;
+  if (userType === 'siChannel') pricePerSqFt = selectedProduct.siChannelPrice;
+  if (userType === 'reseller') pricePerSqFt = selectedProduct.resellerPrice;
+  const totalPrice = pricePerSqFt ? displayAreaFeet * pricePerSqFt : undefined;
 
   // Configuration items with icons and colors
   const configItems = [
@@ -85,7 +102,12 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     {
       icon: <Square className="w-5 h-5 text-rose-500" />,
       title: 'Display Area',
-      value: `${displayArea.toFixed(2)} m²`,
+      value: (
+        <>
+          {displayArea.toFixed(2)} m²<br />
+          ({displayAreaFeet.toFixed(2)} ft²)
+        </>
+      ),
       bgColor: 'bg-rose-50',
       textColor: 'text-rose-700'
     },
@@ -123,6 +145,20 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
       value: totalPixels,
       bgColor: 'bg-cyan-50',
       textColor: 'text-cyan-700'
+    },
+    {
+      icon: <Boxes className="w-5 h-5 text-pink-500" />, // You can use a different icon if you prefer
+      title: 'Processor',
+      value: processor || 'N/A',
+      bgColor: 'bg-pink-50',
+      textColor: 'text-pink-700'
+    },
+    {
+      icon: <Boxes className="w-5 h-5 text-gray-500" />, // You can use a different icon if you prefer
+      title: 'Mode',
+      value: mode || 'N/A',
+      bgColor: 'bg-gray-50',
+      textColor: 'text-gray-700'
     }
   ];
 
@@ -147,6 +183,16 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             </div>
           </div>
         ))}
+      </div>
+      <div className="mt-4">
+        {pricePerSqFt !== undefined && (
+          <div className="flex justify-between items-center bg-green-50 rounded-lg px-4 py-3 mt-2">
+            <span className="font-semibold text-green-800">Total Price</span>
+            <span className="text-green-900 font-bold text-lg">
+              ₹{totalPrice?.toLocaleString('en-IN', { maximumFractionDigits: 0 })} <span className="text-xs font-normal text-green-700">({displayAreaFeet.toFixed(2)} ft² × ₹{pricePerSqFt.toLocaleString('en-IN')}/ft²)</span>
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

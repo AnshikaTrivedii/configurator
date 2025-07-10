@@ -196,7 +196,10 @@ export const products: Product[] = [
     maxPowerConsumption: 420,
     avgPowerConsumption: 150,
     weightPerCabinet: 4.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/Bellatrix+Series+Indoor+COB+P0.9.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/Bellatrix+Series+Indoor+COB+P0.9.pdf',
+    price: 49300,
+    siChannelPrice: 54900,
+    resellerPrice: 51850,
   },
   {
     id: 'bellatrix-indoor-cob-p1.25',
@@ -216,7 +219,10 @@ export const products: Product[] = [
     maxPowerConsumption: 420,
     avgPowerConsumption: 150,
     weightPerCabinet: 4.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+COB+P1.25.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+COB+P1.25.pdf',
+    price: 27200,
+    siChannelPrice: 30000,
+    resellerPrice: 28600,
   },
   {
     id: 'bellatrix-indoor-cob-p1.5',
@@ -236,7 +242,10 @@ export const products: Product[] = [
     maxPowerConsumption: 420,
     avgPowerConsumption: 150,
     weightPerCabinet: 4.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+COB+P1.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+COB+P1.5.pdf',
+    price: 24300,
+    siChannelPrice: 27000,
+    resellerPrice: 25650,
   },
   {
     id: 'bellatrix-indoor-smd-p0.9',
@@ -244,7 +253,7 @@ export const products: Product[] = [
     category: 'Bellatrix Series',
     image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P0.9.png',
     resolution: { width: 667, height: 375 },
-    cabinetDimensions: { width: 600, height: 337.5 },
+    cabinetDimensions: { width: 640, height: 480 },
     moduleDimensions: { width: 300, height: 168.75 },
     moduleResolution: { width: 333, height: 188 },
     moduleQuantity: 4, // 2x2
@@ -256,7 +265,10 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P0.9.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P0.9.pdf',
+    price: undefined,
+    siChannelPrice: undefined,
+    resellerPrice: undefined,
   },
   {
     id: 'bellatrix-indoor-smd-p1.25',
@@ -276,7 +288,10 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P1.25.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P1.25.pdf',
+    price: 21300,
+    siChannelPrice: 23500,
+    resellerPrice: 22350,
   },
   {
     id: 'bellatrix-indoor-smd-p1.5',
@@ -296,7 +311,10 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P1.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P1.5.pdf',
+    price: 16900,
+    siChannelPrice: 18500,
+    resellerPrice: 17750,
   },
   {
     id: 'bellatrix-indoor-smd-p1.8',
@@ -316,7 +334,10 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P1.8.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P1.8.pdf',
+    price: 15400,
+    siChannelPrice: 16500,
+    resellerPrice: 15150,
   },
   {
     id: 'bellatrix-indoor-smd-p2.5',
@@ -336,7 +357,10 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 350,
     weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P2.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+SMD+P2.5.pdf',
+    price: 8800,
+    siChannelPrice: 9500,
+    resellerPrice: 9050,
   },
   {
     id: 'bellatrix-outdoor-smd-p2.5',
@@ -356,7 +380,10 @@ export const products: Product[] = [
     maxPowerConsumption: 700,
     avgPowerConsumption: 350,
     weightPerCabinet: 27,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P2.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P2.5.pdf',
+    price: 13200,
+    siChannelPrice: 14500,
+    resellerPrice: 13850,
   },
   {
     id: 'bellatrix-outdoor-smd-p3',
@@ -376,7 +403,33 @@ export const products: Product[] = [
     maxPowerConsumption: 450,
     avgPowerConsumption: 250,
     weightPerCabinet: 16,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P3.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P3.pdf',
+    price: 10600,
+    siChannelPrice: 11500,
+    resellerPrice: 11150,
+  },
+  {
+    id: 'bellatrix-outdoor-smd-p3-lh',
+    name: 'Bellatrix Series Outdoor SMD P3 LH',
+    category: 'Bellatrix Series',
+    image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P3 LH.png',
+    resolution: { width: 192, height: 192 },
+    cabinetDimensions: { width: 576, height: 576 },
+    moduleDimensions: { width: 192, height: 192 },
+    moduleResolution: { width: 64, height: 64 },
+    moduleQuantity: 16, // 4x4
+    pixelPitch: 3.0,
+    pixelDensity: 111000,
+    brightness: 4000,
+    refreshRate: 1920,
+    environment: 'outdoor',
+    maxPowerConsumption: 450,
+    avgPowerConsumption: 250,
+    weightPerCabinet: 16,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P3+LH.pdf',
+    price: 10600,
+    siChannelPrice: 11500,
+    resellerPrice: 11150,
   },
   {
     id: 'bellatrix-outdoor-smd-p4',
@@ -396,7 +449,10 @@ export const products: Product[] = [
     maxPowerConsumption: 700,
     avgPowerConsumption: 400,
     weightPerCabinet: 27,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P4.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P4.pdf',
+    price: 8100,
+    siChannelPrice: 8700,
+    resellerPrice: 8450,
   },
   {
     id: 'bellatrix-outdoor-smd-p6.6',
@@ -416,7 +472,10 @@ export const products: Product[] = [
     maxPowerConsumption: 700,
     avgPowerConsumption: 400,
     weightPerCabinet: 27,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P6.6.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P6.6.pdf',
+    price: 7100,
+    siChannelPrice: 7500,
+    resellerPrice: 7350,
   },
   {
     id: 'bellatrix-outdoor-smd-p10',
@@ -436,7 +495,10 @@ export const products: Product[] = [
     maxPowerConsumption: 750,
     avgPowerConsumption: 350,
     weightPerCabinet: 27,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P10.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P10.pdf',
+    price: 5900,
+    siChannelPrice: 6200,
+    resellerPrice: 6050,
   },
 
   // Digital Standee Series
@@ -521,7 +583,10 @@ export const products: Product[] = [
     maxPowerConsumption: 700,
     avgPowerConsumption: 300,
     weightPerCabinet: 27,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P2.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P2.5.pdf',
+    price: 15400,
+    siChannelPrice: 16500,
+    resellerPrice: 16050,
   },
   // Rigel Series Outdoor P3
   {
@@ -542,7 +607,10 @@ export const products: Product[] = [
     maxPowerConsumption: 450,
     avgPowerConsumption: 200,
     weightPerCabinet: 16,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P3.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P3.pdf',
+    price: 13200,
+    siChannelPrice: 14000,
+    resellerPrice: 13600,
   },
   // Rigel Series Outdoor P4
   {
@@ -563,7 +631,10 @@ export const products: Product[] = [
     maxPowerConsumption: 700,
     avgPowerConsumption: 300,
     weightPerCabinet: 27,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P4.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P4.pdf',
+    price: 10300,
+    siChannelPrice: 11000,
+    resellerPrice: 10750,
   },
   // Rigel Series Outdoor P6.6
   {
@@ -584,7 +655,10 @@ export const products: Product[] = [
     maxPowerConsumption: 700,
     avgPowerConsumption: 300,
     weightPerCabinet: 27,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P6.6.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P6.6.pdf',
+    price: 8300,
+    siChannelPrice: 8700,
+    resellerPrice: 8550,
   },
   // Rigel Series Outdoor P10
   {
@@ -605,70 +679,59 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 27,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P10.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P10.pdf',
+    price: 6600,
+    siChannelPrice: 6900,
+    resellerPrice: 6750,
   },
-  // Rigel Series COB P1.5
+  // Rigel Series P0.9 (COB)
   {
-    id: 'rigel-cob-p1.5',
-    name: 'Rigel Indoor COB P1.5',
+    id: 'rigel-cob-p0.9',
+    name: 'Orion Rigel Indoor COB P0.9',
     category: 'Rigel Series',
-    image: '/products/rigel-series/indoor-P1.5.png',
-    resolution: { width: 384, height: 216 },
+    image: '/products/rigel-series/indoor-P0.9.png',
+    resolution: { width: 640, height: 360 },
     cabinetDimensions: { width: 600, height: 337.5 },
     moduleDimensions: { width: 150, height: 168.75 },
-    moduleResolution: { width: 96, height: 108 },
+    moduleResolution: { width: 160, height: 180 },
     moduleQuantity: 8, // 4x2 modules
-    pixelPitch: 1.5625,
-    pixelDensity: 409600,
+    pixelPitch: 0.9375,
+    pixelDensity: 1137778,
     brightness: 600,
     refreshRate: 3840,
     environment: 'indoor',
     maxPowerConsumption: 420,
     avgPowerConsumption: 150,
     weightPerCabinet: 4.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+COB+P1.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+COB+P0.9.pdf',
+    price: 60000,
+    siChannelPrice: 63000,
+    resellerPrice: 61850,
   },
-  // Rigel Series SMD P1.5
+  // Rigel Series SMD P0.9 (not present, skip)
+  // Rigel Series P1.25 (COB)
   {
-    id: 'rigel-smd-p1.5',
-    name: 'Rigel Indoor SMD P1.5',
+    id: 'rigel-cob-p1.25',
+    name: 'Orion Rigel Indoor COB P1.25',
     category: 'Rigel Series',
-    image: '/products/rigel-series/indoor-P1.5.png',
-    resolution: { width: 426, height: 320 }, // Calculated from cabinet dimensions and pixel pitch
-    cabinetDimensions: { width: 640, height: 480 },
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 213, height: 107 }, // Calculated from module dimensions and pixel pitch
-    moduleQuantity: 4, // 2x2 modules
-    pixelPitch: 1.5,
-    pixelDensity: 444000,
-    brightness: 700,
+    image: '/products/rigel-series/indoor-P1.25.png',
+    resolution: { width: 480, height: 270 },
+    cabinetDimensions: { width: 600, height: 337.5 },
+    moduleDimensions: { width: 150, height: 168.75 },
+    moduleResolution: { width: 120, height: 135 },
+    moduleQuantity: 8, // 4x2 modules
+    pixelPitch: 1.25,
+    pixelDensity: 640000,
+    brightness: 600,
     refreshRate: 3840,
     environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P1.5.pdf'
-  },
-  // Rigel Series SMD P1.8
-  {
-    id: 'rigel-smd-p1.8',
-    name: 'Rigel Indoor SMD P1.8',
-    category: 'Rigel Series',
-    image: '/products/rigel-series/indoor-P1.8.png',
-    resolution: { width: 344, height: 258 }, // Calculated from module dimensions and pixel pitch
-    cabinetDimensions: { width: 640, height: 480 },
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 172, height: 86 }, // Calculated from module dimensions and pixel pitch
-    moduleQuantity: 4, // 2x2 modules
-    pixelPitch: 1.86,
-    pixelDensity: 284444,
-    brightness: 850,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P1.8.pdf'
+    maxPowerConsumption: 420,
+    avgPowerConsumption: 150,
+    weightPerCabinet: 4.5,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+COB+P1.25.pdf',
+    price: 25700,
+    siChannelPrice: 27500,
+    resellerPrice: 27050,
   },
   // Rigel Series SMD P1.25
   {
@@ -689,7 +752,82 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P1.25.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P1.25.pdf',
+    price: 23200,
+    siChannelPrice: 24500,
+    resellerPrice: 24850,
+  },
+  // Rigel Series P1.5 (COB)
+  {
+    id: 'rigel-cob-p1.5',
+    name: 'Rigel Indoor COB P1.5',
+    category: 'Rigel Series',
+    image: '/products/rigel-series/indoor-P1.5.png',
+    resolution: { width: 384, height: 216 },
+    cabinetDimensions: { width: 600, height: 337.5 },
+    moduleDimensions: { width: 150, height: 168.75 },
+    moduleResolution: { width: 96, height: 108 },
+    moduleQuantity: 8, // 4x2 modules
+    pixelPitch: 1.5625,
+    pixelDensity: 409600,
+    brightness: 600,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 420,
+    avgPowerConsumption: 150,
+    weightPerCabinet: 4.5,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+COB+P1.5.pdf',
+    price: 27200,
+    siChannelPrice: 28500,
+    resellerPrice: 29050,
+  },
+  // Rigel Series SMD P1.5
+  {
+    id: 'rigel-smd-p1.5',
+    name: 'Rigel Indoor SMD P1.5',
+    category: 'Rigel Series',
+    image: '/products/rigel-series/indoor-P1.5.png',
+    resolution: { width: 426, height: 320 }, // Calculated from cabinet dimensions and pixel pitch
+    cabinetDimensions: { width: 640, height: 480 },
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 213, height: 107 }, // Calculated from module dimensions and pixel pitch
+    moduleQuantity: 4, // 2x2 modules
+    pixelPitch: 1.5,
+    pixelDensity: 444000,
+    brightness: 700,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 650,
+    avgPowerConsumption: 225,
+    weightPerCabinet: 6.5,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P1.5.pdf',
+    price: 19900,
+    siChannelPrice: 21000,
+    resellerPrice: 21750,
+  },
+  // Rigel Series SMD P1.8
+  {
+    id: 'rigel-smd-p1.8',
+    name: 'Rigel Indoor SMD P1.8',
+    category: 'Rigel Series',
+    image: '/products/rigel-series/indoor-P1.8.png',
+    resolution: { width: 344, height: 258 }, // Calculated from module dimensions and pixel pitch
+    cabinetDimensions: { width: 640, height: 480 },
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 172, height: 86 }, // Calculated from module dimensions and pixel pitch
+    moduleQuantity: 4, // 2x2 modules
+    pixelPitch: 1.86,
+    pixelDensity: 284444,
+    brightness: 850,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 650,
+    avgPowerConsumption: 225,
+    weightPerCabinet: 6.5,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P1.8.pdf',
+    price: 18800,
+    siChannelPrice: 19500,
+    resellerPrice: 19850,
   },
   // Rigel Series SMD P2.5
   {
@@ -710,51 +848,132 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 225,
     weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P2.5.pdf'
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+SMD+P2.5.pdf',
+    price: 11000,
+    siChannelPrice: 11500,
+    resellerPrice: 11750,
   },
-  // Rigel Series P1.25
+  // Rigel Series Outdoor P2.5
   {
-    id: 'rigel-cob-p1.25',
-    name: 'Orion Rigel Indoor COB P1.25',
+    id: 'rigel-p2.5-outdoor',
+    name: 'Orion P2.5 Outdoor Rigel Series',
     category: 'Rigel Series',
-    image: '/products/rigel-series/indoor-P1.25.png',
-    resolution: { width: 480, height: 270 },
-    cabinetDimensions: { width: 600, height: 337.5 },
-    moduleDimensions: { width: 150, height: 168.75 },
-    moduleResolution: { width: 120, height: 135 },
-    moduleQuantity: 8, // 4x2 modules
-    pixelPitch: 1.25,
-    pixelDensity: 640000,
-    brightness: 600,
+    image: '/products/rigel-series/outdoor-P2.5.png',
+    resolution: { width: 384, height: 384 },
+    cabinetDimensions: { width: 960, height: 960 },
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 128, height: 64 },
+    moduleQuantity: 18, // 3x6 modules
+    pixelPitch: 2.5,
+    pixelDensity: 160000,
+    brightness: 4500,
     refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 420,
-    avgPowerConsumption: 150,
-    weightPerCabinet: 4.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+COB+P1.25.pdf'
+    environment: 'outdoor',
+    maxPowerConsumption: 700,
+    avgPowerConsumption: 300,
+    weightPerCabinet: 27,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P2.5.pdf',
+    price: 15400,
+    siChannelPrice: 16500,
+    resellerPrice: 16050,
   },
-  // Rigel Series P0.9
+  // Rigel Series Outdoor P3
   {
-    id: 'rigel-cob-p0.9',
-    name: 'Orion Rigel Indoor COB P0.9',
+    id: 'rigel-p3-outdoor',
+    name: 'Orion P3 Outdoor Rigel Series',
     category: 'Rigel Series',
-    image: '/products/rigel-series/indoor-P0.9.png',
-    resolution: { width: 640, height: 360 },
-    cabinetDimensions: { width: 600, height: 337.5 },
-    moduleDimensions: { width: 150, height: 168.75 },
-    moduleResolution: { width: 160, height: 180 },
-    moduleQuantity: 8, // 4x2 modules
-    pixelPitch: 0.9375,
-    pixelDensity: 1137778,
-    brightness: 600,
+    image: '/products/rigel-series/outdoor-P3.png',
+    resolution: { width: 256, height: 256 },
+    cabinetDimensions: { width: 768, height: 768 },
+    moduleDimensions: { width: 192, height: 192 },
+    moduleResolution: { width: 64, height: 64 },
+    moduleQuantity: 16, // 4x4 modules
+    pixelPitch: 3.0,
+    pixelDensity: 111000,
+    brightness: 5000,
     refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 420,
-    avgPowerConsumption: 150,
-    weightPerCabinet: 4.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Indoor+COB+P0.9.pdf'
+    environment: 'outdoor',
+    maxPowerConsumption: 450,
+    avgPowerConsumption: 200,
+    weightPerCabinet: 16,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P3.pdf',
+    price: 13200,
+    siChannelPrice: 14000,
+    resellerPrice: 13600,
   },
-  
+  // Rigel Series Outdoor P3 LH (not present, skip)
+  // Rigel Series Outdoor P4
+  {
+    id: 'rigel-p4-outdoor',
+    name: 'Orion P4 Outdoor Rigel Series',
+    category: 'Rigel Series',
+    image: '/products/rigel-series/outdoor-P4.png',
+    resolution: { width: 240, height: 240 },
+    cabinetDimensions: { width: 960, height: 960 },
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 80, height: 40 },
+    moduleQuantity: 18, // 3x6 modules
+    pixelPitch: 4.0,
+    pixelDensity: 62500,
+    brightness: 5500,
+    refreshRate: 3840,
+    environment: 'outdoor',
+    maxPowerConsumption: 700,
+    avgPowerConsumption: 300,
+    weightPerCabinet: 27,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P4.pdf',
+    price: 10300,
+    siChannelPrice: 11000,
+    resellerPrice: 10750,
+  },
+  // Rigel Series Outdoor P6.6
+  {
+    id: 'rigel-p6.6-outdoor',
+    name: 'Orion P6.6 Outdoor Rigel Series',
+    category: 'Rigel Series',
+    image: '/products/rigel-series/outdoor-P6.6.png',
+    resolution: { width: 145, height: 145 },
+    cabinetDimensions: { width: 960, height: 960 },
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 48, height: 24 },
+    moduleQuantity: 18, // 3x6 modules
+    pixelPitch: 6.6,
+    pixelDensity: 23104,
+    brightness: 5500,
+    refreshRate: 3840,
+    environment: 'outdoor',
+    maxPowerConsumption: 700,
+    avgPowerConsumption: 300,
+    weightPerCabinet: 27,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P6.6.pdf',
+    price: 8300,
+    siChannelPrice: 8700,
+    resellerPrice: 8550,
+  },
+  // Rigel Series Outdoor P10
+  {
+    id: 'rigel-p10-outdoor',
+    name: 'Orion P10 Outdoor Rigel Series',
+    category: 'Rigel Series',
+    image: '/products/rigel-series/outdoor-P10.png',
+    resolution: { width: 96, height: 96 },
+    cabinetDimensions: { width: 960, height: 960 },
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 32, height: 16 },
+    moduleQuantity: 18, // 3x6 modules
+    pixelPitch: 10.0,
+    pixelDensity: 10000,
+    brightness: 6000,
+    refreshRate: 3840,
+    environment: 'outdoor',
+    maxPowerConsumption: 650,
+    avgPowerConsumption: 225,
+    weightPerCabinet: 27,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/Rigel+Outdoor+SMD+P10.pdf',
+    price: 6600,
+    siChannelPrice: 6900,
+    resellerPrice: 6750,
+  },
   // Betel Series Indoor SMD P1.25
   {
     id: 'betel-indoor-smd-p1.25',
@@ -790,6 +1009,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
+    price: undefined,
+    siChannelPrice: 27500,
+    resellerPrice: 28050,
   },
   // Betel Series Indoor SMD P1.5
   {
@@ -826,6 +1048,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
+    price: undefined,
+    siChannelPrice: 24500,
+    resellerPrice: 25050,
   },
   // Betel Series Indoor SMD P1.8
   {
@@ -862,6 +1087,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
+    price: 20900,
+    siChannelPrice: 21500,
+    resellerPrice: 21850,
   },
   // Betel Series Indoor SMD P2.5
   {
@@ -898,6 +1126,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
+    price: 18400,
+    siChannelPrice: 19000,
+    resellerPrice: 19350,
   },
   // Betel Series Outdoor SMD P2.5
   {
@@ -934,6 +1165,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
+    price: 27900,
+    siChannelPrice: 28500,
+    resellerPrice: 28850,
   },
   // Betel Series Outdoor SMD P3
   {
@@ -970,6 +1204,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
+    price: 18400,
+    siChannelPrice: 19000,
+    resellerPrice: 19350,
   },
   // Betel Series Outdoor SMD P4
   {
@@ -1006,6 +1243,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
+    price: 15400,
+    siChannelPrice: 16000,
+    resellerPrice: 16500,
   },
   // Betel Series Outdoor SMD P6.6
   {
@@ -1042,6 +1282,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
+    price: 9400,
+    siChannelPrice: 9900,
+    resellerPrice: 10150,
   },
   // Betel Series Outdoor SMD P10
   {
@@ -1078,6 +1321,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
+    price: 8100,
+    siChannelPrice: 8500,
+    resellerPrice: 8850,
   },
   // Rental Series Indoor P2.6
   {
