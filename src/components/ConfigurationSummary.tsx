@@ -12,6 +12,36 @@ interface ConfigurationSummaryProps {
   mode?: string;
 }
 
+// Helper for Indian number formatting
+function formatIndianNumber(x: number): string {
+  const s = x.toString();
+  let afterFirst = s.length > 3 ? s.slice(0, s.length - 3) : '';
+  let lastThree = s.slice(-3);
+  if (afterFirst) {
+    afterFirst = afterFirst.replace(/\B(?=(\d{2})+(?!\d))/g, ",");
+    return afterFirst + ',' + lastThree;
+  } else {
+    return lastThree;
+  }
+}
+
+// Processor price mapping by controller and user type
+const processorPrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
+  TB2:      { endUser: 35000, siChannel: 31500, reseller: 29800 },
+  TB40:     { endUser: 35000, siChannel: 31500, reseller: 29800 },
+  TB60:     { endUser: 65000, siChannel: 58500, reseller: 55300 },
+  VX1:      { endUser: 35000, siChannel: 31500, reseller: 29800 },
+  VX400:    { endUser: 100000, siChannel: 90000, reseller: 85000 },
+  'VX400 Pro': { endUser: 110000, siChannel: 99000, reseller: 93500 },
+};
+
+// Digital Standee Series price mapping by model and user type
+const digitalStandeePrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
+  'P1.8': { endUser: 110300, siChannel: 100000, reseller: 93800 },
+  'P2.5': { endUser: 80900, siChannel: 73300, reseller: 68800 },
+  'P4':   { endUser: 95600, siChannel: 86700, reseller: 81300 },
+};
+
 export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   config,
   cabinetGrid,
@@ -55,14 +85,37 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const pixelDensity = Math.round(pixelsPerMeterWidth * pixelsPerMeterHeight); // Total pixels per square meter
   
   // Calculate total pixels
-  const totalPixels = (selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows).toLocaleString();
+  const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
 
   // Calculate total price based on user type and area in square feet
   const totalCabinets = cabinetGrid.columns * cabinetGrid.rows;
   let pricePerSqFt = selectedProduct.price;
+  // If Digital Standee Series model, override pricePerSqFt from mapping
+  let matchedStandeeModel: string | undefined = undefined;
+  if (selectedProduct) {
+    // Try to match P1.8, P2.5, P4 in the product name
+    if (selectedProduct.name.includes('P1.8')) matchedStandeeModel = 'P1.8';
+    else if (selectedProduct.name.includes('P2.5')) matchedStandeeModel = 'P2.5';
+    else if (selectedProduct.name.includes('P4')) matchedStandeeModel = 'P4';
+  }
+  if (matchedStandeeModel && digitalStandeePrices[matchedStandeeModel]) {
+    if (userType === 'siChannel') pricePerSqFt = digitalStandeePrices[matchedStandeeModel].siChannel;
+    else if (userType === 'reseller') pricePerSqFt = digitalStandeePrices[matchedStandeeModel].reseller;
+    else pricePerSqFt = digitalStandeePrices[matchedStandeeModel].endUser;
+  } else {
   if (userType === 'siChannel') pricePerSqFt = selectedProduct.siChannelPrice;
   if (userType === 'reseller') pricePerSqFt = selectedProduct.resellerPrice;
+  }
   const totalPrice = pricePerSqFt ? displayAreaFeet * pricePerSqFt : undefined;
+
+  // Get processor price based on user type and selected processor
+  let processorPrice = 0;
+  if (processor && processorPrices[processor]) {
+    if (userType === 'siChannel') processorPrice = processorPrices[processor].siChannel;
+    else if (userType === 'reseller') processorPrice = processorPrices[processor].reseller;
+    else processorPrice = processorPrices[processor].endUser;
+  }
+  const totalPriceWithProcessor = totalPrice !== undefined ? totalPrice + processorPrice : undefined;
 
   // Configuration items with icons and colors
   const configItems = [
@@ -142,7 +195,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     {
       icon: <Maximize2 className="w-5 h-5 text-cyan-500" />,
       title: 'Total Pixels',
-      value: totalPixels,
+      value: formatIndianNumber(totalPixels),
       bgColor: 'bg-cyan-50',
       textColor: 'text-cyan-700'
     },
@@ -186,11 +239,28 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
       </div>
       <div className="mt-4">
         {pricePerSqFt !== undefined && (
-          <div className="flex justify-between items-center bg-green-50 rounded-lg px-4 py-3 mt-2">
+          <div className="flex flex-col gap-1 bg-green-50 rounded-lg px-4 py-3 mt-2">
+            <div className="flex justify-between items-center">
             <span className="font-semibold text-green-800">Total Price</span>
             <span className="text-green-900 font-bold text-lg">
-              ₹{totalPrice?.toLocaleString('en-IN', { maximumFractionDigits: 0 })} <span className="text-xs font-normal text-green-700">({displayAreaFeet.toFixed(2)} ft² × ₹{pricePerSqFt.toLocaleString('en-IN')}/ft²)</span>
+                ₹{totalPriceWithProcessor?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+            <div className="text-xs text-green-700 flex flex-col">
+              <span>
+                ( {displayAreaFeet.toFixed(2)} ft² × ₹{pricePerSqFt.toLocaleString('en-IN')}/ft² )
+                {totalPrice !== undefined && (
+                  <>
+                    {' '}₹{totalPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </>
+                )}
+                {processorPrice > 0 && (
+                  <>
+                    {' '}+ Processor Price ₹{processorPrice.toLocaleString('en-IN')}
+                  </>
+                )}
             </span>
+            </div>
           </div>
         )}
       </div>

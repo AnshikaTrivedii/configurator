@@ -96,6 +96,15 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
     if (onControllerChange) onControllerChange(selectedController);
   }, [selectedController]);
 
+  // Mode logic: only TB40 and TB60 allow both modes, others default to Synchronous
+  const isSyncAsyncSelectable = selectedController === 'TB40' || selectedController === 'TB60';
+  React.useEffect(() => {
+    // Always default to Synchronous unless TB40 or TB60 and user has chosen otherwise
+    if (!isSyncAsyncSelectable) {
+      setCloudSolution('Synchronous');
+    }
+  }, [selectedController]);
+
   // Call onModeChange when cloudSolution changes
   React.useEffect(() => {
     if (onModeChange && cloudSolution) onModeChange(cloudSolution);
@@ -265,17 +274,22 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               <div className="flex space-x-2">
                 <button
                   className={`px-4 py-2 rounded-lg border font-medium transition-all ${cloudSolution === 'Synchronous' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-100'}`}
-                  onClick={() => setCloudSolution('Synchronous')}
+                  onClick={() => isSyncAsyncSelectable && setCloudSolution('Synchronous')}
+                  disabled={!isSyncAsyncSelectable}
                 >
                   Synchronous
                 </button>
                 <button
                   className={`px-4 py-2 rounded-lg border font-medium transition-all ${cloudSolution === 'Asynchronous' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-100'}`}
-                  onClick={() => setCloudSolution('Asynchronous')}
+                  onClick={() => isSyncAsyncSelectable && setCloudSolution('Asynchronous')}
+                  disabled={!isSyncAsyncSelectable}
                 >
                   Asynchronous
                 </button>
               </div>
+              {!isSyncAsyncSelectable && (
+                <div className="text-xs text-gray-500 mt-1">Only Synchronous mode is supported for this processor.</div>
+              )}
             </div>
           </div>
         )}

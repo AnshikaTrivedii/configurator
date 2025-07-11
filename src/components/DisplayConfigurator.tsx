@@ -48,12 +48,51 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
 
   const cabinetGrid = calculateCabinetGrid(selectedProduct);
 
+  // Helper to auto-select controller based on pixel count (same as ProductSidebar)
+  function getAutoSelectedController(product: Product | undefined, cabinetGrid: { columns: number; rows: number }) {
+    if (!product) return '';
+    const totalPixels = product.resolution.width * cabinetGrid.columns * product.resolution.height * cabinetGrid.rows;
+    const totalPixelsMillion = totalPixels / 1_000_000;
+    const controllerMapping = [
+      { max: 0.65, name: 'TB2' },
+      { max: 1.3, name: 'TB40' },
+      { max: 2.3, name: 'TB60' },
+      { max: 1.3, name: 'VX1' },
+      { max: 2.6, name: 'VX400' },
+      { max: 2.6, name: 'VX400 Pro' },
+      { max: 3.9, name: 'VX600' },
+      { max: 3.9, name: 'VX600 Pro' },
+      { max: 6.5, name: 'VX1000' },
+      { max: 6.5, name: 'VX1000 Pro' },
+      { max: 13, name: '4K PRIME' },
+    ];
+    let selectedController = '4K PRIME';
+    for (const mapping of controllerMapping) {
+      if (totalPixelsMillion <= mapping.max) {
+        selectedController = mapping.name;
+        break;
+      }
+    }
+    return selectedController;
+  }
+
+  // Update selectedController when product or grid changes
+  useEffect(() => {
+    if (selectedProduct) {
+      const grid = calculateCabinetGrid(selectedProduct);
+      setSelectedController(getAutoSelectedController(selectedProduct, grid));
+    }
+  }, [selectedProduct, config.width, config.height]);
+
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
     const { totalWidth, totalHeight } = calculateCabinetGrid(product);
     updateWidth(totalWidth);
     updateHeight(totalHeight);
     setActiveTab('preview');
+    // Auto-select controller on product select
+    const grid = calculateCabinetGrid(product);
+    setSelectedController(getAutoSelectedController(product, grid));
   };
 
   useEffect(() => {
@@ -74,6 +113,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
     if (!selectedProduct) return;
     const newHeight = rows * selectedProduct.cabinetDimensions.height;
     updateHeight(newHeight);
+  };
+
+  // Digital Standee Series price mapping by model and user type
+  const digitalStandeePrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
+    'P1.8': { endUser: 110300, siChannel: 100000, reseller: 93800 },
+    'P2.5': { endUser: 80900, siChannel: 73300, reseller: 68800 },
+    'P4':   { endUser: 95600, siChannel: 86700, reseller: 81300 },
   };
 
   return (
@@ -218,8 +264,19 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                       <p className="text-gray-600">
                         {(() => {
                           let price = selectedProduct.price;
+                          // Digital Standee Series price override
+                          let matchedStandeeModel: string | undefined = undefined;
+                          if (selectedProduct.name.includes('P1.8')) matchedStandeeModel = 'P1.8';
+                          else if (selectedProduct.name.includes('P2.5')) matchedStandeeModel = 'P2.5';
+                          else if (selectedProduct.name.includes('P4')) matchedStandeeModel = 'P4';
+                          if (matchedStandeeModel && digitalStandeePrices[matchedStandeeModel]) {
+                            if (userType === 'siChannel') price = digitalStandeePrices[matchedStandeeModel].siChannel;
+                            else if (userType === 'reseller') price = digitalStandeePrices[matchedStandeeModel].reseller;
+                            else price = digitalStandeePrices[matchedStandeeModel].endUser;
+                          } else {
                           if (userType === 'siChannel') price = selectedProduct.siChannelPrice;
                           if (userType === 'reseller') price = selectedProduct.resellerPrice;
+                          }
                           return price ? `₹${price.toLocaleString('en-IN')}` : 'Contact for pricing';
                         })()}
                       </p>
