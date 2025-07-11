@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DisplayConfigurator } from './components/DisplayConfigurator';
-import UserTypeModal, { getStoredUserType, UserType } from './components/UserTypeModal';
+import UserTypeModal, { UserType } from './components/UserTypeModal';
 
 function App() {
-  const [userType, setUserType] = useState<UserType | null>(getStoredUserType());
-  const [modalOpen, setModalOpen] = useState(false);
-
-  useEffect(() => {
-    if (!userType) setModalOpen(true);
-  }, [userType]);
+  const [userType, setUserType] = useState<UserType | null>(null);
+  const [modalOpen, setModalOpen] = useState(true);
 
   const handleUserTypeSelect = (type: UserType) => {
     setUserType(type);
