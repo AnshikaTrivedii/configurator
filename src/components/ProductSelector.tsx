@@ -60,7 +60,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-2xl font-bold text-gray-900">Select Product</h2>
@@ -171,7 +171,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
         </div>
 
         {/* Products grid */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
+        <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProducts.map((product: ProductWithOptionalSize) => (
               <div

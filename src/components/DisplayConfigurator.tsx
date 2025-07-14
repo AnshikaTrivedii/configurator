@@ -264,19 +264,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                       <p className="text-gray-600">
                         {(() => {
                           let price = selectedProduct.price;
-                          // Digital Standee Series price override
-                          let matchedStandeeModel: string | undefined = undefined;
-                          if (selectedProduct.name.includes('P1.8')) matchedStandeeModel = 'P1.8';
-                          else if (selectedProduct.name.includes('P2.5')) matchedStandeeModel = 'P2.5';
-                          else if (selectedProduct.name.includes('P4')) matchedStandeeModel = 'P4';
-                          if (matchedStandeeModel && digitalStandeePrices[matchedStandeeModel]) {
-                            if (userType === 'siChannel') price = digitalStandeePrices[matchedStandeeModel].siChannel;
-                            else if (userType === 'reseller') price = digitalStandeePrices[matchedStandeeModel].reseller;
-                            else price = digitalStandeePrices[matchedStandeeModel].endUser;
-                          } else {
                           if (userType === 'siChannel') price = selectedProduct.siChannelPrice;
                           if (userType === 'reseller') price = selectedProduct.resellerPrice;
-                          }
                           return price ? `₹${price.toLocaleString('en-IN')}` : 'Contact for pricing';
                         })()}
                       </p>

@@ -35,13 +35,6 @@ const processorPrices: Record<string, { endUser: number; siChannel: number; rese
   'VX400 Pro': { endUser: 110000, siChannel: 99000, reseller: 93500 },
 };
 
-// Digital Standee Series price mapping by model and user type
-const digitalStandeePrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
-  'P1.8': { endUser: 110300, siChannel: 100000, reseller: 93800 },
-  'P2.5': { endUser: 80900, siChannel: 73300, reseller: 68800 },
-  'P4':   { endUser: 95600, siChannel: 86700, reseller: 81300 },
-};
-
 export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   config,
   cabinetGrid,
@@ -90,22 +83,9 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   // Calculate total price based on user type and area in square feet
   const totalCabinets = cabinetGrid.columns * cabinetGrid.rows;
   let pricePerSqFt = selectedProduct.price;
-  // If Digital Standee Series model, override pricePerSqFt from mapping
-  let matchedStandeeModel: string | undefined = undefined;
-  if (selectedProduct) {
-    // Try to match P1.8, P2.5, P4 in the product name
-    if (selectedProduct.name.includes('P1.8')) matchedStandeeModel = 'P1.8';
-    else if (selectedProduct.name.includes('P2.5')) matchedStandeeModel = 'P2.5';
-    else if (selectedProduct.name.includes('P4')) matchedStandeeModel = 'P4';
-  }
-  if (matchedStandeeModel && digitalStandeePrices[matchedStandeeModel]) {
-    if (userType === 'siChannel') pricePerSqFt = digitalStandeePrices[matchedStandeeModel].siChannel;
-    else if (userType === 'reseller') pricePerSqFt = digitalStandeePrices[matchedStandeeModel].reseller;
-    else pricePerSqFt = digitalStandeePrices[matchedStandeeModel].endUser;
-  } else {
+  // Remove Digital Standee Series override logic
   if (userType === 'siChannel') pricePerSqFt = selectedProduct.siChannelPrice;
   if (userType === 'reseller') pricePerSqFt = selectedProduct.resellerPrice;
-  }
   const totalPrice = pricePerSqFt ? displayAreaFeet * pricePerSqFt : undefined;
 
   // Get processor price based on user type and selected processor
@@ -116,6 +96,28 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     else processorPrice = processorPrices[processor].endUser;
   }
   const totalPriceWithProcessor = totalPrice !== undefined ? totalPrice + processorPrice : undefined;
+
+  // Determine product type (SMD or COB)
+  const getProductType = (product: Product) => {
+    if (product.ledType) {
+      if (product.ledType.toLowerCase().includes('cob')) return 'COB';
+      if (product.ledType.toLowerCase().includes('smd')) return 'SMD';
+    }
+    if (product.name.toLowerCase().includes('cob')) return 'COB';
+    if (product.name.toLowerCase().includes('smd')) return 'SMD';
+    return undefined;
+  };
+  const productType = getProductType(selectedProduct);
+
+  // Show only the correct prices for the product type
+  const showPrice = (type: 'endUser' | 'siChannel' | 'reseller') => {
+    if (productType === 'SMD' || productType === 'COB') {
+      if (type === 'endUser') return selectedProduct.price;
+      if (type === 'siChannel') return selectedProduct.siChannelPrice;
+      if (type === 'reseller') return selectedProduct.resellerPrice;
+    }
+    return undefined;
+  };
 
   // Configuration items with icons and colors
   const configItems = [
@@ -148,7 +150,19 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     {
       icon: <Maximize2 className="w-5 h-5 text-emerald-500" />,
       title: 'Aspect Ratio',
-      value: `${Math.round((config.width / config.height) * 9)}:9`,
+      value: (() => {
+        // Show the selected aspect ratio label if available
+        if (config.aspectRatio && typeof config.aspectRatio === 'string') {
+          if (config.aspectRatio === '16:9' || config.aspectRatio === '4:3' || config.aspectRatio === '1:1') {
+            return config.aspectRatio;
+          }
+          if (config.aspectRatio === 'none') {
+            return 'None';
+          }
+        }
+        // Fallback to calculated ratio
+        return `${Math.round((config.width / config.height) * 9)}:9`;
+      })(),
       bgColor: 'bg-emerald-50',
       textColor: 'text-emerald-700'
     },
@@ -238,11 +252,38 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
         ))}
       </div>
       <div className="mt-4">
+        {/* Show only the relevant price for the user type */}
+        <div className="flex flex-col gap-1 bg-blue-50 rounded-lg px-4 py-3 mt-2">
+          {userType === 'endUser' && (
+            <div>
+              <span className="font-semibold text-blue-800">End Customer Price:</span>
+              <span className="text-blue-900 font-bold text-lg ml-2">
+                ₹{showPrice('endUser')?.toLocaleString('en-IN') || 'N/A'}
+              </span>
+            </div>
+          )}
+          {userType === 'siChannel' && (
+            <div>
+              <span className="font-semibold text-green-800">SI / Channel Price:</span>
+              <span className="text-green-900 font-bold text-lg ml-2">
+                ₹{showPrice('siChannel')?.toLocaleString('en-IN') || 'N/A'}
+              </span>
+            </div>
+          )}
+          {userType === 'reseller' && (
+            <div>
+              <span className="font-semibold text-purple-800">Reseller Price:</span>
+              <span className="text-purple-900 font-bold text-lg ml-2">
+                ₹{showPrice('reseller')?.toLocaleString('en-IN') || 'N/A'}
+              </span>
+            </div>
+          )}
+        </div>
         {pricePerSqFt !== undefined && (
           <div className="flex flex-col gap-1 bg-green-50 rounded-lg px-4 py-3 mt-2">
             <div className="flex justify-between items-center">
-            <span className="font-semibold text-green-800">Total Price</span>
-            <span className="text-green-900 font-bold text-lg">
+              <span className="font-semibold text-green-800">Total Price</span>
+              <span className="text-green-900 font-bold text-lg">
                 ₹{totalPriceWithProcessor?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </span>
             </div>
@@ -259,7 +300,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
                     {' '}+ Processor Price ₹{processorPrice.toLocaleString('en-IN')}
                   </>
                 )}
-            </span>
+              </span>
             </div>
           </div>
         )}
