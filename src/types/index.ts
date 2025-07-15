@@ -71,6 +71,8 @@ export interface Product {
   dataTransferMethod?: string;
   controlMethod?: string;
   controlDistance?: string;
+  screenResolution?: string;
+  activeDisplayArea?: string;
 }
 
 export interface AspectRatio {

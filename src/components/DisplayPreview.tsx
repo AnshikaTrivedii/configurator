@@ -23,6 +23,56 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   const [backgroundType, setBackgroundType] = useState<'image' | 'video' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [mediaAspectRatio, setMediaAspectRatio] = useState<number | null>(null);
+
+  // Helper to get aspect ratio from image
+  const getImageAspectRatio = (src: string, cb: (ratio: number) => void) => {
+    const img = new window.Image();
+    img.onload = function () {
+      if (img.naturalWidth && img.naturalHeight) {
+        cb(img.naturalWidth / img.naturalHeight);
+      }
+    };
+    img.src = src;
+  };
+
+  // Helper to get aspect ratio from video
+  const getVideoAspectRatio = (src: string, cb: (ratio: number) => void) => {
+    const video = document.createElement('video');
+    video.onloadedmetadata = function () {
+      if (video.videoWidth && video.videoHeight) {
+        cb(video.videoWidth / video.videoHeight);
+      }
+    };
+    video.src = src;
+  };
+
+  // When background image or video changes, detect aspect ratio
+  useEffect(() => {
+    if (backgroundType === 'image' && backgroundImage) {
+      getImageAspectRatio(backgroundImage, setMediaAspectRatio);
+    } else if (backgroundType === 'video' && backgroundVideo) {
+      getVideoAspectRatio(backgroundVideo, setMediaAspectRatio);
+    } else {
+      setMediaAspectRatio(null);
+    }
+  }, [backgroundType, backgroundImage, backgroundVideo]);
+
+  // Calculate preview area size based on media aspect ratio
+  let previewWidth = displayDimensions.width;
+  let previewHeight = displayDimensions.height;
+  if (mediaAspectRatio) {
+    const containerRatio = displayDimensions.width / displayDimensions.height;
+    if (containerRatio > mediaAspectRatio) {
+      // Container is wider than media, fit by height
+      previewHeight = displayDimensions.height;
+      previewWidth = displayDimensions.height * mediaAspectRatio;
+    } else {
+      // Container is taller than media, fit by width
+      previewWidth = displayDimensions.width;
+      previewHeight = displayDimensions.width / mediaAspectRatio;
+    }
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -163,39 +213,57 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           <div className="w-px bg-gray-300 h-8"></div>
         </div>
 
-        {/* Display screen with cabinet grid */}
+        {/* Display screen with cabinet grid or media */}
         <div 
-          className={`relative border-2 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-dashed border-gray-400'} shadow-xl overflow-hidden transition-all duration-300 ease-in-out`}
+          className={`relative border-2 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-dashed border-gray-400'} shadow-xl overflow-hidden transition-all duration-300 ease-in-out flex items-center justify-center bg-transparent`}
           style={{
             width: `${displayDimensions.width}px`,
             height: `${displayDimensions.height}px`,
-            backgroundImage: backgroundType === 'image' && backgroundImage 
-              ? `url(${backgroundImage})` 
-              : backgroundType !== 'video' ? 'linear-gradient(to bottom right, #6366f1, #8b5cf6, #ec4899)' : undefined,
-            backgroundSize: 'contain',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
             cursor: 'pointer',
             position: 'relative',
-            backgroundColor: 'transparent'
+            backgroundColor: 'transparent',
           }}
           onClick={() => fileInputRef.current?.click()}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          {/* Render video if uploaded */}
-          {backgroundType === 'video' && backgroundVideo && (
+          {/* Render image or video centered and fit to its aspect ratio */}
+          {backgroundType === 'image' && backgroundImage && mediaAspectRatio && (
+            <img
+              src={backgroundImage}
+              alt="Background"
+              style={{
+                width: `${previewWidth}px`,
+                height: `${previewHeight}px`,
+                objectFit: 'contain',
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                background: 'transparent',
+              }}
+              draggable={false}
+            />
+          )}
+          {backgroundType === 'video' && backgroundVideo && mediaAspectRatio && (
             <video
               src={backgroundVideo}
-              className="absolute inset-0 w-full h-full object-contain"
-              style={{ zIndex: 0 }}
+              style={{
+                width: `${previewWidth}px`,
+                height: `${previewHeight}px`,
+                objectFit: 'contain',
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                background: 'transparent',
+              }}
               autoPlay
               loop
               muted
             />
           )}
-          
           {/* Background upload interface */}
           {!backgroundImage && !backgroundVideo && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
@@ -206,7 +274,6 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
               <p className="text-xs text-gray-500 mt-1">or drag and drop</p>
             </div>
           )}
-          
           {/* Remove background button */}
           {(backgroundImage || backgroundVideo) && (
             <button
@@ -219,7 +286,6 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
               </svg>
             </button>
           )}
-          
           {/* Hidden file input */}
           <input
             type="file"
@@ -228,31 +294,33 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             className="hidden"
             accept="image/*,video/*"
           />
-          {/* Cabinet grid */}
-          {renderCabinetGrid()}
-
-          {/* Overlay information */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="bg-black bg-opacity-60 text-white p-4 rounded-lg backdrop-blur-sm text-center">
-              <h3 className="text-lg font-bold mb-1">
-                {cabinetGrid.columns} × {cabinetGrid.rows} Grid
-              </h3>
-              <p className="text-sm">
-                {cabinetGrid.columns * cabinetGrid.rows} Cabinets Total
-              </p>
-              {selectedProduct && (
-                <p className="text-xs mt-1 opacity-90">
-                  {selectedProduct.cabinetDimensions.width}×{selectedProduct.cabinetDimensions.height}mm each
+          {/* Cabinet grid, overlays, and corners only if no background */}
+          {!(backgroundImage || backgroundVideo) && renderCabinetGrid()}
+          {!(backgroundImage || backgroundVideo) && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="bg-black bg-opacity-60 text-white p-4 rounded-lg backdrop-blur-sm text-center">
+                <h3 className="text-lg font-bold mb-1">
+                  {cabinetGrid.columns} × {cabinetGrid.rows} Grid
+                </h3>
+                <p className="text-sm">
+                  {cabinetGrid.columns * cabinetGrid.rows} Cabinets Total
                 </p>
-              )}
+                {selectedProduct && (
+                  <p className="text-xs mt-1 opacity-90">
+                    {selectedProduct.cabinetDimensions.width}×{selectedProduct.cabinetDimensions.height}mm each
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-
-          {/* Corner indicators */}
-          <div className="absolute top-1 left-1 w-3 h-3 border-t-2 border-l-2 border-white opacity-60"></div>
-          <div className="absolute top-1 right-1 w-3 h-3 border-t-2 border-r-2 border-white opacity-60"></div>
-          <div className="absolute bottom-1 left-1 w-3 h-3 border-b-2 border-l-2 border-white opacity-60"></div>
-          <div className="absolute bottom-1 right-1 w-3 h-3 border-b-2 border-r-2 border-white opacity-60"></div>
+          )}
+          {!(backgroundImage || backgroundVideo) && (
+            <>
+              <div className="absolute top-1 left-1 w-3 h-3 border-t-2 border-l-2 border-white opacity-60"></div>
+              <div className="absolute top-1 right-1 w-3 h-3 border-t-2 border-r-2 border-white opacity-60"></div>
+              <div className="absolute bottom-1 left-1 w-3 h-3 border-b-2 border-l-2 border-white opacity-60"></div>
+              <div className="absolute bottom-1 right-1 w-3 h-3 border-b-2 border-r-2 border-white opacity-60"></div>
+            </>
+          )}
         </div>
 
         {/* Right measurement */}
