@@ -196,6 +196,10 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
           hubFirstCabinet.push(nodeId);
         }
         cabinetAssignments[`cabinet-${nodeId}`] = currentHubIndex;
+        // Debug log for hub assignment
+        if (nodeId >= 7 && nodeId <= 18) {
+          console.log(`Cabinet ${nodeId} assigned to hub ${currentHubIndex}`);
+        }
         cumulativePixels += pixelCountPerCabinet;
         nodeId++;
       }
@@ -217,11 +221,9 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     nodeId = 1;
     for (let row = 0; row < rows; row++) {
       const isEven = row % 2 === 0;
-      const rowStart = isEven ? 0 : cols - 1;
-      const rowEnd = isEven ? cols : -1;
-      const step = isEven ? 1 : -1;
-      for (let col = rowStart; col !== rowEnd; col += step) {
-        const posX = startX + col * spacingX;
+      for (let col = 0; col < cols; col++) {
+        const actualCol = isEven ? col : cols - 1 - col;
+        const posX = startX + actualCol * spacingX;
         const posY = startY + row * spacingY;
         // Assign the color of the respective Data Hub to each cabinet
         const hubIdx = cabinetAssignments[`cabinet-${nodeId}`];
@@ -242,11 +244,9 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     let tempNodeId = 1;
     for (let row = 0; row < rows; row++) {
       const isEven = row % 2 === 0;
-      const rowStart = isEven ? 0 : cols - 1;
-      const rowEnd = isEven ? cols : -1;
-      const step = isEven ? 1 : -1;
-      for (let col = rowStart; col !== rowEnd; col += step) {
-        const posX = startX + col * spacingX;
+      for (let col = 0; col < cols; col++) {
+        const actualCol = isEven ? col : cols - 1 - col;
+        const posX = startX + actualCol * spacingX;
         const posY = startY + row * spacingY;
         const hubIdx = cabinetAssignments[`cabinet-${tempNodeId}`];
         if (hubIdx !== undefined) {
@@ -326,71 +326,62 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
         }
       }
 
-      // Serpentine wiring between cabinets, no cross-hub connections
       for (let i = 1; i < totalCabinets; i++) {
         const thisCabHub = cabinetAssignments[`cabinet-${i}`];
         const nextCabHub = cabinetAssignments[`cabinet-${i + 1}`];
         const color = getHubColor(thisCabHub, totalHubs);
-        if (thisCabHub !== nextCabHub) {
-          // Do not connect across hubs
-          continue;
+        // Debug log for edge creation
+        if ((i % cols === 0 || (i % cols === 1 && i !== 1)) && thisCabHub === nextCabHub) {
+          console.log(`Edge should be created between Cabinet ${i} and Cabinet ${i + 1} (hub ${thisCabHub})`);
         }
+        // Avoid wiring across hubs
+        if (thisCabHub !== nextCabHub) continue;
+
         const thisCol = (i - 1) % cols;
         const thisRow = Math.floor((i - 1) / cols);
         const nextCol = i % cols;
         const nextRow = Math.floor(i / cols);
-        // If next cabinet is directly below (same column, next row)
-        if (thisCol === nextCol && nextRow === thisRow + 1) {
+        const sourceRow = thisRow;
+        const isSourceRowEven = sourceRow % 2 === 0;
+
+        // Updated end-of-row logic for both even and odd rows
+        const isEndOfRow =
+          (isSourceRowEven && (i % cols === 0)) || // even row: last is i % cols === 0
+          (!isSourceRowEven && (i % cols === 1 && i !== 1)); // odd row: last is i % cols === 1, but not the very first cabinet
+
+        if (isEndOfRow && nextRow === sourceRow + 1) {
           edges.push({
             id: `data-${i}-to-${i + 1}-vertical`,
             source: `cabinet-${i}`,
             target: `cabinet-${i + 1}`,
-            type: 'smoothstep',
+            type: 'straight',
             animated: true,
             sourceHandle: 'bottom',
-            targetHandle: 'top',
+            targetHandle: 'top-target',
             style: { stroke: color, strokeWidth: 2, zIndex: 0 },
             markerEnd: { type: MarkerType.ArrowClosed, color },
           });
           continue;
         }
-        // Horizontal connection
-        const sourceRow = Math.floor((i - 1) / cols);
-        const isSourceRowEven = sourceRow % 2 === 0;
-        if ((isSourceRowEven && i % cols === 0) || (!isSourceRowEven && i % cols === 1)) {
-          // Vertical connection at row end
-          // Use side handles for vertical connections to avoid overlapping cabinet boxes
-          const verticalSourceHandle = isSourceRowEven ? 'right-source' : 'left-source';
-          const verticalTargetHandle = isSourceRowEven ? 'right-target' : 'left-target';
-          edges.push({
-            id: `data-${i}-to-${i + 1}`,
-            source: `cabinet-${i}`,
-            target: `cabinet-${i + 1}`,
-            type: 'smoothstep', // Use smoothstep for vertical wiring
-            animated: true,
-            sourceHandle: verticalSourceHandle,
-            targetHandle: verticalTargetHandle,
-            style: { stroke: color, strokeWidth: 2, zIndex: 0 }, // Ensure edge is behind nodes
-            markerEnd: { type: MarkerType.ArrowClosed, color },
-          });
-          continue;
-        }
-        // Horizontal connection
+
+        // 🔁 Normal horizontal connections
         const sourceHandle = isSourceRowEven ? 'right-source' : 'left-source';
         const targetHandle = isSourceRowEven ? 'left-target' : 'right-target';
+
         edges.push({
           id: `data-${i}-to-${i + 1}`,
           source: `cabinet-${i}`,
           target: `cabinet-${i + 1}`,
           type: 'step',
           animated: true,
-          sourceHandle: sourceHandle,
-          targetHandle: targetHandle,
-          style: { stroke: color, strokeWidth: 2, zIndex: 0 }, // Ensure edge is behind nodes
+          sourceHandle,
+          targetHandle,
+          style: { stroke: color, strokeWidth: 2, zIndex: 0 },
           markerEnd: { type: MarkerType.ArrowClosed, color },
         });
       }
     }
+
 
     return { nodes, edges, groupBackgroundNodes };
   }, [cabinetGrid, product]);
