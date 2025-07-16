@@ -126,6 +126,9 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
     if (onModeChange && cloudSolution) onModeChange(cloudSolution);
   }, [cloudSolution]);
 
+  // Helper to check if product is Digital Standee
+  const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
+
   if (!selectedProduct) {
     return (
       <div className="w-80 bg-white h-screen overflow-y-auto border-r border-gray-200 p-6 flex flex-col items-center justify-center">
@@ -204,6 +207,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(Math.max(1, cabinetGrid.columns - 1))}
                       className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      disabled={isDigitalStandee}
                     >
                       -
                     </button>
@@ -213,6 +217,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(cabinetGrid.columns + 1)}
                       className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      disabled={isDigitalStandee}
                     >
                       +
                     </button>
@@ -227,6 +232,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(Math.max(1, cabinetGrid.rows - 1))}
                       className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      disabled={isDigitalStandee}
                     >
                       -
                     </button>
@@ -236,6 +242,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(cabinetGrid.rows + 1)}
                       className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      disabled={isDigitalStandee}
                     >
                       +
                     </button>

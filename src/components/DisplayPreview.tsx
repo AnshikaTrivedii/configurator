@@ -59,18 +59,38 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   }, [backgroundType, backgroundImage, backgroundVideo]);
 
   // Calculate preview area size based on media aspect ratio
+  // --- PATCH: For digital standee, use cabinet size for preview area ---
   let previewWidth = displayDimensions.width;
   let previewHeight = displayDimensions.height;
+
+  // Detect if product is digital standee
+  const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
+
+  // If digital standee, use cabinet size for preview area
+  if (isDigitalStandee && selectedProduct?.cabinetDimensions) {
+    const maxSize = 600; // max preview size in px
+    const { width: cabW, height: cabH } = selectedProduct.cabinetDimensions;
+    const cabRatio = cabW / cabH;
+    // Scale to fit maxSize
+    if (cabW >= cabH) {
+      previewWidth = maxSize;
+      previewHeight = maxSize / cabRatio;
+    } else {
+      previewHeight = maxSize;
+      previewWidth = maxSize * cabRatio;
+    }
+  }
+
   if (mediaAspectRatio) {
-    const containerRatio = displayDimensions.width / displayDimensions.height;
+    const containerRatio = previewWidth / previewHeight;
     if (containerRatio > mediaAspectRatio) {
       // Container is wider than media, fit by height
-      previewHeight = displayDimensions.height;
-      previewWidth = displayDimensions.height * mediaAspectRatio;
+      previewHeight = previewHeight;
+      previewWidth = previewHeight * mediaAspectRatio;
     } else {
       // Container is taller than media, fit by width
-      previewWidth = displayDimensions.width;
-      previewHeight = displayDimensions.width / mediaAspectRatio;
+      previewWidth = previewWidth;
+      previewHeight = previewWidth / mediaAspectRatio;
     }
   }
 
@@ -178,6 +198,54 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     return cabinets;
   };
 
+  // Helper to determine if product should use module grid
+  const useModuleGrid = selectedProduct && (
+    selectedProduct.category?.toLowerCase().includes('digital standee') ||
+    selectedProduct.category?.toLowerCase().includes('jumbo')
+  );
+
+  // Calculate grid for modules if needed
+  const moduleGrid = useModuleGrid && selectedProduct ? (
+    selectedProduct.category?.toLowerCase().includes('digital standee')
+      ? { columns: 7, rows: 5, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
+      : {
+          columns: Math.round(displayDimensions.width / selectedProduct.moduleDimensions.width),
+          rows: Math.round(displayDimensions.height / selectedProduct.moduleDimensions.height),
+          width: selectedProduct.moduleDimensions.width,
+          height: selectedProduct.moduleDimensions.height,
+        }
+  ) : null;
+
+  const renderModuleGrid = () => {
+    if (!moduleGrid) return null;
+    const modules = [];
+    const moduleWidth = displayDimensions.width / moduleGrid.columns;
+    const moduleHeight = displayDimensions.height / moduleGrid.rows;
+    for (let row = 0; row < moduleGrid.rows; row++) {
+      for (let col = 0; col < moduleGrid.columns; col++) {
+        modules.push(
+          <div
+            key={`module-${row}-${col}`}
+            className="absolute border border-blue-400 bg-transparent flex items-center justify-center"
+            style={{
+              left: `${col * moduleWidth}px`,
+              top: `${row * moduleHeight}px`,
+              width: `${moduleWidth}px`,
+              height: `${moduleHeight}px`
+            }}
+          >
+            <div className="text-white text-center text-xs bg-black bg-opacity-40 px-2 py-1 rounded">
+              <div className="font-semibold">Module</div>
+              <div className="text-[10px]">{col + 1},{row + 1}</div>
+            </div>
+            <div className="absolute inset-0 border border-white opacity-50"></div>
+          </div>
+        );
+      }
+    }
+    return modules;
+  };
+
   // Convert current unit to meters
   const toMeters = (value: number): string => {
     switch (config.unit) {
@@ -193,12 +261,20 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     }
   };
 
+  // Helper to get measurement values for preview labels
+  let previewWidthMM = config.width;
+  let previewHeightMM = config.height;
+  if (isDigitalStandee && selectedProduct?.cabinetDimensions) {
+    previewWidthMM = selectedProduct.cabinetDimensions.width;
+    previewHeightMM = selectedProduct.cabinetDimensions.height;
+  }
+
   return (
     <div className="flex flex-col items-center space-y-6 py-8">
       {/* Top measurement */}
       <div className="flex items-center space-x-2">
         <div className="h-px bg-gray-300 w-8"></div>
-        <span className="text-sm text-gray-600 font-medium">{toMeters(config.width)} m</span>
+        <span className="text-sm text-gray-600 font-medium">{toMeters(previewWidthMM)} m</span>
         <div className="h-px bg-gray-300 w-8"></div>
       </div>
 
@@ -208,7 +284,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
         <div className="flex flex-col items-center mr-4">
           <div className="w-px bg-gray-300 h-8"></div>
           <span className="text-sm text-gray-600 font-medium transform -rotate-90 whitespace-nowrap">
-            {toMeters(config.height)} m
+            {toMeters(previewHeightMM)} m
           </span>
           <div className="w-px bg-gray-300 h-8"></div>
         </div>
@@ -295,19 +371,23 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             accept="image/*,video/*"
           />
           {/* Cabinet grid, overlays, and corners only if no background */}
-          {!(backgroundImage || backgroundVideo) && renderCabinetGrid()}
+          {!(backgroundImage || backgroundVideo) && (useModuleGrid ? renderModuleGrid() : renderCabinetGrid())}
           {!(backgroundImage || backgroundVideo) && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="bg-black bg-opacity-60 text-white p-4 rounded-lg backdrop-blur-sm text-center">
                 <h3 className="text-lg font-bold mb-1">
-                  {cabinetGrid.columns} × {cabinetGrid.rows} Grid
+                  {useModuleGrid
+                    ? `${moduleGrid?.columns ?? 0} × ${moduleGrid?.rows ?? 0} Module Grid`
+                    : `${cabinetGrid.columns} × ${cabinetGrid.rows} Grid`}
                 </h3>
                 <p className="text-sm">
-                  {cabinetGrid.columns * cabinetGrid.rows} Cabinets Total
+                  {useModuleGrid ? `${(moduleGrid?.columns ?? 0) * (moduleGrid?.rows ?? 0)} Modules Total` : `${cabinetGrid.columns * cabinetGrid.rows} Cabinets Total`}
                 </p>
                 {selectedProduct && (
-                  <p className="text-xs mt-1 opacity-90">
-                    {selectedProduct.cabinetDimensions.width}×{selectedProduct.cabinetDimensions.height}mm each
+                  <p className="text-xs mt-1 opacity-90">                                   
+                    {useModuleGrid
+                      ? `${selectedProduct.moduleDimensions.width}×${selectedProduct.moduleDimensions.height}mm each`
+                      : `${selectedProduct.cabinetDimensions.width}×${selectedProduct.cabinetDimensions.height}mm each`}
                   </p>
                 )}
               </div>
@@ -327,7 +407,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
         <div className="flex flex-col items-center ml-4">
           <div className="w-px bg-gray-300 h-8"></div>
           <span className="text-sm text-gray-600 font-medium transform rotate-90 whitespace-nowrap">
-            {toMeters(config.height)} m
+            {toMeters(previewHeightMM)} m
           </span>
           <div className="w-px bg-gray-300 h-8"></div>
         </div>
@@ -359,7 +439,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
         </div>
         <div className="flex items-center space-x-2">
           <div className="h-px bg-gray-300 w-8"></div>
-          <span className="text-sm text-gray-600 font-medium">{toMeters(config.width)} m</span>
+          <span className="text-sm text-gray-600 font-medium">{toMeters(previewWidthMM)} m</span>
           <div className="h-px bg-gray-300 w-8"></div>
         </div>
         <div className="text-lg font-semibold text-gray-700">

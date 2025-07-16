@@ -86,9 +86,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
 
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
-    const { totalWidth, totalHeight } = calculateCabinetGrid(product);
-    updateWidth(totalWidth);
-    updateHeight(totalHeight);
+    // If digital standee, set width/height to cabinet size
+    if (product.category?.toLowerCase().includes('digital standee')) {
+      updateWidth(product.cabinetDimensions.width);
+      updateHeight(product.cabinetDimensions.height);
+    } else {
+      const { totalWidth, totalHeight } = calculateCabinetGrid(product);
+      updateWidth(totalWidth);
+      updateHeight(totalHeight);
+    }
     setActiveTab('preview');
     // Auto-select controller on product select
     const grid = calculateCabinetGrid(product);
@@ -97,19 +103,35 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
 
   useEffect(() => {
     if (selectedProduct) {
-      const grid = calculateCabinetGrid(selectedProduct);
-      updateWidth(grid.totalWidth);
-      updateHeight(grid.totalHeight);
+      if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
+        updateWidth(selectedProduct.cabinetDimensions.width);
+        updateHeight(selectedProduct.cabinetDimensions.height);
+      } else {
+        const grid = calculateCabinetGrid(selectedProduct);
+        updateWidth(grid.totalWidth);
+        updateHeight(grid.totalHeight);
+      }
     }
   }, [selectedProduct]);
 
+  // Helper to check if product is Digital Standee
+  const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
+
+  // Override cabinetGrid for Digital Standee
+  const fixedCabinetGrid = isDigitalStandee
+    ? { ...cabinetGrid, columns: 7, rows: 5 }
+    : cabinetGrid;
+
+  // Prevent changing columns/rows for Digital Standee
   const handleColumnsChange = (columns: number) => {
+    if (isDigitalStandee) return;
     if (!selectedProduct) return;
     const newWidth = columns * selectedProduct.cabinetDimensions.width;
     updateWidth(newWidth);
   };
 
   const handleRowsChange = (rows: number) => {
+    if (isDigitalStandee) return;
     if (!selectedProduct) return;
     const newHeight = rows * selectedProduct.cabinetDimensions.height;
     updateHeight(newHeight);
@@ -137,7 +159,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
         <div className="w-80 flex-shrink-0 border-r border-gray-200 bg-white">
           <ProductSidebar
             selectedProduct={selectedProduct}
-            cabinetGrid={cabinetGrid}
+            cabinetGrid={fixedCabinetGrid}
             onColumnsChange={handleColumnsChange}
             onRowsChange={handleRowsChange}
             onSelectProductClick={() => setIsProductSelectorOpen(true)}
