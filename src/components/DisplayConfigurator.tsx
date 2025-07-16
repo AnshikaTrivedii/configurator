@@ -263,6 +263,23 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                       <h4 className="font-medium text-gray-900">Price</h4>
                       <p className="text-gray-600">
                         {(() => {
+                          if (
+                            selectedProduct.category?.toLowerCase().includes('rental') &&
+                            selectedProduct.rentalOption &&
+                            selectedProduct.prices
+                          ) {
+                            // Map userType to price key
+                            const userTypeToPriceKey = (type: string): 'endCustomer' | 'siChannel' | 'reseller' => {
+                              if (type === 'siChannel' || type === 'reseller') return type;
+                              return 'endCustomer';
+                            };
+                            const price = selectedProduct.prices[
+                              selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet'
+                            ][userTypeToPriceKey(userType as 'endCustomer' | 'siChannel' | 'reseller')];
+                            return price
+                              ? `₹${price.toLocaleString('en-IN')} (${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'})/ft²`
+                              : 'Contact for pricing';
+                          }
                           let price = selectedProduct.price;
                           if (userType === 'siChannel') price = selectedProduct.siChannelPrice;
                           if (userType === 'reseller') price = selectedProduct.resellerPrice;

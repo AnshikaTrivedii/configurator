@@ -73,6 +73,11 @@ export interface Product {
   controlDistance?: string;
   screenResolution?: string;
   activeDisplayArea?: string;
+  rentalOption?: 'cabinet' | 'curve lock';
+  prices?: {
+    cabinet: { endCustomer: number; siChannel: number; reseller: number };
+    curveLock: { endCustomer: number; siChannel: number; reseller: number };
+  };
 }
 
 export interface AspectRatio {

@@ -38,6 +38,22 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
 
+  // User type detection (from localStorage or default to endUser)
+  const [userType, setUserType] = useState<'endCustomer' | 'siChannel' | 'reseller'>('endCustomer');
+  React.useEffect(() => {
+    const stored = localStorage.getItem('userType');
+    if (stored === 'siChannel' || stored === 'reseller' || stored === 'endCustomer') setUserType(stored);
+  }, []);
+
+  // Helper to map userType to price key
+  const userTypeToPriceKey = (type: string): 'endCustomer' | 'siChannel' | 'reseller' => {
+    if (type === 'siChannel' || type === 'reseller') return type;
+    return 'endCustomer';
+  };
+
+  // Helper to get price for rental series
+  // Remove all code related to getRentalPrice, getPriceLabelAndColor, and rental price display in the sidebar.
+
   const handleQuoteSubmit = (message: string) => {
     // Here you would typically send the quote request to your backend
     console.log('Quote request submitted with message:', message);

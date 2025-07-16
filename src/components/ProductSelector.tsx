@@ -26,6 +26,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [environment, setEnvironment] = useState<'Indoor' | 'Outdoor'>('Indoor');
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
+  const [pendingRentalProduct, setPendingRentalProduct] = useState<ProductWithOptionalSize | null>(null);
+  const [rentalOption, setRentalOption] = useState<'cabinet' | 'curve lock' | null>(null);
 
   // Normalize environment for comparison
   const normalizeEnv = (env: string) => env.trim().toLowerCase();
@@ -41,6 +43,10 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     if (product.name.toLowerCase().includes('smd')) return 'SMD';
     return undefined;
   };
+
+  // Helper to check if product is rental series
+  const isRentalSeries = (product: Product) =>
+    product.category && product.category.toLowerCase().includes('rental');
 
   let filteredProducts = products.filter(
     (p) => normalizeEnv(p.environment) === normalizeEnv(environment)
@@ -181,7 +187,13 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                     ? 'border-blue-500 shadow-lg'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
-                onClick={() => onSelectProduct(product)}
+                onClick={() => {
+                  if (isRentalSeries(product)) {
+                    setPendingRentalProduct(product);
+                  } else {
+                    onSelectProduct(product);
+                  }
+                }}
               >
                 {/* Selection indicator */}
                 {selectedProduct?.id === product.id && (
@@ -240,7 +252,53 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
             ))}
           </div>
         </div>
-
+        {/* Rental option modal */}
+        {pendingRentalProduct && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
+            <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center">
+              <h3 className="text-lg font-semibold mb-4">Select Rental Option</h3>
+              <div className="flex gap-4 mb-6">
+                <button
+                  className={`px-6 py-3 rounded-lg border-2 text-lg font-medium transition-all ${rentalOption === 'cabinet' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 bg-white hover:bg-blue-50'}`}
+                  onClick={() => setRentalOption('cabinet')}
+                >
+                  Cabinet
+                </button>
+                <button
+                  className={`px-6 py-3 rounded-lg border-2 text-lg font-medium transition-all ${rentalOption === 'curve lock' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 bg-white hover:bg-blue-50'}`}
+                  onClick={() => setRentalOption('curve lock')}
+                >
+                  Curve Lock
+                </button>
+              </div>
+              <div className="flex gap-4">
+                <button
+                  className="px-6 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 font-medium"
+                  onClick={() => {
+                    setPendingRentalProduct(null);
+                    setRentalOption(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium disabled:opacity-50"
+                  disabled={!rentalOption}
+                  onClick={() => {
+                    if (pendingRentalProduct && rentalOption) {
+                      // Optionally, you can pass the rental option as a property or handle it in parent
+                      onSelectProduct({ ...pendingRentalProduct, rentalOption });
+                      setPendingRentalProduct(null);
+                      setRentalOption(null);
+                    }
+                  }}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Footer */}
         <div className="p-4 border-t bg-gray-50 flex justify-end">
           <button

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { Ruler, Zap, ZapOff, Move3d, Monitor, Boxes, Square, Maximize2 } from 'lucide-react';
 import { UserType } from './UserTypeModal';
@@ -34,6 +34,9 @@ const processorPrices: Record<string, { endUser: number; siChannel: number; rese
   VX400:    { endUser: 100000, siChannel: 90000, reseller: 85000 },
   'VX400 Pro': { endUser: 110000, siChannel: 99000, reseller: 93500 },
 };
+
+// Helper to map UserType to product price key
+const userTypeToPriceKey = (type: UserType) => type === 'endUser' ? 'endCustomer' : type;
 
 export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   config,
@@ -117,6 +120,23 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
       if (type === 'reseller') return selectedProduct.resellerPrice;
     }
     return undefined;
+  };
+
+  // User type detection (from localStorage or prop)
+  const [currentUserType, setCurrentUserType] = useState<UserType>(userType || 'endUser');
+  useEffect(() => {
+    if (userType) setCurrentUserType(userType);
+    else {
+      const stored = localStorage.getItem('userType');
+      if (stored === 'siChannel' || stored === 'reseller' || stored === 'endUser') setCurrentUserType(stored as UserType);
+    }
+  }, [userType]);
+
+  // Helper to get price for rental series
+  const getRentalPrice = () => {
+    if (!selectedProduct || !selectedProduct.prices || !selectedProduct.rentalOption) return null;
+    const option = selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet';
+    return selectedProduct.prices[option]?.[userTypeToPriceKey(currentUserType)] || null;
   };
 
   // Configuration items with icons and colors
@@ -258,7 +278,18 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div>
               <span className="font-semibold text-blue-800">End Customer Price:</span>
               <span className="text-blue-900 font-bold text-lg ml-2">
-                ₹{showPrice('endUser')?.toLocaleString('en-IN') || 'N/A'}
+                ₹{
+                  selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption && selectedProduct.prices
+                    ? selectedProduct.prices[
+                        selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet'
+                      ][userTypeToPriceKey(currentUserType)]?.toLocaleString('en-IN') || 'N/A'
+                    : showPrice('endUser')?.toLocaleString('en-IN') || 'N/A'
+                }
+                <span className="text-xs text-gray-500 ml-2">
+                  {selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption
+                    ? `(${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'})/ft²`
+                    : '/ft²'}
+                </span>
               </span>
             </div>
           )}
@@ -266,7 +297,18 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div>
               <span className="font-semibold text-green-800">SI / Channel Price:</span>
               <span className="text-green-900 font-bold text-lg ml-2">
-                ₹{showPrice('siChannel')?.toLocaleString('en-IN') || 'N/A'}
+                ₹{
+                  selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption && selectedProduct.prices
+                    ? selectedProduct.prices[
+                        selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet'
+                      ][userTypeToPriceKey(currentUserType)]?.toLocaleString('en-IN') || 'N/A'
+                    : showPrice('siChannel')?.toLocaleString('en-IN') || 'N/A'
+                }
+                <span className="text-xs text-gray-500 ml-2">
+                  {selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption
+                    ? `(${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'})/ft²`
+                    : '/ft²'}
+                </span>
               </span>
             </div>
           )}
@@ -274,12 +316,54 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div>
               <span className="font-semibold text-purple-800">Reseller Price:</span>
               <span className="text-purple-900 font-bold text-lg ml-2">
-                ₹{showPrice('reseller')?.toLocaleString('en-IN') || 'N/A'}
+                ₹{
+                  selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption && selectedProduct.prices
+                    ? selectedProduct.prices[
+                        selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet'
+                      ][userTypeToPriceKey(currentUserType)]?.toLocaleString('en-IN') || 'N/A'
+                    : showPrice('reseller')?.toLocaleString('en-IN') || 'N/A'
+                }
+                <span className="text-xs text-gray-500 ml-2">
+                  {selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption
+                    ? `(${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'})/ft²`
+                    : '/ft²'}
+                </span>
               </span>
             </div>
           )}
         </div>
-        {pricePerSqFt !== undefined && (
+        {/* Show price for rental series */}
+        {selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption && selectedProduct.prices ? (
+          (() => {
+            // Get price per sq ft for selected rental option and user type
+            const rentalOptionKey = selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet';
+            const rentalPricePerSqFt = selectedProduct.prices[rentalOptionKey]?.[userTypeToPriceKey(currentUserType)] || 0;
+            const rentalSubtotal = displayAreaFeet * rentalPricePerSqFt;
+            const rentalTotal = rentalSubtotal + (processorPrice || 0);
+            return (
+              <div className="flex flex-col gap-1 bg-green-50 rounded-lg px-4 py-3 mt-2">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-green-800">Total Price</span>
+                  <span className="text-green-900 font-bold text-lg">
+                    ₹{rentalTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+                <div className="text-xs text-green-700 flex flex-col">
+                  <span>
+                    ( {displayAreaFeet.toFixed(2)} ft² × ₹{rentalPricePerSqFt.toLocaleString('en-IN')}/ft² )
+                    {rentalSubtotal > 0 && (
+                      <> ₹{rentalSubtotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</>
+                    )}
+                    {processorPrice > 0 && (
+                      <> + Processor Price ₹{processorPrice.toLocaleString('en-IN')}</>
+                    )}
+                    <span className="ml-2 text-gray-500">({selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'})</span>
+                  </span>
+                </div>
+              </div>
+            );
+          })()
+        ) : pricePerSqFt !== undefined && (
           <div className="flex flex-col gap-1 bg-green-50 rounded-lg px-4 py-3 mt-2">
             <div className="flex justify-between items-center">
               <span className="font-semibold text-green-800">Total Price</span>
