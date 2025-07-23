@@ -330,26 +330,19 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
         const thisCabHub = cabinetAssignments[`cabinet-${i}`];
         const nextCabHub = cabinetAssignments[`cabinet-${i + 1}`];
         const color = getHubColor(thisCabHub, totalHubs);
-        // Debug log for edge creation
-        if ((i % cols === 0 || (i % cols === 1 && i !== 1)) && thisCabHub === nextCabHub) {
-          console.log(`Edge should be created between Cabinet ${i} and Cabinet ${i + 1} (hub ${thisCabHub})`);
-        }
+      
         // Avoid wiring across hubs
         if (thisCabHub !== nextCabHub) continue;
-
-        const thisCol = (i - 1) % cols;
-        const thisRow = Math.floor((i - 1) / cols);
-        const nextCol = i % cols;
+      
+        const sourceRow = Math.floor((i - 1) / cols);
         const nextRow = Math.floor(i / cols);
-        const sourceRow = thisRow;
+        const currentCol = (i - 1) % cols;
         const isSourceRowEven = sourceRow % 2 === 0;
-
-        // Updated end-of-row logic for both even and odd rows
-        const isEndOfRow =
-          (isSourceRowEven && (i % cols === 0)) || // even row: last is i % cols === 0
-          (!isSourceRowEven && (i % cols === 1 && i !== 1)); // odd row: last is i % cols === 1, but not the very first cabinet
-
-        if (isEndOfRow && nextRow === sourceRow + 1) {
+      
+        // Correct vertical connection: end of row (i % cols === 0)
+        const isVerticalConnection = i % cols === 0 && nextRow === sourceRow + 1;
+      
+        if (isVerticalConnection) {
           edges.push({
             id: `data-${i}-to-${i + 1}-vertical`,
             source: `cabinet-${i}`,
@@ -363,11 +356,11 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
           });
           continue;
         }
-
-        // 🔁 Normal horizontal connections
+      
+        // Horizontal connection (step type)
         const sourceHandle = isSourceRowEven ? 'right-source' : 'left-source';
         const targetHandle = isSourceRowEven ? 'left-target' : 'right-target';
-
+      
         edges.push({
           id: `data-${i}-to-${i + 1}`,
           source: `cabinet-${i}`,
@@ -379,10 +372,8 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
           style: { stroke: color, strokeWidth: 2, zIndex: 0 },
           markerEnd: { type: MarkerType.ArrowClosed, color },
         });
-      }
+      }      
     }
-
-
     return { nodes, edges, groupBackgroundNodes };
   }, [cabinetGrid, product]);
 

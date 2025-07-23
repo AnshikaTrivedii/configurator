@@ -62,6 +62,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     (p) => selectedCategory === 'All' || p.category === selectedCategory
   );
 
+  // Deduplicate products by id
+  filteredProducts = filteredProducts.filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+
   if (!isOpen) return null;
 
   return (

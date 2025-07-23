@@ -43,6 +43,11 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
   const widthStep = cabinetWidth / 1000; // Convert mm to meters
   const heightStep = cabinetHeight / 1000; // Convert mm to meters
 
+  // Detect if product is digital standee or jumbo
+  const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
+  const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
+  const isFixedGrid = isDigitalStandee || isJumbo;
+
   return (
     <div className="flex items-center gap-8">
       <div className="flex items-center gap-4">
@@ -55,6 +60,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
             <button
               onClick={() => onWidthChange(adjustValue(config.width, -1, true))}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+              disabled={isFixedGrid}
             >
               <Minus size={16} />
             </button>
@@ -66,12 +72,14 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
                 className="w-full text-center outline-none"
                 step={stepSize}
                 min={0.1}
+                disabled={isFixedGrid}
               />
               <span className="text-sm text-gray-500">m</span>
             </div>
             <button
               onClick={() => onWidthChange(adjustValue(config.width, 1, true))}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+              disabled={isFixedGrid}
             >
               <Plus size={16} />
             </button>
@@ -87,6 +95,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
             <button
               onClick={() => onHeightChange(adjustValue(config.height, -1, false))}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+              disabled={isFixedGrid}
             >
               <Minus size={16} />
             </button>
@@ -98,12 +107,14 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
                 className="w-full text-center outline-none"
                 step={stepSize}
                 min={0.1}
+                disabled={isFixedGrid}
               />
               <span className="text-sm text-gray-500">m</span>
             </div>
             <button
               onClick={() => onHeightChange(adjustValue(config.height, 1, false))}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+              disabled={isFixedGrid}
             >
               <Plus size={16} />
             </button>

@@ -116,22 +116,37 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
 
   // Helper to check if product is Digital Standee
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
+  // Helper to check if product is Jumbo Series
+  const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
+  // Helper to get fixed grid for Jumbo
+  function getJumboFixedGrid(product) {
+    if (!product) return null;
+    if (product.category?.toLowerCase() !== 'jumbo series') return null;
+    if (product.name.toLowerCase().includes('p2.5') || product.name.toLowerCase().includes('p4')) {
+      return { columns: 7, rows: 9 };
+    }
+    if (product.name.toLowerCase().includes('p6') || product.name.toLowerCase().includes('p5')) {
+      return { columns: 11, rows: 8 };
+    }
+    return null;
+  }
+  const jumboGrid = getJumboFixedGrid(selectedProduct);
 
-  // Override cabinetGrid for Digital Standee
+  // Override cabinetGrid for Digital Standee and Jumbo
   const fixedCabinetGrid = isDigitalStandee
     ? { ...cabinetGrid, columns: 7, rows: 5 }
-    : cabinetGrid;
+    : (jumboGrid ? { ...cabinetGrid, ...jumboGrid } : cabinetGrid);
 
-  // Prevent changing columns/rows for Digital Standee
+  // Prevent changing columns/rows for Digital Standee and Jumbo
   const handleColumnsChange = (columns: number) => {
-    if (isDigitalStandee) return;
+    if (isDigitalStandee || jumboGrid) return;
     if (!selectedProduct) return;
     const newWidth = columns * selectedProduct.cabinetDimensions.width;
     updateWidth(newWidth);
   };
 
   const handleRowsChange = (rows: number) => {
-    if (isDigitalStandee) return;
+    if (isDigitalStandee || jumboGrid) return;
     if (!selectedProduct) return;
     const newHeight = rows * selectedProduct.cabinetDimensions.height;
     updateHeight(newHeight);
@@ -226,16 +241,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                     config={config}
                     displayDimensions={displayDimensions}
                     selectedProduct={selectedProduct}
-                    cabinetGrid={cabinetGrid}
+                    cabinetGrid={fixedCabinetGrid}
                   />
                 )}
 
                 {selectedProduct && activeTab === 'data' && (
-                  <DataWiringView product={selectedProduct} cabinetGrid={cabinetGrid} />
+                  <DataWiringView product={selectedProduct} cabinetGrid={fixedCabinetGrid} />
                 )}
 
                 {selectedProduct && activeTab === 'power' && (
-                  <PowerWiringView product={selectedProduct} cabinetGrid={cabinetGrid} />
+                  <PowerWiringView product={selectedProduct} cabinetGrid={fixedCabinetGrid} />
                 )}
               </div>
             </div>
