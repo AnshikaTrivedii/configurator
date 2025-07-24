@@ -128,6 +128,25 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
 
   // Helper to check if product is Digital Standee
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
+  // Helper to check if product is Jumbo Series
+  const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
+  // Helper to get fixed grid for Jumbo
+  function getJumboFixedGrid(product) {
+    if (!product) return null;
+    if (product.category?.toLowerCase() !== 'jumbo series') return null;
+    if (product.name.toLowerCase().includes('p2.5') || product.name.toLowerCase().includes('p4')) {
+      return { columns: 7, rows: 9 };
+    }
+    if (product.name.toLowerCase().includes('p6') || product.name.toLowerCase().includes('p5')) {
+      return { columns: 11, rows: 8 };
+    }
+    return null;
+  }
+  const jumboGrid = getJumboFixedGrid(selectedProduct);
+
+  // Use fixed grid for display if digital standee or jumbo
+  const displayColumns = isDigitalStandee ? 7 : (jumboGrid ? jumboGrid.columns : cabinetGrid.columns);
+  const displayRows = isDigitalStandee ? 5 : (jumboGrid ? jumboGrid.rows : cabinetGrid.rows);
 
   if (!selectedProduct) {
     return (
@@ -207,17 +226,17 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(Math.max(1, cabinetGrid.columns - 1))}
                       className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                      disabled={isDigitalStandee}
+                      disabled={isDigitalStandee || isJumbo}
                     >
                       -
                     </button>
                     <div className="flex-1 text-center px-4 py-2 bg-gray-50 rounded-lg">
-                      {cabinetGrid.columns}
+                      {displayColumns}
                     </div>
                     <button 
                       onClick={() => onColumnsChange(cabinetGrid.columns + 1)}
                       className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                      disabled={isDigitalStandee}
+                      disabled={isDigitalStandee || isJumbo}
                     >
                       +
                     </button>
@@ -232,17 +251,17 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(Math.max(1, cabinetGrid.rows - 1))}
                       className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                      disabled={isDigitalStandee}
+                      disabled={isDigitalStandee || isJumbo}
                     >
                       -
                     </button>
                     <div className="flex-1 text-center px-4 py-2 bg-gray-50 rounded-lg">
-                      {cabinetGrid.rows}
+                      {displayRows}
                     </div>
                     <button 
                       onClick={() => onRowsChange(cabinetGrid.rows + 1)}
                       className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                      disabled={isDigitalStandee}
+                      disabled={isDigitalStandee || isJumbo}
                     >
                       +
                     </button>

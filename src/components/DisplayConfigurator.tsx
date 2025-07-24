@@ -101,19 +101,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
     setSelectedController(getAutoSelectedController(product, grid));
   };
 
-  useEffect(() => {
-    if (selectedProduct) {
-      if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
-        updateWidth(selectedProduct.cabinetDimensions.width);
-        updateHeight(selectedProduct.cabinetDimensions.height);
-      } else {
-        const grid = calculateCabinetGrid(selectedProduct);
-        updateWidth(grid.totalWidth);
-        updateHeight(grid.totalHeight);
-      }
-    }
-  }, [selectedProduct]);
-
   // Helper to check if product is Digital Standee
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   // Helper to check if product is Jumbo Series
@@ -151,6 +138,23 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
     const newHeight = rows * selectedProduct.cabinetDimensions.height;
     updateHeight(newHeight);
   };
+
+  // When a Jumbo product is selected, set the width/height to match the fixed grid
+  useEffect(() => {
+    if (selectedProduct) {
+      if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
+        updateWidth(selectedProduct.cabinetDimensions.width);
+        updateHeight(selectedProduct.cabinetDimensions.height);
+      } else if (jumboGrid) {
+        updateWidth(jumboGrid.columns * selectedProduct.cabinetDimensions.width);
+        updateHeight(jumboGrid.rows * selectedProduct.cabinetDimensions.height);
+      } else {
+        const grid = calculateCabinetGrid(selectedProduct);
+        updateWidth(grid.totalWidth);
+        updateHeight(grid.totalHeight);
+      }
+    }
+  }, [selectedProduct]);
 
   // Digital Standee Series price mapping by model and user type
   const digitalStandeePrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
