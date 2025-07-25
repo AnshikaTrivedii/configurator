@@ -279,13 +279,28 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
   }, [cabinetGrid, product]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(generateNodesAndEdges.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(generateNodesAndEdges.edges);
+  // --- Edge filtering: Remove previous cabinet-to-cabinet connection if cabinet is directly powered by a distributor ---
+  const filterEdges = (edges: any[]) => {
+    // Find all cabinets that are directly powered by a distributor (i.e., have an edge from a data hub)
+    const directlyPoweredCabinets = new Set(
+      edges
+        .filter(e => e.source && e.source.startsWith('data-hub-'))
+        .map(e => e.target)
+    );
+    // Remove cabinet-to-cabinet edge if the target is directly powered by a distributor
+    return edges.filter(e => {
+      if (e.source && e.source.startsWith('data-hub-')) return true;
+      if (directlyPoweredCabinets.has(e.target)) return false;
+      return true;
+    });
+  };
+  const [edges, setEdges, onEdgesChange] = useEdgesState(filterEdges(generateNodesAndEdges.edges));
   const groupBackgroundNodes = generateNodesAndEdges.groupBackgroundNodes;
   const allNodes = [...groupBackgroundNodes, ...nodes];
 
   useEffect(() => {
     setNodes(generateNodesAndEdges.nodes);
-    setEdges(generateNodesAndEdges.edges);
+    setEdges(filterEdges(generateNodesAndEdges.edges)); // Apply filter here
   }, [generateNodesAndEdges, setNodes, setEdges]);
 
   // --- Custom Node Renderers with Interactivity ---
@@ -636,4 +651,4 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
   );
 };
 
-export default PowerWiringView; 
+export default PowerWiringView;  
