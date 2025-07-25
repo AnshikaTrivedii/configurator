@@ -72,8 +72,8 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     // Cabinet node layout
     const startX = 350;
     const startY = 150;
-    const spacingX = 140;
-    const spacingY = 120;
+    const spacingX = 180; // was 140 or less
+    const spacingY = 140; // was 120 or less
 
     // Update the power run assignment logic to snake through the grid row by row, left to right, and start a new run as soon as the max is reached for the pixel pitch.
     // Place this logic where you generate the nodes and edges:
@@ -131,9 +131,9 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
         const color = getHubColor(hubIdx, totalHubs);
         nodes.push({
           id: `cabinet-${nodeId}`,
-          type: 'dataCabinet',
+          type: 'ledPanel', // <-- must match nodeTypes
           position: { x: posX, y: posY },
-          data: { label: `Cabinet ${nodeId}`, additionalInfo: "", color },
+          data: { label: `Cabinet ${nodeId}`, additionalInfo: "", color, runIndex: hubIdx + 1 },
         });
         nodeId++;
       }
@@ -331,78 +331,44 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
   const CabinetNode = ({ data }: any) => {
     const color = runColors[(data.runIndex - 1) % runColors.length];
     const isActive = hoveredRun === data.runIndex || selectedRun === data.runIndex;
-    const [clicked, setClicked] = React.useState(false);
     return (
       <div
-      className={`relative rounded-3xl shadow-2xl p-14 min-w-56 text-center cursor-pointer transition-all duration-200 ${isActive ? 'scale-130 neon-glow ripple-cabinet' : ''} ${clicked ? 'bounce-cabinet' : ''}`}
-      style={{
-        background: 'rgba(255,255,255,0.85)',
-        border: `7px solid ${color}`,
-        boxShadow: isActive
-          ? `0 0 96px 36px ${color}ff, 0 0 0 18px ${color}77`
-          : `0 0 48px 12px ${color}44`,
-        opacity: isActive ? 1 : 0.99,
-        transition: 'box-shadow 0.3s, opacity 0.3s, transform 0.2s',
-        transform: isActive ? 'scale(1.3)' : 'scale(1)',
-        zIndex: isActive ? 20 : 1,
-        backdropFilter: 'blur(8px)',
-      }}
-      onMouseEnter={data.onHover}
-      onMouseLeave={data.onLeave}
-      onClick={() => { setClicked(true); setSidebarData({ type: 'cabinet', data }); setTimeout(() => setClicked(false), 400); }}
-      onMouseMove={e => data.onTooltip && data.onTooltip(e.clientX, e.clientY)}
-      onMouseOut={data.onTooltipLeave}
-      tabIndex={0}
-      aria-label={`Cabinet ${data.label}, Power Run ${data.runIndex}`}
-    >
-      <div className="text-2xl font-extrabold mb-3" style={{ color, textShadow: `0 0 12px ${color}` }}>{data.label}</div>
-      <div className="text-lg font-semibold uppercase tracking-wide" style={{ color }}>{'POWER'}</div>
-      <div className={`absolute top-3 right-3 w-5 h-5 rounded-full ${data.connected ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
-      {/* Handles */}
-      <Handle type="target" position={Position.Left} id="left-target" style={{ background: color }} />
-      <Handle type="target" position={Position.Top} id="top-target" style={{ background: color }} />
-      <Handle type="target" position={Position.Right} id="right-target" style={{ background: color }} />
-      <Handle type="source" position={Position.Right} id="right-source" style={{ background: color }} />
-      <Handle type="source" position={Position.Bottom} id="bottom" style={{ background: color }} />
-      <Handle type="source" position={Position.Left} id="left-source" style={{ background: color }} />
-      <style>{`
-        .scale-130 { transform: scale(1.3); }
-        .neon-glow { box-shadow: 0 0 96px 36px ${color}ff, 0 0 0 18px ${color}77 !important; }
-        .pulse-cabinet { animation: pulse-cabinet 1.2s infinite; }
-        @keyframes pulse-cabinet {
-          0% { box-shadow: 0 0 96px 36px ${color}ff, 0 0 0 18px ${color}77; }
-          50% { box-shadow: 0 0 144px 54px ${color}ff, 0 0 0 28px ${color}99; }
-          100% { box-shadow: 0 0 96px 36px ${color}ff, 0 0 0 18px ${color}77; }
-        }
-        .bounce-cabinet { animation: bounce-cabinet 0.4s; }
-        @keyframes bounce-cabinet {
-          0% { transform: scale(1.3); }
-          30% { transform: scale(1.45); }
-          60% { transform: scale(1.1); }
-          100% { transform: scale(1.3); }
-        }
-        .ripple-cabinet::after {
-          content: '';
-          position: absolute;
-          left: 50%;
-          top: 50%;
-          width: 180%;
-          height: 180%;
-          background: radial-gradient(circle, ${color}33 0%, transparent 80%);
-          border-radius: 50%;
-          transform: translate(-50%, -50%);
-          z-index: 0;
-          animation: ripple-effect 1.2s infinite;
-        }
-        @keyframes ripple-effect {
-          0% { opacity: 0.7; }
-          50% { opacity: 0.2; }
-          100% { opacity: 0.7; }
-        }
-      `}</style>
-    </div>
-  );
-};
+        className={`relative rounded-lg shadow p-4 min-w-32 text-center cursor-pointer transition-all duration-200`}
+        style={{
+          background: color + '22', // solid, readable color for the run
+          borderLeft: `8px solid ${color}`,
+          borderRight: '1px solid #e5e7eb',
+          borderTop: '1px solid #e5e7eb',
+          borderBottom: '1px solid #e5e7eb',
+          boxShadow: isActive ? `0 0 16px 4px ${color}88` : '0 1px 4px #0001',
+          color: '#222',
+          fontWeight: 600,
+          fontSize: 18,
+          opacity: 1,
+          transition: 'box-shadow 0.2s, background 0.2s',
+          zIndex: isActive ? 10 : 1,
+        }}
+        onMouseEnter={data.onHover}
+        onMouseLeave={data.onLeave}
+        onClick={() => setSidebarData({ type: 'cabinet', data })}
+        onMouseMove={e => data.onTooltip && data.onTooltip(e.clientX, e.clientY)}
+        onMouseOut={data.onTooltipLeave}
+        tabIndex={0}
+        aria-label={`Cabinet ${data.label}, Power Run ${data.runIndex}`}
+      >
+        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 2 }}>{data.label}</div>
+        <div style={{ fontSize: 13, color: '#444' }}>{'POWER'}</div>
+        <div className={`absolute top-2 right-2 w-3 h-3 rounded-full ${data.connected ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
+        {/* Handles */}
+        <Handle type="target" position={Position.Left} id="left-target" style={{ background: color }} />
+        <Handle type="target" position={Position.Top} id="top-target" style={{ background: color }} />
+        <Handle type="target" position={Position.Right} id="right-target" style={{ background: color }} />
+        <Handle type="source" position={Position.Right} id="right-source" style={{ background: color }} />
+        <Handle type="source" position={Position.Bottom} id="bottom" style={{ background: color }} />
+        <Handle type="source" position={Position.Left} id="left-source" style={{ background: color }} />
+      </div>
+    );
+  };
 
   // Add this custom node type for group backgrounds
   const GroupBackgroundNode = ({ data }: any) => (
@@ -444,8 +410,8 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
   };
 
   const nodeTypes = {
+    ledPanel: CabinetNode, // Use enhanced CabinetNode for all cabinet nodes
     power: PowerNode,
-    ledPanel: CabinetNode,
   };
   const edgeTypes = {
     bend: BendEdge,
@@ -481,42 +447,76 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     const isMainCable = data && data.isMainCable;
     const runIndex: number = typeof data?.runIndex === 'number' ? data.runIndex : 1;
     const color = runColors[(runIndex - 1) % runColors.length];
-    // Use a cubic Bezier for a circuit look
-    const edgePath = `M${sourceX},${sourceY} C${sourceX},${(sourceY + targetY) / 2} ${targetX},${(sourceY + targetY) / 2} ${targetX},${targetY}`;
     const isActive = hoveredRun === runIndex || selectedRun === runIndex;
+    const edgePath = `M${sourceX},${sourceY} C${sourceX},${(sourceY + targetY) / 2} ${targetX},${(sourceY + targetY) / 2} ${targetX},${targetY}`;
+    const arrowId = `arrowhead-${id}`;
+    const gradientId = `edge-gradient-${id}`;
     return (
       <>
+        <defs>
+          <linearGradient id={gradientId} x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor={color} stopOpacity="1">
+              <animate attributeName="offset" values="0;1;0" dur={isActive ? '0.8s' : '1.6s'} repeatCount="indefinite" />
+            </stop>
+            <stop offset="100%" stopColor="#fff" stopOpacity="0.2">
+              <animate attributeName="offset" values="1;0;1" dur={isActive ? '0.8s' : '1.6s'} repeatCount="indefinite" />
+            </stop>
+          </linearGradient>
+          <marker
+            id={arrowId}
+            markerWidth="16"
+            markerHeight="16"
+            refX="8"
+            refY="8"
+            orient="auto"
+            markerUnits="userSpaceOnUse"
+          >
+            <polygon points="2,4 14,8 2,12" fill={color} opacity={isActive ? 1 : 0.5}>
+              <animate
+                attributeName="fill"
+                values={`${color};#fff;${color}`}
+                dur={isActive ? '0.5s' : '1.2s'}
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="opacity"
+                values="1;0.5;1"
+                dur={isActive ? '0.5s' : '1.2s'}
+                repeatCount="indefinite"
+              />
+            </polygon>
+          </marker>
+        </defs>
         <BaseEdge
           id={id}
           path={edgePath}
           style={{
             ...style,
-            stroke: color,
-            strokeWidth: isMainCable ? (isActive ? 22 : 14) : (isActive ? 12 : 7),
+            stroke: `url(#${gradientId})`,
+            strokeWidth: isMainCable ? (isActive ? 24 : 16) : (isActive ? 14 : 8),
             filter: isMainCable
-              ? `drop-shadow(0 0 64px ${color}ff) drop-shadow(0 0 32px ${color}cc)`
-              : `drop-shadow(0 0 32px ${color}77)`,
-            strokeDasharray: isMainCable ? 'none' : '20 10',
-            animation: isMainCable ? 'glowmove 0.5s linear infinite' : 'dashmove 0.8s linear infinite',
+              ? `drop-shadow(0 0 96px ${color}ff) drop-shadow(0 0 48px ${color}cc)`
+              : `drop-shadow(0 0 48px ${color}77)`,
+            strokeDasharray: isMainCable ? 'none' : '28 14',
+            animation: isMainCable ? 'glowmove 0.4s linear infinite' : 'dashmove 0.6s linear infinite',
             opacity: 1,
           }}
-          markerEnd={markerEnd}
+          markerEnd={`url(#${arrowId})`}
         />
-        {isMainCable && (
-          <circle r={20} fill={color}>
-            <animateMotion dur="0.5s" repeatCount="indefinite">
-              <mpath xlinkHref={`#${id}`} />
-            </animateMotion>
-          </circle>
-        )}
+        {/* Traveling dot/pulse along the edge */}
+        <circle r={isMainCable ? 18 : 10} fill={color} filter={`drop-shadow(0 0 8px ${color})`}>
+          <animateMotion dur={isActive ? '0.4s' : '0.8s'} repeatCount="indefinite">
+            <mpath xlinkHref={`#${id}`} />
+          </animateMotion>
+        </circle>
         <style>{`
           @keyframes dashmove {
-            to { stroke-dashoffset: 60; }
+            to { stroke-dashoffset: 84; }
           }
           @keyframes glowmove {
-            0% { filter: drop-shadow(0 0 64px ${color}ff); }
-            50% { filter: drop-shadow(0 0 128px ${color}ff); }
-            100% { filter: drop-shadow(0 0 64px ${color}ff); }
+            0% { filter: drop-shadow(0 0 96px ${color}ff); }
+            50% { filter: drop-shadow(0 0 192px ${color}ff); }
+            100% { filter: drop-shadow(0 0 96px ${color}ff); }
           }
         `}</style>
       </>
