@@ -193,7 +193,7 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
             animated: true,
             style: { stroke: color, strokeWidth: 3 },
             markerEnd: { type: MarkerType.ArrowClosed, color },
-            targetHandle: 'right-target', // Always enter at the right edge
+            targetHandle: 'center', // Always enter at the center
           });
         } else {
           // Data Hub 2+: route between rows using bend points
@@ -216,7 +216,7 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
               animated: true,
               style: { stroke: color, strokeWidth: 3 },
               markerEnd: { type: MarkerType.ArrowClosed, color },
-              targetHandle: 'right-target', // Always enter at the right edge
+              targetHandle: 'center', // Always enter at the center
               data: {
                 bendPoints: [
                   { x: bendX, y: hubNode.position.y }, // horizontal from hub
@@ -253,17 +253,15 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
             type: 'straight',
             animated: true,
             sourceHandle: 'bottom',
-            targetHandle: 'top-target',
+            targetHandle: 'top-target', // Arrowhead at the top
             style: { stroke: color, strokeWidth: 2, zIndex: 0 },
             markerEnd: { type: MarkerType.ArrowClosed, color },
           });
           continue;
         }
-      
         // Horizontal connection (step type)
         const sourceHandle = isSourceRowEven ? 'right-source' : 'left-source';
         const targetHandle = isSourceRowEven ? 'left-target' : 'right-target';
-      
         edges.push({
           id: `data-${i}-to-${i + 1}`,
           source: `cabinet-${i}`,
@@ -271,7 +269,7 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
           type: 'step',
           animated: true,
           sourceHandle,
-          targetHandle,
+          targetHandle, // Arrowhead at the correct entry side
           style: { stroke: color, strokeWidth: 2, zIndex: 0 },
           markerEnd: { type: MarkerType.ArrowClosed, color },
         });
@@ -380,6 +378,8 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
         <Handle type="target" position={Position.Left} id="left-target" style={{ background: color }} />
         <Handle type="target" position={Position.Top} id="top-target" style={{ background: color }} />
         <Handle type="target" position={Position.Right} id="right-target" style={{ background: color }} />
+        <Handle type="target" position={Position.Bottom} id="bottom-target" style={{ background: color }} />
+        <Handle type="target" position={Position.Top} id="center" style={{ background: color, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 2 }} />
         <Handle type="source" position={Position.Right} id="right-source" style={{ background: color }} />
         <Handle type="source" position={Position.Bottom} id="bottom" style={{ background: color }} />
         <Handle type="source" position={Position.Left} id="left-source" style={{ background: color }} />
@@ -407,21 +407,57 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
   const BendEdge: React.FC<EdgeProps> = ({ id, sourceX, sourceY, targetX, targetY, style, markerEnd, data }) => {
     // Type guard for bendPoints
     const hasBendPoints = Array.isArray(data?.bendPoints) && data.bendPoints.length > 0;
-    if (!hasBendPoints) {
-      const [edgePath] = getStraightPath({ sourceX, sourceY, targetX, targetY });
-      return (
-        <BaseEdge id={id} path={edgePath} style={style} markerEnd={markerEnd} />
-      );
+    let finalTargetX = targetX;
+    let finalTargetY = targetY;
+    // Offset the endpoint for better arrowhead visibility
+    if (hasBendPoints) {
+      const bendPoints = Array.isArray(data?.bendPoints) ? (data.bendPoints as { x: number; y: number }[]) : [];
+      const lastBend = bendPoints.length > 0 ? bendPoints[bendPoints.length - 1] : undefined;
+      if (lastBend) {
+        // Determine direction
+        const dx = targetX - lastBend.x;
+        const dy = targetY - lastBend.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len > 0) {
+          finalTargetX = targetX - (dx / len) * 16;
+          finalTargetY = targetY - (dy / len) * 16;
+        }
+      }
     }
-    // Build path with bends
+    if (!hasBendPoints) {
+      // For straight lines, offset based on direction
+      const dx = targetX - sourceX;
+      const dy = targetY - sourceY;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len > 0) {
+        finalTargetX = targetX - (dx / len) * 16;
+        finalTargetY = targetY - (dy / len) * 16;
+      }
+    }
     let d = `M ${sourceX},${sourceY}`;
-    (data.bendPoints as { x: number; y: number }[]).forEach((pt) => {
-      d += ` L ${pt.x},${pt.y}`;
-    });
-    d += ` L ${targetX},${targetY}`;
+    if (hasBendPoints) {
+      const bendPoints = Array.isArray(data?.bendPoints) ? (data.bendPoints as { x: number; y: number }[]) : [];
+      bendPoints.forEach((pt) => {
+        d += ` L ${pt.x},${pt.y}`;
+      });
+    }
+    d += ` L ${finalTargetX},${finalTargetY}`;
     return (
       <>
-        <BaseEdge id={id} path={d} style={style} markerEnd={markerEnd} />
+        <defs>
+          <marker
+            id={`arrowhead-${id}`}
+            markerWidth="24"
+            markerHeight="24"
+            refX="12"
+            refY="12"
+            orient="auto"
+            markerUnits="userSpaceOnUse"
+          >
+            <polygon points="4,8 20,12 4,16" fill={style?.stroke || '#2563eb'} />
+          </marker>
+        </defs>
+        <BaseEdge id={id} path={d} style={style} markerEnd={`url(#arrowhead-${id})`} />
       </>
     );
   };
