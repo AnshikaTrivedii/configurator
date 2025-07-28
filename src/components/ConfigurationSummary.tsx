@@ -71,9 +71,73 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const inches = Math.round((diagonalInches % 12) * 16) / 16; // Round to nearest 1/16 inch
   
   // Calculate power consumption
-  const powerPerCabinet = selectedProduct.avgPowerConsumption || 91.7; // Default to 91.7W if not specified
-  const avgPower = (powerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(1);
-  const maxPower = (powerPerCabinet * 3 * cabinetGrid.columns * cabinetGrid.rows).toFixed(1); // Assuming 3x max power
+  const avgPowerPerCabinet = selectedProduct.avgPowerConsumption || 91.7; // Default to 91.7W if not specified
+  const maxPowerPerCabinet = selectedProduct.maxPowerConsumption || (avgPowerPerCabinet * 3); // Use actual max power or default to 3x avg
+  const avgPower = (avgPowerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(1);
+  const maxPower = (maxPowerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(1);
+  
+  // Debug logging for power consumption
+  console.log('Power Consumption Debug:', {
+    productName: selectedProduct.name,
+    productCategory: selectedProduct.category,
+    avgPowerPerCabinet: selectedProduct.avgPowerConsumption || 91.7,
+    maxPowerPerCabinet: selectedProduct.maxPowerConsumption || (selectedProduct.avgPowerConsumption || 91.7) * 3,
+    cabinetGrid: { columns: cabinetGrid.columns, rows: cabinetGrid.rows, total: cabinetGrid.columns * cabinetGrid.rows },
+    calculatedAvgPower: avgPower,
+    calculatedMaxPower: maxPower,
+    config: { width: config.width, height: config.height },
+    cabinetDimensions: selectedProduct.cabinetDimensions,
+    expectedAvgPower: selectedProduct.avgPowerConsumption || 91.7,
+    expectedMaxPower: selectedProduct.maxPowerConsumption || (selectedProduct.avgPowerConsumption || 91.7) * 3
+  });
+  
+  // Special debug for BETELGEUSE series
+  if (selectedProduct.category?.toLowerCase().includes('betelgeuse')) {
+    console.log('BETELGEUSE Series Debug:', {
+      productName: selectedProduct.name,
+      avgPowerPerCabinet: selectedProduct.avgPowerConsumption,
+      maxPowerPerCabinet: selectedProduct.maxPowerConsumption,
+      cabinetGrid: { columns: cabinetGrid.columns, rows: cabinetGrid.rows, total: cabinetGrid.columns * cabinetGrid.rows },
+      calculatedAvgPower: avgPower,
+      calculatedMaxPower: maxPower,
+      expectedFor1Cabinet: {
+        avg: selectedProduct.avgPowerConsumption,
+        max: selectedProduct.maxPowerConsumption
+      }
+    });
+  }
+  
+  // Special debug for FLEXIBLE series
+  if (selectedProduct.category?.toLowerCase().includes('flexible')) {
+    console.log('FLEXIBLE Series Debug:', {
+      productName: selectedProduct.name,
+      avgPowerPerCabinet: selectedProduct.avgPowerConsumption,
+      maxPowerPerCabinet: selectedProduct.maxPowerConsumption,
+      cabinetGrid: { columns: cabinetGrid.columns, rows: cabinetGrid.rows, total: cabinetGrid.columns * cabinetGrid.rows },
+      calculatedAvgPower: avgPower,
+      calculatedMaxPower: maxPower,
+      expectedFor1Cabinet: {
+        avg: selectedProduct.avgPowerConsumption,
+        max: selectedProduct.maxPowerConsumption
+      }
+    });
+  }
+  
+  // Special debug for RENTAL series
+  if (selectedProduct.category?.toLowerCase().includes('rental')) {
+    console.log('RENTAL Series Debug:', {
+      productName: selectedProduct.name,
+      avgPowerPerCabinet: selectedProduct.avgPowerConsumption,
+      maxPowerPerCabinet: selectedProduct.maxPowerConsumption,
+      cabinetGrid: { columns: cabinetGrid.columns, rows: cabinetGrid.rows, total: cabinetGrid.columns * cabinetGrid.rows },
+      calculatedAvgPower: avgPower,
+      calculatedMaxPower: maxPower,
+      expectedFor1Cabinet: {
+        avg: selectedProduct.avgPowerConsumption,
+        max: selectedProduct.maxPowerConsumption
+      }
+    });
+  }
 
   // Calculate pixel density (pixels per meter)
   const pixelsPerMeterWidth = (selectedProduct.resolution.width * cabinetGrid.columns) / (config.width / 1000); // pixels per meter width

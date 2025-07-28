@@ -193,6 +193,7 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
             animated: true,
             style: { stroke: color, strokeWidth: 3 },
             markerEnd: { type: MarkerType.ArrowClosed, color },
+            targetHandle: 'right-target', // Always enter at the right edge
           });
         } else {
           // Data Hub 2+: route between rows using bend points
@@ -215,6 +216,7 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
               animated: true,
               style: { stroke: color, strokeWidth: 3 },
               markerEnd: { type: MarkerType.ArrowClosed, color },
+              targetHandle: 'right-target', // Always enter at the right edge
               data: {
                 bendPoints: [
                   { x: bendX, y: hubNode.position.y }, // horizontal from hub

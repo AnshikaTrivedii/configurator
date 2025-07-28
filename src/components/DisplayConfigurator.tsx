@@ -398,7 +398,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuration Summary</h3>
               <ConfigurationSummary
                 config={config}
-                cabinetGrid={cabinetGrid}
+                cabinetGrid={fixedCabinetGrid}
                 selectedProduct={selectedProduct}
                 userType={userType}
                 processor={selectedController}

@@ -495,8 +495,8 @@ export const products: Product[] = [
     brightness: 780, // cd/m²
     refreshRate: 3840, // Hz
     environment: 'indoor',
-    maxPowerConsumption: 440, // <440W
-    avgPowerConsumption: 220, // <220W
+    maxPowerConsumption: 400, // <400W
+    avgPowerConsumption: 120, // <120W
     weightPerCabinet: 45, // kg
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P1.8.pdf',
     ledType: 'SMD',
@@ -533,8 +533,8 @@ export const products: Product[] = [
     brightness: 780, // cd/m²
     refreshRate: 3840, // Hz
     environment: 'indoor',
-    maxPowerConsumption: 440, // <440W
-    avgPowerConsumption: 220, // <220W
+    maxPowerConsumption: 400, // <400W
+    avgPowerConsumption: 120, // <120W
     weightPerCabinet: 45, // kg
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P2.5.pdf',
     ledType: 'SMD',
@@ -571,8 +571,8 @@ export const products: Product[] = [
     brightness: 4500, // cd/m²
     refreshRate: 3840, // Hz
     environment: 'outdoor',
-    maxPowerConsumption: 450, // <450W
-    avgPowerConsumption: 200, // <200W
+    maxPowerConsumption: 750, // <750W
+    avgPowerConsumption: 400, // <400W
     weightPerCabinet: 60, // kg
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P4.pdf',
     ledType: 'SMD',
