@@ -220,9 +220,9 @@ export const products: Product[] = [
     avgPowerConsumption: 150,
     weightPerCabinet: 4.5,
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+COB+P1.25.pdf',
-    price: undefined,
-    siChannelPrice: undefined,
-    resellerPrice: undefined,
+    price: 35000,
+    siChannelPrice: 31500,
+    resellerPrice: 29750,
   },
   {
     id: 'bellatrix-indoor-cob-p1.5',
@@ -945,9 +945,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
-    price: undefined,
-    siChannelPrice: undefined,
-    resellerPrice: undefined,
+    price: 25000,
+    siChannelPrice: 22500,
+    resellerPrice: 21250,
   },
   // Betel Series Indoor SMD P1.5
   {
@@ -984,9 +984,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
-    price: undefined,
-    siChannelPrice: undefined,
-    resellerPrice: undefined,
+    price: 22000,
+    siChannelPrice: 19800,
+    resellerPrice: 18700,
   },
   // Betel Series Indoor SMD P1.8
   {

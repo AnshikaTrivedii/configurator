@@ -33,6 +33,11 @@ const processorPrices: Record<string, { endUser: number; siChannel: number; rese
   VX1:      { endUser: 35000, siChannel: 31500, reseller: 29800 },
   VX400:    { endUser: 100000, siChannel: 90000, reseller: 85000 },
   'VX400 Pro': { endUser: 110000, siChannel: 99000, reseller: 93500 },
+  VX600:    { endUser: 150000, siChannel: 135000, reseller: 127500 },
+  'VX600 Pro': { endUser: 165000, siChannel: 148500, reseller: 140250 },
+  VX1000:   { endUser: 200000, siChannel: 180000, reseller: 170000 },
+  'VX1000 Pro': { endUser: 220000, siChannel: 198000, reseller: 187000 },
+  '4K PRIME': { endUser: 300000, siChannel: 270000, reseller: 255000 },
 };
 
 // Helper to map UserType to product price key
@@ -162,6 +167,16 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     else if (userType === 'reseller') processorPrice = processorPrices[processor].reseller;
     else processorPrice = processorPrices[processor].endUser;
   }
+  
+  // Debug logging for processor price
+  console.log('Processor Price Debug:', {
+    processor,
+    userType,
+    processorPrice,
+    availableProcessors: Object.keys(processorPrices),
+    processorFound: processor ? processorPrices[processor] : false
+  });
+  
   const totalPriceWithProcessor = totalPrice !== undefined ? totalPrice + processorPrice : undefined;
 
   // Determine product type (SMD or COB)
@@ -175,6 +190,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     return undefined;
   };
   const productType = getProductType(selectedProduct);
+
+
 
   // Show only the correct prices for the product type
   const showPrice = (type: 'endUser' | 'siChannel' | 'reseller') => {
@@ -396,6 +413,25 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             </div>
           )}
         </div>
+        {/* Show processor price if available */}
+        {processor && processorPrice > 0 && (
+          <div className="flex flex-col gap-1 bg-orange-50 rounded-lg px-4 py-3 mt-2">
+            <div className="flex justify-between items-center">
+              <span className="font-semibold text-orange-800">Processor Price ({processor}):</span>
+              <span className="text-orange-900 font-bold text-lg">
+                ₹{processorPrice.toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="text-xs text-orange-700">
+              <span>
+                {userType === 'siChannel' ? 'SI/Channel Price' : 
+                 userType === 'reseller' ? 'Reseller Price' : 
+                 'End Customer Price'}
+              </span>
+            </div>
+          </div>
+        )}
+        
         {/* Show price for rental series */}
         {selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption && selectedProduct.prices ? (
           (() => {

@@ -432,14 +432,14 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       if (len > 0) {
         finalTargetX = targetX - (dx / len) * 16;
         finalTargetY = targetY - (dy / len) * 16;
-      }
+    }
     }
     let d = `M ${sourceX},${sourceY}`;
     if (hasBendPoints) {
       const bendPoints = Array.isArray(data?.bendPoints) ? (data.bendPoints as { x: number; y: number }[]) : [];
       bendPoints.forEach((pt) => {
-        d += ` L ${pt.x},${pt.y}`;
-      });
+      d += ` L ${pt.x},${pt.y}`;
+    });
     }
     d += ` L ${finalTargetX},${finalTargetY}`;
     return (
