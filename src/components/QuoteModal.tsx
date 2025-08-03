@@ -40,6 +40,7 @@ interface Product {
     cabinet: { endCustomer: number; siChannel: number; reseller: number };
     curveLock: { endCustomer: number; siChannel: number; reseller: number };
   };
+  rentalOption?: string;
   // Add other product properties as needed
 }
 
@@ -82,6 +83,24 @@ const getUserTypeDisplayName = (type: string): string => {
   }
 };
 
+// Processor price mapping by controller and user type
+const processorPrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
+  TB2:      { endUser: 35000, siChannel: 31500, reseller: 29800 },
+  TB40:     { endUser: 35000, siChannel: 31500, reseller: 29800 },
+  TB60:     { endUser: 65000, siChannel: 58500, reseller: 55300 },
+  VX1:      { endUser: 35000, siChannel: 31500, reseller: 29800 },
+  VX400:    { endUser: 100000, siChannel: 90000, reseller: 85000 },
+  'VX400 Pro': { endUser: 110000, siChannel: 99000, reseller: 93500 },
+  VX600:    { endUser: 150000, siChannel: 135000, reseller: 127500 },
+  'VX600 Pro': { endUser: 165000, siChannel: 148500, reseller: 140250 },
+  VX1000:   { endUser: 200000, siChannel: 180000, reseller: 170000 },
+  'VX1000 Pro': { endUser: 220000, siChannel: 198000, reseller: 187000 },
+  '4K PRIME': { endUser: 300000, siChannel: 270000, reseller: 255000 },
+};
+
+// Helper to map UserType to product price key
+const userTypeToPriceKey = (type: string) => type === 'endUser' ? 'endCustomer' : type;
+
 export const QuoteModal: React.FC<QuoteModalProps> = ({
   isOpen,
   onClose,
@@ -122,6 +141,49 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     return selectedProduct.price;
   };
 
+  // Calculate total price
+  const calculateTotalPrice = (): number | undefined => {
+    if (!selectedProduct || !cabinetGrid || !config) return undefined;
+    
+    const userType = getUserType();
+    
+    // Calculate display area in square feet
+    const displayArea = (config.width * config.height) / 1000000; // mm² to m²
+    const displayAreaFeet = displayArea * 10.7639;
+    
+    let pricePerSqFt: number | undefined;
+    
+    // Handle rental series pricing
+    if (selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption && selectedProduct.prices) {
+      const rentalOptionKey = selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet';
+      const priceKey = userTypeToPriceKey(userType) as 'endCustomer' | 'siChannel' | 'reseller';
+      pricePerSqFt = selectedProduct.prices[rentalOptionKey as keyof typeof selectedProduct.prices]?.[priceKey];
+    } else {
+      // Regular pricing
+      if (userType === 'siChannel') {
+        pricePerSqFt = selectedProduct.siChannelPrice;
+      } else if (userType === 'reseller') {
+        pricePerSqFt = selectedProduct.resellerPrice;
+      } else {
+        pricePerSqFt = selectedProduct.price;
+      }
+    }
+    
+    if (!pricePerSqFt) return undefined;
+    
+    const totalPrice = displayAreaFeet * pricePerSqFt;
+    
+    // Add processor price if available
+    let processorPrice = 0;
+    if (processor && processorPrices[processor]) {
+      if (userType === 'siChannel') processorPrice = processorPrices[processor].siChannel;
+      else if (userType === 'reseller') processorPrice = processorPrices[processor].reseller;
+      else processorPrice = processorPrices[processor].endUser;
+    }
+    
+    return totalPrice + processorPrice;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -141,6 +203,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     try {
       const userType = getUserType();
       const userPrice = getPriceForUserType();
+      const totalPrice = calculateTotalPrice();
       
       const quoteData: QuoteRequest = {
         product: {
@@ -181,7 +244,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         processor: processor,
         mode: mode,
         // Include user type at the root level as well for backward compatibility
-        userType: userType
+        userType: userType,
+        // Include total price
+        totalPrice: totalPrice
       };
       
       console.log('Submitting quote data:', quoteData);
@@ -219,6 +284,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  // Calculate total price for display
+  const totalPrice = calculateTotalPrice();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -311,6 +379,15 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                         <div className="flex justify-between">
                           <span className="text-gray-600">Mode:</span>
                           <span>{mode}</span>
+                        </div>
+                      )}
+                      {/* Total Price */}
+                      {totalPrice && (
+                        <div className="flex justify-between border-t pt-2 mt-2">
+                          <span className="text-gray-800 font-semibold">Total Price:</span>
+                          <span className="text-green-600 font-bold text-lg">
+                            ₹{totalPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          </span>
                         </div>
                       )}
                     </div>
