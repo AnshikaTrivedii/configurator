@@ -3,15 +3,42 @@ import { X, Mail } from 'lucide-react';
 import { submitQuoteRequest, QuoteRequest } from '../api/quote';
 
 interface Product {
+  id: string;
   name: string;
-  pixelPitch?: number;
-  resolution?: {
+  category: string;
+  image: string;
+  resolution: {
     width: number;
     height: number;
   };
-  cabinetDimensions?: {
+  price?: number;
+  siChannelPrice?: number;
+  resellerPrice?: number;
+  cabinetDimensions: {
     width: number;
     height: number;
+  };
+  moduleDimensions: {
+    width: number;
+    height: number;
+  };
+  moduleResolution: {
+    width: number;
+    height: number;
+  };
+  moduleQuantity: number;
+  pixelPitch: number;
+  pixelDensity: number;
+  brightness: number;
+  refreshRate: number;
+  environment: string;
+  maxPowerConsumption: number;
+  avgPowerConsumption: number;
+  weightPerCabinet: number;
+  pdf?: string;
+  prices?: {
+    cabinet: { endCustomer: number; siChannel: number; reseller: number };
+    curveLock: { endCustomer: number; siChannel: number; reseller: number };
   };
   // Add other product properties as needed
 }
@@ -43,6 +70,18 @@ const calculateAspectRatio = (width: number, height: number): string => {
   return `${width / divisor}:${height / divisor}`;
 };
 
+// Get user type display name
+const getUserTypeDisplayName = (type: string): string => {
+  switch(type) {
+    case 'siChannel':
+      return 'SI/Channel Partner';
+    case 'reseller':
+      return 'Reseller';
+    default:
+      return 'End Customer';
+  }
+};
+
 export const QuoteModal: React.FC<QuoteModalProps> = ({
   isOpen,
   onClose,
@@ -59,19 +98,76 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Get the current user type from localStorage with proper type
+  const getUserType = (): 'endUser' | 'siChannel' | 'reseller' => {
+    const userType = localStorage.getItem('selectedUserType');
+    return (userType === 'siChannel' || userType === 'reseller') ? userType : 'endUser';
+  };
+
+  // Get the price based on user type
+  const getPriceForUserType = (): number | undefined => {
+    const userType = getUserType();
+    if (!selectedProduct) return undefined;
+    
+    if (userType === 'siChannel' && selectedProduct.siChannelPrice) {
+      return selectedProduct.siChannelPrice;
+    } else if (userType === 'reseller' && selectedProduct.resellerPrice) {
+      return selectedProduct.resellerPrice;
+    } else if (selectedProduct.prices) {
+      // If using the new prices object structure
+      const priceKey = userType === 'siChannel' ? 'siChannel' : 
+                      userType === 'reseller' ? 'reseller' : 'endCustomer';
+      return selectedProduct.prices.cabinet?.[priceKey] || selectedProduct.price;
+    }
+    return selectedProduct.price;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProduct) return;
+    
+    // Validate required fields
+    if (!selectedProduct) {
+      alert('Please select a product');
+      return;
+    }
+    
+    if (!message || message.trim() === '') {
+      alert('Please enter a message for your quote request');
+      return;
+    }
     
     setIsSubmitting(true);
     
     try {
+      const userType = getUserType();
+      const userPrice = getPriceForUserType();
+      
       const quoteData: QuoteRequest = {
         product: {
+          // Basic product info
+          id: selectedProduct.id,
           name: selectedProduct.name,
+          category: selectedProduct.category,
+          // Display specifications
           pixelPitch: selectedProduct.pixelPitch,
           resolution: selectedProduct.resolution,
           cabinetDimensions: selectedProduct.cabinetDimensions,
+          // Module details
+          moduleDimensions: selectedProduct.moduleDimensions,
+          moduleResolution: selectedProduct.moduleResolution,
+          moduleQuantity: selectedProduct.moduleQuantity,
+          // Technical specifications
+          pixelDensity: selectedProduct.pixelDensity,
+          brightness: selectedProduct.brightness,
+          refreshRate: selectedProduct.refreshRate,
+          environment: selectedProduct.environment,
+          maxPowerConsumption: selectedProduct.maxPowerConsumption,
+          avgPowerConsumption: selectedProduct.avgPowerConsumption,
+          weightPerCabinet: selectedProduct.weightPerCabinet,
+          // Pricing
+          processorPrice: userPrice,
+          // User info
+          userType: userType
         },
         cabinetGrid: cabinetGrid,
         message: message,
@@ -80,13 +176,34 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
         } : undefined,
         aspectRatio: selectedProduct.resolution ? 
-          calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined
+          calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
+        // Include processor and mode if available
+        processor: processor,
+        mode: mode,
+        // Include user type at the root level as well for backward compatibility
+        userType: userType
       };
       
-      await submitQuoteRequest(quoteData);
+      console.log('Submitting quote data:', quoteData);
       
-      onSubmit(message);
-      setIsSubmitted(true);
+      try {
+        const result = await submitQuoteRequest(quoteData);
+        console.log('Quote submission successful:', result);
+        
+        // Only proceed if the submission was successful
+        if (result.success) {
+          if (onSubmit) {
+            onSubmit(message);
+          }
+          setIsSubmitted(true);
+        } else {
+          throw new Error(result.message || 'Failed to submit quote');
+        }
+      } catch (error) {
+        console.error('Error in quote submission:', error);
+        alert(`Failed to submit quote: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw error; // Re-throw to be caught by the outer catch block
+      }
       
       // Reset form after 10 seconds
       setTimeout(() => {
@@ -153,6 +270,28 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                           <span className="text-gray-600">Display Area:</span>
                           <span>{(selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)} × 
                                 {(selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2)} m</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">User Type:</span>
+                        <span className="font-medium">
+                          {getUserTypeDisplayName(getUserType())}
+                        </span>
+                      </div>
+                      {getPriceForUserType() && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Product Price:</span>
+                          <span className="font-medium">
+                            ${getPriceForUserType()?.toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                      {getPriceForUserType() && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Processor Price:</span>
+                          <span className="font-medium">
+                            ${getPriceForUserType()?.toLocaleString()}
+                          </span>
                         </div>
                       )}
                       {cabinetGrid && (
