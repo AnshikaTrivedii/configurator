@@ -1,4 +1,12 @@
 export interface QuoteRequest {
+  // Root level required fields for backend compatibility
+  productName: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  message: string;
+  
+  // Product details object
   product: {
     // Basic product info
     id: string;
@@ -42,8 +50,6 @@ export interface QuoteRequest {
     columns: number;
     rows: number;
   };
-  // User message
-  message: string;
   // Calculated display info
   displaySize?: {
     width: number;

@@ -112,6 +112,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   mode
 }) => {
   const [message, setMessage] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -193,8 +196,25 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       return;
     }
     
-    if (!message || message.trim() === '') {
-      alert('Please enter a message for your quote request');
+    if (!customerName || customerName.trim() === '') {
+      alert('Please enter your name');
+      return;
+    }
+    
+    if (!customerEmail || customerEmail.trim() === '') {
+      alert('Please enter your email address');
+      return;
+    }
+    
+    if (!customerPhone || customerPhone.trim() === '') {
+      alert('Please enter your phone number');
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customerEmail)) {
+      alert('Please enter a valid email address');
       return;
     }
     
@@ -206,6 +226,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       const totalPrice = calculateTotalPrice();
       
       const quoteData: QuoteRequest = {
+        // Root level required fields for backend compatibility
+        productName: selectedProduct.name,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerPhone: customerPhone.trim(),
+        message: message.trim() || 'No additional message provided',
+        
+        // Product details object
         product: {
           // Basic product info
           id: selectedProduct.id,
@@ -233,7 +261,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           userType: userType
         },
         cabinetGrid: cabinetGrid,
-        message: message,
         displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
           width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
           height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
@@ -273,6 +300,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       // Reset form after 10 seconds
       setTimeout(() => {
         setMessage('');
+        setCustomerName('');
+        setCustomerEmail('');
+        setCustomerPhone('');
         setIsSubmitted(false);
         onClose();
       }, 10000);
@@ -306,6 +336,58 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           {!isSubmitted ? (
             <form onSubmit={handleSubmit}>
               <div className="space-y-6">
+                {/* Contact Information */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">
+                        Full Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="customerName"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter your full name"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        disabled={isSubmitting}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="customerEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                        Email Address <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        id="customerEmail"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter your email address"
+                        value={customerEmail}
+                        onChange={(e) => setCustomerEmail(e.target.value)}
+                        disabled={isSubmitting}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="customerPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        id="customerPhone"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter your phone number"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        disabled={isSubmitting}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Product Details */}
                 {selectedProduct && (
                   <div>
@@ -397,7 +479,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 {/* Message */}
                 <div>
                   <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                    Additional Message (Optional)
+                    Additional Message
                   </label>
                   <textarea
                     id="message"
