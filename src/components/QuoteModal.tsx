@@ -428,6 +428,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                           {getUserTypeDisplayName(getUserType())}
                         </span>
                       </div>
+                      {/* PRICING SECTION - TEMPORARILY DISABLED
+                      To re-enable pricing display, uncomment the section below and remove this comment block.
+                      
                       {getPriceForUserType() && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Product Price:</span>
@@ -444,6 +447,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                           </span>
                         </div>
                       )}
+                      END PRICING SECTION */}
                       {cabinetGrid && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Cabinet Grid:</span>
@@ -463,7 +467,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                           <span>{mode}</span>
                         </div>
                       )}
-                      {/* Total Price */}
+                      {/* PRICING SECTION - TEMPORARILY DISABLED
+                      To re-enable pricing display, uncomment the section below and remove this comment block.
+                      
+                      // Total Price
                       {totalPrice && (
                         <div className="flex justify-between border-t pt-2 mt-2">
                           <span className="text-gray-800 font-semibold">Total Price:</span>
@@ -472,6 +479,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                           </span>
                         </div>
                       )}
+                      END PRICING SECTION */}
                     </div>
                   </div>
                 )}

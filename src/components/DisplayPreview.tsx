@@ -180,13 +180,12 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             }}
           >
             {/* Cabinet content */}
-            <div className="text-white text-center text-xs bg-black bg-opacity-40 px-2 py-1 rounded">
-              <div className="font-semibold">
-                {selectedProduct ? selectedProduct.name.split(' ')[0] : 'Cabinet'}
-              </div>
-              <div className="text-[10px]">
-                {col + 1},{row + 1}
-              </div>
+            <div className="w-full h-full flex items-center justify-center">
+              <img 
+                src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png" 
+                alt="Orion LED Logo" 
+                className="w-full h-full object-contain p-2"
+              />
             </div>
             
             {/* Cabinet border indicators */}
@@ -234,9 +233,12 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
               height: `${moduleHeight}px`
             }}
           >
-            <div className="text-white text-center text-xs bg-black bg-opacity-40 px-2 py-1 rounded">
-              <div className="font-semibold">Module</div>
-              <div className="text-[10px]">{col + 1},{row + 1}</div>
+            <div className="w-full h-full flex items-center justify-center">
+              <img 
+                src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png" 
+                alt="Orion LED Logo" 
+                className="w-full h-full object-contain p-2"
+              />
             </div>
             <div className="absolute inset-0 border border-white opacity-50"></div>
           </div>

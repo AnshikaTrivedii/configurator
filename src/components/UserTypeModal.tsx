@@ -11,9 +11,9 @@ interface UserTypeModalProps {
 }
 
 const userTypeOptions = [
-  { value: 'endUser', label: 'End Customer Price', icon: <User className="w-6 h-6 mr-2 text-blue-600" /> },
-  { value: 'siChannel', label: 'SI Price / Channel Price', icon: <Briefcase className="w-6 h-6 mr-2 text-green-600" /> },
-  { value: 'reseller', label: 'Reseller Price / Lowest Price to Channel', icon: <Users className="w-6 h-6 mr-2 text-purple-600" /> },
+  { value: 'endUser', label: 'End Customer', icon: <User className="w-6 h-6 mr-2 text-blue-600" /> },
+  { value: 'siChannel', label: 'SI / Channel', icon: <Briefcase className="w-6 h-6 mr-2 text-green-600" /> },
+  { value: 'reseller', label: 'Reseller / Lowest Price to Channel', icon: <Users className="w-6 h-6 mr-2 text-purple-600" /> },
 ];
 
 const UserTypeModal: React.FC<UserTypeModalProps> = ({ isOpen, onSelect }) => {

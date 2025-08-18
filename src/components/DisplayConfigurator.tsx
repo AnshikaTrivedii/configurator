@@ -166,10 +166,26 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto text-center px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">Orion led configurator</h1>
-          <p className="text-gray-600 mt-2">Configure your digital signage display using wide range of products</p>
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Logo - Top Left */}
+          <div className="absolute top-4 left-4 sm:top-6 sm:left-6 lg:top-8 lg:left-8">
+            <img 
+              src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png" 
+              alt="Orion LED Logo" 
+              className="h-12 sm:h-16 lg:h-20 w-auto"
+            />
+          </div>
+          
+          {/* Main Content - Centered */}
+          <div className="text-center">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-3 tracking-tight">
+              Orion Led Configurator
+            </h1>
+            <p className="text-blue-100 text-lg md:text-xl font-medium max-w-2xl mx-auto leading-relaxed">
+              Configure your digital signage display using wide range of products
+            </p>
+          </div>
         </div>
       </div>
 
@@ -300,6 +316,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                         {selectedProduct.resolution.width} × {selectedProduct.resolution.height}
                       </p>
                     </div>
+                    {/* PRICING SECTION - TEMPORARILY DISABLED
+                    To re-enable pricing display, uncomment the section below and remove this comment block.
+                    
                     <div>
                       <h4 className="font-medium text-gray-900">Price</h4>
                       <p className="text-gray-600">
@@ -328,6 +347,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                         })()}
                       </p>
                     </div>
+                    END PRICING SECTION */}
                     <div>
                       <h4 className="font-medium text-gray-900">Total Cabinets</h4>
                       <p className="text-gray-600">{cabinetGrid.columns * cabinetGrid.rows} units</p>

@@ -352,8 +352,11 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
           </div>
         ))}
       </div>
+      {/* PRICING SECTION - TEMPORARILY DISABLED
+      To re-enable pricing display, uncomment the section below and remove this comment block.
+      
       <div className="mt-4">
-        {/* Show only the relevant price for the user type */}
+        // Show only the relevant price for the user type
         <div className="flex flex-col gap-1 bg-blue-50 rounded-lg px-4 py-3 mt-2">
           {userType === 'endUser' && (
             <div>
@@ -413,7 +416,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             </div>
           )}
         </div>
-        {/* Show processor price if available */}
+        // Show processor price if available
         {processor && processorPrice > 0 && (
           <div className="flex flex-col gap-1 bg-orange-50 rounded-lg px-4 py-3 mt-2">
             <div className="flex justify-between items-center">
@@ -432,7 +435,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
           </div>
         )}
         
-        {/* Show price for rental series */}
+        // Show price for rental series
         {selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption && selectedProduct.prices ? (
           (() => {
             // Get price per sq ft for selected rental option and user type
@@ -489,6 +492,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
           </div>
         )}
       </div>
+      END PRICING SECTION */}
     </div>
   );
 };
