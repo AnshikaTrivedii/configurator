@@ -53,33 +53,46 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
 }) => {
   if (!selectedProduct) return null;
 
-  // Convert mm to meters with 3 decimal places
-  const toMeters = (mm: number) => (mm / 1000).toFixed(3);
+  // Conversion constants
+  const METERS_TO_FEET = 3.28084;
+  const FEET_TO_METERS = 1 / METERS_TO_FEET;
+
+  // Convert mm to display unit with 2 decimal places
+  const toDisplayUnit = (mm: number, unit: string) => {
+    const meters = mm / 1000;
+    if (unit === 'ft') {
+      return (meters * METERS_TO_FEET).toFixed(2);
+    }
+    return meters.toFixed(2);
+  };
   
-  // Convert mm to inches with 2 decimal places
+  // Convert mm to inches with 2 decimal places (for imperial display)
   const toInches = (mm: number) => (mm / 25.4).toFixed(2);
   
-  // Calculate display area in square meters
+  // Calculate display area in square display units
   const displayArea = (config.width * config.height) / 1000000; // mm² to m²
-  // Calculate display area in square feet
+  const displayAreaInDisplayUnit = config.unit === 'ft' ? displayArea * (METERS_TO_FEET * METERS_TO_FEET) : displayArea;
+  
+  // Calculate display area in square feet (for imperial display)
   const displayAreaFeet = displayArea * 10.7639;
   
   // Calculate display area in square inches
   const displayAreaInches = (config.width * config.height) / (25.4 * 25.4); // mm² to in²
   
-  // Calculate diagonal in meters
+  // Calculate diagonal in display units
   const diagonalMeters = Math.sqrt(Math.pow(config.width/1000, 2) + Math.pow(config.height/1000, 2));
+  const diagonalInDisplayUnit = config.unit === 'ft' ? diagonalMeters * METERS_TO_FEET : diagonalMeters;
   
-  // Convert meters to inches for diagonal
+  // Convert to inches for imperial display
   const diagonalInches = diagonalMeters * 39.3701;
   const feet = Math.floor(diagonalInches / 12);
   const inches = Math.round((diagonalInches % 12) * 16) / 16; // Round to nearest 1/16 inch
   
   // Calculate power consumption
-  const avgPowerPerCabinet = selectedProduct.avgPowerConsumption || 350; // Default to 91.7W if not specified
+  const avgPowerPerCabinet = selectedProduct.avgPowerConsumption || 91.7; // Default to 91.7W if not specified
   const maxPowerPerCabinet = selectedProduct.maxPowerConsumption || (avgPowerPerCabinet * 3); // Use actual max power or default to 3x avg
-  const avgPower = (avgPowerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(1);
-  const maxPower = (maxPowerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(1);
+  const avgPower = (avgPowerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(2);
+  const maxPower = (maxPowerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(2);
   
   // Debug logging for power consumption
   console.log('Power Consumption Debug:', {
@@ -220,38 +233,66 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     return selectedProduct.prices[option]?.[userTypeToPriceKey(currentUserType)] || null;
   };
 
-  // Configuration items with icons and colors
-  const configItems = [
-    {
-      icon: <Ruler className="w-5 h-5 text-blue-500" />,
-      title: 'Size (w × h)',
-      value: (
-        <>
-          {toMeters(config.width)} m × {toMeters(config.height)} m<br />
-          ({toInches(config.width)} in × {toInches(config.height)} in)
-        </>
-      ),
-      bgColor: 'bg-blue-50',
-      textColor: 'text-blue-700'
-    },
-    {
-      icon: <Monitor className="w-5 h-5 text-purple-500" />,
-      title: 'Resolution',
-      value: `${selectedProduct.resolution.width * cabinetGrid.columns} × ${selectedProduct.resolution.height * cabinetGrid.rows} px`,
-      bgColor: 'bg-purple-50',
-      textColor: 'text-purple-700'
-    },
-    {
-      icon: <Boxes className="w-5 h-5 text-amber-500" />,
-      title: 'Number of Cabinets',
-      value: `${cabinetGrid.columns * cabinetGrid.rows} (${cabinetGrid.columns} × ${cabinetGrid.rows})`,
-      bgColor: 'bg-amber-50',
-      textColor: 'text-amber-700'
-    },
-    {
-      icon: <Maximize2 className="w-5 h-5 text-emerald-500" />,
-      title: 'Aspect Ratio',
-      value: (() => {
+  return (
+    <div className="space-y-6">
+      {/* Main Configuration Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+        {/* Size (w × h) */}
+        <div className="bg-blue-50 p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
+          <div className="flex items-start space-x-3">
+            <div className="p-2 rounded-lg bg-blue-100 text-blue-500 bg-opacity-50 flex-shrink-0">
+              <Ruler className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium text-gray-500 truncate">Size (w × h)</h3>
+              <p className="mt-1 text-lg font-semibold text-blue-700 break-words">
+                {toDisplayUnit(config.width, config.unit)} {config.unit}<br />
+                {toDisplayUnit(config.height, config.unit)} {config.unit}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Resolution */}
+        <div className="bg-purple-50 p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
+          <div className="flex items-start space-x-3">
+            <div className="p-2 rounded-lg bg-purple-100 text-purple-500 bg-opacity-50 flex-shrink-0">
+              <Monitor className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium text-gray-500 truncate">Resolution</h3>
+              <p className="mt-1 text-lg font-semibold text-purple-700 break-words">
+                {selectedProduct.resolution.width * cabinetGrid.columns} × {selectedProduct.resolution.height * cabinetGrid.rows} px
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Number of Cabinets */}
+        <div className="bg-amber-50 p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
+          <div className="flex items-start space-x-3">
+            <div className="p-2 rounded-lg bg-amber-100 text-amber-500 bg-opacity-50 flex-shrink-0">
+              <Boxes className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium text-gray-500 truncate">Number of Cabinets</h3>
+              <p className="mt-1 text-lg font-semibold text-amber-700 break-words">
+                {cabinetGrid.columns * cabinetGrid.rows} ({cabinetGrid.columns} × {cabinetGrid.rows})
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Aspect Ratio */}
+        <div className="bg-emerald-50 p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
+          <div className="flex items-start space-x-3">
+            <div className="p-2 rounded-lg bg-emerald-100 text-emerald-500 bg-opacity-50 flex-shrink-0">
+              <Maximize2 className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium text-gray-500 truncate">Aspect Ratio</h3>
+              <p className="mt-1 text-lg font-semibold text-emerald-700 break-words">
+                {(() => {
         // Show the selected aspect ratio label if available
         if (config.aspectRatio && typeof config.aspectRatio === 'string') {
           if (config.aspectRatio === '16:9' || config.aspectRatio === '4:3' || config.aspectRatio === '1:1') {
@@ -263,236 +304,181 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
         }
         // Fallback to calculated ratio
         return `${Math.round((config.width / config.height) * 9)}:9`;
-      })(),
-      bgColor: 'bg-emerald-50',
-      textColor: 'text-emerald-700'
-    },
-    {
-      icon: <Square className="w-5 h-5 text-rose-500" />,
-      title: 'Display Area',
-      value: (
-        <>
-          {displayArea.toFixed(2)} m²<br />
-          ({displayAreaFeet.toFixed(2)} ft²)
-        </>
-      ),
-      bgColor: 'bg-rose-50',
-      textColor: 'text-rose-700'
-    },
-    {
-      icon: <Move3d className="w-5 h-5 text-indigo-500" />,
-      title: 'Display Diagonal',
-      value: `${diagonalMeters.toFixed(2)} m (${feet > 0 ? `${feet}′ ` : ''}${inches}″)`,
-      bgColor: 'bg-indigo-50',
-      textColor: 'text-indigo-700'
-    },
-    {
-      icon: <Zap className="w-5 h-5 text-yellow-500" />,
-      title: 'Power (avg)',
-      value: `${avgPower} W`,
-      bgColor: 'bg-yellow-50',
-      textColor: 'text-yellow-700'
-    },
-    {
-      icon: <ZapOff className="w-5 h-5 text-red-500" />,
-      title: 'Power (max)',
-      value: `${maxPower} W`,
-      bgColor: 'bg-red-50',
-      textColor: 'text-red-700'
-    },
-    {
-      icon: <Boxes className="w-5 h-5 text-green-500" />,
-      title: 'Pixel Density',
-      value: `${pixelDensity} px²/m²`,
-      bgColor: 'bg-green-50',
-      textColor: 'text-green-700'
-    },
-    {
-      icon: <Maximize2 className="w-5 h-5 text-cyan-500" />,
-      title: 'Total Pixels',
-      value: formatIndianNumber(totalPixels),
-      bgColor: 'bg-cyan-50',
-      textColor: 'text-cyan-700'
-    },
-    {
-      icon: <Boxes className="w-5 h-5 text-pink-500" />, // You can use a different icon if you prefer
-      title: 'Processor',
-      value: processor || 'N/A',
-      bgColor: 'bg-pink-50',
-      textColor: 'text-pink-700'
-    },
-    {
-      icon: <Boxes className="w-5 h-5 text-gray-500" />, // You can use a different icon if you prefer
-      title: 'Mode',
-      value: mode || 'N/A',
-      bgColor: 'bg-gray-50',
-      textColor: 'text-gray-700'
-    }
-  ];
+                })()}
+              </p>
+            </div>
+          </div>
+        </div>
 
-  return (
-    <div className="w-full">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-        {configItems.map((item, index) => (
-          <div 
-            key={index}
-            className={`${item.bgColor} p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0`}
-          >
+        {/* Display Area */}
+        <div className="bg-rose-50 p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
+          <div className="flex items-start space-x-3">
+            <div className="p-2 rounded-lg bg-rose-100 text-rose-500 bg-opacity-50 flex-shrink-0">
+              <Square className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium text-gray-500 truncate">Display Area</h3>
+              <p className="mt-1 text-lg font-semibold text-rose-700 break-words">
+                {displayAreaInDisplayUnit.toFixed(2)} {config.unit}²<br />
+          ({displayAreaFeet.toFixed(2)} ft²)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Display Diagonal */}
+        <div className="bg-indigo-50 p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
+          <div className="flex items-start space-x-3">
+            <div className="p-2 rounded-lg bg-indigo-100 text-indigo-500 bg-opacity-50 flex-shrink-0">
+              <Move3d className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium text-gray-500 truncate">Display Diagonal</h3>
+              <p className="mt-1 text-lg font-semibold text-indigo-700 break-words">
+                {diagonalInDisplayUnit.toFixed(2)} {config.unit} ({feet > 0 ? `${feet}′ ` : ''}{inches}″)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Pixels */}
+        <div className="bg-cyan-50 p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
             <div className="flex items-start space-x-3">
-              <div className={`p-2 rounded-lg ${item.bgColor} ${item.textColor.replace('700', '500')} bg-opacity-50 flex-shrink-0`}>
-                {item.icon}
+            <div className="p-2 rounded-lg bg-cyan-100 text-cyan-500 bg-opacity-50 flex-shrink-0">
+              <Maximize2 className="w-5 h-5" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-sm font-medium text-gray-500 truncate">{item.title}</h3>
-                <p className={`mt-1 text-lg font-semibold ${item.textColor} break-words`}>
-                  {item.value}
+              <h3 className="text-sm font-medium text-gray-500 truncate">Total Pixels</h3>
+              <p className="mt-1 text-lg font-semibold text-cyan-700 break-words">
+                {formatIndianNumber(selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows)}
                 </p>
               </div>
-            </div>
           </div>
-        ))}
-      </div>
-      {/* PRICING SECTION - TEMPORARILY DISABLED
-      To re-enable pricing display, uncomment the section below and remove this comment block.
-      
-      <div className="mt-4">
-        // Show only the relevant price for the user type
-        <div className="flex flex-col gap-1 bg-blue-50 rounded-lg px-4 py-3 mt-2">
-          {userType === 'endUser' && (
-            <div>
-              <span className="font-semibold text-blue-800">End Customer Price:</span>
-              <span className="text-blue-900 font-bold text-lg ml-2">
-                ₹{
-                  selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption && selectedProduct.prices
-                    ? selectedProduct.prices[
-                        selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet'
-                      ][userTypeToPriceKey(currentUserType)]?.toLocaleString('en-IN') || 'N/A'
-                    : showPrice('endUser')?.toLocaleString('en-IN') || 'N/A'
-                }
-                <span className="text-xs text-gray-500 ml-2">
-                  {selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption
-                    ? `(${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'})/ft²`
-                    : '/ft²'}
-                </span>
-              </span>
-            </div>
-          )}
-          {userType === 'siChannel' && (
-            <div>
-              <span className="font-semibold text-green-800">SI / Channel Price:</span>
-              <span className="text-green-900 font-bold text-lg ml-2">
-                ₹{
-                  selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption && selectedProduct.prices
-                    ? selectedProduct.prices[
-                        selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet'
-                      ][userTypeToPriceKey(currentUserType)]?.toLocaleString('en-IN') || 'N/A'
-                    : showPrice('siChannel')?.toLocaleString('en-IN') || 'N/A'
-                }
-                <span className="text-xs text-gray-500 ml-2">
-                  {selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption
-                    ? `(${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'})/ft²`
-                    : '/ft²'}
-                </span>
-              </span>
-            </div>
-          )}
-          {userType === 'reseller' && (
-            <div>
-              <span className="font-semibold text-purple-800">Reseller Price:</span>
-              <span className="text-purple-900 font-bold text-lg ml-2">
-                ₹{
-                  selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption && selectedProduct.prices
-                    ? selectedProduct.prices[
-                        selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet'
-                      ][userTypeToPriceKey(currentUserType)]?.toLocaleString('en-IN') || 'N/A'
-                    : showPrice('reseller')?.toLocaleString('en-IN') || 'N/A'
-                }
-                <span className="text-xs text-gray-500 ml-2">
-                  {selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption
-                    ? `(${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'})/ft²`
-                    : '/ft²'}
-                </span>
-              </span>
-            </div>
-          )}
         </div>
-        // Show processor price if available
-        {processor && processorPrice > 0 && (
-          <div className="flex flex-col gap-1 bg-orange-50 rounded-lg px-4 py-3 mt-2">
-            <div className="flex justify-between items-center">
-              <span className="font-semibold text-orange-800">Processor Price ({processor}):</span>
-              <span className="text-orange-900 font-bold text-lg">
-                ₹{processorPrice.toLocaleString('en-IN')}
-              </span>
+
+        {/* Pixel Density */}
+        <div className="bg-green-50 p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
+          <div className="flex items-start space-x-3">
+            <div className="p-2 rounded-lg bg-green-100 text-green-500 bg-opacity-50 flex-shrink-0">
+              <Boxes className="w-5 h-5" />
             </div>
-            <div className="text-xs text-orange-700">
-              <span>
-                {userType === 'siChannel' ? 'SI/Channel Price' : 
-                 userType === 'reseller' ? 'Reseller Price' : 
-                 'End Customer Price'}
-              </span>
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium text-gray-500 truncate">Pixel Density</h3>
+              <p className="mt-1 text-lg font-semibold text-green-700 break-words">
+                {selectedProduct.pixelDensity} px²/m²
+              </p>
             </div>
           </div>
-        )}
-        
-        // Show price for rental series
-        {selectedProduct && selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption && selectedProduct.prices ? (
-          (() => {
-            // Get price per sq ft for selected rental option and user type
-            const rentalOptionKey = selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet';
-            const rentalPricePerSqFt = selectedProduct.prices[rentalOptionKey]?.[userTypeToPriceKey(currentUserType)] || 0;
-            const rentalSubtotal = displayAreaFeet * rentalPricePerSqFt;
-            const rentalTotal = rentalSubtotal + (processorPrice || 0);
-            return (
-              <div className="flex flex-col gap-1 bg-green-50 rounded-lg px-4 py-3 mt-2">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold text-green-800">Total Price</span>
-                  <span className="text-green-900 font-bold text-lg">
-                    ₹{rentalTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                  </span>
+        </div>
+      </div>
+
+      {/* Power Consumption Details */}
+      <div className="bg-red-50 rounded-xl p-4 transition-all duration-200 hover:shadow-md">
+        <div className="flex items-center space-x-3 mb-4">
+          <div className="p-2 rounded-lg bg-red-100 text-red-500 bg-opacity-50">
+            <Zap className="w-5 h-5" />
+          </div>
+          <h3 className="font-semibold text-red-900 text-lg">Power Consumption Details</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg p-3">
+            <div className="text-sm text-gray-600 mb-1">Power (avg)</div>
+            <div className="text-lg font-semibold text-red-700">{avgPower} W</div>
+          </div>
+          <div className="bg-white rounded-lg p-3">
+            <div className="text-sm text-gray-600 mb-1">Power (max)</div>
+            <div className="text-lg font-semibold text-red-700">{maxPower} W</div>
+          </div>
+          <div className="bg-white rounded-lg p-3">
+            <div className="text-sm text-gray-600 mb-1">Per Cabinet (avg)</div>
+            <div className="text-lg font-semibold text-red-700">{avgPowerPerCabinet} W</div>
+          </div>
+          <div className="bg-white rounded-lg p-3">
+            <div className="text-sm text-gray-600 mb-1">Per Cabinet (max)</div>
+            <div className="text-lg font-semibold text-red-700">{maxPowerPerCabinet} W</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Product Details */}
+      <div className="bg-gray-50 rounded-xl p-4 transition-all duration-200 hover:shadow-md">
+        <div className="flex items-center space-x-3 mb-4">
+          <div className="p-2 rounded-lg bg-gray-100 text-gray-500 bg-opacity-50">
+            <Move3d className="w-5 h-5" />
+          </div>
+          <h3 className="font-semibold text-gray-900 text-lg">Product Details</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-3">
+            <div className="bg-white rounded-lg p-3">
+              <div className="text-sm text-gray-600 mb-1">Product</div>
+              <div className="font-medium text-gray-900">{selectedProduct.name}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3">
+              <div className="text-sm text-gray-600 mb-1">Category</div>
+              <div className="font-medium text-gray-900">{selectedProduct.category}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3">
+              <div className="text-sm text-gray-600 mb-1">Pixel Pitch</div>
+              <div className="font-medium text-gray-900">{selectedProduct.pixelPitch} mm</div>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="bg-white rounded-lg p-3">
+              <div className="text-sm text-gray-600 mb-1">Brightness</div>
+              <div className="font-medium text-gray-900">{selectedProduct.brightness} nits</div>
+        </div>
+            <div className="bg-white rounded-lg p-3">
+              <div className="text-sm text-gray-600 mb-1">Refresh Rate</div>
+              <div className="font-medium text-gray-900">{selectedProduct.refreshRate} Hz</div>
                 </div>
-                <div className="text-xs text-green-700 flex flex-col">
-                  <span>
-                    ( {displayAreaFeet.toFixed(2)} ft² × ₹{rentalPricePerSqFt.toLocaleString('en-IN')}/ft² )
-                    {rentalSubtotal > 0 && (
-                      <> ₹{rentalSubtotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</>
-                    )}
-                    {processorPrice > 0 && (
-                      <> + Processor Price ₹{processorPrice.toLocaleString('en-IN')}</>
-                    )}
-                    <span className="ml-2 text-gray-500">({selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'})</span>
-                  </span>
+            <div className="bg-white rounded-lg p-3">
+              <div className="text-sm text-gray-600 mb-1">Environment</div>
+              <div className="font-medium text-gray-900 capitalize">{selectedProduct.environment}</div>
                 </div>
               </div>
-            );
-          })()
-        ) : pricePerSqFt !== undefined && (
-          <div className="flex flex-col gap-1 bg-green-50 rounded-lg px-4 py-3 mt-2">
-            <div className="flex justify-between items-center">
-              <span className="font-semibold text-green-800">Total Price</span>
-              <span className="text-green-900 font-bold text-lg">
-                ₹{totalPriceWithProcessor?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-              </span>
+          <div className="space-y-3">
+            <div className="bg-white rounded-lg p-3">
+              <div className="text-sm text-gray-600 mb-1">Cabinet Size</div>
+              <div className="font-medium text-gray-900">{selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm</div>
             </div>
-            <div className="text-xs text-green-700 flex flex-col">
-              <span>
-                ( {displayAreaFeet.toFixed(2)} ft² × ₹{pricePerSqFt.toLocaleString('en-IN')}/ft² )
-                {totalPrice !== undefined && (
-                  <>
-                    {' '}₹{totalPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                  </>
-                )}
-                {processorPrice > 0 && (
-                  <>
-                    {' '}+ Processor Price ₹{processorPrice.toLocaleString('en-IN')}
-                  </>
-                )}
-              </span>
+            <div className="bg-white rounded-lg p-3">
+              <div className="text-sm text-gray-600 mb-1">Weight per Cabinet</div>
+              <div className="font-medium text-gray-900">{selectedProduct.weightPerCabinet || 'N/A'} kg</div>
+            </div>
+            <div className="bg-white rounded-lg p-3">
+              <div className="text-sm text-gray-600 mb-1">Total Weight</div>
+              <div className="font-medium text-gray-900">{((selectedProduct.weightPerCabinet || 0) * cabinetGrid.columns * cabinetGrid.rows).toFixed(2)} kg</div>
             </div>
           </div>
-        )}
+        </div>
       </div>
-      END PRICING SECTION */}
+
+      {/* Controller Information */}
+      {(processor || mode) && (
+        <div className="bg-indigo-50 rounded-xl p-4 transition-all duration-200 hover:shadow-md">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="p-2 rounded-lg bg-indigo-100 text-indigo-500 bg-opacity-50">
+              <Maximize2 className="w-5 h-5" />
+            </div>
+            <h3 className="font-semibold text-indigo-900 text-lg">Controller Information</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {processor && (
+              <div className="bg-white rounded-lg p-3">
+                <div className="text-sm text-gray-600 mb-1">Processor</div>
+                <div className="font-medium text-gray-900">{processor}</div>
+              </div>
+            )}
+            {mode && (
+              <div className="bg-white rounded-lg p-3">
+                <div className="text-sm text-gray-600 mb-1">Mode</div>
+                <div className="font-medium text-gray-900">{mode}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

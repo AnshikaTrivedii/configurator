@@ -150,12 +150,12 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
 
   if (!selectedProduct) {
     return (
-      <div className="w-80 bg-white h-screen overflow-y-auto border-r border-gray-200 p-6 flex flex-col items-center justify-center">
+      <div className="w-80 bg-white h-screen overflow-y-auto border-r border-gray-200 p-4 sm:p-6 flex flex-col items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">Select a product to begin</p>
+          <p className="text-gray-500 mb-4 text-sm sm:text-base">Select a product to begin</p>
           <button
             onClick={onSelectProductClick}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm sm:text-base"
           >
             Select a Product
           </button>
@@ -165,10 +165,10 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   }
 
   return (
-    <div className="w-80 bg-white  overflow-y-auto border-r border-gray-200 flex flex-col">
+    <div className="w-80 bg-white overflow-y-auto border-r border-gray-200 flex flex-col h-screen">
       {/* Product Header */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex flex-col items-center space-x-4 mb-4">
+      <div className="p-4 sm:p-6 border-b border-gray-200">
+        <div className="flex flex-col items-center space-y-3 mb-4">
           <div className="w-full bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
             <img 
               src={selectedProduct.image} 
@@ -176,9 +176,9 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               className="w-full h-full object-contain p-1"
             />
           </div>
-          <div>
-            <h2 className="font-semibold text-gray-900">{selectedProduct.name}</h2>
-            <p className="text-sm text-gray-500">
+          <div className="text-center">
+            <h2 className="font-semibold text-gray-900 text-sm sm:text-base">{selectedProduct.name}</h2>
+            <p className="text-xs sm:text-sm text-gray-500">
               Pixel Pitch: {selectedProduct.pixelPitch}mm
             </p>
           </div>
@@ -190,7 +190,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
         <nav className="flex">
           <button 
             onClick={() => setActiveTab('dimensions')}
-            className={`flex-1 py-4 px-6 text-center text-sm font-medium ${
+            className={`flex-1 py-3 sm:py-4 px-4 sm:px-6 text-center text-xs sm:text-sm font-medium ${
               activeTab === 'dimensions' 
                 ? 'text-blue-600 border-b-2 border-blue-600' 
                 : 'text-gray-500 hover:text-gray-700'
@@ -200,7 +200,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
           </button>
           <button 
             onClick={() => setActiveTab('processing')}
-            className={`flex-1 py-4 px-6 text-center text-sm font-medium ${
+            className={`flex-1 py-3 sm:py-4 px-4 sm:px-6 text-center text-xs sm:text-sm font-medium ${
               activeTab === 'processing' 
                 ? 'text-blue-600 border-b-2 border-blue-600' 
                 : 'text-gray-500 hover:text-gray-700'
@@ -212,30 +212,30 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
       </div>
 
       {/* Content */}
-      <div className="flex-1 px-6 py-2 overflow-y-auto">
+      <div className="flex-1 px-4 sm:px-6 py-2 overflow-y-auto">
         {activeTab === 'dimensions' ? (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Screen Size</h3>
-              <div className="space-y-4">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">Screen Size</h3>
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Columns
                   </label>
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => onColumnsChange(Math.max(1, cabinetGrid.columns - 1))}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm"
                       disabled={isDigitalStandee || isJumbo}
                     >
                       -
                     </button>
-                    <div className="flex-1 text-center px-4 py-2 bg-gray-50 rounded-lg">
+                    <div className="flex-1 text-center px-3 sm:px-4 py-2 bg-gray-50 rounded-lg text-sm">
                       {displayColumns}
                     </div>
                     <button 
                       onClick={() => onColumnsChange(cabinetGrid.columns + 1)}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm"
                       disabled={isDigitalStandee || isJumbo}
                     >
                       +
@@ -244,23 +244,23 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Rows
                   </label>
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => onRowsChange(Math.max(1, cabinetGrid.rows - 1))}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm"
                       disabled={isDigitalStandee || isJumbo}
                     >
                       -
                     </button>
-                    <div className="flex-1 text-center px-4 py-2 bg-gray-50 rounded-lg">
+                    <div className="flex-1 text-center px-3 sm:px-4 py-2 bg-gray-50 rounded-lg text-sm">
                       {displayRows}
                     </div>
                     <button 
                       onClick={() => onRowsChange(cabinetGrid.rows + 1)}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm"
                       disabled={isDigitalStandee || isJumbo}
                     >
                       +
@@ -270,9 +270,9 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               </div>
             </div>
 
-            <div className="pt-4 border-t border-gray-200">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Configuration</h3>
-              <div className="space-y-2 text-sm text-gray-600">
+            <div className="pt-3 sm:pt-4 border-t border-gray-200">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Configuration</h3>
+              <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm text-gray-600">
                 <div className="flex justify-between">
                   <span>Total Cabinets:</span>
                   <span className="font-medium text-gray-900">{cabinetGrid.columns * cabinetGrid.rows}</span>
@@ -293,36 +293,36 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
             </div>
           </div>
         ) : (
-          <div className="space-y-4 pt-2">
+          <div className="space-y-3 sm:space-y-4 pt-2">
             <div className="flex items-center space-x-2 mb-2">
-              <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-blue-100 text-blue-600">
+              <span className="inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded bg-blue-100 text-blue-600">
                 {/* Simple processor icon using SVG */}
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" stroke="#2563eb" strokeWidth="2"/><rect x="8" y="8" width="8" height="8" rx="1.5" stroke="#2563eb" strokeWidth="2"/></svg>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" stroke="#2563eb" strokeWidth="2"/><rect x="8" y="8" width="8" height="8" rx="1.5" stroke="#2563eb" strokeWidth="2"/></svg>
               </span>
-              <span className="font-semibold text-lg text-gray-900">Processing</span>
+              <span className="font-semibold text-base sm:text-lg text-gray-900">Processing</span>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center">
                 Selected Processor
               </label>
-              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 font-semibold">
+              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 font-semibold text-sm">
                 {selectedController}
               </div>
               <div className="text-xs text-gray-500 mt-1">Total Pixels: {totalPixels.toLocaleString()} ({totalPixelsMillion.toFixed(2)} million)</div>
             </div>
             {/* Mode Selector - moved below processor */}
-            <div className="mt-4 mb-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mode</label>
+            <div className="mt-3 sm:mt-4 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Mode</label>
               <div className="flex space-x-2">
                 <button
-                  className={`px-4 py-2 rounded-lg border font-medium transition-all ${cloudSolution === 'Synchronous' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-100'}`}
+                  className={`px-3 sm:px-4 py-2 rounded-lg border font-medium transition-all text-xs sm:text-sm ${cloudSolution === 'Synchronous' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-100'}`}
                   onClick={() => isSyncAsyncSelectable && setCloudSolution('Synchronous')}
                   disabled={!isSyncAsyncSelectable}
                 >
                   Synchronous
                 </button>
                 <button
-                  className={`px-4 py-2 rounded-lg border font-medium transition-all ${cloudSolution === 'Asynchronous' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-100'}`}
+                  className={`px-3 sm:px-4 py-2 rounded-lg border font-medium transition-all text-xs sm:text-sm ${cloudSolution === 'Asynchronous' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-100'}`}
                   onClick={() => isSyncAsyncSelectable && setCloudSolution('Asynchronous')}
                   disabled={!isSyncAsyncSelectable}
                 >
@@ -338,12 +338,12 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
       </div>
 
       {/* Get a Quote Button */}
-      <div className="p-4 border-t border-gray-200 ">
+      <div className="p-3 sm:p-4 border-t border-gray-200">
         <button
           onClick={() => setIsQuoteModalOpen(true)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 sm:py-3 px-4 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors text-sm sm:text-base"
         >
-          <Mail size={18} />
+          <Mail size={16} />
           <span>Get a Quote</span>
         </button>
       </div>

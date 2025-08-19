@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package } from 'lucide-react';
+import { Package, Menu, X } from 'lucide-react';
 import { useDisplayCalculations } from '../hooks/useDisplayCalculations';
 import { DimensionControls } from './DimensionControls';
 import { AspectRatioSelector } from './AspectRatioSelector';
@@ -25,22 +25,25 @@ interface DisplayConfiguratorProps {
 }
 
 export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userType }) => {
+  const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
+  
   const {
     config,
     aspectRatios,
     updateWidth,
     updateHeight,
+    updateUnit,
     updateAspectRatio,
     displayDimensions,
     calculateCabinetGrid
-  } = useDisplayCalculations();
+  } = useDisplayCalculations(selectedProduct);
 
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState('preview');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar state
 
   // New state for processor/controller and mode
   const [selectedController, setSelectedController] = useState<string>('');
@@ -167,7 +170,17 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+          {/* Mobile Menu Button */}
+          <div className="lg:hidden absolute top-4 right-4 z-20">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+            >
+              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
+
           {/* Logo - Top Left */}
           <div className="absolute top-4 left-4 sm:top-6 sm:left-6 lg:top-8 lg:left-8">
             <img 
@@ -178,26 +191,42 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
           </div>
           
           {/* Main Content - Centered */}
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-3 tracking-tight">
+          <div className="text-center pt-8 sm:pt-0">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 sm:mb-3 tracking-tight">
               Orion Led Configurator
             </h1>
-            <p className="text-blue-100 text-lg md:text-xl font-medium max-w-2xl mx-auto leading-relaxed">
+            <p className="text-blue-100 text-sm sm:text-base md:text-lg lg:text-xl font-medium max-w-2xl mx-auto leading-relaxed px-4">
               Configure your digital signage display using wide range of products
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex relative">
+        {/* Mobile Sidebar Overlay */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
-        <div className="w-80 flex-shrink-0 border-r border-gray-200 bg-white">
+        <div className={`
+          fixed lg:relative inset-y-0 left-0 z-40 lg:z-auto
+          transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
+          transition-transform duration-300 ease-in-out
+          w-80 flex-shrink-0 border-r border-gray-200 bg-white
+        `}>
           <ProductSidebar
             selectedProduct={selectedProduct}
             cabinetGrid={fixedCabinetGrid}
             onColumnsChange={handleColumnsChange}
             onRowsChange={handleRowsChange}
-            onSelectProductClick={() => setIsProductSelectorOpen(true)}
+            onSelectProductClick={() => {
+              setIsProductSelectorOpen(true);
+              setIsSidebarOpen(false); // Close sidebar on mobile when opening product selector
+            }}
             // New props to get controller and mode
             onControllerChange={setSelectedController}
             onModeChange={setSelectedMode}
@@ -206,15 +235,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-8">
 
             {/* Controls */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+              <div className="space-y-4 sm:space-y-6">
                 <DimensionControls
                   config={config}
                   onWidthChange={updateWidth}
                   onHeightChange={updateHeight}
+                  onUnitChange={updateUnit}
                   selectedProduct={selectedProduct}
                 />
                 <AspectRatioSelector
@@ -226,11 +256,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
             </div>
 
             {/* Tabs Section */}
-            <div className="mb-8">
-              <div className="flex space-x-2 mb-2">
+            <div className="mb-4 sm:mb-8">
+              <div className="flex flex-wrap gap-2 mb-2">
                 {/* Always show preview tab */}
                 <button
-                  className={`px-4 py-2 rounded ${activeTab === 'preview' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                  className={`px-3 sm:px-4 py-2 rounded text-sm sm:text-base ${activeTab === 'preview' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
                   onClick={() => setActiveTab('preview')}
                 >
                   Preview
@@ -240,13 +270,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                 {selectedProduct && (
                   <>
                     <button
-                      className={`px-4 py-2 rounded ${activeTab === 'data' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                      className={`px-3 sm:px-4 py-2 rounded text-sm sm:text-base ${activeTab === 'data' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
                       onClick={() => setActiveTab('data')}
                     >
                       Data Wiring
                     </button>
                     <button
-                      className={`px-4 py-2 rounded ${activeTab === 'power' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                      className={`px-3 sm:px-4 py-2 rounded text-sm sm:text-base ${activeTab === 'power' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
                       onClick={() => setActiveTab('power')}
                     >
                       Power Wiring
@@ -255,7 +285,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                 )}
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm border p-4">
+              <div className="bg-white rounded-xl shadow-sm border p-2 sm:p-4">
                 {activeTab === 'preview' && (
                   <DisplayPreview
                     config={config}
@@ -276,13 +306,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
             </div>
 
             {/* Product Selection */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center space-x-3">
-                  <Package className="text-blue-500" size={24} />
+                  <Package className="text-blue-500" size={20} />
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Select Product</h3>
-                    <p className="text-gray-600">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Select Product</h3>
+                    <p className="text-sm text-gray-600">
                       {selectedProduct ? selectedProduct.name : 'No product selected'}
                     </p>
                   </div>
@@ -290,29 +320,29 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
 
                 <button
                   onClick={() => setIsProductSelectorOpen(true)}
-                  className="w-full sm:w-auto bg-gray-900 text-white px-6 py-2.5 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2"
+                  className="w-full sm:w-auto bg-gray-900 text-white px-4 sm:px-6 py-2.5 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base"
                 >
-                  <Package size={18} />
+                  <Package size={16} />
                   <span>Change Product</span>
                 </button>
               </div>
 
               {selectedProduct && (
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                     <div>
-                      <h4 className="font-medium text-gray-900">Category</h4>
-                      <p className="text-gray-600">{selectedProduct.category}</p>
+                      <h4 className="font-medium text-gray-900 text-sm sm:text-base">Category</h4>
+                      <p className="text-gray-600 text-sm">{selectedProduct.category}</p>
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-900">Cabinet Size</h4>
-                      <p className="text-gray-600">
+                      <h4 className="font-medium text-gray-900 text-sm sm:text-base">Cabinet Size</h4>
+                      <p className="text-gray-600 text-sm">
                         {selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-900">Resolution</h4>
-                      <p className="text-gray-600">
+                      <h4 className="font-medium text-gray-900 text-sm sm:text-base">Resolution</h4>
+                      <p className="text-gray-600 text-sm">
                         {selectedProduct.resolution.width} × {selectedProduct.resolution.height}
                       </p>
                     </div>
@@ -349,15 +379,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                     </div>
                     END PRICING SECTION */}
                     <div>
-                      <h4 className="font-medium text-gray-900">Total Cabinets</h4>
-                      <p className="text-gray-600">{cabinetGrid.columns * cabinetGrid.rows} units</p>
+                      <h4 className="font-medium text-gray-900 text-sm sm:text-base">Total Cabinets</h4>
+                      <p className="text-gray-600 text-sm">{cabinetGrid.columns * cabinetGrid.rows} units</p>
                     </div>
                   </div>
                   {/* Read More Button */}
                   {selectedProduct.pdf && (
                     <div className="mt-4 flex justify-end">
                       <button
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm sm:text-base"
                         onClick={() => setIsPdfModalOpen(true)}
                       >
                         Read More
@@ -366,17 +396,19 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                   )}
                   {/* PDF Modal */}
                   {isPdfModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                      <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full p-6 relative">
-                        <button
-                          className="absolute top-2 right-2 text-gray-500 hover:text-gray-800"
-                          onClick={() => setIsPdfModalOpen(false)}
-                          aria-label="Close"
-                        >
-                          ×
-                        </button>
-                        <h3 className="text-xl font-semibold mb-4">Product PDF</h3>
-                        <div className="h-[70vh] overflow-auto border rounded">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                      <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[90vh] overflow-hidden">
+                        <div className="flex items-center justify-between p-4 border-b">
+                          <h3 className="text-lg sm:text-xl font-semibold">Product PDF</h3>
+                          <button
+                            className="text-gray-500 hover:text-gray-800 p-2"
+                            onClick={() => setIsPdfModalOpen(false)}
+                            aria-label="Close"
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+                        <div className="h-[70vh] overflow-auto p-4">
                           {/* PDF Viewer */}
                           <Document 
                             file={selectedProduct.pdf} 
@@ -394,7 +426,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                               <React.Fragment key={`page_${index + 1}`}>
                                 <Page
                                   pageNumber={index + 1}
-                                  width={700}
+                                  width={Math.min(700, window.innerWidth - 32)}
                                   renderAnnotationLayer={false}
                                   renderTextLayer={false}
                                 />
@@ -414,8 +446,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
             </div>
 
             {/* Summary */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuration Summary</h3>
+            <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Configuration Summary</h3>
               <ConfigurationSummary
                 config={config}
                 cabinetGrid={fixedCabinetGrid}

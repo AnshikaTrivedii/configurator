@@ -68,7 +68,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
 
   // If digital standee, use cabinet size for preview area
   if (isDigitalStandee && selectedProduct?.cabinetDimensions) {
-    const maxSize = 600; // max preview size in px
+    const maxSize = window.innerWidth < 640 ? 300 : 600; // Responsive max preview size
     const { width: cabW, height: cabH } = selectedProduct.cabinetDimensions;
     const cabRatio = cabW / cabH;
     // Scale to fit maxSize
@@ -248,19 +248,13 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     return modules;
   };
 
-  // Convert current unit to meters
-  const toMeters = (value: number): string => {
-    switch (config.unit) {
-      case 'mm':
-        return (value / 1000).toFixed(3);
-      case 'px':
-        // Assuming 96 DPI for pixel to meter conversion
-        return (value * 0.0254 / 96).toFixed(3);
-      case 'ft':
-        return (value * 0.3048).toFixed(3);
-      default: // meters
-        return value.toFixed(3);
+  // Convert mm to display unit with 2 decimal places
+  const toDisplayUnit = (mm: number): string => {
+    const meters = mm / 1000;
+    if (config.unit === 'ft') {
+      return (meters * 3.28084).toFixed(2);
     }
+    return meters.toFixed(2);
   };
 
   // Helper to get measurement values for preview labels
@@ -272,23 +266,23 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   }
 
   return (
-    <div className="flex flex-col items-center space-y-6 py-8">
+    <div className="flex flex-col items-center space-y-4 sm:space-y-6 py-4 sm:py-8">
       {/* Top measurement */}
       <div className="flex items-center space-x-2">
-        <div className="h-px bg-gray-300 w-8"></div>
-        <span className="text-sm text-gray-600 font-medium">{toMeters(previewWidthMM)} m</span>
-        <div className="h-px bg-gray-300 w-8"></div>
+        <div className="h-px bg-gray-300 w-4 sm:w-8"></div>
+        <span className="text-xs sm:text-sm text-gray-600 font-medium">{toDisplayUnit(previewWidthMM)} {config.unit}</span>
+        <div className="h-px bg-gray-300 w-4 sm:w-8"></div>
       </div>
 
       {/* Display preview container */}
       <div className="relative flex items-center">
         {/* Left measurement */}
-        <div className="flex flex-col items-center mr-4">
-          <div className="w-px bg-gray-300 h-8"></div>
-          <span className="text-sm text-gray-600 font-medium transform -rotate-90 whitespace-nowrap">
-            {toMeters(previewHeightMM)} m
+        <div className="flex flex-col items-center mr-2 sm:mr-4">
+          <div className="w-px bg-gray-300 h-4 sm:h-8"></div>
+          <span className="text-xs sm:text-sm text-gray-600 font-medium transform -rotate-90 whitespace-nowrap">
+            {toDisplayUnit(previewHeightMM)} {config.unit}
           </span>
-          <div className="w-px bg-gray-300 h-8"></div>
+          <div className="w-px bg-gray-300 h-4 sm:h-8"></div>
         </div>
 
         {/* Display screen with cabinet grid or media */}
@@ -344,11 +338,11 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           )}
           {/* Background upload interface */}
           {!backgroundImage && !backgroundVideo && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
-              <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-2 sm:p-4 text-center">
+              <svg className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <p className="text-sm text-gray-600">Click to upload background image or video</p>
+              <p className="text-xs sm:text-sm text-gray-600">Click to upload background image or video</p>
               <p className="text-xs text-gray-500 mt-1">or drag and drop</p>
             </div>
           )}
@@ -356,10 +350,10 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           {(backgroundImage || backgroundVideo) && (
             <button
               onClick={removeBackground}
-              className="absolute top-2 right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-1.5 transition-all duration-200"
+              className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-1 sm:p-1.5 transition-all duration-200"
               title="Remove background"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -376,13 +370,13 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           {!(backgroundImage || backgroundVideo) && (useModuleGrid ? renderModuleGrid() : renderCabinetGrid())}
           {!(backgroundImage || backgroundVideo) && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="bg-black bg-opacity-60 text-white p-4 rounded-lg backdrop-blur-sm text-center">
-                <h3 className="text-lg font-bold mb-1">
+              <div className="bg-black bg-opacity-60 text-white p-2 sm:p-4 rounded-lg backdrop-blur-sm text-center">
+                <h3 className="text-sm sm:text-lg font-bold mb-1">
                   {useModuleGrid
                     ? `${moduleGrid?.columns ?? 0} × ${moduleGrid?.rows ?? 0} Module Grid`
                     : `${cabinetGrid.columns} × ${cabinetGrid.rows} Grid`}
                 </h3>
-                <p className="text-sm">
+                <p className="text-xs sm:text-sm">
                   {useModuleGrid ? `${(moduleGrid?.columns ?? 0) * (moduleGrid?.rows ?? 0)} Modules Total` : `${cabinetGrid.columns * cabinetGrid.rows} Cabinets Total`}
                 </p>
                 {selectedProduct && (
@@ -397,59 +391,29 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           )}
           {!(backgroundImage || backgroundVideo) && (
             <>
-              <div className="absolute top-1 left-1 w-3 h-3 border-t-2 border-l-2 border-white opacity-60"></div>
-              <div className="absolute top-1 right-1 w-3 h-3 border-t-2 border-r-2 border-white opacity-60"></div>
-              <div className="absolute bottom-1 left-1 w-3 h-3 border-b-2 border-l-2 border-white opacity-60"></div>
-              <div className="absolute bottom-1 right-1 w-3 h-3 border-b-2 border-r-2 border-white opacity-60"></div>
+              <div className="absolute top-1 left-1 w-2 h-2 sm:w-3 sm:h-3 border-t-2 border-l-2 border-white opacity-60"></div>
+              <div className="absolute top-1 right-1 w-2 h-2 sm:w-3 sm:h-3 border-t-2 border-r-2 border-white opacity-60"></div>
+              <div className="absolute bottom-1 left-1 w-2 h-2 sm:w-3 sm:h-3 border-b-2 border-l-2 border-white opacity-60"></div>
+              <div className="absolute bottom-1 right-1 w-2 h-2 sm:w-3 sm:h-3 border-b-2 border-r-2 border-white opacity-60"></div>
             </>
           )}
         </div>
 
         {/* Right measurement */}
-        <div className="flex flex-col items-center ml-4">
-          <div className="w-px bg-gray-300 h-8"></div>
-          <span className="text-sm text-gray-600 font-medium transform rotate-90 whitespace-nowrap">
-            {toMeters(previewHeightMM)} m
+        <div className="flex flex-col items-center ml-2 sm:ml-4">
+          <div className="w-px bg-gray-300 h-4 sm:h-8"></div>
+          <span className="text-xs sm:text-sm text-gray-600 font-medium transform -rotate-90 whitespace-nowrap">
+            {toDisplayUnit(previewHeightMM)} {config.unit}
           </span>
-          <div className="w-px bg-gray-300 h-8"></div>
+          <div className="w-px bg-gray-300 h-4 sm:h-8"></div>
         </div>
       </div>
 
-      {/* Bottom measurement and aspect ratio */}
-      <div className="text-center space-y-2">
-        <div className="flex justify-center space-x-2">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors duration-200 flex items-center"
-          >
-            <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            {backgroundType === 'video' && backgroundVideo ? 'Change Background Video' : backgroundType === 'image' && backgroundImage ? 'Change Background Image' : 'Add Background'}
-          </button>
-          {backgroundType === 'video' && backgroundVideo && (
-            <button
-              onClick={removeBackground}
-              className="px-3 py-1.5 text-sm text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors duration-200 flex items-center"
-            >
-              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Remove
-            </button>
-          )}
-        </div>
-        <div className="flex items-center space-x-2">
-          <div className="h-px bg-gray-300 w-8"></div>
-          <span className="text-sm text-gray-600 font-medium">{toMeters(previewWidthMM)} m</span>
-          <div className="h-px bg-gray-300 w-8"></div>
-        </div>
-        <div className="text-lg font-semibold text-gray-700">
-          {getAspectRatioLabel()}
-        </div>
-        {/* <div className="text-sm text-gray-600">
-          Actual: {toMeters(cabinetGrid.totalWidth)} × {toMeters(cabinetGrid.totalHeight)} m
-        </div> */}
+      {/* Bottom measurement */}
+      <div className="flex items-center space-x-2">
+        <div className="h-px bg-gray-300 w-4 sm:w-8"></div>
+        <span className="text-xs sm:text-sm text-gray-600 font-medium">{toDisplayUnit(previewWidthMM)} {config.unit}</span>
+        <div className="h-px bg-gray-300 w-4 sm:w-8"></div>
       </div>
     </div>
   );

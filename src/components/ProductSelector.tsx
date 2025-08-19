@@ -24,7 +24,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   selectedProduct
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [environment, setEnvironment] = useState<'Indoor' | 'Outdoor'>('Indoor');
+  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor'>('All');
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
   const [pendingRentalProduct, setPendingRentalProduct] = useState<ProductWithOptionalSize | null>(null);
   const [rentalOption, setRentalOption] = useState<'cabinet' | 'curve lock' | null>(null);
@@ -48,16 +48,28 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const isRentalSeries = (product: Product) =>
     product.category && product.category.toLowerCase().includes('rental');
 
-  let filteredProducts = products.filter(
-    (p) => normalizeEnv(p.environment) === normalizeEnv(environment)
-  );
+  // Filter products based on selected filter
+  let filteredProducts = products;
+  
+  if (selectedFilter === 'Indoor') {
+    filteredProducts = filteredProducts.filter(
+      (p) => normalizeEnv(p.environment) === 'indoor'
+    );
+  } else if (selectedFilter === 'Outdoor') {
+    filteredProducts = filteredProducts.filter(
+      (p) => normalizeEnv(p.environment) === 'outdoor'
+    );
+  }
+  // If selectedFilter is 'All', show all products (no filtering needed)
 
-  if (environment === 'Indoor' && indoorType !== 'All') {
+  // Apply indoor type filter only when Indoor is selected
+  if (selectedFilter === 'Indoor' && indoorType !== 'All') {
     filteredProducts = filteredProducts.filter(
       (p) => getProductType(p) === indoorType
     );
   }
 
+  // Apply category filter
   filteredProducts = filteredProducts.filter(
     (p) => selectedCategory === 'All' || p.category === selectedCategory
   );
@@ -68,94 +80,109 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-2xl font-bold text-gray-900">Select Product</h2>
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Select Product</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
-        {/* Environment filter */}
-        <div className="p-6 border-b bg-gray-50 flex gap-4 items-center">
-          <span className="font-medium text-gray-700">Environment:</span>
-          <button
-            onClick={() => { setEnvironment('Indoor'); setIndoorType('All'); }}
-            className={`px-4 py-2 rounded-lg border transition-all ${
-              environment === 'Indoor'
-                ? 'bg-blue-500 text-white border-blue-500'
-                : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
-            }`}
-          >
-            Indoor
-          </button>
-          <button
-            onClick={() => { setEnvironment('Outdoor'); setIndoorType('All'); }}
-            className={`px-4 py-2 rounded-lg border transition-all ${
-              environment === 'Outdoor'
-                ? 'bg-blue-500 text-white border-blue-500'
-                : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
-            }`}
-          >
-            Outdoor
-          </button>
+        {/* Filter system */}
+        <div className="p-4 sm:p-6 border-b bg-gray-50">
+          <div className="flex flex-col gap-3 sm:gap-4">
+            {/* Main filter (All, Indoor, Outdoor) */}
+            <div className="flex flex-wrap gap-2 sm:gap-4 items-center">
+              <span className="font-medium text-gray-700 text-sm sm:text-base">Filter:</span>
+              <button
+                onClick={() => { setSelectedFilter('All'); setIndoorType('All'); }}
+                className={`px-3 sm:px-4 py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'All'
+                    ? 'bg-blue-500 text-white border-blue-500'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => { setSelectedFilter('Indoor'); setIndoorType('All'); }}
+                className={`px-3 sm:px-4 py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'Indoor'
+                    ? 'bg-blue-500 text-white border-blue-500'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                Indoor
+              </button>
+              <button
+                onClick={() => { setSelectedFilter('Outdoor'); setIndoorType('All'); }}
+                className={`px-3 sm:px-4 py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'Outdoor'
+                    ? 'bg-blue-500 text-white border-blue-500'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                Outdoor
+              </button>
+            </div>
+
+            {/* Indoor type filter (SMD/COB) - only show when Indoor is selected */}
+            {selectedFilter === 'Indoor' && (
+              <div className="flex flex-wrap gap-2 sm:gap-4 items-center">
+                <span className="font-medium text-gray-700 text-sm sm:text-base">Type:</span>
+                <button
+                  onClick={() => setIndoorType('All')}
+                  className={`px-3 sm:px-4 py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    indoorType === 'All'
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setIndoorType('SMD')}
+                  className={`px-3 sm:px-4 py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    indoorType === 'SMD'
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  SMD
+                </button>
+                <button
+                  onClick={() => setIndoorType('COB')}
+                  className={`px-3 sm:px-4 py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    indoorType === 'COB'
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  COB
+                </button>
+              </div>
+            )}
+
+            {/* Outdoor info message */}
+            {selectedFilter === 'Outdoor' && (
+              <div className="text-blue-700 font-medium text-xs sm:text-sm">
+                All outdoor products are SMD.
+              </div>
+            )}
+          </div>
         </div>
-
-        {/* Outdoor info message */}
-        {environment === 'Outdoor' && (
-          <div className="p-6 border-b bg-gray-50 text-blue-700 font-medium">
-            All outdoor products are SMD.
-          </div>
-        )}
-
-        {/* Indoor type filter (SMD/COB) */}
-        {environment === 'Indoor' && (
-          <div className="p-6 border-b bg-gray-50 flex gap-4 items-center">
-            <span className="font-medium text-gray-700">Type:</span>
-            <button
-              onClick={() => setIndoorType('All')}
-              className={`px-4 py-2 rounded-lg border transition-all ${
-                indoorType === 'All'
-                  ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setIndoorType('SMD')}
-              className={`px-4 py-2 rounded-lg border transition-all ${
-                indoorType === 'SMD'
-                  ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
-              }`}
-            >
-              SMD
-            </button>
-            <button
-              onClick={() => setIndoorType('COB')}
-              className={`px-4 py-2 rounded-lg border transition-all ${
-                indoorType === 'COB'
-                  ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
-              }`}
-            >
-              COB
-            </button>
-          </div>
-        )}
 
         {/* Category filter */}
-        <div className="p-6 border-b bg-gray-50">
+        <div className="p-4 sm:p-6 border-b bg-gray-50">
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setSelectedCategory('All')}
-              className={`px-4 py-2 rounded-lg border transition-all ${
+              className={`px-3 sm:px-4 py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                 selectedCategory === 'All'
                   ? 'bg-blue-500 text-white border-blue-500'
                   : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
@@ -167,7 +194,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2 rounded-lg border transition-all ${
+                className={`px-3 sm:px-4 py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedCategory === category
                     ? 'bg-blue-500 text-white border-blue-500'
                     : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
@@ -180,8 +207,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
         </div>
 
         {/* Products grid */}
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredProducts.map((product: ProductWithOptionalSize) => (
               <div
                 key={product.id}
@@ -200,13 +227,13 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               >
                 {/* Selection indicator */}
                 {selectedProduct?.id === product.id && (
-                  <div className="absolute top-3 right-3 bg-blue-500 text-white rounded-full p-1 z-10">
-                    <Check size={16} />
+                  <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-blue-500 text-white rounded-full p-1 z-10">
+                    <Check size={14} />
                   </div>
                 )}
 
                 {/* Product image */}
-                <div className="h-48 bg-gray-100 overflow-hidden">
+                <div className="h-32 sm:h-48 bg-gray-100 overflow-hidden">
                   <img
                     src={product.image}
                     alt={product.name}
@@ -215,11 +242,11 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 </div>
 
                 {/* Product info */}
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 text-lg mb-2">{product.name}</h3>
-                  <p className="text-sm text-gray-600 mb-3">{product.category}</p>
+                <div className="p-3 sm:p-4">
+                  <h3 className="font-semibold text-gray-900 text-sm sm:text-lg mb-1 sm:mb-2">{product.name}</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">{product.category}</p>
 
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                  <div className="grid grid-cols-2 gap-x-2 sm:gap-x-4 gap-y-2 sm:gap-y-3 text-xs sm:text-sm">
                     <div>
                       <p className="text-gray-500">Resolution</p>
                       <p className="font-medium text-gray-800">
@@ -257,26 +284,26 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
         </div>
         {/* Rental option modal */}
         {pendingRentalProduct && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
-            <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center">
-              <h3 className="text-lg font-semibold mb-4">Select Rental Option</h3>
-              <div className="flex gap-4 mb-6">
+          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40 p-4">
+            <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 flex flex-col items-center max-w-sm w-full">
+              <h3 className="text-base sm:text-lg font-semibold mb-4 text-center">Select Rental Option</h3>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6 w-full">
                 <button
-                  className={`px-6 py-3 rounded-lg border-2 text-lg font-medium transition-all ${rentalOption === 'cabinet' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 bg-white hover:bg-blue-50'}`}
+                  className={`px-4 sm:px-6 py-3 rounded-lg border-2 text-sm sm:text-lg font-medium transition-all w-full ${rentalOption === 'cabinet' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 bg-white hover:bg-blue-50'}`}
                   onClick={() => setRentalOption('cabinet')}
                 >
                   Cabinet
                 </button>
                 <button
-                  className={`px-6 py-3 rounded-lg border-2 text-lg font-medium transition-all ${rentalOption === 'curve lock' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 bg-white hover:bg-blue-50'}`}
+                  className={`px-4 sm:px-6 py-3 rounded-lg border-2 text-sm sm:text-lg font-medium transition-all w-full ${rentalOption === 'curve lock' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 bg-white hover:bg-blue-50'}`}
                   onClick={() => setRentalOption('curve lock')}
                 >
                   Curve Lock
                 </button>
               </div>
-              <div className="flex gap-4">
+              <div className="flex gap-3 sm:gap-4 w-full">
                 <button
-                  className="px-6 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 font-medium"
+                  className="flex-1 px-4 sm:px-6 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 font-medium text-sm sm:text-base"
                   onClick={() => {
                     setPendingRentalProduct(null);
                     setRentalOption(null);
@@ -285,7 +312,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   Cancel
                 </button>
                 <button
-                  className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium disabled:opacity-50"
+                  className="flex-1 px-4 sm:px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium disabled:opacity-50 text-sm sm:text-base"
                   disabled={!rentalOption}
                   onClick={() => {
                     if (pendingRentalProduct && rentalOption) {
@@ -303,10 +330,10 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
           </div>
         )}
         {/* Footer */}
-        <div className="p-4 border-t bg-gray-50 flex justify-end">
+        <div className="p-3 sm:p-4 border-t bg-gray-50 flex justify-end">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            className="px-4 sm:px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm sm:text-base"
           >
             Done
           </button>

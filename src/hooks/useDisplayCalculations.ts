@@ -9,6 +9,10 @@ const aspectRatios: AspectRatio[] = [
   { label: 'None', value: 0, name: 'None' }
 ];
 
+// Conversion constants
+const METERS_TO_FEET = 3.28084;
+const FEET_TO_METERS = 1 / METERS_TO_FEET;
+
 export const useDisplayCalculations = (selectedProduct?: Product) => {
   const defaultCabinet = { width: 600, height: 337.5 };
 
@@ -20,7 +24,7 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
     width: 1800,
     height: 675,
     aspectRatio: 'None',
-    unit: 'mm'
+    unit: 'm'
   });
 
   const updateWidth = (newWidth: number, addCabinets = 0) => {
@@ -62,6 +66,13 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
       }
 
       return { ...prev, height };
+    });
+  };
+
+  const updateUnit = (newUnit: 'm' | 'ft') => {
+    setConfig(prev => {
+      // Keep the same physical dimensions, just change the unit
+      return { ...prev, unit: newUnit };
     });
   };
 
@@ -150,6 +161,7 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
     aspectRatios,
     updateWidth,
     updateHeight,
+    updateUnit,
     updateAspectRatio,
     setConfig,
     displayDimensions,

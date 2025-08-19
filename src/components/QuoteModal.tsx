@@ -319,27 +319,27 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const totalPrice = calculateTotalPrice();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Get a Quote</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+        <div className="p-4 sm:p-6">
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Get a Quote</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-500"
+              className="text-gray-400 hover:text-gray-500 p-1"
               disabled={isSubmitting}
             >
-              <X size={24} />
+              <X size={20} />
             </button>
           </div>
 
           {!isSubmitted ? (
             <form onSubmit={handleSubmit}>
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Contact Information */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h3>
-                  <div className="grid grid-cols-1 gap-4">
+                  <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Contact Information</h3>
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4">
                     <div>
                       <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">
                         Full Name <span className="text-red-500">*</span>
@@ -347,7 +347,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                       <input
                         type="text"
                         id="customerName"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         placeholder="Enter your full name"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
@@ -362,7 +362,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                       <input
                         type="email"
                         id="customerEmail"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         placeholder="Enter your email address"
                         value={customerEmail}
                         onChange={(e) => setCustomerEmail(e.target.value)}
@@ -377,7 +377,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                       <input
                         type="tel"
                         id="customerPhone"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         placeholder="Enter your phone number"
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
@@ -391,108 +391,92 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 {/* Product Details */}
                 {selectedProduct && (
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Product Details</h3>
-                    <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                      <div className="flex justify-between">
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2 sm:mb-3">Product Details</h3>
+                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg space-y-2">
+                      <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Product:</span>
                         <span className="font-medium">{selectedProduct.name}</span>
                       </div>
                       {selectedProduct.pixelPitch && (
-                        <div className="flex justify-between">
+                        <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Pixel Pitch:</span>
-                          <span>P{selectedProduct.pixelPitch}mm</span>
+                          <span className="font-medium">{selectedProduct.pixelPitch} mm</span>
                         </div>
                       )}
                       {selectedProduct.resolution && (
-                        <div className="flex justify-between">
+                        <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Resolution:</span>
-                          <span>{selectedProduct.resolution.width} × {selectedProduct.resolution.height}</span>
+                          <span className="font-medium">{selectedProduct.resolution.width} × {selectedProduct.resolution.height} px</span>
                         </div>
                       )}
-                      {selectedProduct.resolution && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Aspect Ratio:</span>
-                          <span>{calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height)}</span>
-                        </div>
-                      )}
-                      {selectedProduct.cabinetDimensions && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Display Area:</span>
-                          <span>{(selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)} × 
-                                {(selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2)} m</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">User Type:</span>
-                        <span className="font-medium">
-                          {getUserTypeDisplayName(getUserType())}
-                        </span>
-                      </div>
-                      {/* PRICING SECTION - TEMPORARILY DISABLED
-                      To re-enable pricing display, uncomment the section below and remove this comment block.
-                      
-                      {getPriceForUserType() && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Product Price:</span>
-                          <span className="font-medium">
-                            ${getPriceForUserType()?.toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                      {getPriceForUserType() && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Processor Price:</span>
-                          <span className="font-medium">
-                            ${getPriceForUserType()?.toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                      END PRICING SECTION */}
                       {cabinetGrid && (
-                        <div className="flex justify-between">
+                        <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Cabinet Grid:</span>
-                          <span>{cabinetGrid.columns} × {cabinetGrid.rows}</span>
+                          <span className="font-medium">{cabinetGrid.columns} × {cabinetGrid.rows}</span>
                         </div>
                       )}
-                      {/* Processor and Mode */}
                       {processor && (
-                        <div className="flex justify-between">
+                        <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Processor:</span>
-                          <span>{processor}</span>
+                          <span className="font-medium">{processor}</span>
                         </div>
                       )}
                       {mode && (
-                        <div className="flex justify-between">
+                        <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Mode:</span>
-                          <span>{mode}</span>
+                          <span className="font-medium">{mode}</span>
                         </div>
                       )}
-                      {/* PRICING SECTION - TEMPORARILY DISABLED
-                      To re-enable pricing display, uncomment the section below and remove this comment block.
-                      
-                      // Total Price
-                      {totalPrice && (
-                        <div className="flex justify-between border-t pt-2 mt-2">
-                          <span className="text-gray-800 font-semibold">Total Price:</span>
-                          <span className="text-green-600 font-bold text-lg">
-                            ₹{totalPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                          </span>
-                        </div>
-                      )}
-                      END PRICING SECTION */}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">User Type:</span>
+                        <span className="font-medium">{getUserTypeDisplayName(getUserType())}</span>
+                      </div>
                     </div>
                   </div>
                 )}
 
+                {/* PRICING SECTION - TEMPORARILY DISABLED
+                To re-enable pricing display, uncomment the section below and remove this comment block.
+                
+                {getPriceForUserType() && (
+                  <div>
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2 sm:mb-3">Pricing</h3>
+                    <div className="bg-blue-50 p-3 sm:p-4 rounded-lg space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Product Price:</span>
+                        <span className="font-medium">₹{getPriceForUserType()?.toLocaleString('en-IN')}</span>
+                      </div>
+                      {processor && processorPrices[processor] && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Processor Price:</span>
+                          <span className="font-medium">₹{(() => {
+                            const userType = getUserType();
+                            if (userType === 'siChannel') return processorPrices[processor].siChannel;
+                            if (userType === 'reseller') return processorPrices[processor].reseller;
+                            return processorPrices[processor].endUser;
+                          })().toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+                      {totalPrice && (
+                        <div className="flex justify-between border-t pt-2 mt-2">
+                          <span className="font-semibold text-gray-900">Total Price:</span>
+                          <span className="font-bold text-lg">₹{totalPrice.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                END PRICING SECTION */}
+
                 {/* Message */}
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                    Additional Message
+                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                    Additional Message (Optional)
                   </label>
                   <textarea
                     id="message"
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                     placeholder="Please provide any additional details about your requirements..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
@@ -504,15 +488,22 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center space-x-2 disabled:opacity-50"
                     disabled={isSubmitting}
+                    className={`px-6 py-2.5 rounded-lg font-semibold text-white transition-colors text-sm sm:text-base flex items-center space-x-2 ${
+                      isSubmitting
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
                   >
                     {isSubmitting ? (
-                      'Sending...'
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Submitting...</span>
+                      </>
                     ) : (
                       <>
-                        <Mail size={18} />
-                        <span>Send Quote Request</span>
+                        <Mail size={16} />
+                        <span>Submit Quote Request</span>
                       </>
                     )}
                   </button>
@@ -521,34 +512,15 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             </form>
           ) : (
             <div className="text-center py-8">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-                <svg
-                  className="h-6 w-6 text-green-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
+              <div className="text-green-600 mb-4">
+                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="mt-3 text-lg font-medium text-gray-900">Request Sent!</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Thank you for your interest. Our team will get back to you shortly.
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Quote Request Submitted!</h3>
+              <p className="text-gray-600 text-sm sm:text-base">
+                Thank you for your interest. We have received your quote request and will get back to you soon.
               </p>
-              <div className="mt-6">
-                <button
-                  type="button"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  onClick={onClose}
-                >
-                  Close
-                </button>
-              </div>
             </div>
           )}
         </div>
