@@ -54,7 +54,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   if (!selectedProduct) return null;
 
   // Conversion constants
-  const METERS_TO_FEET = 3.28084;
+  const METERS_TO_FEET = 3.2808399;
   const FEET_TO_METERS = 1 / METERS_TO_FEET;
 
   // Convert mm to display unit with 2 decimal places
@@ -69,12 +69,25 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   // Convert mm to inches with 2 decimal places (for imperial display)
   const toInches = (mm: number) => (mm / 25.4).toFixed(2);
   
+  // Calculate display area using displayed dimensions for consistency
+  const displayedWidth = parseFloat(toDisplayUnit(config.width, config.unit));
+  const displayedHeight = parseFloat(toDisplayUnit(config.height, config.unit));
+  const displayAreaFeet = displayedWidth * displayedHeight;
+  
   // Calculate display area in square display units
   const displayArea = (config.width * config.height) / 1000000; // mm² to m²
-  const displayAreaInDisplayUnit = config.unit === 'ft' ? displayArea * (METERS_TO_FEET * METERS_TO_FEET) : displayArea;
+  const displayAreaInDisplayUnit = config.unit === 'ft' ? displayAreaFeet : displayArea;
   
-  // Calculate display area in square feet (for imperial display)
-  const displayAreaFeet = displayArea * 10.7639;
+  // Debug logging for area calculation
+  console.log('Area Calculation Debug:', {
+    configWidth: config.width,
+    configHeight: config.height,
+    displayAreaFeet: displayAreaFeet,
+    displayedWidth: displayedWidth,
+    displayedHeight: displayedHeight,
+    expectedAreaFromDisplayed: displayedWidth * displayedHeight,
+    METERS_TO_FEET: METERS_TO_FEET
+  });
   
   // Calculate display area in square inches
   const displayAreaInches = (config.width * config.height) / (25.4 * 25.4); // mm² to in²

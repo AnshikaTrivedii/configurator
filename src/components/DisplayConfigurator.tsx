@@ -175,10 +175,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
           <div className="lg:hidden absolute top-3 right-3 z-20 sm:top-4 sm:right-4">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+              className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors bg-blue-600/20 backdrop-blur-sm"
+              aria-label="Toggle sidebar menu"
             >
               {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
+            {/* Mobile indicator when sidebar is closed */}
+            {!isSidebarOpen && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            )}
           </div>
 
           {/* Logo - Top Left */}
@@ -206,17 +211,18 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
         {/* Mobile Sidebar Overlay */}
         {isSidebarOpen && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
 
         {/* Sidebar */}
         <div className={`
-          fixed lg:relative inset-y-0 left-0 z-40 lg:z-auto
+          fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto
           transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
           transition-transform duration-300 ease-in-out
           w-72 sm:w-80 flex-shrink-0 border-r border-gray-200 bg-white
+          lg:block
         `}>
           <ProductSidebar
             selectedProduct={selectedProduct}
@@ -235,6 +241,24 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-auto">
+          {/* Mobile Instruction Banner */}
+          <div className="lg:hidden bg-blue-50 border-b border-blue-200 p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-xs text-blue-800">Tap the menu button (☰) to access product settings</span>
+              </div>
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+              >
+                Open Menu
+              </button>
+            </div>
+          </div>
+
           <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 lg:py-8 space-y-3 sm:space-y-6 lg:space-y-8">
 
             {/* Controls */}

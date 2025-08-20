@@ -27,7 +27,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
   const cabinetHeight = selectedProduct?.cabinetDimensions?.height || 337.5;
 
   // Conversion constants
-  const METERS_TO_FEET = 3.28084;
+  const METERS_TO_FEET = 3.2808399;
   const FEET_TO_METERS = 1 / METERS_TO_FEET;
 
   // Convert mm to display unit

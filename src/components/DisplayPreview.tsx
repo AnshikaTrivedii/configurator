@@ -303,7 +303,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   const toDisplayUnit = (mm: number): string => {
     const meters = mm / 1000;
     if (config.unit === 'ft') {
-      return (meters * 3.28084).toFixed(2);
+      return (meters * 3.2808399).toFixed(2);
     }
     return meters.toFixed(2);
   };

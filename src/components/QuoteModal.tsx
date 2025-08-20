@@ -151,8 +151,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     const userType = getUserType();
     
     // Calculate display area in square feet
-    const displayArea = (config.width * config.height) / 1000000; // mm² to m²
-    const displayAreaFeet = displayArea * 10.7639;
+    // Convert mm to feet first, then calculate area
+    const widthInFeet = (config.width / 1000) * 3.2808399;
+    const heightInFeet = (config.height / 1000) * 3.2808399;
+    const displayAreaFeet = widthInFeet * heightInFeet;
     
     let pricePerSqFt: number | undefined;
     
