@@ -170,32 +170,32 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 lg:py-8">
           {/* Mobile Menu Button */}
-          <div className="lg:hidden absolute top-4 right-4 z-20">
+          <div className="lg:hidden absolute top-3 right-3 z-20 sm:top-4 sm:right-4">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
             >
-              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+              {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
 
           {/* Logo - Top Left */}
-          <div className="absolute top-4 left-4 sm:top-6 sm:left-6 lg:top-8 lg:left-8">
+          <div className="absolute top-3 left-3 sm:top-4 sm:left-4 lg:top-6 lg:left-6">
             <img 
               src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png" 
               alt="Orion LED Logo" 
-              className="h-12 sm:h-16 lg:h-20 w-auto"
+              className="h-8 sm:h-12 lg:h-16 w-auto"
             />
           </div>
           
           {/* Main Content - Centered */}
-          <div className="text-center pt-8 sm:pt-0">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 sm:mb-3 tracking-tight">
+          <div className="text-center pt-12 sm:pt-16 lg:pt-0">
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-white mb-1 sm:mb-2 lg:mb-3 tracking-tight">
               Orion Led Configurator
             </h1>
-            <p className="text-blue-100 text-sm sm:text-base md:text-lg lg:text-xl font-medium max-w-2xl mx-auto leading-relaxed px-4">
+            <p className="text-blue-100 text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-medium max-w-2xl mx-auto leading-relaxed px-2 sm:px-4">
               Configure your digital signage display using wide range of products
             </p>
           </div>
@@ -216,7 +216,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
           fixed lg:relative inset-y-0 left-0 z-40 lg:z-auto
           transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
           transition-transform duration-300 ease-in-out
-          w-80 flex-shrink-0 border-r border-gray-200 bg-white
+          w-72 sm:w-80 flex-shrink-0 border-r border-gray-200 bg-white
         `}>
           <ProductSidebar
             selectedProduct={selectedProduct}
@@ -235,11 +235,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-8">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 lg:py-8 space-y-3 sm:space-y-6 lg:space-y-8">
 
             {/* Controls */}
-            <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
-              <div className="space-y-4 sm:space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border p-3 sm:p-6">
+              <div className="space-y-3 sm:space-y-6">
                 <DimensionControls
                   config={config}
                   onWidthChange={updateWidth}
@@ -256,11 +256,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
             </div>
 
             {/* Tabs Section */}
-            <div className="mb-4 sm:mb-8">
-              <div className="flex flex-wrap gap-2 mb-2">
+            <div className="mb-3 sm:mb-6 lg:mb-8">
+              <div className="flex flex-wrap gap-1 sm:gap-2 mb-2">
                 {/* Always show preview tab */}
                 <button
-                  className={`px-3 sm:px-4 py-2 rounded text-sm sm:text-base ${activeTab === 'preview' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'preview' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
                   onClick={() => setActiveTab('preview')}
                 >
                   Preview
@@ -270,13 +270,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                 {selectedProduct && (
                   <>
                     <button
-                      className={`px-3 sm:px-4 py-2 rounded text-sm sm:text-base ${activeTab === 'data' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                      className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'data' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
                       onClick={() => setActiveTab('data')}
                     >
                       Data Wiring
                     </button>
                     <button
-                      className={`px-3 sm:px-4 py-2 rounded text-sm sm:text-base ${activeTab === 'power' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                      className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'power' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
                       onClick={() => setActiveTab('power')}
                     >
                       Power Wiring
@@ -306,13 +306,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
             </div>
 
             {/* Product Selection */}
-            <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center space-x-3">
-                  <Package className="text-blue-500" size={20} />
+            <div className="bg-white rounded-xl shadow-sm border p-3 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                  <Package className="text-blue-500" size={18} />
                   <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Select Product</h3>
-                    <p className="text-sm text-gray-600">
+                    <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900">Select Product</h3>
+                    <p className="text-xs sm:text-sm text-gray-600">
                       {selectedProduct ? selectedProduct.name : 'No product selected'}
                     </p>
                   </div>
@@ -320,29 +320,29 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
 
                 <button
                   onClick={() => setIsProductSelectorOpen(true)}
-                  className="w-full sm:w-auto bg-gray-900 text-white px-4 sm:px-6 py-2.5 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base"
+                  className="w-full sm:w-auto bg-gray-900 text-white px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2 text-xs sm:text-sm lg:text-base"
                 >
-                  <Package size={16} />
+                  <Package size={14} />
                   <span>Change Product</span>
                 </button>
               </div>
 
               {selectedProduct && (
-                <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+                <div className="mt-3 sm:mt-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4">
                     <div>
-                      <h4 className="font-medium text-gray-900 text-sm sm:text-base">Category</h4>
-                      <p className="text-gray-600 text-sm">{selectedProduct.category}</p>
+                      <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Category</h4>
+                      <p className="text-gray-600 text-xs sm:text-sm">{selectedProduct.category}</p>
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-900 text-sm sm:text-base">Cabinet Size</h4>
-                      <p className="text-gray-600 text-sm">
+                      <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Cabinet Size</h4>
+                      <p className="text-gray-600 text-xs sm:text-sm">
                         {selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-900 text-sm sm:text-base">Resolution</h4>
-                      <p className="text-gray-600 text-sm">
+                      <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Resolution</h4>
+                      <p className="text-gray-600 text-xs sm:text-sm">
                         {selectedProduct.resolution.width} × {selectedProduct.resolution.height}
                       </p>
                     </div>
@@ -379,15 +379,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                     </div>
                     END PRICING SECTION */}
                     <div>
-                      <h4 className="font-medium text-gray-900 text-sm sm:text-base">Total Cabinets</h4>
-                      <p className="text-gray-600 text-sm">{cabinetGrid.columns * cabinetGrid.rows} units</p>
+                      <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Total Cabinets</h4>
+                      <p className="text-gray-600 text-xs sm:text-sm">{cabinetGrid.columns * cabinetGrid.rows} units</p>
                     </div>
                   </div>
                   {/* Read More Button */}
                   {selectedProduct.pdf && (
-                    <div className="mt-4 flex justify-end">
+                    <div className="mt-3 sm:mt-4 flex justify-end">
                       <button
-                        className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm sm:text-base"
+                        className="bg-blue-600 text-white px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 text-xs sm:text-sm lg:text-base"
                         onClick={() => setIsPdfModalOpen(true)}
                       >
                         Read More
@@ -396,19 +396,19 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                   )}
                   {/* PDF Modal */}
                   {isPdfModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4">
                       <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[90vh] overflow-hidden">
-                        <div className="flex items-center justify-between p-4 border-b">
-                          <h3 className="text-lg sm:text-xl font-semibold">Product PDF</h3>
+                        <div className="flex items-center justify-between p-3 sm:p-4 border-b">
+                          <h3 className="text-base sm:text-lg lg:text-xl font-semibold">Product PDF</h3>
                           <button
                             className="text-gray-500 hover:text-gray-800 p-2"
                             onClick={() => setIsPdfModalOpen(false)}
                             aria-label="Close"
                           >
-                            <X size={20} />
+                            <X size={18} />
                           </button>
                         </div>
-                        <div className="h-[70vh] overflow-auto p-4">
+                        <div className="h-[70vh] overflow-auto p-2 sm:p-4">
                           {/* PDF Viewer */}
                           <Document 
                             file={selectedProduct.pdf} 
@@ -436,7 +436,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                           </Document>
                           {pdfError && <div className="p-4 text-red-600 bg-red-100 rounded-md">{pdfError}</div>}
                           
-                          <div className="mt-2 text-sm text-gray-500">For full details, <a href={selectedProduct.pdf} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">open PDF in new tab</a>.</div>
+                          <div className="mt-2 text-xs sm:text-sm text-gray-500">For full details, <a href={selectedProduct.pdf} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">open PDF in new tab</a>.</div>
                         </div>
                       </div>
                     </div>
@@ -446,8 +446,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
             </div>
 
             {/* Summary */}
-            <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Configuration Summary</h3>
+            <div className="bg-white rounded-xl shadow-sm border p-3 sm:p-6">
+              <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Configuration Summary</h3>
               <ConfigurationSummary
                 config={config}
                 cabinetGrid={fixedCabinetGrid}

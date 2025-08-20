@@ -58,39 +58,90 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     }
   }, [backgroundType, backgroundImage, backgroundVideo]);
 
+  // Calculate responsive preview size based on screen size
+  const getResponsivePreviewSize = () => {
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    
+    // Base dimensions from displayDimensions
+    const baseWidth = displayDimensions.width;
+    const baseHeight = displayDimensions.height;
+    const aspectRatio = baseWidth / baseHeight;
+    
+    // Responsive max sizes with better mobile handling
+    let maxWidth, maxHeight;
+    
+    if (screenWidth < 640) { // Mobile
+      maxWidth = Math.min(screenWidth - 60, 250); // 60px padding, max 250px
+      maxHeight = Math.min(screenHeight * 0.35, 180); // 35% of screen height, max 180px
+    } else if (screenWidth < 768) { // Small tablet
+      maxWidth = Math.min(screenWidth - 80, 350);
+      maxHeight = Math.min(screenHeight * 0.45, 250);
+    } else if (screenWidth < 1024) { // Tablet
+      maxWidth = Math.min(screenWidth - 100, 450);
+      maxHeight = Math.min(screenHeight * 0.55, 350);
+    } else { // Desktop
+      maxWidth = Math.min(screenWidth - 140, 550);
+      maxHeight = Math.min(screenHeight * 0.65, 450);
+    }
+    
+    // Calculate scaled dimensions maintaining aspect ratio
+    let scaledWidth, scaledHeight;
+    
+    if (aspectRatio > 1) { // Landscape
+      scaledWidth = Math.min(maxWidth, maxHeight * aspectRatio);
+      scaledHeight = scaledWidth / aspectRatio;
+      // Ensure height doesn't exceed maxHeight
+      if (scaledHeight > maxHeight) {
+        scaledHeight = maxHeight;
+        scaledWidth = scaledHeight * aspectRatio;
+      }
+    } else { // Portrait
+      scaledHeight = Math.min(maxHeight, maxWidth / aspectRatio);
+      scaledWidth = scaledHeight * aspectRatio;
+      // Ensure width doesn't exceed maxWidth
+      if (scaledWidth > maxWidth) {
+        scaledWidth = maxWidth;
+        scaledHeight = scaledWidth / aspectRatio;
+      }
+    }
+    
+    return { width: scaledWidth, height: scaledHeight };
+  };
+
+  const { width: previewWidth, height: previewHeight } = getResponsivePreviewSize();
+
   // Calculate preview area size based on media aspect ratio
-  // --- PATCH: For digital standee, use cabinet size for preview area ---
-  let previewWidth = displayDimensions.width;
-  let previewHeight = displayDimensions.height;
+  let mediaWidth = previewWidth;
+  let mediaHeight = previewHeight;
 
   // Detect if product is digital standee
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
 
   // If digital standee, use cabinet size for preview area
   if (isDigitalStandee && selectedProduct?.cabinetDimensions) {
-    const maxSize = window.innerWidth < 640 ? 300 : 600; // Responsive max preview size
     const { width: cabW, height: cabH } = selectedProduct.cabinetDimensions;
     const cabRatio = cabW / cabH;
-    // Scale to fit maxSize
+    // Scale to fit preview size
     if (cabW >= cabH) {
-      previewWidth = maxSize;
-      previewHeight = maxSize / cabRatio;
+      mediaWidth = previewWidth;
+      mediaHeight = previewWidth / cabRatio;
     } else {
-      previewHeight = maxSize;
-      previewWidth = maxSize * cabRatio;
+      mediaHeight = previewHeight;
+      mediaWidth = previewHeight * cabRatio;
     }
   }
 
   if (mediaAspectRatio) {
-    const containerRatio = previewWidth / previewHeight;
+    const containerRatio = mediaWidth / mediaHeight;
     if (containerRatio > mediaAspectRatio) {
       // Container is wider than media, fit by height
-      previewHeight = previewHeight;
-      previewWidth = previewHeight * mediaAspectRatio;
+      mediaHeight = mediaHeight;
+      mediaWidth = mediaHeight * mediaAspectRatio;
     } else {
       // Container is taller than media, fit by width
-      previewWidth = previewWidth;
-      previewHeight = previewWidth / mediaAspectRatio;
+      mediaWidth = mediaWidth;
+      mediaHeight = mediaWidth / mediaAspectRatio;
     }
   }
 
@@ -163,8 +214,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
 
   const renderCabinetGrid = () => {
     const cabinets = [];
-    const cabinetWidth = displayDimensions.width / cabinetGrid.columns;
-    const cabinetHeight = displayDimensions.height / cabinetGrid.rows;
+    const cabinetWidth = previewWidth / cabinetGrid.columns;
+    const cabinetHeight = previewHeight / cabinetGrid.rows;
 
     for (let row = 0; row < cabinetGrid.rows; row++) {
       for (let col = 0; col < cabinetGrid.columns; col++) {
@@ -184,7 +235,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
               <img 
                 src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png" 
                 alt="Orion LED Logo" 
-                className="w-full h-full object-contain p-2"
+                className="w-full h-full object-contain p-1 sm:p-2"
               />
             </div>
             
@@ -208,8 +259,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     selectedProduct.category?.toLowerCase().includes('digital standee')
       ? { columns: 7, rows: 5, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
       : {
-          columns: Math.round(displayDimensions.width / selectedProduct.moduleDimensions.width),
-          rows: Math.round(displayDimensions.height / selectedProduct.moduleDimensions.height),
+          columns: Math.round(previewWidth / selectedProduct.moduleDimensions.width),
+          rows: Math.round(previewHeight / selectedProduct.moduleDimensions.height),
           width: selectedProduct.moduleDimensions.width,
           height: selectedProduct.moduleDimensions.height,
         }
@@ -218,8 +269,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   const renderModuleGrid = () => {
     if (!moduleGrid) return null;
     const modules = [];
-    const moduleWidth = displayDimensions.width / moduleGrid.columns;
-    const moduleHeight = displayDimensions.height / moduleGrid.rows;
+    const moduleWidth = previewWidth / moduleGrid.columns;
+    const moduleHeight = previewHeight / moduleGrid.rows;
     for (let row = 0; row < moduleGrid.rows; row++) {
       for (let col = 0; col < moduleGrid.columns; col++) {
         modules.push(
@@ -237,7 +288,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
               <img 
                 src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png" 
                 alt="Orion LED Logo" 
-                className="w-full h-full object-contain p-2"
+                className="w-full h-full object-contain p-1 sm:p-2"
               />
             </div>
             <div className="absolute inset-0 border border-white opacity-50"></div>
@@ -266,34 +317,38 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   }
 
   return (
-    <div className="flex flex-col items-center space-y-4 sm:space-y-6 py-4 sm:py-8">
+    <div className="flex flex-col items-center space-y-2 sm:space-y-4 lg:space-y-6 py-2 sm:py-4 lg:py-8 overflow-hidden">
       {/* Top measurement */}
-      <div className="flex items-center space-x-2">
-        <div className="h-px bg-gray-300 w-4 sm:w-8"></div>
+      <div className="flex items-center space-x-1 sm:space-x-2">
+        <div className="h-px bg-gray-300 w-2 sm:w-4 lg:w-8"></div>
         <span className="text-xs sm:text-sm text-gray-600 font-medium">{toDisplayUnit(previewWidthMM)} {config.unit}</span>
-        <div className="h-px bg-gray-300 w-4 sm:w-8"></div>
+        <div className="h-px bg-gray-300 w-2 sm:w-4 lg:w-8"></div>
       </div>
 
       {/* Display preview container */}
-      <div className="relative flex items-center">
+      <div className="relative flex items-center justify-center w-full">
         {/* Left measurement */}
-        <div className="flex flex-col items-center mr-2 sm:mr-4">
-          <div className="w-px bg-gray-300 h-4 sm:h-8"></div>
+        <div className="flex flex-col items-center mr-1 sm:mr-2 lg:mr-4 flex-shrink-0">
+          <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
           <span className="text-xs sm:text-sm text-gray-600 font-medium transform -rotate-90 whitespace-nowrap">
             {toDisplayUnit(previewHeightMM)} {config.unit}
           </span>
-          <div className="w-px bg-gray-300 h-4 sm:h-8"></div>
+          <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
         </div>
 
         {/* Display screen with cabinet grid or media */}
         <div 
-          className={`relative border-2 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-dashed border-gray-400'} shadow-xl overflow-hidden transition-all duration-300 ease-in-out flex items-center justify-center bg-transparent`}
+          className={`relative border-2 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-dashed border-gray-400'} shadow-xl overflow-hidden transition-all duration-300 ease-in-out flex items-center justify-center bg-transparent flex-shrink-0`}
           style={{
-            width: `${displayDimensions.width}px`,
-            height: `${displayDimensions.height}px`,
+            width: `${previewWidth}px`,
+            height: `${previewHeight}px`,
             cursor: 'pointer',
             position: 'relative',
             backgroundColor: 'transparent',
+            maxWidth: '100%',
+            maxHeight: '100%',
+            minWidth: '100px',
+            minHeight: '60px',
           }}
           onClick={() => fileInputRef.current?.click()}
           onDragOver={handleDragOver}
@@ -306,8 +361,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
               src={backgroundImage}
               alt="Background"
               style={{
-                width: `${previewWidth}px`,
-                height: `${previewHeight}px`,
+                width: `${mediaWidth}px`,
+                height: `${mediaHeight}px`,
                 objectFit: 'contain',
                 position: 'absolute',
                 left: '50%',
@@ -322,8 +377,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             <video
               src={backgroundVideo}
               style={{
-                width: `${previewWidth}px`,
-                height: `${previewHeight}px`,
+                width: `${mediaWidth}px`,
+                height: `${mediaHeight}px`,
                 objectFit: 'contain',
                 position: 'absolute',
                 left: '50%',
@@ -338,8 +393,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           )}
           {/* Background upload interface */}
           {!backgroundImage && !backgroundVideo && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-2 sm:p-4 text-center">
-              <svg className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-1 sm:p-2 lg:p-4 text-center">
+              <svg className="w-6 h-6 sm:w-8 sm:h-8 lg:w-12 lg:h-12 text-gray-400 mb-1 sm:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <p className="text-xs sm:text-sm text-gray-600">Click to upload background image or video</p>
@@ -370,8 +425,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           {!(backgroundImage || backgroundVideo) && (useModuleGrid ? renderModuleGrid() : renderCabinetGrid())}
           {!(backgroundImage || backgroundVideo) && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="bg-black bg-opacity-60 text-white p-2 sm:p-4 rounded-lg backdrop-blur-sm text-center">
-                <h3 className="text-sm sm:text-lg font-bold mb-1">
+              <div className="bg-black bg-opacity-60 text-white p-1 sm:p-2 lg:p-4 rounded-lg backdrop-blur-sm text-center">
+                <h3 className="text-xs sm:text-sm lg:text-lg font-bold mb-1">
                   {useModuleGrid
                     ? `${moduleGrid?.columns ?? 0} × ${moduleGrid?.rows ?? 0} Module Grid`
                     : `${cabinetGrid.columns} × ${cabinetGrid.rows} Grid`}
@@ -391,29 +446,29 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           )}
           {!(backgroundImage || backgroundVideo) && (
             <>
-              <div className="absolute top-1 left-1 w-2 h-2 sm:w-3 sm:h-3 border-t-2 border-l-2 border-white opacity-60"></div>
-              <div className="absolute top-1 right-1 w-2 h-2 sm:w-3 sm:h-3 border-t-2 border-r-2 border-white opacity-60"></div>
-              <div className="absolute bottom-1 left-1 w-2 h-2 sm:w-3 sm:h-3 border-b-2 border-l-2 border-white opacity-60"></div>
-              <div className="absolute bottom-1 right-1 w-2 h-2 sm:w-3 sm:h-3 border-b-2 border-r-2 border-white opacity-60"></div>
+              <div className="absolute top-1 left-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-t-2 border-l-2 border-white opacity-60"></div>
+              <div className="absolute top-1 right-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-t-2 border-r-2 border-white opacity-60"></div>
+              <div className="absolute bottom-1 left-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-b-2 border-l-2 border-white opacity-60"></div>
+              <div className="absolute bottom-1 right-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-b-2 border-r-2 border-white opacity-60"></div>
             </>
           )}
         </div>
 
         {/* Right measurement */}
-        <div className="flex flex-col items-center ml-2 sm:ml-4">
-          <div className="w-px bg-gray-300 h-4 sm:h-8"></div>
+        <div className="flex flex-col items-center ml-1 sm:ml-2 lg:ml-4 flex-shrink-0">
+          <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
           <span className="text-xs sm:text-sm text-gray-600 font-medium transform -rotate-90 whitespace-nowrap">
             {toDisplayUnit(previewHeightMM)} {config.unit}
           </span>
-          <div className="w-px bg-gray-300 h-4 sm:h-8"></div>
+          <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
         </div>
       </div>
 
       {/* Bottom measurement */}
-      <div className="flex items-center space-x-2">
-        <div className="h-px bg-gray-300 w-4 sm:w-8"></div>
+      <div className="flex items-center space-x-1 sm:space-x-2">
+        <div className="h-px bg-gray-300 w-2 sm:w-4 lg:w-8"></div>
         <span className="text-xs sm:text-sm text-gray-600 font-medium">{toDisplayUnit(previewWidthMM)} {config.unit}</span>
-        <div className="h-px bg-gray-300 w-4 sm:w-8"></div>
+        <div className="h-px bg-gray-300 w-2 sm:w-4 lg:w-8"></div>
       </div>
     </div>
   );
