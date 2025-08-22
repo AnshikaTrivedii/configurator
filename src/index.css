@@ -1,3 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Orion brand global styles */
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .orion-gradient {
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+  }
+  
+  .orion-gradient-dark {
+    background: linear-gradient(135deg, #0284c7 0%, #1e40af 100%);
+  }
+}

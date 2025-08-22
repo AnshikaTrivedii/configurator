@@ -11,9 +11,9 @@ interface UserTypeModalProps {
 }
 
 const userTypeOptions = [
-  { value: 'endUser', label: 'End Customer', icon: <User className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-blue-600" /> },
-  { value: 'siChannel', label: 'SI / Channel', icon: <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-green-600" /> },
-  { value: 'reseller', label: 'Reseller / Lowest Price to Channel', icon: <Users className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-purple-600" /> },
+  { value: 'endUser', label: 'End Customer', icon: <User className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-orion-600" /> },
+  { value: 'siChannel', label: 'SI / Channel', icon: <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-orion-success" /> },
+  { value: 'reseller', label: 'Reseller / Lowest Price to Channel', icon: <Users className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-orion-700" /> },
 ];
 
 const UserTypeModal: React.FC<UserTypeModalProps> = ({ isOpen, onSelect }) => {
@@ -43,8 +43,8 @@ const UserTypeModal: React.FC<UserTypeModalProps> = ({ isOpen, onSelect }) => {
           {userTypeOptions.map(option => (
             <button
               key={option.value}
-              className={`flex items-center w-full py-2.5 sm:py-3 lg:py-3 px-3 sm:px-4 rounded-xl border-2 transition-all text-left text-sm sm:text-base lg:text-lg font-medium focus:outline-none focus:ring-2 focus:ring-blue-400
-                ${selected === option.value ? 'border-blue-600 bg-blue-50 shadow' : 'border-gray-200 bg-gray-50 hover:bg-blue-100'}`}
+              className={`flex items-center w-full py-2.5 sm:py-3 lg:py-3 px-3 sm:px-4 rounded-xl border-2 transition-all text-left text-sm sm:text-base lg:text-lg font-medium focus:outline-none focus:ring-2 focus:ring-orion-400
+                ${selected === option.value ? 'border-orion-600 bg-orion-50 shadow' : 'border-gray-200 bg-gray-50 hover:bg-orion-100'}`}
               onClick={() => handleSelect(option.value as UserType)}
               type="button"
             >
@@ -55,7 +55,7 @@ const UserTypeModal: React.FC<UserTypeModalProps> = ({ isOpen, onSelect }) => {
         </div>
         <button
           className={`w-full py-2 sm:py-2.5 lg:py-2.5 rounded-lg font-semibold text-white transition-colors text-sm sm:text-base lg:text-lg shadow-md
-            ${selected ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'}`}
+            ${selected ? 'bg-orion-600 hover:bg-orion-700' : 'bg-gray-300 cursor-not-allowed'}`}
           onClick={handleConfirm}
           disabled={!selected}
         >

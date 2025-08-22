@@ -167,15 +167,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-orion-light flex flex-col font-orion">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg relative">
+      <div className="bg-orion-gradient shadow-lg relative">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 lg:py-8">
           {/* Mobile Menu Button */}
           <div className="lg:hidden absolute top-3 right-3 z-20 sm:top-4 sm:right-4">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors bg-blue-600/20 backdrop-blur-sm"
+              className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors bg-orion-600/20 backdrop-blur-sm"
               aria-label="Toggle sidebar menu"
             >
               {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
@@ -200,7 +200,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
             <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-white mb-1 sm:mb-2 lg:mb-3 tracking-tight">
               Orion Led Configurator
             </h1>
-            <p className="text-blue-100 text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-medium max-w-2xl mx-auto leading-relaxed px-2 sm:px-4">
+            <p className="text-orion-100 text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-medium max-w-2xl mx-auto leading-relaxed px-2 sm:px-4">
               Configure your digital signage display using wide range of products
             </p>
           </div>
@@ -242,17 +242,17 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
         {/* Main Content Area */}
         <div className="flex-1 overflow-auto">
           {/* Mobile Instruction Banner */}
-          <div className="lg:hidden bg-blue-50 border-b border-blue-200 p-3">
+          <div className="lg:hidden bg-orion-50 border-b border-orion-200 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-orion-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="text-xs text-blue-800">Tap the menu button (☰) to access product settings</span>
+                <span className="text-xs text-orion-800">Tap the menu button (☰) to access product settings</span>
               </div>
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                className="text-orion-600 hover:text-orion-800 text-xs font-medium"
               >
                 Open Menu
               </button>
@@ -284,7 +284,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
               <div className="flex flex-wrap gap-1 sm:gap-2 mb-2">
                 {/* Always show preview tab */}
                 <button
-                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'preview' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'preview' ? 'bg-orion-600 text-white' : 'bg-gray-200'}`}
                   onClick={() => setActiveTab('preview')}
                 >
                   Preview
@@ -294,13 +294,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                 {selectedProduct && (
                   <>
                     <button
-                      className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'data' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                      className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'data' ? 'bg-orion-600 text-white' : 'bg-gray-200'}`}
                       onClick={() => setActiveTab('data')}
                     >
                       Data Wiring
                     </button>
                     <button
-                      className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'power' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                      className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'power' ? 'bg-orion-600 text-white' : 'bg-gray-200'}`}
                       onClick={() => setActiveTab('power')}
                     >
                       Power Wiring
@@ -333,7 +333,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
             <div className="bg-white rounded-xl shadow-sm border p-3 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                 <div className="flex items-center space-x-2 sm:space-x-3">
-                  <Package className="text-blue-500" size={18} />
+                  <Package className="text-orion-500" size={18} />
                   <div>
                     <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900">Select Product</h3>
                     <p className="text-xs sm:text-sm text-gray-600">
@@ -344,7 +344,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
 
                 <button
                   onClick={() => setIsProductSelectorOpen(true)}
-                  className="w-full sm:w-auto bg-gray-900 text-white px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2 text-xs sm:text-sm lg:text-base"
+                  className="w-full sm:w-auto bg-orion-600 text-white px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-orion-700 transition-colors flex items-center justify-center space-x-2 text-xs sm:text-sm lg:text-base"
                 >
                   <Package size={14} />
                   <span>Change Product</span>

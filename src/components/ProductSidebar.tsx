@@ -155,7 +155,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
           <p className="text-gray-500 mb-3 sm:mb-4 text-xs sm:text-sm lg:text-base">Select a product to begin</p>
           <button
             onClick={onSelectProductClick}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 sm:px-4 rounded-lg transition-colors text-xs sm:text-sm lg:text-base"
+            className="bg-orion-600 hover:bg-orion-700 text-white font-bold py-2 px-3 sm:px-4 rounded-lg transition-colors text-xs sm:text-sm lg:text-base"
           >
             Select a Product
           </button>
@@ -192,7 +192,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
             onClick={() => setActiveTab('dimensions')}
             className={`flex-1 py-2 sm:py-3 lg:py-4 px-3 sm:px-4 lg:px-6 text-center text-xs sm:text-sm font-medium ${
               activeTab === 'dimensions' 
-                ? 'text-blue-600 border-b-2 border-blue-600' 
+                ? 'text-orion-600 border-b-2 border-orion-600' 
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -202,7 +202,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
             onClick={() => setActiveTab('processing')}
             className={`flex-1 py-2 sm:py-3 lg:py-4 px-3 sm:px-4 lg:px-6 text-center text-xs sm:text-sm font-medium ${
               activeTab === 'processing' 
-                ? 'text-blue-600 border-b-2 border-blue-600' 
+                ? 'text-orion-600 border-b-2 border-orion-600' 
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -295,9 +295,9 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
         ) : (
           <div className="space-y-2 sm:space-y-3 lg:space-y-4 pt-2">
             <div className="flex items-center space-x-2 mb-2">
-              <span className="inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 rounded bg-blue-100 text-blue-600">
+              <span className="inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 rounded bg-orion-100 text-orion-600">
                 {/* Simple processor icon using SVG */}
-                <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" stroke="#2563eb" strokeWidth="2"/><rect x="8" y="8" width="8" height="8" rx="1.5" stroke="#2563eb" strokeWidth="2"/></svg>
+                <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" stroke="#0284c7" strokeWidth="2"/><rect x="8" y="8" width="8" height="8" rx="1.5" stroke="#0284c7" strokeWidth="2"/></svg>
               </span>
               <span className="font-semibold text-sm sm:text-base lg:text-lg text-gray-900">Processing</span>
             </div>
@@ -315,14 +315,14 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Mode</label>
               <div className="flex space-x-1 sm:space-x-2">
                 <button
-                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border font-medium transition-all text-xs sm:text-sm ${cloudSolution === 'Synchronous' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-100'}`}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border font-medium transition-all text-xs sm:text-sm ${cloudSolution === 'Synchronous' ? 'bg-orion-600 text-white border-orion-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-orion-100'}`}
                   onClick={() => isSyncAsyncSelectable && setCloudSolution('Synchronous')}
                   disabled={!isSyncAsyncSelectable}
                 >
                   Synchronous
                 </button>
                 <button
-                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border font-medium transition-all text-xs sm:text-sm ${cloudSolution === 'Asynchronous' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-100'}`}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border font-medium transition-all text-xs sm:text-sm ${cloudSolution === 'Asynchronous' ? 'bg-orion-600 text-white border-orion-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-orion-100'}`}
                   onClick={() => isSyncAsyncSelectable && setCloudSolution('Asynchronous')}
                   disabled={!isSyncAsyncSelectable}
                 >
@@ -341,7 +341,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
       <div className="p-2 sm:p-3 lg:p-4 border-t border-gray-200">
         <button
           onClick={() => setIsQuoteModalOpen(true)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 sm:py-2.5 lg:py-3 px-3 sm:px-4 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors text-xs sm:text-sm lg:text-base"
+          className="w-full bg-orion-600 hover:bg-orion-700 text-white py-2 sm:py-2.5 lg:py-3 px-3 sm:px-4 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors text-xs sm:text-sm lg:text-base"
         >
           <Mail size={14} />
           <span>Get a Quote</span>

@@ -349,7 +349,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                       <input
                         type="text"
                         id="customerName"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orion-500 focus:border-orion-500 text-sm sm:text-base"
                         placeholder="Enter your full name"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
@@ -364,7 +364,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                       <input
                         type="email"
                         id="customerEmail"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orion-500 focus:border-orion-500 text-sm sm:text-base"
                         placeholder="Enter your email address"
                         value={customerEmail}
                         onChange={(e) => setCustomerEmail(e.target.value)}
@@ -379,7 +379,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                       <input
                         type="tel"
                         id="customerPhone"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orion-500 focus:border-orion-500 text-sm sm:text-base"
                         placeholder="Enter your phone number"
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
@@ -443,7 +443,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 {getPriceForUserType() && (
                   <div>
                     <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2 sm:mb-3">Pricing</h3>
-                    <div className="bg-blue-50 p-3 sm:p-4 rounded-lg space-y-2">
+                    <div className="bg-orion-50 p-3 sm:p-4 rounded-lg space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Product Price:</span>
                         <span className="font-medium">₹{getPriceForUserType()?.toLocaleString('en-IN')}</span>
@@ -478,7 +478,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                   <textarea
                     id="message"
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orion-500 focus:border-orion-500 text-sm sm:text-base"
                     placeholder="Please provide any additional details about your requirements..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
@@ -494,7 +494,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                     className={`px-6 py-2.5 rounded-lg font-semibold text-white transition-colors text-sm sm:text-base flex items-center space-x-2 ${
                       isSubmitting
                         ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700'
+                        : 'bg-orion-600 hover:bg-orion-700'
                     }`}
                   >
                     {isSubmitting ? (

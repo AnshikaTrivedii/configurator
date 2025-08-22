@@ -103,7 +103,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => { setSelectedFilter('All'); setIndoorType('All'); }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'All'
-                    ? 'bg-blue-500 text-white border-blue-500'
+                    ? 'bg-orion-500 text-white border-orion-500'
                     : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
                 }`}
               >
@@ -113,7 +113,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => { setSelectedFilter('Indoor'); setIndoorType('All'); }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Indoor'
-                    ? 'bg-blue-500 text-white border-blue-500'
+                    ? 'bg-orion-500 text-white border-orion-500'
                     : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
                 }`}
               >
@@ -123,7 +123,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => { setSelectedFilter('Outdoor'); setIndoorType('All'); }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Outdoor'
-                    ? 'bg-blue-500 text-white border-blue-500'
+                    ? 'bg-orion-500 text-white border-orion-500'
                     : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
                 }`}
               >
@@ -139,7 +139,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   onClick={() => setIndoorType('All')}
                   className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                     indoorType === 'All'
-                      ? 'bg-blue-500 text-white border-blue-500'
+                      ? 'bg-orion-500 text-white border-orion-500'
                       : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
                   }`}
                 >
@@ -149,7 +149,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   onClick={() => setIndoorType('SMD')}
                   className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                     indoorType === 'SMD'
-                      ? 'bg-blue-500 text-white border-blue-500'
+                      ? 'bg-orion-500 text-white border-orion-500'
                       : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
                   }`}
                 >
@@ -159,7 +159,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   onClick={() => setIndoorType('COB')}
                   className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                     indoorType === 'COB'
-                      ? 'bg-blue-500 text-white border-blue-500'
+                      ? 'bg-orion-500 text-white border-orion-500'
                       : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
                   }`}
                 >
@@ -170,7 +170,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
             {/* Outdoor info message */}
             {selectedFilter === 'Outdoor' && (
-              <div className="text-blue-700 font-medium text-xs sm:text-sm">
+              <div className="text-orion-700 font-medium text-xs sm:text-sm">
                 All outdoor products are SMD.
               </div>
             )}
@@ -184,7 +184,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               onClick={() => setSelectedCategory('All')}
               className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                 selectedCategory === 'All'
-                  ? 'bg-blue-500 text-white border-blue-500'
+                  ? 'bg-orion-500 text-white border-orion-500'
                   : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
               }`}
             >
@@ -196,7 +196,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => setSelectedCategory(category)}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedCategory === category
-                    ? 'bg-blue-500 text-white border-blue-500'
+                    ? 'bg-orion-500 text-white border-orion-500'
                     : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
                 }`}
               >
