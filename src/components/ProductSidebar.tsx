@@ -91,7 +91,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
           <p className="text-gray-500 mb-3 sm:mb-4 text-xs sm:text-sm lg:text-base">Select a product to begin</p>
           <button
             onClick={onSelectProductClick}
-            className="bg-orion-600 hover:bg-orion-700 text-white font-bold py-2 px-3 sm:px-4 rounded-lg transition-colors text-xs sm:text-sm lg:text-base"
+            className="bg-black hover:bg-gray-800 text-white font-bold py-2 px-3 sm:px-4 rounded-lg transition-colors text-xs sm:text-sm lg:text-base"
           >
             Select a Product
           </button>
@@ -101,7 +101,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   }
 
   return (
-    <div className="w-full bg-white overflow-y-auto border-r border-gray-200 flex flex-col h-screen">
+    <div className="w-full bg-white border-r border-gray-200 flex flex-col h-screen">
       {/* Product Header */}
       <div className="p-3 sm:p-4 lg:p-6 border-b border-gray-200">
         <div className="flex flex-col items-center space-y-2 sm:space-y-3 mb-3 sm:mb-4">
@@ -128,7 +128,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
             onClick={() => setActiveTab('dimensions')}
             className={`flex-1 py-2 sm:py-3 lg:py-4 px-3 sm:px-4 lg:px-6 text-center text-xs sm:text-sm font-medium ${
               activeTab === 'dimensions' 
-                ? 'text-orion-600 border-b-2 border-orion-600' 
+                ? 'text-black border-b-2 border-black' 
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -138,7 +138,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
             onClick={() => setActiveTab('processing')}
             className={`flex-1 py-2 sm:py-3 lg:py-4 px-3 sm:px-4 lg:px-6 text-center text-xs sm:text-sm font-medium ${
               activeTab === 'processing' 
-                ? 'text-orion-600 border-b-2 border-orion-600' 
+                ? 'text-black border-b-2 border-black' 
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -148,7 +148,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
       </div>
 
       {/* Content */}
-      <div className="flex-1 px-3 sm:px-4 lg:px-6 py-2 overflow-y-auto">
+      <div className="flex-1 px-3 sm:px-4 lg:px-6 py-2">
         {activeTab === 'dimensions' ? (
           <div className="space-y-3 sm:space-y-4 lg:space-y-6">
             <div>
@@ -231,7 +231,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
         ) : (
           <div className="space-y-2 sm:space-y-3 lg:space-y-4 pt-2">
             <div className="flex items-center space-x-2 mb-2">
-              <span className="inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 rounded bg-orion-100 text-orion-600">
+              <span className="inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 rounded bg-gray-100 text-black">
                 {/* Simple processor icon using SVG */}
                 <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" stroke="#0284c7" strokeWidth="2"/><rect x="8" y="8" width="8" height="8" rx="1.5" stroke="#0284c7" strokeWidth="2"/></svg>
               </span>
@@ -288,14 +288,14 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Mode</label>
               <div className="flex space-x-1 sm:space-x-2">
                 <button
-                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border font-medium transition-all text-xs sm:text-sm ${cloudSolution === 'Synchronous' ? 'bg-orion-600 text-white border-orion-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-orion-100'}`}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border font-medium transition-all text-xs sm:text-sm ${cloudSolution === 'Synchronous' ? 'bg-black text-white border-black' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
                   onClick={() => isSyncAsyncSelectable && setCloudSolution('Synchronous')}
                   disabled={!isSyncAsyncSelectable}
                 >
                   Synchronous
                 </button>
                 <button
-                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border font-medium transition-all text-xs sm:text-sm ${cloudSolution === 'Asynchronous' ? 'bg-orion-600 text-white border-orion-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-orion-100'}`}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border font-medium transition-all text-xs sm:text-sm ${cloudSolution === 'Asynchronous' ? 'bg-black text-white border-black' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
                   onClick={() => isSyncAsyncSelectable && setCloudSolution('Asynchronous')}
                   disabled={!isSyncAsyncSelectable}
                 >

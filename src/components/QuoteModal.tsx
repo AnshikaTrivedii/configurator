@@ -250,9 +250,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
   return (
     <div className={`${isOpen ? 'fixed inset-0 bg-black/60 backdrop-blur-sm z-50' : ''}`}>
-      <div className={`${isOpen ? 'bg-white w-full h-full overflow-hidden' : 'w-full'}`}>
+      <div className={`${isOpen ? 'bg-white w-full h-full flex flex-col' : 'w-full'}`}>
         {/* Header */}
-        <div className="bg-orion-gradient text-white p-8 border-b border-white/20">
+        <div className="bg-black text-white p-8 border-b border-white/20 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-white/20 rounded-lg">
@@ -260,7 +260,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               </div>
               <div>
                 <h2 className="text-3xl font-bold">Get a Quote</h2>
-                <p className="text-orion-100 text-base">Request pricing for your LED display configuration</p>
+                <p className="text-gray-200 text-base">Request pricing for your LED display configuration</p>
               </div>
             </div>
             <button
@@ -273,15 +273,15 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           </div>
         </div>
 
-        <div className={`overflow-y-auto ${isOpen ? 'h-full' : ''}`}>
+        <div className="flex-1 overflow-y-auto">
           {!isSubmitted ? (
-            <form onSubmit={handleSubmit} className={`${isOpen ? 'p-8 max-w-7xl mx-auto' : 'p-6'}`}>
+            <form onSubmit={handleSubmit} className={`${isOpen ? 'p-8 max-w-7xl mx-auto pb-20' : 'p-6'}`}>
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
                 {/* Left Column - Contact Information */}
                 <div className="space-y-8">
                   <div>
                     <h3 className="flex items-center text-2xl font-semibold text-gray-900 mb-8">
-                      <User className="w-7 h-7 mr-3 text-orion-600" />
+                      <User className="w-7 h-7 mr-3 text-black" />
                       Contact Information
                     </h3>
                     <div className="space-y-6">
@@ -293,7 +293,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                           <input
                             type="text"
                             id="customerName"
-                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orion-500 focus:border-orion-500 text-base transition-all"
+                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all"
                             placeholder="Enter your full name"
                             value={customerName}
                             onChange={(e) => setCustomerName(e.target.value)}
@@ -312,7 +312,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                           <input
                             type="email"
                             id="customerEmail"
-                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orion-500 focus:border-orion-500 text-base transition-all"
+                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all"
                             placeholder="Enter your email address"
                             value={customerEmail}
                             onChange={(e) => setCustomerEmail(e.target.value)}
@@ -331,7 +331,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                           <input
                             type="tel"
                             id="customerPhone"
-                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orion-500 focus:border-orion-500 text-base transition-all"
+                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all"
                             placeholder="Enter your phone number"
                             value={customerPhone}
                             onChange={(e) => setCustomerPhone(e.target.value)}
@@ -347,13 +347,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                   {/* Additional Message */}
                   <div>
                     <label htmlFor="message" className="flex items-center text-base font-medium text-gray-700 mb-3">
-                      <MessageSquare className="w-5 h-5 mr-2 text-orion-600" />
+                      <MessageSquare className="w-5 h-5 mr-2 text-black" />
                       Additional Message (Optional)
                     </label>
                     <textarea
                       id="message"
                       rows={5}
-                      className="w-full px-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orion-500 focus:border-orion-500 text-base transition-all resize-none"
+                      className="w-full px-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all resize-none"
                       placeholder="Please provide any additional details about your requirements..."
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
@@ -367,10 +367,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                   {selectedProduct && (
                     <div>
                       <h3 className="flex items-center text-2xl font-semibold text-gray-900 mb-8">
-                        <Package className="w-7 h-7 mr-3 text-orion-600" />
+                        <Package className="w-7 h-7 mr-3 text-black" />
                         Product Details
                       </h3>
-                      <div className="bg-gradient-to-br from-orion-50 to-blue-50 p-6 rounded-xl border border-orion-100">
+                      <div className="bg-gradient-to-br from-gray-50 to-blue-50 p-6 rounded-xl border border-gray-100">
                         <div className="space-y-4">
                           <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
                             <span className="text-sm font-medium text-gray-600">Product:</span>
@@ -425,7 +425,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                   {/* {getPriceForUserType() && (
                     <div>
                       <h3 className="flex items-center text-2xl font-semibold text-gray-900 mb-8">
-                        <CreditCard className="w-7 h-7 mr-3 text-orion-600" />
+                        <CreditCard className="w-7 h-7 mr-3 text-black" />
                         Pricing Estimate
                       </h3>
                       <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-100">
@@ -446,7 +446,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                             </div>
                           )}
                           {totalPrice && (
-                            <div className="flex items-center justify-between p-4 bg-orion-600 text-white rounded-lg">
+                            <div className="flex items-center justify-between p-4 bg-black text-white rounded-lg">
                               <span className="font-semibold text-base">Total Estimate:</span>
                               <span className="font-bold text-xl">₹{totalPrice.toLocaleString('en-IN')}</span>
                             </div>
@@ -459,16 +459,16 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               </div>
 
               {/* Submit Button */}
-              <div className="mt-12 flex justify-end">
-                                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className={`px-12 py-5 rounded-xl font-semibold text-white transition-all text-lg flex items-center space-x-3 shadow-lg ${
-                      isSubmitting
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-orion-600 hover:bg-orion-700 hover:shadow-xl transform hover:-translate-y-0.5'
-                    }`}
-                  >
+              <div className="mt-12 flex justify-center">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={`px-16 py-6 rounded-2xl font-bold text-white transition-all text-xl flex items-center space-x-4 shadow-2xl border-2 border-gray-800 ${
+                    isSubmitting
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105'
+                  }`}
+                >
                   {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -494,7 +494,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               <p className="text-gray-600 mb-8 text-lg">Thank you for your interest. Our team will contact you shortly with a detailed quote.</p>
               <button
                 onClick={onClose}
-                className="px-8 py-3 bg-orion-600 text-white rounded-lg hover:bg-orion-700 transition-colors text-base"
+                className="px-8 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-base"
               >
                 Close
               </button>
