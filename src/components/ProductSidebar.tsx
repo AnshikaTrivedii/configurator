@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Product, CabinetGrid } from '../types';
-import { ChevronDown, Mail } from 'lucide-react';
-import { QuoteModal } from './QuoteModal';
+import { ChevronDown } from 'lucide-react';
 
 interface ProductSidebarProps {
   selectedProduct: Product | undefined;
@@ -35,7 +34,6 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   ];
   const [processorType, setProcessorType] = useState<'video' | 'sending'>('video');
   const [controller, setController] = useState(videoProcessorOptions[0]);
-  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
 
   // User type detection (from localStorage or default to endUser)
@@ -54,11 +52,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   // Helper to get price for rental series
   // Remove all code related to getRentalPrice, getPriceLabelAndColor, and rental price display in the sidebar.
 
-  const handleQuoteSubmit = (message: string) => {
-    // Here you would typically send the quote request to your backend
-    console.log('Quote request submitted with message:', message);
-    console.log('Selected product:', selectedProduct);
-  };
+
 
   // Get the current configuration for the quote
   const getCurrentConfig = () => {
@@ -339,28 +333,10 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
 
       {/* Get a Quote Button */}
       <div className="p-2 sm:p-3 lg:p-4 border-t border-gray-200">
-        <button
-          onClick={() => setIsQuoteModalOpen(true)}
-          className="w-full bg-orion-600 hover:bg-orion-700 text-white py-2 sm:py-2.5 lg:py-3 px-3 sm:px-4 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors text-xs sm:text-sm lg:text-base"
-        >
-          <Mail size={14} />
-          <span>Get a Quote</span>
-        </button>
+        <div className="text-center">
+          <p className="text-xs text-gray-500 mb-2">Configure your display and click "Get a Quote" in the main panel</p>
+        </div>
       </div>
-
-      {/* Quote Modal */}
-      {selectedProduct && (
-        <QuoteModal
-          isOpen={isQuoteModalOpen}
-          onClose={() => setIsQuoteModalOpen(false)}
-          onSubmit={handleQuoteSubmit}
-          selectedProduct={selectedProduct}
-          config={getCurrentConfig()}
-          cabinetGrid={cabinetGrid}
-          processor={selectedController}
-          mode={cloudSolution || ''}
-        />
-      )}
     </div>
   );
 };

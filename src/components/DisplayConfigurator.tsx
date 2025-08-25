@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Menu, X } from 'lucide-react';
+import { Package, Menu, X, Mail } from 'lucide-react';
 import { useDisplayCalculations } from '../hooks/useDisplayCalculations';
 import { DimensionControls } from './DimensionControls';
 import { AspectRatioSelector } from './AspectRatioSelector';
@@ -44,6 +44,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
   const [numPages, setNumPages] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState('preview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar state
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
 
   // New state for processor/controller and mode
   const [selectedController, setSelectedController] = useState<string>('');
@@ -480,6 +481,19 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                 processor={selectedController}
                 mode={selectedMode}
               />
+              
+              {/* Get a Quote Button */}
+              {selectedProduct && (
+                <div className="mt-6 text-center">
+                  <button
+                    onClick={() => setIsQuoteModalOpen(true)}
+                    className="inline-flex items-center justify-center px-6 py-3 bg-orion-600 text-white font-semibold rounded-lg hover:bg-orion-700 focus:outline-none focus:ring-2 focus:ring-orion-500 focus:ring-offset-2 transition-colors"
+                  >
+                    <Mail className="w-5 h-5 mr-2" />
+                    Get a Quote
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -495,9 +509,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
       {/* Quote Modal */}
       {selectedProduct && (
         <QuoteModal
-          isOpen={false} // You may need to control this with state if not already
-          onClose={() => {}}
-          onSubmit={() => {}}
+          isOpen={isQuoteModalOpen}
+          onClose={() => setIsQuoteModalOpen(false)}
+          onSubmit={(message) => {
+            console.log('Quote submitted:', message);
+            setIsQuoteModalOpen(false);
+          }}
           selectedProduct={selectedProduct}
           config={config}
           cabinetGrid={cabinetGrid}

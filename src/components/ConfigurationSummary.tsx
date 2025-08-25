@@ -178,32 +178,32 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   // Calculate total pixels
   const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
 
-  // Calculate total price based on user type and area in square feet
-  const totalCabinets = cabinetGrid.columns * cabinetGrid.rows;
-  let pricePerSqFt = selectedProduct.price;
-  // Remove Digital Standee Series override logic
-  if (userType === 'siChannel') pricePerSqFt = selectedProduct.siChannelPrice;
-  if (userType === 'reseller') pricePerSqFt = selectedProduct.resellerPrice;
-  const totalPrice = pricePerSqFt ? displayAreaFeet * pricePerSqFt : undefined;
+  // Calculate total price based on user type and area in square feet - Commented out for future use
+  // const totalCabinets = cabinetGrid.columns * cabinetGrid.rows;
+  // let pricePerSqFt = selectedProduct.price;
+  // // Remove Digital Standee Series override logic
+  // if (userType === 'siChannel') pricePerSqFt = selectedProduct.siChannelPrice;
+  // if (userType === 'reseller') pricePerSqFt = selectedProduct.resellerPrice;
+  // const totalPrice = pricePerSqFt ? displayAreaFeet * pricePerSqFt : undefined;
 
-  // Get processor price based on user type and selected processor
-  let processorPrice = 0;
-  if (processor && processorPrices[processor]) {
-    if (userType === 'siChannel') processorPrice = processorPrices[processor].siChannel;
-    else if (userType === 'reseller') processorPrice = processorPrices[processor].reseller;
-    else processorPrice = processorPrices[processor].endUser;
-  }
+  // Get processor price based on user type and selected processor - Commented out for future use
+  // let processorPrice = 0;
+  // if (processor && processorPrices[processor]) {
+  //   if (userType === 'siChannel') processorPrice = processorPrices[processor].siChannel;
+  //   else if (userType === 'reseller') processorPrice = processorPrices[processor].reseller;
+  //   else processorPrice = processorPrices[processor].endUser;
+  // }
   
-  // Debug logging for processor price
-  console.log('Processor Price Debug:', {
-    processor,
-    userType,
-    processorPrice,
-    availableProcessors: Object.keys(processorPrices),
-    processorFound: processor ? processorPrices[processor] : false
-  });
+  // Debug logging for processor price - Commented out for future use
+  // console.log('Processor Price Debug:', {
+  //   processor,
+  //   userType,
+  //   processorPrice,
+  //   availableProcessors: Object.keys(processorPrices),
+  //   processorFound: processor ? processorPrices[processor] : false
+  // });
   
-  const totalPriceWithProcessor = totalPrice !== undefined ? totalPrice + processorPrice : undefined;
+  // const totalPriceWithProcessor = totalPrice !== undefined ? totalPrice + processorPrice : undefined;
 
   // Determine product type (SMD or COB)
   const getProductType = (product: Product) => {
@@ -219,15 +219,15 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
 
 
 
-  // Show only the correct prices for the product type
-  const showPrice = (type: 'endUser' | 'siChannel' | 'reseller') => {
-    if (productType === 'SMD' || productType === 'COB') {
-      if (type === 'endUser') return selectedProduct.price;
-      if (type === 'siChannel') return selectedProduct.siChannelPrice;
-      if (type === 'reseller') return selectedProduct.resellerPrice;
-    }
-    return undefined;
-  };
+  // Show only the correct prices for the product type - Commented out for future use
+  // const showPrice = (type: 'endUser' | 'siChannel' | 'reseller') => {
+  //   if (productType === 'SMD' || productType === 'COB') {
+  //     if (type === 'endUser') return selectedProduct.price;
+  //     if (type === 'siChannel') return selectedProduct.siChannelPrice;
+  //     if (type === 'reseller') return selectedProduct.resellerPrice;
+  //   }
+  //   return undefined;
+  // };
 
   // User type detection (from localStorage or prop)
   const [currentUserType, setCurrentUserType] = useState<UserType>(userType || 'endUser');
@@ -239,12 +239,12 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     }
   }, [userType]);
 
-  // Helper to get price for rental series
-  const getRentalPrice = () => {
-    if (!selectedProduct || !selectedProduct.prices || !selectedProduct.rentalOption) return null;
-    const option = selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet';
-    return selectedProduct.prices[option]?.[userTypeToPriceKey(currentUserType)] || null;
-  };
+  // Helper to get price for rental series - Commented out for future use
+  // const getRentalPrice = () => {
+  //   if (!selectedProduct || !selectedProduct.prices || !selectedProduct.rentalOption) return null;
+  //   const option = selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet';
+  //   return selectedProduct.prices[option]?.[userTypeToPriceKey(currentUserType)] || null;
+  // };
 
   return (
     <div className="space-y-4 sm:space-y-6">

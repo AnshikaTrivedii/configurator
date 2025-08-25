@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail } from 'lucide-react';
+import { X, Mail, User, Phone, MessageSquare, Package, Settings, CreditCard } from 'lucide-react';
 import { submitQuoteRequest, QuoteRequest } from '../api/quote';
 
 interface Product {
@@ -224,8 +224,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     
     try {
       const userType = getUserType();
-      const userPrice = getPriceForUserType();
-      const totalPrice = calculateTotalPrice();
+      // const userPrice = getPriceForUserType(); // Commented out for future use
+      // const totalPrice = calculateTotalPrice(); // Commented out for future use
       
       const quoteData: QuoteRequest = {
         // Root level required fields for backend compatibility
@@ -257,8 +257,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           maxPowerConsumption: selectedProduct.maxPowerConsumption,
           avgPowerConsumption: selectedProduct.avgPowerConsumption,
           weightPerCabinet: selectedProduct.weightPerCabinet,
-          // Pricing
-          processorPrice: userPrice,
+                  // Pricing - Commented out for future use
+        // processorPrice: userPrice,
           // User info
           userType: userType
         },
@@ -274,8 +274,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         mode: mode,
         // Include user type at the root level as well for backward compatibility
         userType: userType,
-        // Include total price
-        totalPrice: totalPrice
+        // Include total price - Commented out for future use
+        // totalPrice: totalPrice
       };
       
       console.log('Submitting quote data:', quoteData);
@@ -317,212 +317,259 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     }
   };
 
-  // Calculate total price for display
-  const totalPrice = calculateTotalPrice();
+  // Calculate total price for display - Commented out for future use
+  // const totalPrice = calculateTotalPrice();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-        <div className="p-4 sm:p-6">
-          <div className="flex justify-between items-center mb-4 sm:mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Get a Quote</h2>
+    <div className={`${isOpen ? 'fixed inset-0 bg-black/60 backdrop-blur-sm z-50' : ''}`}>
+      <div className={`${isOpen ? 'bg-white w-full h-full overflow-hidden' : 'w-full'}`}>
+        {/* Header */}
+        <div className="bg-orion-gradient text-white p-8 border-b border-white/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <Mail className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold">Get a Quote</h2>
+                <p className="text-orion-100 text-base">Request pricing for your LED display configuration</p>
+              </div>
+            </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-500 p-1"
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
               disabled={isSubmitting}
             >
-              <X size={20} />
+              <X size={24} />
             </button>
           </div>
+        </div>
 
+        <div className={`overflow-y-auto ${isOpen ? 'h-full' : ''}`}>
           {!isSubmitted ? (
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-4 sm:space-y-6">
-                {/* Contact Information */}
-                <div>
-                  <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Contact Information</h3>
-                  <div className="grid grid-cols-1 gap-3 sm:gap-4">
-                    <div>
-                      <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">
-                        Full Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        id="customerName"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orion-500 focus:border-orion-500 text-sm sm:text-base"
-                        placeholder="Enter your full name"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        disabled={isSubmitting}
-                        required
-                      />
+            <form onSubmit={handleSubmit} className={`${isOpen ? 'p-8 max-w-7xl mx-auto' : 'p-6'}`}>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
+                {/* Left Column - Contact Information */}
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="flex items-center text-2xl font-semibold text-gray-900 mb-8">
+                      <User className="w-7 h-7 mr-3 text-orion-600" />
+                      Contact Information
+                    </h3>
+                    <div className="space-y-6">
+                      <div>
+                        <label htmlFor="customerName" className="block text-base font-medium text-gray-700 mb-3">
+                          Full Name <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            id="customerName"
+                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orion-500 focus:border-orion-500 text-base transition-all"
+                            placeholder="Enter your full name"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            disabled={isSubmitting}
+                            required
+                          />
+                          <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="customerEmail" className="block text-base font-medium text-gray-700 mb-3">
+                          Email Address <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="email"
+                            id="customerEmail"
+                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orion-500 focus:border-orion-500 text-base transition-all"
+                            placeholder="Enter your email address"
+                            value={customerEmail}
+                            onChange={(e) => setCustomerEmail(e.target.value)}
+                            disabled={isSubmitting}
+                            required
+                          />
+                          <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="customerPhone" className="block text-base font-medium text-gray-700 mb-3">
+                          Phone Number <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="tel"
+                            id="customerPhone"
+                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orion-500 focus:border-orion-500 text-base transition-all"
+                            placeholder="Enter your phone number"
+                            value={customerPhone}
+                            onChange={(e) => setCustomerPhone(e.target.value)}
+                            disabled={isSubmitting}
+                            required
+                          />
+                          <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label htmlFor="customerEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                        Email Address <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        id="customerEmail"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orion-500 focus:border-orion-500 text-sm sm:text-base"
-                        placeholder="Enter your email address"
-                        value={customerEmail}
-                        onChange={(e) => setCustomerEmail(e.target.value)}
-                        disabled={isSubmitting}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="customerPhone" className="block text-sm font-medium text-gray-700 mb-1">
-                        Phone Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        id="customerPhone"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orion-500 focus:border-orion-500 text-sm sm:text-base"
-                        placeholder="Enter your phone number"
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                        disabled={isSubmitting}
-                        required
-                      />
-                    </div>
+                  </div>
+
+                  {/* Additional Message */}
+                  <div>
+                    <label htmlFor="message" className="flex items-center text-base font-medium text-gray-700 mb-3">
+                      <MessageSquare className="w-5 h-5 mr-2 text-orion-600" />
+                      Additional Message (Optional)
+                    </label>
+                    <textarea
+                      id="message"
+                      rows={5}
+                      className="w-full px-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orion-500 focus:border-orion-500 text-base transition-all resize-none"
+                      placeholder="Please provide any additional details about your requirements..."
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      disabled={isSubmitting}
+                    />
                   </div>
                 </div>
 
-                {/* Product Details */}
-                {selectedProduct && (
-                  <div>
-                    <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2 sm:mb-3">Product Details</h3>
-                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Product:</span>
-                        <span className="font-medium">{selectedProduct.name}</span>
-                      </div>
-                      {selectedProduct.pixelPitch && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Pixel Pitch:</span>
-                          <span className="font-medium">{selectedProduct.pixelPitch} mm</span>
+                {/* Right Column - Product Details */}
+                <div className="space-y-8">
+                  {selectedProduct && (
+                    <div>
+                      <h3 className="flex items-center text-2xl font-semibold text-gray-900 mb-8">
+                        <Package className="w-7 h-7 mr-3 text-orion-600" />
+                        Product Details
+                      </h3>
+                      <div className="bg-gradient-to-br from-orion-50 to-blue-50 p-6 rounded-xl border border-orion-100">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                            <span className="text-sm font-medium text-gray-600">Product:</span>
+                            <span className="font-semibold text-gray-900 text-sm">{selectedProduct.name}</span>
+                          </div>
+                          
+                          {selectedProduct.pixelPitch && (
+                            <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                              <span className="text-sm font-medium text-gray-600">Pixel Pitch:</span>
+                              <span className="font-semibold text-gray-900 text-sm">{selectedProduct.pixelPitch} mm</span>
+                            </div>
+                          )}
+                          
+                          {selectedProduct.resolution && (
+                            <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                              <span className="text-sm font-medium text-gray-600">Resolution:</span>
+                              <span className="font-semibold text-gray-900 text-sm">{selectedProduct.resolution.width} × {selectedProduct.resolution.height} px</span>
+                            </div>
+                          )}
+                          
+                          {cabinetGrid && (
+                            <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                              <span className="text-sm font-medium text-gray-600">Cabinet Grid:</span>
+                              <span className="font-semibold text-gray-900 text-sm">{cabinetGrid.columns} × {cabinetGrid.rows}</span>
+                            </div>
+                          )}
+                          
+                          {processor && (
+                            <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                              <span className="text-sm font-medium text-gray-600">Processor:</span>
+                              <span className="font-semibold text-gray-900 text-sm">{processor}</span>
+                            </div>
+                          )}
+                          
+                          {mode && (
+                            <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                              <span className="text-sm font-medium text-gray-600">Mode:</span>
+                              <span className="font-semibold text-gray-900 text-sm">{mode}</span>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                            <span className="text-sm font-medium text-gray-600">User Type:</span>
+                            <span className="font-semibold text-gray-900 text-sm">{getUserTypeDisplayName(getUserType())}</span>
+                          </div>
                         </div>
-                      )}
-                      {selectedProduct.resolution && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Resolution:</span>
-                          <span className="font-medium">{selectedProduct.resolution.width} × {selectedProduct.resolution.height} px</span>
-                        </div>
-                      )}
-                      {cabinetGrid && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Cabinet Grid:</span>
-                          <span className="font-medium">{cabinetGrid.columns} × {cabinetGrid.rows}</span>
-                        </div>
-                      )}
-                      {processor && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Processor:</span>
-                          <span className="font-medium">{processor}</span>
-                        </div>
-                      )}
-                      {mode && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Mode:</span>
-                          <span className="font-medium">{mode}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">User Type:</span>
-                        <span className="font-medium">{getUserTypeDisplayName(getUserType())}</span>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* PRICING SECTION - TEMPORARILY DISABLED
-                To re-enable pricing display, uncomment the section below and remove this comment block.
-                
-                {getPriceForUserType() && (
-                  <div>
-                    <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2 sm:mb-3">Pricing</h3>
-                    <div className="bg-orion-50 p-3 sm:p-4 rounded-lg space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Product Price:</span>
-                        <span className="font-medium">₹{getPriceForUserType()?.toLocaleString('en-IN')}</span>
+                  {/* Pricing Section - Commented out for future use */}
+                  {/* {getPriceForUserType() && (
+                    <div>
+                      <h3 className="flex items-center text-2xl font-semibold text-gray-900 mb-8">
+                        <CreditCard className="w-7 h-7 mr-3 text-orion-600" />
+                        Pricing Estimate
+                      </h3>
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-100">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                            <span className="text-sm font-medium text-gray-600">Product Price:</span>
+                            <span className="font-semibold text-gray-900 text-sm">₹{getPriceForUserType()?.toLocaleString('en-IN')}</span>
+                          </div>
+                          {processor && processorPrices[processor] && (
+                            <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+                              <span className="text-sm font-medium text-gray-600">Processor Price:</span>
+                              <span className="font-semibold text-gray-900 text-sm">₹{(() => {
+                                const userType = getUserType();
+                                if (userType === 'siChannel') return processorPrices[processor].siChannel;
+                                if (userType === 'reseller') return processorPrices[processor].reseller;
+                                return processorPrices[processor].endUser;
+                              })().toLocaleString('en-IN')}</span>
+                            </div>
+                          )}
+                          {totalPrice && (
+                            <div className="flex items-center justify-between p-4 bg-orion-600 text-white rounded-lg">
+                              <span className="font-semibold text-base">Total Estimate:</span>
+                              <span className="font-bold text-xl">₹{totalPrice.toLocaleString('en-IN')}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      {processor && processorPrices[processor] && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Processor Price:</span>
-                          <span className="font-medium">₹{(() => {
-                            const userType = getUserType();
-                            if (userType === 'siChannel') return processorPrices[processor].siChannel;
-                            if (userType === 'reseller') return processorPrices[processor].reseller;
-                            return processorPrices[processor].endUser;
-                          })().toLocaleString('en-IN')}</span>
-                        </div>
-                      )}
-                      {totalPrice && (
-                        <div className="flex justify-between border-t pt-2 mt-2">
-                          <span className="font-semibold text-gray-900">Total Price:</span>
-                          <span className="font-bold text-lg">₹{totalPrice.toLocaleString('en-IN')}</span>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                )}
-                END PRICING SECTION */}
-
-                {/* Message */}
-                <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
-                    Additional Message (Optional)
-                  </label>
-                  <textarea
-                    id="message"
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orion-500 focus:border-orion-500 text-sm sm:text-base"
-                    placeholder="Please provide any additional details about your requirements..."
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    disabled={isSubmitting}
-                  />
+                  )} */}
                 </div>
+              </div>
 
-                {/* Submit Button */}
-                <div className="flex justify-end">
-                  <button
+              {/* Submit Button */}
+              <div className="mt-12 flex justify-end">
+                                  <button
                     type="submit"
                     disabled={isSubmitting}
-                    className={`px-6 py-2.5 rounded-lg font-semibold text-white transition-colors text-sm sm:text-base flex items-center space-x-2 ${
+                    className={`px-12 py-5 rounded-xl font-semibold text-white transition-all text-lg flex items-center space-x-3 shadow-lg ${
                       isSubmitting
                         ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-orion-600 hover:bg-orion-700'
+                        : 'bg-orion-600 hover:bg-orion-700 hover:shadow-xl transform hover:-translate-y-0.5'
                     }`}
                   >
-                    {isSubmitting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Submitting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Mail size={16} />
-                        <span>Submit Quote Request</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mail size={18} />
+                      <span>Submit Quote Request</span>
+                    </>
+                  )}
+                </button>
               </div>
             </form>
           ) : (
-            <div className="text-center py-8">
-              <div className="text-green-600 mb-4">
-                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-12 text-center max-w-4xl mx-auto">
+              <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
+                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Quote Request Submitted!</h3>
-              <p className="text-gray-600 text-sm sm:text-base">
-                Thank you for your interest. We have received your quote request and will get back to you soon.
-              </p>
+              <h3 className="text-2xl font-semibold text-gray-900 mb-3">Quote Request Submitted!</h3>
+              <p className="text-gray-600 mb-8 text-lg">Thank you for your interest. Our team will contact you shortly with a detailed quote.</p>
+              <button
+                onClick={onClose}
+                className="px-8 py-3 bg-orion-600 text-white rounded-lg hover:bg-orion-700 transition-colors text-base"
+              >
+                Close
+              </button>
             </div>
           )}
         </div>
