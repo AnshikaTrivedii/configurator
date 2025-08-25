@@ -92,3 +92,20 @@ export interface CabinetGrid {
   totalWidth: number;
   totalHeight: number;
 }
+export interface Controller {
+  id: string;
+  name: string;
+  portCount: number;
+  pixelCapacity: number; // in millions
+  type: 'asynchronous' | 'synchronous';
+  minPortsForRedundancy: number; // minimum ports needed when redundancy is enabled
+}
+
+export interface ControllerSelection {
+  selectedController: Controller;
+  requiredPorts: number;
+  totalPixels: number;
+  isRedundancyMode: boolean;
+  dataHubPorts: number;
+  backupPorts: number;
+}

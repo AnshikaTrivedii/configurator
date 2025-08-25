@@ -59,9 +59,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
     return newCabinets * cabinetSize;
   };
 
-  // Calculate step sizes based on cabinet dimensions in display unit
-  const widthStep = toDisplayUnit(cabinetWidth, config.unit);
-  const heightStep = toDisplayUnit(cabinetHeight, config.unit);
+
 
   // Detect if product is digital standee or jumbo
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');

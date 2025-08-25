@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
-import { Ruler, Zap, ZapOff, Move3d, Monitor, Boxes, Square, Maximize2 } from 'lucide-react';
+import { Ruler, Zap, Move3d, Monitor, Boxes, Square, Maximize2 } from 'lucide-react';
 import { UserType } from './UserTypeModal';
 
 interface ConfigurationSummaryProps {
@@ -16,7 +16,7 @@ interface ConfigurationSummaryProps {
 function formatIndianNumber(x: number): string {
   const s = x.toString();
   let afterFirst = s.length > 3 ? s.slice(0, s.length - 3) : '';
-  let lastThree = s.slice(-3);
+  const lastThree = s.slice(-3);
   if (afterFirst) {
     afterFirst = afterFirst.replace(/\B(?=(\d{2})+(?!\d))/g, ",");
     return afterFirst + ',' + lastThree;
@@ -25,29 +25,12 @@ function formatIndianNumber(x: number): string {
   }
 }
 
-// Processor price mapping by controller and user type
-const processorPrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
-  TB2:      { endUser: 35000, siChannel: 31500, reseller: 29800 },
-  TB40:     { endUser: 35000, siChannel: 31500, reseller: 29800 },
-  TB60:     { endUser: 65000, siChannel: 58500, reseller: 55300 },
-  VX1:      { endUser: 35000, siChannel: 31500, reseller: 29800 },
-  VX400:    { endUser: 100000, siChannel: 90000, reseller: 85000 },
-  'VX400 Pro': { endUser: 110000, siChannel: 99000, reseller: 93500 },
-  VX600:    { endUser: 150000, siChannel: 135000, reseller: 127500 },
-  'VX600 Pro': { endUser: 165000, siChannel: 148500, reseller: 140250 },
-  VX1000:   { endUser: 200000, siChannel: 180000, reseller: 170000 },
-  'VX1000 Pro': { endUser: 220000, siChannel: 198000, reseller: 187000 },
-  '4K PRIME': { endUser: 300000, siChannel: 270000, reseller: 255000 },
-};
 
-// Helper to map UserType to product price key
-const userTypeToPriceKey = (type: UserType) => type === 'endUser' ? 'endCustomer' : type;
 
 export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   config,
   cabinetGrid,
   selectedProduct,
-  userType,
   processor,
   mode
 }) => {
@@ -55,7 +38,6 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
 
   // Conversion constants
   const METERS_TO_FEET = 3.2808399;
-  const FEET_TO_METERS = 1 / METERS_TO_FEET;
 
   // Convert mm to display unit with 2 decimal places
   const toDisplayUnit = (mm: number, unit: string) => {
@@ -66,8 +48,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     return meters.toFixed(2);
   };
   
-  // Convert mm to inches with 2 decimal places (for imperial display)
-  const toInches = (mm: number) => (mm / 25.4).toFixed(2);
+
   
   // Calculate display area using displayed dimensions for consistency
   const displayedWidth = parseFloat(toDisplayUnit(config.width, config.unit));
@@ -89,8 +70,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     METERS_TO_FEET: METERS_TO_FEET
   });
   
-  // Calculate display area in square inches
-  const displayAreaInches = (config.width * config.height) / (25.4 * 25.4); // mm² to in²
+
   
   // Calculate diagonal in display units
   const diagonalMeters = Math.sqrt(Math.pow(config.width/1000, 2) + Math.pow(config.height/1000, 2));
@@ -171,12 +151,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   }
 
   // Calculate pixel density (pixels per meter)
-  const pixelsPerMeterWidth = (selectedProduct.resolution.width * cabinetGrid.columns) / (config.width / 1000); // pixels per meter width
-  const pixelsPerMeterHeight = (selectedProduct.resolution.height * cabinetGrid.rows) / (config.height / 1000); // pixels per meter height
-  const pixelDensity = Math.round(pixelsPerMeterWidth * pixelsPerMeterHeight); // Total pixels per square meter
-  
-  // Calculate total pixels
-  const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
+
 
   // Calculate total price based on user type and area in square feet - Commented out for future use
   // const totalCabinets = cabinetGrid.columns * cabinetGrid.rows;
@@ -205,17 +180,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   
   // const totalPriceWithProcessor = totalPrice !== undefined ? totalPrice + processorPrice : undefined;
 
-  // Determine product type (SMD or COB)
-  const getProductType = (product: Product) => {
-    if (product.ledType) {
-      if (product.ledType.toLowerCase().includes('cob')) return 'COB';
-      if (product.ledType.toLowerCase().includes('smd')) return 'SMD';
-    }
-    if (product.name.toLowerCase().includes('cob')) return 'COB';
-    if (product.name.toLowerCase().includes('smd')) return 'SMD';
-    return undefined;
-  };
-  const productType = getProductType(selectedProduct);
+
 
 
 
@@ -229,15 +194,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   //   return undefined;
   // };
 
-  // User type detection (from localStorage or prop)
-  const [currentUserType, setCurrentUserType] = useState<UserType>(userType || 'endUser');
-  useEffect(() => {
-    if (userType) setCurrentUserType(userType);
-    else {
-      const stored = localStorage.getItem('userType');
-      if (stored === 'siChannel' || stored === 'reseller' || stored === 'endUser') setCurrentUserType(stored as UserType);
-    }
-  }, [userType]);
+
 
   // Helper to get price for rental series - Commented out for future use
   // const getRentalPrice = () => {

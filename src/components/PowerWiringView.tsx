@@ -9,15 +9,11 @@ import {
   Handle,
   Position,
   BaseEdge,
-  EdgeLabelRenderer,
-  getBezierPath,
-  getStraightPath,
   EdgeProps,
   MiniMap,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Product, CabinetGrid } from '../types';
-import { Lock } from 'lucide-react';
 
 interface Props {
   product: Product;
@@ -30,27 +26,21 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
   const [selectedRun, setSelectedRun] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; content: string } | null>(null);
   // --- Sidebar/modal state ---
-  const [sidebarData, setSidebarData] = useState<any>(null);
+  const [sidebarData, setSidebarData] = useState<{
+    type: string;
+    data: any;
+  } | null>(null);
 
   // Calculate pixel count per cabinet
   const pixelPitch = product.pixelPitch; // in mm
   const cabinetWidth = product.cabinetDimensions.width; // in mm
   const cabinetHeight = product.cabinetDimensions.height; // in mm
-  const pixelCountPerCabinet = Math.round((cabinetWidth / pixelPitch) * (cabinetHeight / pixelPitch));
-  const PIXEL_LIMIT = 655000;
 
   // Color palette for Data Hub groups
   // Generate a unique color for each Data Hub
   function getHubColor(index: number, total: number) {
     const hue = (index * 360) / total;
     return `hsl(${hue}, 70%, 50%)`;
-  }
-  const neutralCabinetColor = '#2563eb';
-
-  // Generate a unique color for each cabinet
-  function getCabinetColor(index: number, total: number) {
-    const hue = (index * 360) / total;
-    return `hsl(${hue}, 70%, 60%)`;
   }
 
   // Make cabinetAssignments available for group backgrounds

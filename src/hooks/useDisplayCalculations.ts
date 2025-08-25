@@ -9,9 +9,8 @@ const aspectRatios: AspectRatio[] = [
   { label: 'None', value: 0, name: 'None' }
 ];
 
-// Conversion constants
-const METERS_TO_FEET = 3.2808399;
-const FEET_TO_METERS = 1 / METERS_TO_FEET;
+
+
 
 export const useDisplayCalculations = (selectedProduct?: Product) => {
   const defaultCabinet = { width: 600, height: 337.5 };

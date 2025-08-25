@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Product, CabinetGrid } from '../types';
-import { ChevronDown } from 'lucide-react';
 
 interface ProductSidebarProps {
   selectedProduct: Product | undefined;
@@ -10,6 +9,20 @@ interface ProductSidebarProps {
   onSelectProductClick: () => void;
   onControllerChange?: (controller: string) => void;
   onModeChange?: (mode: string) => void;
+  onRedundancyChange?: (enabled: boolean) => void;
+  redundancyEnabled?: boolean;
+  controllerSelection?: {
+    selectedController: {
+      name: string;
+      type: string;
+      portCount: number;
+      pixelCapacity: number;
+    };
+    requiredPorts: number;
+    dataHubPorts: number;
+    backupPorts?: number;
+    isRedundancyMode?: boolean;
+  };
 }
 
 export const ProductSidebar: React.FC<ProductSidebarProps> = ({
@@ -19,92 +32,21 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   onRowsChange,
   onSelectProductClick,
   onControllerChange,
-  onModeChange
+  onModeChange,
+  onRedundancyChange,
+  redundancyEnabled = false,
+  controllerSelection
 }) => {
   const [activeTab, setActiveTab] = useState<'dimensions' | 'processing'>('dimensions');
-  const videoProcessorOptions = [
-    'NovaPro UHD Jr',
-    'VX400',
-    'VX600',
-    'VX1000',
-    'VX Pro Series'
-  ];
-  const sendingCardOptions = [
-    'Novastar MSD300' // or your original sending card option
-  ];
-  const [processorType, setProcessorType] = useState<'video' | 'sending'>('video');
-  const [controller, setController] = useState(videoProcessorOptions[0]);
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
 
-  // User type detection (from localStorage or default to endUser)
-  const [userType, setUserType] = useState<'endCustomer' | 'siChannel' | 'reseller'>('endCustomer');
-  React.useEffect(() => {
-    const stored = localStorage.getItem('userType');
-    if (stored === 'siChannel' || stored === 'reseller' || stored === 'endCustomer') setUserType(stored);
-  }, []);
-
-  // Helper to map userType to price key
-  const userTypeToPriceKey = (type: string): 'endCustomer' | 'siChannel' | 'reseller' => {
-    if (type === 'siChannel' || type === 'reseller') return type;
-    return 'endCustomer';
-  };
-
-  // Helper to get price for rental series
-  // Remove all code related to getRentalPrice, getPriceLabelAndColor, and rental price display in the sidebar.
-
-
-
-  // Get the current configuration for the quote
-  const getCurrentConfig = () => {
-    return {
-      cabinetGrid: {
-        columns: cabinetGrid.columns,
-        rows: cabinetGrid.rows,
-        totalWidth: `${(cabinetGrid.totalWidth / 1000).toFixed(2)}m`,
-        totalHeight: `${(cabinetGrid.totalHeight / 1000).toFixed(2)}m`,
-        totalCabinets: cabinetGrid.columns * cabinetGrid.rows
-      }
-    }
-  };
-  
-  // When switching processorType, reset controller to the first option of the new type
-  const handleProcessorTypeChange = (type: 'video' | 'sending') => {
-    setProcessorType(type);
-    const newController = type === 'video' ? videoProcessorOptions[0] : sendingCardOptions[0];
-    setController(newController);
-    if (onControllerChange) onControllerChange(newController);
-  };
 
   // Calculate total pixels (width * height) only if selectedProduct is defined
   const totalPixels = selectedProduct ? (selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows) : 0;
   const totalPixelsMillion = totalPixels / 1_000_000;
 
-  // Controller selection logic based on pixel count in millions
-  const controllerMapping = [
-    { max: 0.65, name: 'TB2' },
-    { max: 1.3, name: 'TB40' },
-    { max: 2.3, name: 'TB60' },
-    { max: 1.3, name: 'VX1' },
-    { max: 2.6, name: 'VX400' },
-    { max: 2.6, name: 'VX400 Pro' },
-    { max: 3.9, name: 'VX600' },
-    { max: 3.9, name: 'VX600 Pro' },
-    { max: 6.5, name: 'VX1000' },
-    { max: 6.5, name: 'VX1000 Pro' },
-    { max: 13, name: '4K PRIME' },
-  ];
-  let selectedController = '4K PRIME';
-  for (const mapping of controllerMapping) {
-    if (totalPixelsMillion <= mapping.max) {
-      selectedController = mapping.name;
-      break;
-    }
-  }
-
-  // Call onControllerChange with the auto-selected controller whenever it changes
-  React.useEffect(() => {
-    if (onControllerChange) onControllerChange(selectedController);
-  }, [selectedController]);
+  // Use the controller selection from parent if available, otherwise calculate locally
+  const selectedController = controllerSelection?.selectedController?.name || '4K PRIME';
 
   // Mode logic: only TB40 and TB60 allow both modes, others default to Synchronous
   const isSyncAsyncSelectable = selectedController === 'TB40' || selectedController === 'TB60';
@@ -125,7 +67,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   // Helper to check if product is Jumbo Series
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
   // Helper to get fixed grid for Jumbo
-  function getJumboFixedGrid(product) {
+  function getJumboFixedGrid(product: Product | undefined) {
     if (!product) return null;
     if (product.category?.toLowerCase() !== 'jumbo series') return null;
     if (product.name.toLowerCase().includes('p2.5') || product.name.toLowerCase().includes('p4')) {
@@ -304,6 +246,43 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               </div>
               <div className="text-xs text-gray-500 mt-1">Total Pixels: {totalPixels.toLocaleString()} ({totalPixelsMillion.toFixed(2)} million)</div>
             </div>
+
+            {/* Enhanced Controller Information */}
+            {controllerSelection && (
+              <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+                <div className="text-xs text-blue-800 space-y-1">
+                  <div><strong>Type:</strong> {controllerSelection.selectedController.type}</div>
+                  <div><strong>Ports:</strong> {controllerSelection.requiredPorts} / {controllerSelection.selectedController.portCount}</div>
+                  <div><strong>Data Hub Ports:</strong> {controllerSelection.dataHubPorts}</div>
+                  {controllerSelection.isRedundancyMode && (
+                    <div><strong>Backup Ports:</strong> {controllerSelection.backupPorts}</div>
+                  )}
+                  <div><strong>Pixel Capacity:</strong> {controllerSelection.selectedController.pixelCapacity.toFixed(1)}M</div>
+                </div>
+              </div>
+            )}
+            
+            {/* Redundancy Toggle */}
+            {onRedundancyChange && (
+              <div className="mt-3 sm:mt-4">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Redundancy</label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={redundancyEnabled} 
+                    onChange={(e) => onRedundancyChange(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-xs sm:text-sm text-gray-700">Enable redundancy mode</span>
+                </label>
+                <div className="text-xs text-gray-500 mt-1">
+                  {redundancyEnabled 
+                    ? 'Each data hub port will have a backup port' 
+                    : 'Standard single-cable configuration'}
+                </div>
+              </div>
+            )}
+            
             {/* Mode Selector - moved below processor */}
             <div className="mt-2 sm:mt-3 lg:mt-4 mb-2">
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Mode</label>

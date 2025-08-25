@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, User, Phone, MessageSquare, Package, Settings, CreditCard } from 'lucide-react';
+import { X, Mail, User, Phone, MessageSquare, Package } from 'lucide-react';
 import { submitQuoteRequest, QuoteRequest } from '../api/quote';
 
 interface Product {
@@ -54,7 +54,11 @@ type QuoteModalProps = {
   onClose: () => void;
   onSubmit: (message: string) => void;
   selectedProduct?: Product;
-  config?: any; 
+  config?: {
+    width: number;
+    height: number;
+    unit: string;
+  }; 
   cabinetGrid?: CabinetGrid; 
   processor?: string;
   mode?: string;
@@ -83,30 +87,15 @@ const getUserTypeDisplayName = (type: string): string => {
   }
 };
 
-// Processor price mapping by controller and user type
-const processorPrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
-  TB2:      { endUser: 35000, siChannel: 31500, reseller: 29800 },
-  TB40:     { endUser: 35000, siChannel: 31500, reseller: 29800 },
-  TB60:     { endUser: 65000, siChannel: 58500, reseller: 55300 },
-  VX1:      { endUser: 35000, siChannel: 31500, reseller: 29800 },
-  VX400:    { endUser: 100000, siChannel: 90000, reseller: 85000 },
-  'VX400 Pro': { endUser: 110000, siChannel: 99000, reseller: 93500 },
-  VX600:    { endUser: 150000, siChannel: 135000, reseller: 127500 },
-  'VX600 Pro': { endUser: 165000, siChannel: 148500, reseller: 140250 },
-  VX1000:   { endUser: 200000, siChannel: 180000, reseller: 170000 },
-  'VX1000 Pro': { endUser: 220000, siChannel: 198000, reseller: 187000 },
-  '4K PRIME': { endUser: 300000, siChannel: 270000, reseller: 255000 },
-};
 
-// Helper to map UserType to product price key
-const userTypeToPriceKey = (type: string) => type === 'endUser' ? 'endCustomer' : type;
+
+
 
 export const QuoteModal: React.FC<QuoteModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
   selectedProduct,
-  config,
   cabinetGrid,
   processor,
   mode
@@ -126,68 +115,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     return (userType === 'siChannel' || userType === 'reseller') ? userType : 'endUser';
   };
 
-  // Get the price based on user type
-  const getPriceForUserType = (): number | undefined => {
-    const userType = getUserType();
-    if (!selectedProduct) return undefined;
-    
-    if (userType === 'siChannel' && selectedProduct.siChannelPrice) {
-      return selectedProduct.siChannelPrice;
-    } else if (userType === 'reseller' && selectedProduct.resellerPrice) {
-      return selectedProduct.resellerPrice;
-    } else if (selectedProduct.prices) {
-      // If using the new prices object structure
-      const priceKey = userType === 'siChannel' ? 'siChannel' : 
-                      userType === 'reseller' ? 'reseller' : 'endCustomer';
-      return selectedProduct.prices.cabinet?.[priceKey] || selectedProduct.price;
-    }
-    return selectedProduct.price;
-  };
 
-  // Calculate total price
-  const calculateTotalPrice = (): number | undefined => {
-    if (!selectedProduct || !cabinetGrid || !config) return undefined;
-    
-    const userType = getUserType();
-    
-    // Calculate display area in square feet
-    // Convert mm to feet first, then calculate area
-    const widthInFeet = (config.width / 1000) * 3.2808399;
-    const heightInFeet = (config.height / 1000) * 3.2808399;
-    const displayAreaFeet = widthInFeet * heightInFeet;
-    
-    let pricePerSqFt: number | undefined;
-    
-    // Handle rental series pricing
-    if (selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption && selectedProduct.prices) {
-      const rentalOptionKey = selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet';
-      const priceKey = userTypeToPriceKey(userType) as 'endCustomer' | 'siChannel' | 'reseller';
-      pricePerSqFt = selectedProduct.prices[rentalOptionKey as keyof typeof selectedProduct.prices]?.[priceKey];
-    } else {
-      // Regular pricing
-      if (userType === 'siChannel') {
-        pricePerSqFt = selectedProduct.siChannelPrice;
-      } else if (userType === 'reseller') {
-        pricePerSqFt = selectedProduct.resellerPrice;
-      } else {
-        pricePerSqFt = selectedProduct.price;
-      }
-    }
-    
-    if (!pricePerSqFt) return undefined;
-    
-    const totalPrice = displayAreaFeet * pricePerSqFt;
-    
-    // Add processor price if available
-    let processorPrice = 0;
-    if (processor && processorPrices[processor]) {
-      if (userType === 'siChannel') processorPrice = processorPrices[processor].siChannel;
-      else if (userType === 'reseller') processorPrice = processorPrices[processor].reseller;
-      else processorPrice = processorPrices[processor].endUser;
-    }
-    
-    return totalPrice + processorPrice;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -20,12 +20,7 @@ function App() {
     setModalOpen(false);
   };
 
-  // Function to clear localStorage and show modal again
-  const clearUserType = () => {
-    localStorage.removeItem('selectedUserType');
-    setUserType(null);
-    setModalOpen(true);
-  };
+
 
   return (
     <>

@@ -136,11 +136,9 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     const containerRatio = mediaWidth / mediaHeight;
     if (containerRatio > mediaAspectRatio) {
       // Container is wider than media, fit by height
-      mediaHeight = mediaHeight;
       mediaWidth = mediaHeight * mediaAspectRatio;
     } else {
       // Container is taller than media, fit by width
-      mediaWidth = mediaWidth;
       mediaHeight = mediaWidth / mediaAspectRatio;
     }
   }
@@ -204,13 +202,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     }
   };
 
-  const getAspectRatioLabel = () => {
-    const ratio = displayDimensions.actualRatio;
-    if (Math.abs(ratio - 16/9) < 0.01) return '16:9';
-    if (Math.abs(ratio - 21/9) < 0.01) return '21:9';
-    if (Math.abs(ratio - 32/9) < 0.01) return '32:9';
-    return `${ratio.toFixed(2)}:1`;
-  };
+
 
   const renderCabinetGrid = () => {
     const cabinets = [];

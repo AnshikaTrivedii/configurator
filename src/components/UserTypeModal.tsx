@@ -18,7 +18,7 @@ const userTypeOptions = [
 
 const UserTypeModal: React.FC<UserTypeModalProps> = ({ isOpen, onSelect }) => {
   const [selected, setSelected] = useState<UserType | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
+
 
   const handleSelect = (value: UserType) => {
     setSelected(value);

@@ -7,7 +7,7 @@ import { DisplayPreview } from './DisplayPreview';
 import { ProductSelector } from './ProductSelector';
 import { ConfigurationSummary } from './ConfigurationSummary';
 import { ProductSidebar } from './ProductSidebar';
-import { Product } from '../types';
+import { Product, CabinetGrid } from '../types';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -15,6 +15,7 @@ import DataWiringView from './DataWiringView';
 import PowerWiringView from './PowerWiringView';
 import { UserType } from './UserTypeModal';
 import { QuoteModal } from './QuoteModal';
+import { useControllerSelection } from '../hooks/useControllersSelection';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
 // See: https://github.com/wojtekmaj/react-pdf/wiki/Frequently-Asked-Questions#i-am-getting-error-warning-setting-up-fake-worker-failed-cannot-read-property-getdocument-of-undefined
@@ -49,14 +50,65 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
   // New state for processor/controller and mode
   const [selectedController, setSelectedController] = useState<string>('');
   const [selectedMode, setSelectedMode] = useState<string>('');
+  const [redundancyEnabled, setRedundancyEnabled] = useState(false);
 
   const cabinetGrid = calculateCabinetGrid(selectedProduct);
 
-  // Helper to auto-select controller based on pixel count (same as ProductSidebar)
-  function getAutoSelectedController(product: Product | undefined, cabinetGrid: { columns: number; rows: number }) {
-    if (!product) return '';
-    const totalPixels = product.resolution.width * cabinetGrid.columns * product.resolution.height * cabinetGrid.rows;
+
+
+  // Create controller selection object using the simple logic
+  const createControllerSelection = () => {
+    if (!selectedProduct) return null;
+    
+    const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
     const totalPixelsMillion = totalPixels / 1_000_000;
+    
+    // Simple controller mapping based on pixel count
+    const controllerMapping = [
+      { max: 0.65, name: 'TB2', type: 'asynchronous', portCount: 1, pixelCapacity: 0.65 },
+      { max: 1.3, name: 'TB40', type: 'asynchronous', portCount: 2, pixelCapacity: 1.3 },
+      { max: 2.3, name: 'TB60', type: 'asynchronous', portCount: 4, pixelCapacity: 2.3 },
+      { max: 1.3, name: 'VX1', type: 'synchronous', portCount: 2, pixelCapacity: 1.3 },
+      { max: 2.6, name: 'VX400', type: 'synchronous', portCount: 4, pixelCapacity: 2.6 },
+      { max: 2.6, name: 'VX400 Pro', type: 'synchronous', portCount: 4, pixelCapacity: 2.6 },
+      { max: 3.9, name: 'VX600', type: 'synchronous', portCount: 6, pixelCapacity: 3.9 },
+      { max: 3.9, name: 'VX600 Pro', type: 'synchronous', portCount: 6, pixelCapacity: 3.9 },
+      { max: 6.5, name: 'VX1000', type: 'synchronous', portCount: 10, pixelCapacity: 6.5 },
+      { max: 6.5, name: 'VX1000 Pro', type: 'synchronous', portCount: 10, pixelCapacity: 6.5 },
+      { max: 13, name: '4K PRIME', type: 'synchronous', portCount: 16, pixelCapacity: 13 },
+    ];
+    
+    let selectedController = controllerMapping[controllerMapping.length - 1]; // Default to 4K PRIME
+    for (const mapping of controllerMapping) {
+      if (totalPixelsMillion <= mapping.max) {
+        selectedController = mapping;
+        break;
+      }
+    }
+    
+    return {
+      selectedController: {
+        name: selectedController.name,
+        type: selectedController.type,
+        portCount: selectedController.portCount,
+        pixelCapacity: selectedController.pixelCapacity
+      },
+      requiredPorts: Math.ceil(totalPixels / 655000),
+      dataHubPorts: Math.ceil(totalPixels / 655000),
+      backupPorts: redundancyEnabled ? Math.ceil(totalPixels / 655000) : 0,
+      isRedundancyMode: redundancyEnabled,
+      totalPixels: totalPixels
+    };
+  };
+  
+  const controllerSelection = createControllerSelection() || undefined;
+
+
+  // Helper function to auto-select controller based on pixel count
+  const getAutoSelectedController = (product: Product, grid: CabinetGrid) => {
+    const totalPixels = product.resolution.width * grid.columns * product.resolution.height * grid.rows;
+    const totalPixelsMillion = totalPixels / 1_000_000;
+    
     const controllerMapping = [
       { max: 0.65, name: 'TB2' },
       { max: 1.3, name: 'TB40' },
@@ -70,15 +122,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
       { max: 6.5, name: 'VX1000 Pro' },
       { max: 13, name: '4K PRIME' },
     ];
-    let selectedController = '4K PRIME';
+    
     for (const mapping of controllerMapping) {
       if (totalPixelsMillion <= mapping.max) {
-        selectedController = mapping.name;
-        break;
+        return mapping.name;
       }
     }
-    return selectedController;
-  }
+    return '4K PRIME';
+  };
 
   // Update selectedController when product or grid changes
   useEffect(() => {
@@ -101,16 +152,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
     }
     setActiveTab('preview');
     // Auto-select controller on product select
-    const grid = calculateCabinetGrid(product);
-    setSelectedController(getAutoSelectedController(product, grid));
+    
+    
   };
 
   // Helper to check if product is Digital Standee
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   // Helper to check if product is Jumbo Series
-  const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
+  
   // Helper to get fixed grid for Jumbo
-  function getJumboFixedGrid(product) {
+  function getJumboFixedGrid(product: Product) {
     if (!product) return null;
     if (product.category?.toLowerCase() !== 'jumbo series') return null;
     if (product.name.toLowerCase().includes('p2.5') || product.name.toLowerCase().includes('p4')) {
@@ -121,7 +172,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
     }
     return null;
   }
-  const jumboGrid = getJumboFixedGrid(selectedProduct);
+  const jumboGrid = selectedProduct ? getJumboFixedGrid(selectedProduct) : null;
 
   // Override cabinetGrid for Digital Standee and Jumbo
   const fixedCabinetGrid = isDigitalStandee
@@ -161,11 +212,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
   }, [selectedProduct]);
 
   // Digital Standee Series price mapping by model and user type
-  const digitalStandeePrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
-    'P1.8': { endUser: 110300, siChannel: 100000, reseller: 93800 },
-    'P2.5': { endUser: 80900, siChannel: 73300, reseller: 68800 },
-    'P4':   { endUser: 95600, siChannel: 86700, reseller: 81300 },
-  };
+  //const digitalStandeePrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
+    //'P1.8': { endUser: 110300, siChannel: 100000, reseller: 93800 },
+    //'P2.5': { endUser: 80900, siChannel: 73300, reseller: 68800 },
+    //'P4':   { endUser: 95600, siChannel: 86700, reseller: 81300 },
+  //};
 
   return (
     <div className="min-h-screen bg-orion-light flex flex-col font-orion">
@@ -237,6 +288,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
             // New props to get controller and mode
             onControllerChange={setSelectedController}
             onModeChange={setSelectedMode}
+            controllerSelection={controllerSelection}
+            onRedundancyChange={setRedundancyEnabled}
+            redundancyEnabled={redundancyEnabled}
           />
         </div>
 
@@ -321,7 +375,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                 )}
 
                 {selectedProduct && activeTab === 'data' && (
-                  <DataWiringView product={selectedProduct} cabinetGrid={fixedCabinetGrid} />
+                  <DataWiringView 
+                  product={selectedProduct} 
+                  cabinetGrid={fixedCabinetGrid} 
+                  redundancyEnabled={redundancyEnabled}
+                  onRedundancyChange={setRedundancyEnabled}
+                  controllerSelection={controllerSelection}
+                  />
                 )}
 
                 {selectedProduct && activeTab === 'power' && (
