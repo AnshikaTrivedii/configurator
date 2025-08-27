@@ -62,6 +62,11 @@ type QuoteModalProps = {
   cabinetGrid?: CabinetGrid; 
   processor?: string;
   mode?: string;
+  userInfo?: {
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+  };
 };
 
 // Function to calculate greatest common divisor
@@ -98,12 +103,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   selectedProduct,
   cabinetGrid,
   processor,
-  mode
+  mode,
+  userInfo
 }) => {
   const [message, setMessage] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerName, setCustomerName] = useState(userInfo?.fullName || '');
+  const [customerEmail, setCustomerEmail] = useState(userInfo?.email || '');
+  const [customerPhone, setCustomerPhone] = useState(userInfo?.phoneNumber || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 

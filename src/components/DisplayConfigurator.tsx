@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Menu, X, Mail } from 'lucide-react';
+import { Package, Menu, X, Mail, Download, FileText } from 'lucide-react';
 import { useDisplayCalculations } from '../hooks/useDisplayCalculations';
 import { DimensionControls } from './DimensionControls';
 import { AspectRatioSelector } from './AspectRatioSelector';
@@ -15,7 +15,10 @@ import DataWiringView from './DataWiringView';
 import PowerWiringView from './PowerWiringView';
 import { UserType } from './UserTypeModal';
 import { QuoteModal } from './QuoteModal';
+import { UserInfoForm } from './UserInfoForm';
 import { useControllerSelection } from '../hooks/useControllersSelection';
+import { generateConfigurationDocx, generateConfigurationHtml } from '../utils/docxGenerator';
+import { DocxViewModal } from './DocxViewModal';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
 // See: https://github.com/wojtekmaj/react-pdf/wiki/Frequently-Asked-Questions#i-am-getting-error-warning-setting-up-fake-worker-failed-cannot-read-property-getdocument-of-undefined
@@ -46,6 +49,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
   const [activeTab, setActiveTab] = useState('preview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar state
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [isDocxViewModalOpen, setIsDocxViewModalOpen] = useState(false);
+  const [isUserInfoFormOpen, setIsUserInfoFormOpen] = useState(false);
+  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string } | undefined>(undefined);
+  const [pendingAction, setPendingAction] = useState<'quote' | 'docx' | null>(null);
 
   // New state for processor/controller and mode
   const [selectedController, setSelectedController] = useState<string>('');
@@ -154,6 +161,70 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
     // Auto-select controller on product select
     
     
+  };
+
+  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string }) => {
+    setUserInfo(userData);
+    setIsUserInfoFormOpen(false);
+    
+    // Execute the pending action
+    if (pendingAction === 'quote') {
+      setIsQuoteModalOpen(true);
+    } else if (pendingAction === 'docx') {
+      setIsDocxViewModalOpen(true);
+    }
+    
+    setPendingAction(null);
+  };
+
+  const handleQuoteClick = () => {
+    if (!userInfo) {
+      setPendingAction('quote');
+      setIsUserInfoFormOpen(true);
+    } else {
+      setIsQuoteModalOpen(true);
+    }
+  };
+
+  const handleDocxClick = () => {
+    if (!userInfo) {
+      setPendingAction('docx');
+      setIsUserInfoFormOpen(true);
+    } else {
+      setIsDocxViewModalOpen(true);
+    }
+  };
+
+  const handleDownloadDocx = async () => {
+    if (!selectedProduct) return;
+    
+    try {
+      const blob = await generateConfigurationDocx(
+        config,
+        selectedProduct,
+        fixedCabinetGrid,
+        selectedController,
+        selectedMode
+      );
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error generating DOCX:', error);
+      alert('Failed to generate DOCX file. Please try again.');
+    }
+  };
+
+  const handleViewDocx = () => {
+    if (!selectedProduct) return;
+    setIsDocxViewModalOpen(true);
   };
 
   // Helper to check if product is Digital Standee
@@ -542,15 +613,29 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                 mode={selectedMode}
               />
               
-              {/* Get a Quote Button */}
+              {/* Action Buttons */}
               {selectedProduct && (
-                <div className="mt-6 text-center">
+                <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
                   <button
-                    onClick={() => setIsQuoteModalOpen(true)}
+                    onClick={handleQuoteClick}
                     className="inline-flex items-center justify-center px-6 py-3 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
                   >
                     <Mail className="w-5 h-5 mr-2" />
                     Get a Quote
+                  </button>
+                  <button
+                    onClick={handleDocxClick}
+                    className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                  >
+                    <FileText className="w-5 h-5 mr-2" />
+                    View DOCX
+                  </button>
+                  <button
+                    onClick={handleDownloadDocx}
+                    className="inline-flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-800 font-semibold rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors border border-gray-300"
+                  >
+                    <Download className="w-5 h-5 mr-2" />
+                    Download DOCX
                   </button>
                 </div>
               )}
@@ -580,8 +665,39 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
           cabinetGrid={cabinetGrid}
           processor={selectedController}
           mode={selectedMode}
+          userInfo={userInfo}
         />
       )}
+
+      {/* DOCX View Modal */}
+      {selectedProduct && (
+        <DocxViewModal
+          isOpen={isDocxViewModalOpen}
+          onClose={() => setIsDocxViewModalOpen(false)}
+          htmlContent={generateConfigurationHtml(
+            config,
+            selectedProduct,
+            fixedCabinetGrid,
+            selectedController,
+            selectedMode,
+            userInfo
+          )}
+          onDownload={handleDownloadDocx}
+          fileName={`${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.docx`}
+        />
+      )}
+
+      {/* User Info Form Modal */}
+      <UserInfoForm
+        isOpen={isUserInfoFormOpen}
+        onClose={() => {
+          setIsUserInfoFormOpen(false);
+          setPendingAction(null);
+        }}
+        onSubmit={handleUserInfoSubmit}
+        title={pendingAction === 'quote' ? 'Get a Quote' : 'View Document'}
+        submitButtonText={pendingAction === 'quote' ? 'Submit Quote Request' : 'View Document'}
+      />
     </div>
   );
 };
