@@ -1,31 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import { DisplayConfigurator } from './components/DisplayConfigurator';
-import UserTypeModal, { UserType, getStoredUserType } from './components/UserTypeModal';
+import { SalesLoginModal, SalesUser } from './components/SalesLoginModal';
+
+type UserRole = 'normal' | 'sales';
 
 function App() {
-  const [userType, setUserType] = useState<UserType | null>(null);
-  const [modalOpen, setModalOpen] = useState(true);
+  const [userRole, setUserRole] = useState<UserRole>('normal');
+  const [salesUser, setSalesUser] = useState<SalesUser | null>(null);
+  const [showSalesLogin, setShowSalesLogin] = useState(false);
 
   // Check localStorage on mount
   useEffect(() => {
-    const storedUserType = getStoredUserType();
-    if (storedUserType) {
-      setUserType(storedUserType);
-      setModalOpen(false);
+    const storedSalesUser = localStorage.getItem('salesUser');
+    if (storedSalesUser) {
+      try {
+        const user = JSON.parse(storedSalesUser);
+        setSalesUser(user);
+        setUserRole('sales');
+      } catch (error) {
+        localStorage.removeItem('salesUser');
+      }
     }
   }, []);
 
-  const handleUserTypeSelect = (type: UserType) => {
-    setUserType(type);
-    setModalOpen(false);
+  const handleSalesLogin = (user: SalesUser) => {
+    setSalesUser(user);
+    setUserRole('sales');
+    setShowSalesLogin(false);
+    localStorage.setItem('salesUser', JSON.stringify(user));
   };
 
+  const handleSalesLogout = () => {
+    setSalesUser(null);
+    setUserRole('normal');
+    localStorage.removeItem('salesUser');
+  };
 
+  const handleShowSalesLogin = () => {
+    setShowSalesLogin(true);
+  };
 
   return (
     <>
-      <UserTypeModal isOpen={modalOpen} onSelect={handleUserTypeSelect} />
-      <DisplayConfigurator userType={userType} />
+      <SalesLoginModal 
+        isOpen={showSalesLogin} 
+        onClose={() => setShowSalesLogin(false)}
+        onLogin={handleSalesLogin}
+      />
+      <DisplayConfigurator 
+        userRole={userRole}
+        salesUser={salesUser}
+        onShowSalesLogin={handleShowSalesLogin}
+        onSalesLogout={handleSalesLogout}
+      />
     </>
   );
 }

@@ -13,22 +13,25 @@ import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 import DataWiringView from './DataWiringView';
 import PowerWiringView from './PowerWiringView';
-import { UserType } from './UserTypeModal';
 import { QuoteModal } from './QuoteModal';
 import { UserInfoForm } from './UserInfoForm';
 import { useControllerSelection } from '../hooks/useControllersSelection';
 import { generateConfigurationDocx, generateConfigurationHtml } from '../utils/docxGenerator';
 import { DocxViewModal } from './DocxViewModal';
+import { SalesUser } from './SalesLoginModal';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
 // See: https://github.com/wojtekmaj/react-pdf/wiki/Frequently-Asked-Questions#i-am-getting-error-warning-setting-up-fake-worker-failed-cannot-read-property-getdocument-of-undefined
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 interface DisplayConfiguratorProps {
-  userType: UserType | null;
+  userRole: 'normal' | 'sales';
+  salesUser: SalesUser | null;
+  onShowSalesLogin: () => void;
+  onSalesLogout: () => void;
 }
 
-export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userType }) => {
+export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRole, salesUser, onShowSalesLogin, onSalesLogout }) => {
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
   
   const {
@@ -204,7 +207,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
         selectedProduct,
         fixedCabinetGrid,
         selectedController,
-        selectedMode
+        selectedMode,
+        userInfo,
+        salesUser
       );
       
       // Create download link
@@ -226,6 +231,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
     if (!selectedProduct) return;
     setIsDocxViewModalOpen(true);
   };
+
+
 
   // Helper to check if product is Digital Standee
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
@@ -306,6 +313,50 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
             {/* Mobile indicator when sidebar is closed */}
             {!isSidebarOpen && (
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            )}
+          </div>
+
+          {/* Sales Login/Logout - Top Right */}
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 lg:top-6 lg:right-6 lg:hidden">
+            {userRole === 'sales' ? (
+              <div className="flex items-center space-x-2">
+                <span className="text-white text-xs sm:text-sm">{salesUser?.name}</span>
+                <button
+                  onClick={onSalesLogout}
+                  className="px-3 py-1.5 bg-red-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onShowSalesLogin}
+                className="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Sales Login
+              </button>
+            )}
+          </div>
+
+          {/* Desktop Sales Login/Logout */}
+          <div className="hidden lg:block absolute top-6 right-6">
+            {userRole === 'sales' ? (
+              <div className="flex items-center space-x-3">
+                <span className="text-white text-sm">{salesUser?.name}</span>
+                <button
+                  onClick={onSalesLogout}
+                  className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onShowSalesLogin}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Sales Login
+              </button>
             )}
           </div>
 
@@ -521,14 +572,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                             };
                             const price = selectedProduct.prices[
                               selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet'
-                            ][userTypeToPriceKey(userType as 'endCustomer' | 'siChannel' | 'reseller')];
+                            ][userTypeToPriceKey('endCustomer')];
                             return price
                               ? `₹${price.toLocaleString('en-IN')} (${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'})/ft²`
                               : 'Contact for pricing';
                           }
                           let price = selectedProduct.price;
-                          if (userType === 'siChannel') price = selectedProduct.siChannelPrice;
-                          if (userType === 'reseller') price = selectedProduct.resellerPrice;
+                          // For normal users, always show end customer price
+                          // Sales users can see different pricing based on their role
                           return price ? `₹${price.toLocaleString('en-IN')}` : 'Contact for pricing';
                         })()}
                       </p>
@@ -608,7 +659,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
                 config={config}
                 cabinetGrid={fixedCabinetGrid}
                 selectedProduct={selectedProduct}
-                userType={userType}
                 processor={selectedController}
                 mode={selectedMode}
               />
@@ -616,27 +666,36 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
               {/* Action Buttons */}
               {selectedProduct && (
                 <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-                  <button
-                    onClick={handleQuoteClick}
-                    className="inline-flex items-center justify-center px-6 py-3 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
-                  >
-                    <Mail className="w-5 h-5 mr-2" />
-                    Get a Quote
-                  </button>
-                  <button
-                    onClick={handleDocxClick}
-                    className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                  >
-                    <FileText className="w-5 h-5 mr-2" />
-                    View DOCX
-                  </button>
-                  <button
-                    onClick={handleDownloadDocx}
-                    className="inline-flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-800 font-semibold rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors border border-gray-300"
-                  >
-                    <Download className="w-5 h-5 mr-2" />
-                    Download DOCX
-                  </button>
+                  {/* Normal Users - Only See Quote Button */}
+                  {userRole === 'normal' && (
+                    <button
+                      onClick={handleQuoteClick}
+                      className="inline-flex items-center justify-center px-6 py-3 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                    >
+                      <Mail className="w-5 h-5 mr-2" />
+                      Send Quote
+                    </button>
+                  )}
+
+                  {/* Sales Users - See View and Download Buttons */}
+                  {userRole === 'sales' && (
+                    <>
+                      <button
+                        onClick={handleDocxClick}
+                        className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                      >
+                        <FileText className="w-5 h-5 mr-2" />
+                        View Docs
+                      </button>
+                      <button
+                        onClick={handleDownloadDocx}
+                        className="inline-flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-800 font-semibold rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors border border-gray-300"
+                      >
+                        <Download className="w-5 h-5 mr-2" />
+                        Download Docs
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -680,7 +739,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userTy
             fixedCabinetGrid,
             selectedController,
             selectedMode,
-            userInfo
+            userInfo,
+            salesUser
           )}
           onDownload={handleDownloadDocx}
           fileName={`${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.docx`}

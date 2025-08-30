@@ -1,13 +1,10 @@
 import React from 'react';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { Ruler, Zap, Move3d, Monitor, Boxes, Square, Maximize2 } from 'lucide-react';
-import { UserType } from './UserTypeModal';
-
 interface ConfigurationSummaryProps {
   config: DisplayConfig;
   cabinetGrid: CabinetGrid;
   selectedProduct?: Product;
-  userType?: UserType | null;
   processor?: string;
   mode?: string;
 }

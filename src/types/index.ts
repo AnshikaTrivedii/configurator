@@ -14,9 +14,9 @@ export interface Product {
     width: number;
     height: number;
   };
-  price?: number;
-  siChannelPrice?: number;
-  resellerPrice?: number;
+  price?: number | string;
+  siChannelPrice?: number | string;
+  resellerPrice?: number | string;
   // Cabinet dimensions in mm
   cabinetDimensions: {
     width: number;

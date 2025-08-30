@@ -1,5 +1,8 @@
 import { Product } from '../types';
 
+// Define NA constant for products without pricing
+const NA = "NA";
+
 export const products: Product[] = [
 
   // Orion P1.5 Flexible Series Indoor Display
@@ -220,9 +223,9 @@ export const products: Product[] = [
     avgPowerConsumption: 150,
     weightPerCabinet: 4.5,
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Indoor+COB+P1.25.pdf',
-    price: 35000,
-    siChannelPrice: 31500,
-    resellerPrice: 29750,
+    price: 27200,
+    siChannelPrice: 24480,
+    resellerPrice: 23120,
   },
   {
     id: 'bellatrix-indoor-cob-p1.5',
@@ -945,9 +948,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
-    price: 25000,
-    siChannelPrice: 22500,
-    resellerPrice: 21250,
+    price: NA,
+    siChannelPrice: NA,
+    resellerPrice: NA,
   },
   // Betel Series Indoor SMD P1.5
   {
@@ -984,9 +987,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
-    price: 22000,
-    siChannelPrice: 19800,
-    resellerPrice: 18700,
+    price: NA,
+    siChannelPrice: NA,
+    resellerPrice: NA,
   },
   // Betel Series Indoor SMD P1.8
   {
@@ -1257,9 +1260,9 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
-    price: 9400,
-    siChannelPrice: 8460,
-    resellerPrice: 7990,
+    price: 8100,
+    siChannelPrice: 7290,
+    resellerPrice: 6885,
   },
   // Rental Series Indoor P2.6
   {
