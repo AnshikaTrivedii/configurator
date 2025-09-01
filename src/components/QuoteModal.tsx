@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, User, Phone, MessageSquare, Package } from 'lucide-react';
+import { X, Mail, User, Phone, MessageSquare, Package, ChevronDown } from 'lucide-react';
 import { submitQuoteRequest, QuoteRequest } from '../api/quote';
 
 interface Product {
@@ -66,7 +66,10 @@ type QuoteModalProps = {
     fullName: string;
     email: string;
     phoneNumber: string;
+    userType: 'End User' | 'Reseller' | 'Channel';
   };
+  title?: string;
+  submitButtonText?: string;
 };
 
 // Function to calculate greatest common divisor
@@ -104,21 +107,36 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   cabinetGrid,
   processor,
   mode,
-  userInfo
+  userInfo,
+  title = 'Get a Quote',
+  submitButtonText = 'Submit Quote Request'
 }) => {
   const [message, setMessage] = useState('');
   const [customerName, setCustomerName] = useState(userInfo?.fullName || '');
   const [customerEmail, setCustomerEmail] = useState(userInfo?.email || '');
   const [customerPhone, setCustomerPhone] = useState(userInfo?.phoneNumber || '');
+  const [selectedUserType, setSelectedUserType] = useState<'End User' | 'Reseller' | 'Channel'>(userInfo?.userType || 'End User');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   if (!isOpen) return null;
 
-  // Get the current user type from localStorage with proper type
+  // Get the current user type from local state with proper mapping
   const getUserType = (): 'endUser' | 'siChannel' | 'reseller' => {
-    const userType = localStorage.getItem('selectedUserType');
-    return (userType === 'siChannel' || userType === 'reseller') ? userType : 'endUser';
+    switch (selectedUserType) {
+      case 'Reseller':
+        return 'reseller';
+      case 'Channel':
+        return 'siChannel';
+      case 'End User':
+      default:
+        return 'endUser';
+    }
+  };
+
+  // Get the user type display name for email
+  const getUserTypeDisplayName = (): string => {
+    return selectedUserType;
   };
 
 
@@ -147,6 +165,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       return;
     }
     
+    if (!selectedUserType) {
+      alert('Please select a user type');
+      return;
+    }
+    
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(customerEmail)) {
@@ -168,6 +191,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim(),
         message: message.trim() || 'No additional message provided',
+        userTypeDisplayName: getUserTypeDisplayName(),
         
         // Product details object
         product: {
@@ -265,7 +289,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 <Mail className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-3xl font-bold">Get a Quote</h2>
+                <h2 className="text-3xl font-bold">{title}</h2>
                 <p className="text-gray-200 text-base">Request pricing for your LED display configuration</p>
               </div>
             </div>
@@ -345,6 +369,32 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                             required
                           />
                           <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        </div>
+                      </div>
+
+                      {/* User Type Field */}
+                      <div>
+                        <label htmlFor="userType" className="block text-base font-medium text-gray-700 mb-3">
+                          User Type <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <select
+                            id="userType"
+                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all appearance-none bg-white"
+                            value={selectedUserType}
+                            onChange={(e) => {
+                              const newUserType = e.target.value as 'End User' | 'Reseller' | 'Channel';
+                              setSelectedUserType(newUserType);
+                            }}
+                            disabled={isSubmitting}
+                            required
+                          >
+                            <option value="End User">End User</option>
+                            <option value="Reseller">Reseller</option>
+                            <option value="Channel">Channel</option>
+                          </select>
+                          <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                         </div>
                       </div>
                     </div>
@@ -483,7 +533,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                   ) : (
                     <>
                       <Mail size={18} />
-                      <span>Submit Quote Request</span>
+                      <span>{submitButtonText}</span>
                     </>
                   )}
                 </button>

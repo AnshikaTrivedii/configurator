@@ -42,16 +42,26 @@ export const generateConfigurationDocx = async (
   // Calculate total pixels
   const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
 
-  // Calculate pricing based on actual product data
-  const getProductPrice = (product: Product): number => {
+  // Calculate pricing based on actual product data and user type
+  const getProductPrice = (product: Product, userType: 'End User' | 'Reseller' | 'Channel'): number => {
     // Handle different product types
     if (product.category?.toLowerCase().includes('rental') && product.prices) {
-      // For rental products, use cabinet pricing
-      return product.prices.cabinet.endCustomer;
+      // For rental products, use cabinet pricing based on user type
+      if (userType === 'Reseller') {
+        return product.prices.cabinet.reseller;
+      } else if (userType === 'Channel') {
+        return product.prices.cabinet.siChannel;
+      } else {
+        return product.prices.cabinet.endCustomer;
+      }
     }
     
-    // For regular products, use the price field
-    if (typeof product.price === 'number') {
+    // For regular products, use the appropriate price field based on user type
+    if (userType === 'Reseller' && typeof product.resellerPrice === 'number') {
+      return product.resellerPrice;
+    } else if (userType === 'Channel' && typeof product.siChannelPrice === 'number') {
+      return product.siChannelPrice;
+    } else if (typeof product.price === 'number') {
       return product.price;
     }
     
@@ -59,7 +69,7 @@ export const generateConfigurationDocx = async (
     return 5300;
   };
 
-  const unitPrice = getProductPrice(selectedProduct);
+  const unitPrice = getProductPrice(selectedProduct, userInfo?.userType || 'End User');
   
   // Always calculate quantity in square feet, regardless of selected display unit
   const widthInMeters = config.width / 1000;
@@ -86,7 +96,9 @@ export const generateConfigurationDocx = async (
       return "NA";
     }
     if (typeof price === 'number') {
-      return `₹${price.toLocaleString()}`;
+      // Round to whole numbers for currency
+      const roundedPrice = Math.round(price);
+      return `₹${roundedPrice.toLocaleString()}`;
     }
     return "NA";
   };
@@ -128,10 +140,10 @@ export const generateConfigurationDocx = async (
       properties: {
         page: {
           margin: {
-            top: 1440, // 1 inch
-            right: 1440,
-            bottom: 1440,
-            left: 1440,
+            top: 720, // 0.5 inch
+            right: 720,
+            bottom: 720,
+            left: 720,
           },
         },
       },
@@ -152,75 +164,76 @@ export const generateConfigurationDocx = async (
           pageBreakBefore: true,
         }),
 
-        // Company header section
+        // Company header section - compact
         new Paragraph({
           children: [
             new TextRun({
               text: "ATENTI ORIGINS",
               bold: true,
-              size: 28,
+              size: 24,
             }),
           ],
           alignment: AlignmentType.CENTER,
-          spacing: { after: 200 }
+          spacing: { after: 100 }
         }),
 
         new Paragraph({
           children: [
             new TextRun({
               text: "ATENTI ORIGINS PHOTOELECTRICITY CONSORT PVT.LTD.",
-              size: 20,
+              size: 18,
             }),
           ],
           alignment: AlignmentType.CENTER,
-          spacing: { after: 100 }
+          spacing: { after: 50 }
         }),
 
         new Paragraph({
           children: [
             new TextRun({
               text: "Reg. Office: 504, 5th Floor ABW Elegance Tower, Jasola District Centre, Jasola, New Delhi 110025",
-              size: 16,
+              size: 14,
             }),
           ],
           alignment: AlignmentType.CENTER,
-          spacing: { after: 100 }
+          spacing: { after: 50 }
         }),
 
         new Paragraph({
           children: [
             new TextRun({
               text: "Factory: B-10, Sector-88, Noida - 201301",
-              size: 16,
+              size: 14,
             }),
           ],
           alignment: AlignmentType.CENTER,
-          spacing: { after: 400 }
+          spacing: { after: 200 }
         }),
 
-        // Quotation title
+        // Quotation title - compact
         new Paragraph({
           children: [
             new TextRun({
               text: "QUOTATION",
               bold: true,
-              size: 32,
+              size: 28,
               color: "FFFFFF",
             }),
           ],
           alignment: AlignmentType.CENTER,
-          spacing: { before: 200, after: 200 },
+          spacing: { before: 150, after: 150 },
           shading: {
-            fill: "333333",
+            fill: "2C3E50",
           },
         }),
 
-        // Quotation details table
+        // Quotation details table - compact
         new Table({
           width: {
             size: 100,
             type: WidthType.PERCENTAGE,
           },
+          margins: { top: 200, bottom: 200, left: 100, right: 100 },
           rows: [
             new TableRow({
               children: [
@@ -231,9 +244,10 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: "Quotation #:",
                           bold: true,
-                          size: 16,
+                          size: 18,
                         }),
                       ],
+                      spacing: { before: 100, after: 50 }
                     }),
                     new Paragraph({
                       children: [
@@ -242,11 +256,20 @@ export const generateConfigurationDocx = async (
                           size: 16,
                         }),
                       ],
+                      spacing: { before: 50, after: 100 }
                     }),
                   ],
                   width: {
                     size: 50,
                     type: WidthType.PERCENTAGE,
+                  },
+                  margins: { top: 400, bottom: 400, left: 400, right: 400 },
+                  shading: { fill: "F8F9FA" },
+                  borders: {
+                    top: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    bottom: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    left: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    right: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
                   },
                 }),
                 new TableCell({
@@ -256,22 +279,32 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: "Date:",
                           bold: true,
-                          size: 16,
+                          size: 18,
                         }),
                       ],
+                      spacing: { before: 200, after: 100 }
                     }),
                     new Paragraph({
                       children: [
                         new TextRun({
                           text: new Date().toLocaleDateString('en-GB'),
-                          size: 16,
+                          size: 18,
                         }),
                       ],
+                      spacing: { before: 100, after: 200 }
                     }),
                   ],
                   width: {
                     size: 50,
                     type: WidthType.PERCENTAGE,
+                  },
+                  margins: { top: 400, bottom: 400, left: 400, right: 400 },
+                  shading: { fill: "F8F9FA" },
+                  borders: {
+                    top: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    bottom: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    left: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    right: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
                   },
                 }),
               ],
@@ -286,10 +319,10 @@ export const generateConfigurationDocx = async (
               new TextRun({
                 text: "CLIENT INFORMATION",
                 bold: true,
-                size: 24,
+                size: 22,
               }),
             ],
-            spacing: { before: 400, after: 200 }
+            spacing: { before: 200, after: 150 }
           }),
 
           new Table({
@@ -297,6 +330,7 @@ export const generateConfigurationDocx = async (
               size: 100,
               type: WidthType.PERCENTAGE,
             },
+            margins: { top: 200, bottom: 200, left: 100, right: 100 },
             rows: [
               new TableRow({
                 children: [
@@ -304,90 +338,157 @@ export const generateConfigurationDocx = async (
                     children: [
                       new Paragraph({
                         children: [
+                                                  new TextRun({
+                          text: "CLIENT DETAILS",
+                          bold: true,
+                          size: 18,
+                        }),
+                        ],
+                        spacing: { before: 200, after: 200 }
+                      }),
+                      new Paragraph({
+                        children: [
                           new TextRun({
-                            text: "CLIENT DETAILS",
+                            text: `Name:`,
                             bold: true,
-                            size: 16,
+                            size: 18,
+                          }),
+                          new TextRun({
+                            text: ` ${userInfo.fullName}`,
+                            size: 18,
                           }),
                         ],
+                        spacing: { before: 100, after: 100 },
+                        line: 360
                       }),
                       new Paragraph({
                         children: [
                           new TextRun({
-                            text: `Name: ${userInfo.fullName}`,
-                            size: 14,
+                            text: `Email:`,
+                            bold: true,
+                            size: 18,
+                          }),
+                          new TextRun({
+                            text: ` ${userInfo.email}`,
+                            size: 18,
                           }),
                         ],
+                        spacing: { before: 100, after: 100 },
+                        line: 360
                       }),
                       new Paragraph({
                         children: [
                           new TextRun({
-                            text: `Email: ${userInfo.email}`,
-                            size: 14,
+                            text: `Phone:`,
+                            bold: true,
+                            size: 18,
                           }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
                           new TextRun({
-                            text: `Phone: ${userInfo.phoneNumber}`,
-                            size: 14,
+                            text: ` ${userInfo.phoneNumber}`,
+                            size: 18,
                           }),
                         ],
+                        spacing: { before: 100, after: 100 },
+                        line: 360
                       }),
                     ],
                     width: {
                       size: 50,
                       type: WidthType.PERCENTAGE,
                     },
+                    margins: { top: 400, bottom: 400, left: 400, right: 400 },
+                    shading: { fill: "F8F9FA" },
+                    borders: {
+                      top: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                      bottom: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                      left: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                      right: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    },
                   }),
                   new TableCell({
                     children: [
                       new Paragraph({
                         children: [
+                                                  new TextRun({
+                          text: "ORION SALES TEAM",
+                          bold: true,
+                          size: 18,
+                        }),
+                        ],
+                        spacing: { before: 200, after: 200 }
+                      }),
+                      new Paragraph({
+                        children: [
                           new TextRun({
-                            text: "ORION SALES TEAM",
+                            text: `Location:`,
                             bold: true,
-                            size: 16,
+                            size: 18,
+                          }),
+                          new TextRun({
+                            text: ` Delhi`,
+                            size: 18,
                           }),
                         ],
+                        spacing: { before: 100, after: 100 },
+                        line: 360
                       }),
                       new Paragraph({
                         children: [
                           new TextRun({
-                            text: `Location: Delhi`,
-                            size: 14,
+                            text: `Sales Person:`,
+                            bold: true,
+                            size: 18,
+                          }),
+                          new TextRun({
+                            text: ` ${salesUser ? salesUser.name : 'Ashwani Yadav'}`,
+                            size: 18,
                           }),
                         ],
+                        spacing: { before: 100, after: 100 },
+                        line: 360
                       }),
                       new Paragraph({
                         children: [
                           new TextRun({
-                            text: `Sales Person: ${salesUser ? salesUser.name : 'Ashwani Yadav'}`,
-                            size: 14,
+                            text: `Contact:`,
+                            bold: true,
+                            size: 18,
+                          }),
+                          new TextRun({
+                            text: ` 98391 77083`,
+                            size: 18,
                           }),
                         ],
+                        spacing: { before: 100, after: 100 },
+                        line: 360
                       }),
                       new Paragraph({
                         children: [
                           new TextRun({
-                            text: `Contact: 98391 77083`,
-                            size: 14,
+                            text: `Email:`,
+                            bold: true,
+                            size: 18,
                           }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
                           new TextRun({
-                            text: `Email: ${salesUser ? salesUser.email : 'ashwani.yadav@orion-led.com'}`,
-                            size: 14,
+                            text: ` ${salesUser ? salesUser.email : 'ashwani.yadav@orion-led.com'}`,
+                            size: 18,
                           }),
                         ],
+                        spacing: { before: 100, after: 100 },
+                        line: 360
                       }),
                     ],
                     width: {
                       size: 50,
                       type: WidthType.PERCENTAGE,
+                    },
+                    margins: { top: 400, bottom: 400, left: 400, right: 400 },
+                    shading: { fill: "F8F9FA" },
+                    borders: {
+                      top: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                      bottom: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                      left: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                      right: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
                     },
                   }),
                 ],
@@ -402,10 +503,10 @@ export const generateConfigurationDocx = async (
             new TextRun({
               text: "A. PRODUCT DESCRIPTION",
               bold: true,
-              size: 24,
+              size: 22,
             }),
           ],
-          spacing: { before: 400, after: 200 }
+          spacing: { before: 200, after: 150 }
         }),
 
         // Product specifications and pricing in two-column layout with exact HTML styling
@@ -435,11 +536,11 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: `Series/Environment:`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                         new TextRun({
                           text: ` ${selectedProduct.category}, ${selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1)}`,
-                          size: 14,
+                          size: 18,
                         }),
                       ],
                       spacing: { before: 200, after: 200 },
@@ -450,11 +551,11 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: `Pixel Pitch:`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                         new TextRun({
                           text: ` P${selectedProduct.pixelPitch}`,
-                          size: 14,
+                          size: 18,
                         }),
                       ],
                       spacing: { before: 100, after: 100 }
@@ -464,11 +565,11 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: `Module Dimension:`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                         new TextRun({
                           text: ` ${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm`,
-                          size: 14,
+                          size: 18,
                         }),
                       ],
                       spacing: { before: 100, after: 100 }
@@ -478,11 +579,11 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: `Display Size (m):`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                         new TextRun({
                           text: ` ${toDisplayUnit(config.width, 'm')} x ${toDisplayUnit(config.height, 'm')}`,
-                          size: 14,
+                          size: 18,
                         }),
                       ],
                       spacing: { before: 100, after: 100 }
@@ -492,11 +593,11 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: `Display Size (ft):`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                         new TextRun({
                           text: ` ${toDisplayUnit(config.width, 'ft')} x ${toDisplayUnit(config.height, 'ft')}`,
-                          size: 14,
+                          size: 18,
                         }),
                       ],
                       spacing: { before: 100, after: 100 }
@@ -506,11 +607,11 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: `Resolution:`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                         new TextRun({
                           text: ` ${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}`,
-                          size: 14,
+                          size: 18,
                         }),
                       ],
                       spacing: { before: 100, after: 100 }
@@ -520,11 +621,11 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: `Matrix:`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                         new TextRun({
                           text: ` ${cabinetGrid.columns} x ${cabinetGrid.rows}`,
-                          size: 14,
+                          size: 18,
                         }),
                       ],
                       spacing: { before: 100, after: 100 }
@@ -563,12 +664,12 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: `Unit Price:`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                         new TextRun({
                           text: ` ${formatPrice(unitPrice)}`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                       ],
                       spacing: { before: 100, after: 100 }
@@ -578,11 +679,11 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: `Quantity:`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                         new TextRun({
                           text: ` ${Math.round(safeQuantity * 100) / 100} Ft²`,
-                          size: 14,
+                          size: 18,
                         }),
                       ],
                       spacing: { before: 100, after: 100 }
@@ -592,12 +693,12 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: `Subtotal:`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                         new TextRun({
                           text: ` ${formatPrice(subtotal)}`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                       ],
                       spacing: { before: 100, after: 100 }
@@ -607,12 +708,12 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: `GST (28%):`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                         }),
                         new TextRun({
                           text: ` ${formatPrice(gstProduct)}`,
                           bold: true,
-                          size: 14,
+                          size: 18,
                           color: "DC3545",
                         }),
                       ],
@@ -623,12 +724,12 @@ export const generateConfigurationDocx = async (
                         new TextRun({
                           text: `TOTAL:`,
                           bold: true,
-                          size: 16,
+                          size: 20,
                         }),
                         new TextRun({
                           text: ` ${formatPrice(totalProduct)}`,
                           bold: true,
-                          size: 16,
+                          size: 20,
                         }),
                       ],
                       spacing: { before: 100, after: 100 }
@@ -654,7 +755,7 @@ export const generateConfigurationDocx = async (
           ],
         }),
 
-        // TOTAL A section with exact HTML styling
+        // TOTAL A section - compact
         new Paragraph({
           children: [
             new TextRun({
@@ -665,30 +766,31 @@ export const generateConfigurationDocx = async (
             }),
           ],
           alignment: AlignmentType.CENTER,
-          spacing: { before: 200, after: 200 },
+          spacing: { before: 150, after: 150 },
           shading: {
-            fill: "333333",
+            fill: "2C3E50",
           },
         }),
 
-        // Section B: Control System
+        // Section B: Control System - compact
         new Paragraph({
           children: [
             new TextRun({
               text: "B. CONTROL SYSTEM & ACCESSORIES",
               bold: true,
-              size: 24,
+              size: 22,
             }),
           ],
-          spacing: { before: 400, after: 200 }
+          spacing: { before: 200, after: 150 }
         }),
 
-        // Controller details table
+        // Controller details table with improved styling
         new Table({
           width: {
             size: 100,
             type: WidthType.PERCENTAGE,
           },
+          margins: { top: 400, bottom: 400, left: 200, right: 200 },
           rows: [
             new TableRow({
               children: [
@@ -702,35 +804,65 @@ export const generateConfigurationDocx = async (
                           size: 18,
                         }),
                       ],
+                      spacing: { before: 200, after: 200 }
                     }),
                     new Paragraph({
                       children: [
                         new TextRun({
-                          text: `Controller Model: ${processor || "Nova TB2"}`,
-                          size: 14,
+                          text: `Controller Model:`,
+                          bold: true,
+                          size: 18,
+                        }),
+                        new TextRun({
+                          text: ` ${processor || "Nova TB2"}`,
+                          size: 18,
                         }),
                       ],
+                      spacing: { before: 100, after: 100 },
+                      line: 360
                     }),
                     new Paragraph({
                       children: [
                         new TextRun({
-                          text: "Quantity: 1",
-                          size: 14,
+                          text: `Quantity:`,
+                          bold: true,
+                          size: 18,
+                        }),
+                        new TextRun({
+                          text: ` 1`,
+                          size: 18,
                         }),
                       ],
+                      spacing: { before: 100, after: 100 },
+                      line: 360
                     }),
                     new Paragraph({
                       children: [
                         new TextRun({
-                          text: "UOM: Nos.",
-                          size: 14,
+                          text: `UOM:`,
+                          bold: true,
+                          size: 18,
+                        }),
+                        new TextRun({
+                          text: ` Nos.`,
+                          size: 18,
                         }),
                       ],
+                      spacing: { before: 100, after: 100 },
+                      line: 360
                     }),
                   ],
                   width: {
                     size: 50,
                     type: WidthType.PERCENTAGE,
+                  },
+                  margins: { top: 400, bottom: 400, left: 400, right: 400 },
+                  shading: { fill: "F8F9FA" },
+                  borders: {
+                    top: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    bottom: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    left: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    right: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
                   },
                 }),
                 new TableCell({
@@ -743,36 +875,66 @@ export const generateConfigurationDocx = async (
                           size: 18,
                         }),
                       ],
+                      spacing: { before: 200, after: 200 }
                     }),
                     new Paragraph({
                       children: [
                         new TextRun({
-                          text: `Unit Price: ${formatPrice(controllerPrice)}`,
-                          size: 14,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `GST (18%): ${formatPrice(gstController)}`,
-                          size: 14,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `TOTAL B: ${formatPrice(controllerPrice + gstController)}`,
+                          text: `Unit Price:`,
                           bold: true,
-                          size: 16,
+                          size: 18,
+                        }),
+                        new TextRun({
+                          text: ` ${formatPrice(controllerPrice)}`,
+                          size: 18,
                         }),
                       ],
+                      spacing: { before: 100, after: 100 },
+                      line: 360
+                    }),
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: `GST (18%):`,
+                          bold: true,
+                          size: 18,
+                        }),
+                        new TextRun({
+                          text: ` ${formatPrice(gstController)}`,
+                          size: 18,
+                        }),
+                      ],
+                      spacing: { before: 100, after: 100 },
+                      line: 360
+                    }),
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: `TOTAL B:`,
+                          bold: true,
+                          size: 20,
+                        }),
+                        new TextRun({
+                          text: ` ${formatPrice(controllerPrice + gstController)}`,
+                          bold: true,
+                          size: 20,
+                        }),
+                      ],
+                      spacing: { before: 100, after: 100 },
+                      line: 360
                     }),
                   ],
                   width: {
                     size: 50,
                     type: WidthType.PERCENTAGE,
+                  },
+                  margins: { top: 400, bottom: 400, left: 400, right: 400 },
+                  shading: { fill: "F8F9FA" },
+                  borders: {
+                    top: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    bottom: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    left: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
+                    right: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
                   },
                 }),
               ],
@@ -780,17 +942,21 @@ export const generateConfigurationDocx = async (
           ],
         }),
 
-        // Grand Total
+        // Grand Total - compact
         new Paragraph({
           children: [
             new TextRun({
               text: `GRAND TOTAL: ${formatPrice((subtotal + gstProduct) + (controllerPrice + gstController))}`,
               bold: true,
-              size: 28,
+              size: 24,
+              color: "FFFFFF",
             }),
           ],
           alignment: AlignmentType.CENTER,
-          spacing: { before: 400, after: 400 }
+          spacing: { before: 200, after: 200 },
+          shading: {
+            fill: "2C3E50",
+          },
         }),
 
         // Add remaining images with page breaks
@@ -803,15 +969,17 @@ export const generateConfigurationDocx = async (
           })
         ),
 
-        // Footer
+        // Footer - compact
         new Paragraph({
           children: [
             new TextRun({
               text: "Valid for 30 days from the date of quotation",
               size: 14,
+              color: "666666",
             }),
           ],
           alignment: AlignmentType.CENTER,
+          spacing: { before: 200, after: 100 }
         }),
       ]
     }]
@@ -824,6 +992,7 @@ interface UserInfo {
   fullName: string;
   email: string;
   phoneNumber: string;
+  userType: 'End User' | 'Reseller' | 'Channel';
 }
 
 // Function to generate HTML preview of the configuration
@@ -868,16 +1037,26 @@ export const generateConfigurationHtml = (
   // Calculate total pixels
   const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
 
-  // Calculate pricing based on actual product data
-  const getProductPrice = (product: Product): number => {
+  // Calculate pricing based on actual product data and user type
+  const getProductPrice = (product: Product, userType: 'End User' | 'Reseller' | 'Channel'): number => {
     // Handle different product types
     if (product.category?.toLowerCase().includes('rental') && product.prices) {
-      // For rental products, use cabinet pricing
-      return product.prices.cabinet.endCustomer;
+      // For rental products, use cabinet pricing based on user type
+      if (userType === 'Reseller') {
+        return product.prices.cabinet.reseller;
+      } else if (userType === 'Channel') {
+        return product.prices.cabinet.siChannel;
+      } else {
+        return product.prices.cabinet.endCustomer;
+      }
     }
     
-    // For regular products, use the price field
-    if (typeof product.price === 'number') {
+    // For regular products, use the appropriate price field based on user type
+    if (userType === 'Reseller' && typeof product.resellerPrice === 'number') {
+      return product.resellerPrice;
+    } else if (userType === 'Channel' && typeof product.siChannelPrice === 'number') {
+      return product.siChannelPrice;
+    } else if (typeof product.price === 'number') {
       return product.price;
     }
     
@@ -885,7 +1064,7 @@ export const generateConfigurationHtml = (
     return 5300;
   };
 
-  const unitPrice = getProductPrice(selectedProduct);
+  const unitPrice = getProductPrice(selectedProduct, userInfo?.userType || 'End User');
   
   // Always calculate quantity in square feet, regardless of selected display unit
   const widthInMeters = config.width / 1000;

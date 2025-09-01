@@ -5,6 +5,7 @@ export interface QuoteRequest {
   customerEmail: string;
   customerPhone: string;
   message: string;
+  userTypeDisplayName?: string;
   
   // Product details object
   product: {

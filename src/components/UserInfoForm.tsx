@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { X, User, Mail, Phone, CheckCircle } from 'lucide-react';
+import { X, User, Mail, Phone, CheckCircle, ChevronDown } from 'lucide-react';
 
 interface UserInfo {
   fullName: string;
   email: string;
   phoneNumber: string;
+  userType: 'End User' | 'Reseller' | 'Channel';
 }
 
 interface UserInfoFormProps {
@@ -25,10 +26,18 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   const [formData, setFormData] = useState<UserInfo>({
     fullName: '',
     email: '',
-    phoneNumber: ''
+    phoneNumber: '',
+    userType: 'End User'
   });
   const [errors, setErrors] = useState<Partial<UserInfo>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUserTypeDropdownOpen, setIsUserTypeDropdownOpen] = useState(false);
+
+  const userTypeOptions: Array<{ value: 'End User' | 'Reseller' | 'Channel'; label: string }> = [
+    { value: 'End User', label: 'End User' },
+    { value: 'Reseller', label: 'Reseller' },
+    { value: 'Channel', label: 'Channel' }
+  ];
 
   const validateForm = (): boolean => {
     const newErrors: Partial<UserInfo> = {};
@@ -49,6 +58,10 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
       newErrors.phoneNumber = 'Please enter a valid phone number';
     }
 
+    if (!formData.userType) {
+      newErrors.userType = 'User type is required';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -65,7 +78,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     try {
       await onSubmit(formData);
       // Reset form after successful submission
-      setFormData({ fullName: '', email: '', phoneNumber: '' });
+      setFormData({ fullName: '', email: '', phoneNumber: '', userType: 'End User' });
       setErrors({});
     } catch (error) {
       console.error('Error submitting form:', error);
@@ -79,6 +92,14 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleUserTypeSelect = (userType: 'End User' | 'Reseller' | 'Channel') => {
+    setFormData(prev => ({ ...prev, userType }));
+    setIsUserTypeDropdownOpen(false);
+    if (errors.userType) {
+      setErrors(prev => ({ ...prev, userType: undefined }));
     }
   };
 
@@ -183,6 +204,45 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
             </div>
             {errors.phoneNumber && (
               <p className="mt-1 text-sm text-red-600">{errors.phoneNumber}</p>
+            )}
+          </div>
+
+          {/* User Type Field */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              User Type <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsUserTypeDropdownOpen(!isUserTypeDropdownOpen)}
+                className={`w-full pl-3 pr-10 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-left ${
+                  errors.userType ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
+              >
+                <span className={formData.userType ? 'text-gray-900' : 'text-gray-500'}>
+                  {formData.userType || 'Select user type'}
+                </span>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              </button>
+              
+              {isUserTypeDropdownOpen && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
+                  {userTypeOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleUserTypeSelect(option.value)}
+                      className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none first:rounded-t-lg last:rounded-b-lg"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {errors.userType && (
+              <p className="mt-1 text-sm text-red-600">{errors.userType}</p>
             )}
           </div>
 

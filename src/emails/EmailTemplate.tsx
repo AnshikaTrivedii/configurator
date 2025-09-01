@@ -8,6 +8,7 @@ interface EmailTemplateProps {
   gridColumns?: number;
   gridRows?: number;
   displayArea?: string;
+  userType?: string;
 }
 
 export const EmailTemplate: React.FC<EmailTemplateProps> = ({
@@ -17,12 +18,17 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
   pixelPitch,
   gridColumns,
   gridRows,
-  displayArea
+  displayArea,
+  userType
 }) => {
   return (
     <div>
       <h1>New Quote Request for {productName}</h1>
       <p><strong>Message:</strong> {message}</p>
+      
+      {userType && (
+        <p><strong>User Type:</strong> {userType}</p>
+      )}
       
       {resolution && (
         <p><strong>Resolution:</strong> {resolution}</p>

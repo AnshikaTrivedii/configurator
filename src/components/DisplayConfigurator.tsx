@@ -54,7 +54,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [isDocxViewModalOpen, setIsDocxViewModalOpen] = useState(false);
   const [isUserInfoFormOpen, setIsUserInfoFormOpen] = useState(false);
-  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string } | undefined>(undefined);
+  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; userType: 'End User' | 'Reseller' | 'Channel' } | undefined>(undefined);
   const [pendingAction, setPendingAction] = useState<'quote' | 'docx' | null>(null);
 
   // New state for processor/controller and mode
@@ -166,7 +166,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
     
   };
 
-  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string }) => {
+  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; userType: 'End User' | 'Reseller' | 'Channel' }) => {
     setUserInfo(userData);
     setIsUserInfoFormOpen(false);
     
@@ -181,10 +181,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
   };
 
   const handleQuoteClick = () => {
-    if (!userInfo) {
+    if (userRole === 'sales' && salesUser) {
+      // For sales users, show the UserInfoForm first (which will lead to QuoteModal)
       setPendingAction('quote');
       setIsUserInfoFormOpen(true);
     } else {
+      // For normal users, go directly to QuoteModal
       setIsQuoteModalOpen(true);
     }
   };
@@ -202,13 +204,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
     if (!selectedProduct) return;
     
     try {
+      // Get the current user type from the QuoteModal if it's open, otherwise use userInfo
+      const currentUserType = userInfo?.userType || 'End User';
+      
       const blob = await generateConfigurationDocx(
         config,
         selectedProduct,
         fixedCabinetGrid,
         selectedController,
         selectedMode,
-        userInfo,
+        userInfo ? { ...userInfo, userType: currentUserType } : { fullName: '', email: '', phoneNumber: '', userType: currentUserType },
         salesUser
       );
       
@@ -725,6 +730,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
           processor={selectedController}
           mode={selectedMode}
           userInfo={userInfo}
+          title={userRole === 'sales' && salesUser ? 'Sales Quote' : 'Get a Quote'}
+          submitButtonText={userRole === 'sales' && salesUser ? 'Submit Sales Quote' : 'Submit Quote Request'}
         />
       )}
 
@@ -739,7 +746,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
             fixedCabinetGrid,
             selectedController,
             selectedMode,
-            userInfo,
+            userInfo ? { ...userInfo, userType: userInfo.userType || 'End User' } : { fullName: '', email: '', phoneNumber: '', userType: 'End User' },
             salesUser
           )}
           onDownload={handleDownloadDocx}
