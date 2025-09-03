@@ -672,9 +672,7 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
           <div style={{ marginBottom: '4px' }}>
             <strong>Selected:</strong> {internalControllerSelection.selectedController.name}
           </div>
-          <div style={{ marginBottom: '4px' }}>
-            <strong>Type:</strong> {internalControllerSelection.selectedController.type}
-          </div>
+
           <div style={{ marginBottom: '4px' }}>
             <strong>Ports:</strong> {internalControllerSelection.requiredPorts} / {internalControllerSelection.selectedController.portCount}
           </div>

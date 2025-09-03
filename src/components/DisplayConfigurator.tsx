@@ -16,9 +16,10 @@ import PowerWiringView from './PowerWiringView';
 import { QuoteModal } from './QuoteModal';
 import { UserInfoForm } from './UserInfoForm';
 import { useControllerSelection } from '../hooks/useControllersSelection';
-import { generateConfigurationDocx, generateConfigurationHtml } from '../utils/docxGenerator';
-import { DocxViewModal } from './DocxViewModal';
+import { generateConfigurationDocx, generateConfigurationHtml, generateConfigurationPdf } from '../utils/docxGenerator';
+import { PdfViewModal } from './PdfViewModal';
 import { SalesUser } from './SalesLoginModal';
+import QuotationIdGenerator from '../utils/quotationIdGenerator';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
 // See: https://github.com/wojtekmaj/react-pdf/wiki/Frequently-Asked-Questions#i-am-getting-error-warning-setting-up-fake-worker-failed-cannot-read-property-getdocument-of-undefined
@@ -52,10 +53,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
   const [activeTab, setActiveTab] = useState('preview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar state
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
-  const [isDocxViewModalOpen, setIsDocxViewModalOpen] = useState(false);
+  const [isPdfViewModalOpen, setIsPdfViewModalOpen] = useState(false);
   const [isUserInfoFormOpen, setIsUserInfoFormOpen] = useState(false);
   const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; userType: 'End User' | 'Reseller' | 'Channel' } | undefined>(undefined);
-  const [pendingAction, setPendingAction] = useState<'quote' | 'docx' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'quote' | 'pdf' | null>(null);
+  const [isMandatoryFormSubmitted, setIsMandatoryFormSubmitted] = useState(false);
+  const [quotationId, setQuotationId] = useState<string>('');
 
   // New state for processor/controller and mode
   const [selectedController, setSelectedController] = useState<string>('');
@@ -170,14 +173,33 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
     setUserInfo(userData);
     setIsUserInfoFormOpen(false);
     
+    // Generate unique quotation ID
+    const username = userRole === 'sales' && salesUser ? salesUser.name : userData.fullName;
+    const newQuotationId = QuotationIdGenerator.generateQuotationId(username);
+    setQuotationId(newQuotationId);
+    
+    // Store the quotation ID to maintain uniqueness
+    QuotationIdGenerator.storeQuotationId(newQuotationId, username);
+    
+    // For sales users, mark the mandatory form as submitted
+    if (userRole === 'sales') {
+      setIsMandatoryFormSubmitted(true);
+    }
+    
     // Execute the pending action
     if (pendingAction === 'quote') {
       setIsQuoteModalOpen(true);
-    } else if (pendingAction === 'docx') {
-      setIsDocxViewModalOpen(true);
+    } else if (pendingAction === 'pdf') {
+      setIsPdfViewModalOpen(true);
     }
     
     setPendingAction(null);
+  };
+
+  // Reset mandatory form state when user changes or logs out
+  const resetMandatoryFormState = () => {
+    setIsMandatoryFormSubmitted(false);
+    setUserInfo(undefined);
   };
 
   const handleQuoteClick = () => {
@@ -191,12 +213,59 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
     }
   };
 
-  const handleDocxClick = () => {
+  const handlePdfClick = () => {
+    // For sales users, check if mandatory form is submitted
+    if (userRole === 'sales' && !isMandatoryFormSubmitted) {
+      setPendingAction('pdf');
+      setIsUserInfoFormOpen(true);
+      return;
+    }
+    
     if (!userInfo) {
-      setPendingAction('docx');
+      setPendingAction('pdf');
       setIsUserInfoFormOpen(true);
     } else {
-      setIsDocxViewModalOpen(true);
+      setIsPdfViewModalOpen(true);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!selectedProduct) return;
+    
+    // For sales users, check if mandatory form is submitted
+    if (userRole === 'sales' && !isMandatoryFormSubmitted) {
+      setPendingAction('pdf');
+      setIsUserInfoFormOpen(true);
+      return;
+    }
+    
+    try {
+      // Get the current user type from the QuoteModal if it's open, otherwise use userInfo
+      const currentUserType = userInfo?.userType || 'End User';
+      
+      const blob = await generateConfigurationPdf(
+        config,
+        selectedProduct,
+        fixedCabinetGrid,
+        selectedController,
+        selectedMode,
+        userInfo ? { ...userInfo, userType: currentUserType } : { fullName: '', email: '', phoneNumber: '', userType: currentUserType },
+        salesUser,
+        quotationId
+      );
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF file. Please try again.');
     }
   };
 
@@ -214,7 +283,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
         selectedController,
         selectedMode,
         userInfo ? { ...userInfo, userType: currentUserType } : { fullName: '', email: '', phoneNumber: '', userType: currentUserType },
-        salesUser
+        salesUser,
+        quotationId
       );
       
       // Create download link
@@ -232,9 +302,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
     }
   };
 
-  const handleViewDocx = () => {
+  const handleViewPdf = () => {
     if (!selectedProduct) return;
-    setIsDocxViewModalOpen(true);
+    setIsPdfViewModalOpen(true);
   };
 
 
@@ -685,20 +755,43 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
                   {/* Sales Users - See View and Download Buttons */}
                   {userRole === 'sales' && (
                     <>
-                      <button
-                        onClick={handleDocxClick}
-                        className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                      >
-                        <FileText className="w-5 h-5 mr-2" />
-                        View Docs
-                      </button>
-                      <button
-                        onClick={handleDownloadDocx}
-                        className="inline-flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-800 font-semibold rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors border border-gray-300"
-                      >
-                        <Download className="w-5 h-5 mr-2" />
-                        Download Docs
-                      </button>
+                      {/* Mandatory Form Notice */}
+                      {!isMandatoryFormSubmitted && (
+                        <div className="w-full text-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-blue-800 text-sm font-medium">
+                            Please complete the mandatory form to access documents
+                          </p>
+                          <button
+                            onClick={() => {
+                              setPendingAction('pdf');
+                              setIsUserInfoFormOpen(true);
+                            }}
+                            className="mt-2 inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                          >
+                            Complete Form
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Document Access Buttons - Only shown after form submission */}
+                      {isMandatoryFormSubmitted && (
+                        <>
+                          <button
+                            onClick={handlePdfClick}
+                            className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                          >
+                            <FileText className="w-5 h-5 mr-2" />
+                            View Docs
+                          </button>
+                          <button
+                            onClick={handleDownloadPdf}
+                            className="inline-flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-800 font-semibold rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors border border-gray-300"
+                          >
+                            <Download className="w-5 h-5 mr-2" />
+                            Download PDF
+                          </button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -735,11 +828,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
         />
       )}
 
-      {/* DOCX View Modal */}
+      {/* PDF View Modal */}
       {selectedProduct && (
-        <DocxViewModal
-          isOpen={isDocxViewModalOpen}
-          onClose={() => setIsDocxViewModalOpen(false)}
+        <PdfViewModal
+          isOpen={isPdfViewModalOpen}
+          onClose={() => setIsPdfViewModalOpen(false)}
           htmlContent={generateConfigurationHtml(
             config,
             selectedProduct,
@@ -747,10 +840,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
             selectedController,
             selectedMode,
             userInfo ? { ...userInfo, userType: userInfo.userType || 'End User' } : { fullName: '', email: '', phoneNumber: '', userType: 'End User' },
-            salesUser
+            salesUser,
+            quotationId
           )}
-          onDownload={handleDownloadDocx}
-          fileName={`${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.docx`}
+          onDownload={handleDownloadPdf}
+          fileName={`${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.pdf`}
         />
       )}
 

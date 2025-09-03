@@ -132,10 +132,10 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Full Name Field */}
+          {/* Client Name Field */}
           <div>
             <label htmlFor="fullName" className="block text-sm font-semibold text-gray-700 mb-2">
-              Full Name <span className="text-red-500">*</span>
+              Client Name <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -146,7 +146,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
                 id="fullName"
                 value={formData.fullName}
                 onChange={(e) => handleInputChange('fullName', e.target.value)}
-                placeholder="Enter your full name"
+                placeholder="Enter client name"
                 className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                   errors.fullName ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 }`}

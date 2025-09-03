@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Download } from 'lucide-react';
 
-interface DocxViewModalProps {
+interface PdfViewModalProps {
   isOpen: boolean;
   onClose: () => void;
   htmlContent: string;
@@ -9,7 +9,7 @@ interface DocxViewModalProps {
   fileName: string;
 }
 
-export const DocxViewModal: React.FC<DocxViewModalProps> = ({
+export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   isOpen,
   onClose,
   htmlContent,
@@ -39,7 +39,7 @@ export const DocxViewModal: React.FC<DocxViewModalProps> = ({
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
               >
                 <Download className="w-4 h-4 mr-2" />
-                Download DOCX
+                Download PDF
               </button>
               <button
                 className="text-gray-300 hover:text-white p-2"

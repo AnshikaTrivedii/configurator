@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, User } from 'lucide-react';
+import { X, Mail, Lock, User, Phone } from 'lucide-react';
 
 export interface SalesUser {
   email: string;
   name: string;
+  phoneNumber: string;
 }
 
 export interface SalesCredential {
   email: string;
   password: string;
   name: string;
+  phoneNumber: string;
 }
 
 interface SalesLoginModalProps {
@@ -29,20 +31,20 @@ const generateNameFromEmail = (email: string): string => {
 
 // Hardcoded sales team credentials
 const SALES_TEAM_CREDENTIALS: SalesCredential[] = [
-  { email: 'ashoo.nitin@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('ashoo.nitin@orion-led.com') },
-  { email: 'mukund.puranik@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('mukund.puranik@orion-led.com') },
-  { email: 'nikita.gomre@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('nikita.gomre@orion-led.com') },
-  { email: 'nishtha.mishra@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('nishtha.mishra@orion-led.com') },
-  { email: 'onkar@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('onkar@orion-led.com') },
-  { email: 'prachi.sharma@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('prachi.sharma@orion-led.com') },
-  { email: 'rajneesh.rawat@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('rajneesh.rawat@orion-led.com') },
-  { email: 'sales@orion-led.com', password: 'Orion@123', name: 'Sales Team' },
-  { email: 'vivekanand@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('vivekanand@orion-led.com') },
-  { email: 'khushi.jafri@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('khushi.jafri@orion-led.com') },
-  { email: 'ashwani.yadav@orion-led.com', password: 'Orion@123', name: 'Ashwani Yadav' },
-  { email: 'anshika.trivedi@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('anshika.trivedi@orion-led.com') },
-  { email: 'amisha@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('amisha@orion-led.com') },
-  { email: 'admin@orion-led.com', password: 'Orion@123', name: 'Admin' },
+  { email: 'ashoo.nitin@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('ashoo.nitin@orion-led.com'), phoneNumber: '98391 77083' },
+  { email: 'mukund.puranik@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('mukund.puranik@orion-led.com'), phoneNumber: '98391 77083' },
+  { email: 'nikita.gomre@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('nikita.gomre@orion-led.com'), phoneNumber: '98391 77083' },
+  { email: 'nishtha.mishra@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('nishtha.mishra@orion-led.com'), phoneNumber: '98391 77083' },
+  { email: 'onkar@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('onkar@orion-led.com'), phoneNumber: '98391 77083' },
+  { email: 'prachi.sharma@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('prachi.sharma@orion-led.com'), phoneNumber: '98391 77083' },
+  { email: 'rajneesh.rawat@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('rajneesh.rawat@orion-led.com'), phoneNumber: '98391 77083' },
+  { email: 'sales@orion-led.com', password: 'Orion@123', name: 'Sales Team', phoneNumber: '98391 77083' },
+  { email: 'vivekanand@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('vivekanand@orion-led.com'), phoneNumber: '98391 77083' },
+  { email: 'khushi.jafri@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('khushi.jafri@orion-led.com'), phoneNumber: '98391 77083' },
+  { email: 'ashwani.yadav@orion-led.com', password: 'Orion@123', name: 'Ashwani Yadav', phoneNumber: '98391 77083' },
+  { email: 'anshika.trivedi@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('anshika.trivedi@orion-led.com'), phoneNumber: '98391 77083' },
+  { email: 'amisha@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('amisha@orion-led.com'), phoneNumber: '98391 77083' },
+  { email: 'admin@orion-led.com', password: 'Orion@123', name: 'Admin', phoneNumber: '98391 77083' },
 ];
 
 export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
@@ -52,6 +54,7 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -66,12 +69,20 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    // Validate that all required fields are filled
+    if (!name.trim() || !email.trim() || !phoneNumber.trim() || !password.trim()) {
+      setError('All fields are required. Please fill in all information.');
+      return;
+    }
+    
     setIsLoading(true);
 
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Check credentials - now requires all three fields to match
+    // Check credentials - requires name, email, and password to match
+    // Phone number is captured from the form input
     const user = SALES_TEAM_CREDENTIALS.find(
       cred => 
         cred.name.toLowerCase() === name.toLowerCase() &&
@@ -89,9 +100,10 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
       }
       
       // Not first login, proceed normally
-      onLogin({ email: user.email, name: user.name });
+      // Use the phone number from the form input, not from stored credentials
+      onLogin({ email: user.email, name: user.name, phoneNumber: phoneNumber });
     } else {
-      setError('Invalid name, email, or password. Please check all fields and try again.');
+      setError('Invalid name, email, or password. Please check these fields and try again.');
     }
 
     setIsLoading(false);
@@ -128,13 +140,15 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
     setPasswordError('');
     
     if (currentUser) {
-      onLogin({ email: currentUser.email, name: currentUser.name });
+      // Use the phone number from the form input, not from stored credentials
+      onLogin({ email: currentUser.email, name: currentUser.name, phoneNumber: phoneNumber });
     }
   };
 
   const handleClose = () => {
     setName('');
     setEmail('');
+    setPhoneNumber('');
     setPassword('');
     setError('');
     setShowPasswordChange(false);
@@ -213,6 +227,25 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
                 required
               />
               <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="tel"
+                id="phoneNumber"
+                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-black focus:border-black text-base transition-all"
+                placeholder="Enter your phone number"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                disabled={isLoading}
+                required
+              />
+              <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             </div>
           </div>
 

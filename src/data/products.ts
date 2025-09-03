@@ -1027,7 +1027,7 @@ export const products: Product[] = [
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
     price: 20900,
-    siChannelPrice: 18010,
+    siChannelPrice: 18810,
     resellerPrice: 17765,
   },
   // Betel Series Indoor SMD P2.5

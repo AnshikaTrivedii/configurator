@@ -251,7 +251,6 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
             {controllerSelection && (
               <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
                 <div className="text-xs text-blue-800 space-y-1">
-                  <div><strong>Type:</strong> {controllerSelection.selectedController.type}</div>
                   <div><strong>Ports:</strong> {controllerSelection.requiredPorts} / {controllerSelection.selectedController.portCount}</div>
                   <div><strong>Data Hub Ports:</strong> {controllerSelection.dataHubPorts}</div>
                   {controllerSelection.isRedundancyMode && (
