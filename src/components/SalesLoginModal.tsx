@@ -5,6 +5,7 @@ export interface SalesUser {
   email: string;
   name: string;
   phoneNumber: string;
+  location: string;
 }
 
 export interface SalesCredential {
@@ -12,6 +13,7 @@ export interface SalesCredential {
   password: string;
   name: string;
   phoneNumber: string;
+  location: string;
 }
 
 interface SalesLoginModalProps {
@@ -31,20 +33,18 @@ const generateNameFromEmail = (email: string): string => {
 
 // Hardcoded sales team credentials
 const SALES_TEAM_CREDENTIALS: SalesCredential[] = [
-  { email: 'ashoo.nitin@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('ashoo.nitin@orion-led.com'), phoneNumber: '98391 77083' },
-  { email: 'mukund.puranik@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('mukund.puranik@orion-led.com'), phoneNumber: '98391 77083' },
-  { email: 'nikita.gomre@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('nikita.gomre@orion-led.com'), phoneNumber: '98391 77083' },
-  { email: 'nishtha.mishra@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('nishtha.mishra@orion-led.com'), phoneNumber: '98391 77083' },
-  { email: 'onkar@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('onkar@orion-led.com'), phoneNumber: '98391 77083' },
-  { email: 'prachi.sharma@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('prachi.sharma@orion-led.com'), phoneNumber: '98391 77083' },
-  { email: 'rajneesh.rawat@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('rajneesh.rawat@orion-led.com'), phoneNumber: '98391 77083' },
-  { email: 'sales@orion-led.com', password: 'Orion@123', name: 'Sales Team', phoneNumber: '98391 77083' },
-  { email: 'vivekanand@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('vivekanand@orion-led.com'), phoneNumber: '98391 77083' },
-  { email: 'khushi.jafri@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('khushi.jafri@orion-led.com'), phoneNumber: '98391 77083' },
-  { email: 'ashwani.yadav@orion-led.com', password: 'Orion@123', name: 'Ashwani Yadav', phoneNumber: '98391 77083' },
-  { email: 'anshika.trivedi@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('anshika.trivedi@orion-led.com'), phoneNumber: '98391 77083' },
-  { email: 'amisha@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('amisha@orion-led.com'), phoneNumber: '98391 77083' },
-  { email: 'admin@orion-led.com', password: 'Orion@123', name: 'Admin', phoneNumber: '98391 77083' },
+  { email: 'ashoo.nitin@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('ashoo.nitin@orion-led.com'), phoneNumber: '98391 77083', location: 'Delhi' },
+  { email: 'mukund.puranik@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('mukund.puranik@orion-led.com'), phoneNumber: '98391 77083', location: 'Hyderabad' },
+  { email: 'onkar@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('onkar@orion-led.com'), phoneNumber: '98391 77083', location: 'Mumbai' },
+  { email: 'prachi.sharma@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('prachi.sharma@orion-led.com'), phoneNumber: '98391 77083', location: 'Delhi' },
+  { email: 'rajneesh.rawat@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('rajneesh.rawat@orion-led.com'), phoneNumber: '98391 77083', location: 'Delhi' },
+  { email: 'sales@orion-led.com', password: 'Orion@123', name: 'Sales Team', phoneNumber: '98391 77083', location: 'Delhi' },
+  { email: 'vivekanand@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('vivekanand@orion-led.com'), phoneNumber: '98391 77083', location: 'Delhi' },
+  { email: 'khushi.jafri@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('khushi.jafri@orion-led.com'), phoneNumber: '98391 77083', location: 'Lucknow' },
+  { email: 'ashwani.yadav@orion-led.com', password: 'Orion@123', name: 'Ashwani Yadav', phoneNumber: '98391 77083', location: 'Lucknow' },
+  { email: 'anshika.trivedi@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('anshika.trivedi@orion-led.com'), phoneNumber: '98391 77083', location: 'Lucknow' },
+  { email: 'amisha@orion-led.com', password: 'Orion@123', name: generateNameFromEmail('amisha@orion-led.com'), phoneNumber: '98391 77083', location: 'Lucknow' },
+  { email: 'admin@orion-led.com', password: 'Orion@123', name: 'Admin', phoneNumber: '98391 77083', location: 'Lucknow' },
 ];
 
 export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
@@ -101,7 +101,7 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
       
       // Not first login, proceed normally
       // Use the phone number from the form input, not from stored credentials
-      onLogin({ email: user.email, name: user.name, phoneNumber: phoneNumber });
+      onLogin({ email: user.email, name: user.name, phoneNumber: phoneNumber, location: user.location });
     } else {
       setError('Invalid name, email, or password. Please check these fields and try again.');
     }
@@ -141,7 +141,7 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
     
     if (currentUser) {
       // Use the phone number from the form input, not from stored credentials
-      onLogin({ email: currentUser.email, name: currentUser.name, phoneNumber: phoneNumber });
+      onLogin({ email: currentUser.email, name: currentUser.name, phoneNumber: phoneNumber, location: currentUser.location });
     }
   };
 

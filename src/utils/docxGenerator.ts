@@ -13,7 +13,7 @@ export const generateConfigurationDocx = async (
   processor?: string,
   _mode?: string,
   userInfo?: UserInfo,
-  salesUser?: { email: string; name: string; phoneNumber: string } | null,
+  salesUser?: { email: string; name: string; phoneNumber: string; location: string } | null,
   quotationId?: string
 ): Promise<Blob> => {
   try {
@@ -328,7 +328,7 @@ export const generateConfigurationDocx = async (
                       new Paragraph({
                         children: [
                           new TextRun({
-                            text: `Location: Delhi`,
+                            text: `Location: ${salesUser?.location || 'Delhi'}`,
                             size: 14,
                           }),
                         ],
@@ -891,7 +891,7 @@ export const generateConfigurationHtml = (
   processor?: string,
   _mode?: string,
   userInfo?: UserInfo,
-  salesUser?: { email: string; name: string; phoneNumber: string } | null,
+  salesUser?: { email: string; name: string; phoneNumber: string; location: string } | null,
   quotationId?: string
 ): string => {
   // Calculate display area
@@ -1106,7 +1106,7 @@ export const generateConfigurationHtml = (
                       </div>
                       <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef;">
                           <h4 style="margin: 0 0 8px 0; color: #333; font-size: 0.9em; font-weight: bold;">ORION SALES TEAM</h4>
-                          <p style="margin: 4px 0; color: #666;">Location: Delhi</p>
+                          <p style="margin: 4px 0; color: #666;">Location: ${salesUser?.location || 'Delhi'}</p>
                           <p style="margin: 4px 0; color: #666;">Sales Person: ${salesUser ? salesUser.name : 'Ashwani Yadav'}</p>
                           <p style="margin: 4px 0; color: #666;">Contact: ${salesUser?.phoneNumber || '98391 77083'}</p>
                           <p style="margin: 4px 0; color: #666;">Email: ${salesUser ? salesUser.email : 'ashwani.yadav@orion-led.com'}</p>
@@ -1279,7 +1279,7 @@ export const generateConfigurationPdf = async (
   processor?: string,
   mode?: string,
   userInfo?: UserInfo,
-  salesUser?: { email: string; name: string; phoneNumber: string } | null,
+  salesUser?: { email: string; name: string; phoneNumber: string; location: string } | null,
   quotationId?: string
 ): Promise<Blob> => {
   const html = generateConfigurationHtml(
