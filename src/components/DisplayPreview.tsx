@@ -336,7 +336,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             height: `${previewHeight}px`,
             cursor: 'pointer',
             position: 'relative',
-            backgroundColor: 'transparent',
+            backgroundColor: '#000',
             maxWidth: '100%',
             maxHeight: '100%',
             minWidth: '100px',
