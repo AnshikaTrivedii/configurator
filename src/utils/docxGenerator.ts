@@ -2,6 +2,42 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, Width
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
+
+// Phone number mapping for sales team members
+const SALES_PHONE_MAPPING: Record<string, string> = {
+  'ashoo.nitin@orion-led.com': '8826888023',
+  'mukund.puranik@orion-led.com': '9701797731',
+  'onkar@orion-led.com': '9820318887',
+  'prachi.sharma@orion-led.com': '8826888050',
+  'rajneesh.rawat@orion-led.com': '9839177000',
+  'sales@orion-led.com': '98391 77083',
+  'vivekanand@orion-led.com': '9810163963',
+  'khushi.jafri@orion-led.com': '8588882820',
+  'ashwani.yadav@orion-led.com': '98391 77083',
+  'anshika.trivedi@orion-led.com': '9140526027',
+  'madhur@orion-led.com': '98391 77046',
+  'amisha@orion-led.com': '98391 77083',
+  'admin@orion-led.com': '98391 77083'
+};
+
+// Default phone number fallback
+const DEFAULT_PHONE_NUMBER = '98391 77083';
+
+// Function to get the correct phone number for a sales user
+const getSalesPhoneNumber = (salesUser: { email: string; name: string; contactNumber: string; location: string } | null | undefined): string => {
+  if (!salesUser) {
+    return DEFAULT_PHONE_NUMBER;
+  }
+  
+  // Check if we have a specific mapping for this email
+  const mappedPhone = SALES_PHONE_MAPPING[salesUser.email.toLowerCase()];
+  if (mappedPhone) {
+    return mappedPhone;
+  }
+  
+  // Fall back to the contact number from the user object, or default
+  return salesUser.contactNumber || DEFAULT_PHONE_NUMBER;
+};
 //
 
 //
@@ -13,7 +49,7 @@ export const generateConfigurationDocx = async (
   processor?: string,
   _mode?: string,
   userInfo?: UserInfo,
-  salesUser?: { email: string; name: string; phoneNumber: string; location: string } | null,
+  salesUser?: { email: string; name: string; contactNumber: string; location: string } | null,
   quotationId?: string
 ): Promise<Blob> => {
   try {
@@ -344,7 +380,7 @@ export const generateConfigurationDocx = async (
                       new Paragraph({
                         children: [
                           new TextRun({
-                            text: `Contact: ${salesUser?.phoneNumber || '98391 77083'}`,
+                            text: `Contact: ${getSalesPhoneNumber(salesUser)}`,
                             size: 14,
                           }),
                         ],
@@ -891,7 +927,7 @@ export const generateConfigurationHtml = (
   processor?: string,
   _mode?: string,
   userInfo?: UserInfo,
-  salesUser?: { email: string; name: string; phoneNumber: string; location: string } | null,
+  salesUser?: { email: string; name: string; contactNumber: string; location: string } | null,
   quotationId?: string
 ): string => {
   // Calculate display area
@@ -1055,7 +1091,7 @@ export const generateConfigurationHtml = (
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <!-- Left Side - Logo Area -->
                     <div style="flex-shrink: 0;">
-                        <div style="background: white; width: 60px; height: 60px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #e9ecef;">
+                        <div style="background: black; width: 60px; height: 60px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #e9ecef;">
                             <img src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png" alt="ORION LED Logo" style="width: 50px; height: 50px; object-fit: contain;">
                         </div>
                     </div>
@@ -1108,7 +1144,7 @@ export const generateConfigurationHtml = (
                           <h4 style="margin: 0 0 8px 0; color: #333; font-size: 0.9em; font-weight: bold;">ORION SALES TEAM</h4>
                           <p style="margin: 4px 0; color: #666;">Location: ${salesUser?.location || 'Delhi'}</p>
                           <p style="margin: 4px 0; color: #666;">Sales Person: ${salesUser ? salesUser.name : 'Ashwani Yadav'}</p>
-                          <p style="margin: 4px 0; color: #666;">Contact: ${salesUser?.phoneNumber || '98391 77083'}</p>
+                          <p style="margin: 4px 0; color: #666;">Contact: ${getSalesPhoneNumber(salesUser)}</p>
                           <p style="margin: 4px 0; color: #666;">Email: ${salesUser ? salesUser.email : 'ashwani.yadav@orion-led.com'}</p>
                       </div>
                   </div>
@@ -1279,7 +1315,7 @@ export const generateConfigurationPdf = async (
   processor?: string,
   mode?: string,
   userInfo?: UserInfo,
-  salesUser?: { email: string; name: string; phoneNumber: string; location: string } | null,
+  salesUser?: { email: string; name: string; contactNumber: string; location: string } | null,
   quotationId?: string
 ): Promise<Blob> => {
   const html = generateConfigurationHtml(

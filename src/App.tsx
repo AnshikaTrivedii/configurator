@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DisplayConfigurator } from './components/DisplayConfigurator';
-import { SalesLoginModal, SalesUser } from './components/SalesLoginModal';
+import { SalesLoginModal } from './components/SalesLoginModal';
+import { SalesUser, salesAPI } from './api/sales';
 
 type UserRole = 'normal' | 'sales';
 
@@ -9,31 +10,36 @@ function App() {
   const [salesUser, setSalesUser] = useState<SalesUser | null>(null);
   const [showSalesLogin, setShowSalesLogin] = useState(false);
 
-  // Check localStorage on mount
+  // Check localStorage on mount and validate token
   useEffect(() => {
-    const storedSalesUser = localStorage.getItem('salesUser');
-    if (storedSalesUser) {
-      try {
-        const user = JSON.parse(storedSalesUser);
-        setSalesUser(user);
-        setUserRole('sales');
-      } catch (error) {
-        localStorage.removeItem('salesUser');
+    const checkAuthStatus = async () => {
+      if (salesAPI.isLoggedIn()) {
+        try {
+          // Verify token is still valid by getting profile
+          const response = await salesAPI.getProfile();
+          setSalesUser(response.user);
+          setUserRole('sales');
+        } catch (error) {
+          // Token is invalid, clear storage
+          salesAPI.logout();
+        }
       }
-    }
+    };
+
+    checkAuthStatus();
   }, []);
 
   const handleSalesLogin = (user: SalesUser) => {
     setSalesUser(user);
     setUserRole('sales');
     setShowSalesLogin(false);
-    localStorage.setItem('salesUser', JSON.stringify(user));
+    // Auth data is already stored by the API
   };
 
   const handleSalesLogout = () => {
     setSalesUser(null);
     setUserRole('normal');
-    localStorage.removeItem('salesUser');
+    salesAPI.logout();
   };
 
   const handleShowSalesLogin = () => {

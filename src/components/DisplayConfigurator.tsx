@@ -18,7 +18,7 @@ import { UserInfoForm } from './UserInfoForm';
 import { useControllerSelection } from '../hooks/useControllersSelection';
 import { generateConfigurationDocx, generateConfigurationHtml, generateConfigurationPdf } from '../utils/docxGenerator';
 import { PdfViewModal } from './PdfViewModal';
-import { SalesUser } from './SalesLoginModal';
+import { SalesUser } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
