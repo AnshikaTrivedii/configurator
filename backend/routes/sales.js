@@ -174,5 +174,48 @@ router.get('/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/sales/reset-password (temporary endpoint to reset password)
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, secretKey } = req.body;
+    
+    // Simple secret key check (remove this endpoint after use)
+    if (secretKey !== 'reset123') {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
+    // Find user by email
+    const user = await SalesUser.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Reset password to default
+    const newPasswordHash = bcrypt.hashSync('Orion@123', 10);
+    user.passwordHash = newPasswordHash;
+    user.mustChangePassword = true;
+    user.passwordSetAt = null;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password reset to Orion@123 successfully'
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 export default router;
 
