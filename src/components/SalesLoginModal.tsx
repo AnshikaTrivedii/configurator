@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Mail, Lock, User, Phone } from 'lucide-react';
 import { salesAPI, SalesUser } from '../api/sales';
 import { SalesSetPassword } from './SalesSetPassword';
+import { dataPrefetcher } from '../utils/dataPrefetch';
 
 interface SalesLoginModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState('');
   const [showPasswordSetup, setShowPasswordSetup] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState('');
 
@@ -33,10 +35,13 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
     }
     
     setIsLoading(true);
+    setLoadingStep('Authenticating...');
 
     try {
+      setLoadingStep('Verifying credentials...');
       const response = await salesAPI.login(email, password);
       
+      setLoadingStep('Setting up session...');
       // Store auth data
       salesAPI.setAuthData(response.token, response.user);
       
@@ -45,8 +50,14 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
         setCurrentUserEmail(response.user.email);
         setShowPasswordSetup(true);
         setIsLoading(false);
+        setLoadingStep('');
         return;
       }
+      
+      setLoadingStep('Loading dashboard...');
+      
+      // Start prefetching data in the background for better performance
+      dataPrefetcher.prefetchUserData().catch(console.warn);
       
       // Login successful, proceed normally
       onLogin(response.user);
@@ -55,6 +66,7 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
       setError(error.message || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
+      setLoadingStep('');
     }
   };
 
@@ -149,7 +161,14 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
             disabled={isLoading}
             className="w-full bg-black text-white font-semibold py-3 px-6 rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Signing In...' : 'Sign In'}
+            {isLoading ? (
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>{loadingStep || 'Signing In...'}</span>
+              </div>
+            ) : (
+              'Sign In'
+            )}
           </button>
 
           <div className="text-center">

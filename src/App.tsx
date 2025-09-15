@@ -15,13 +15,22 @@ function App() {
     const checkAuthStatus = async () => {
       if (salesAPI.isLoggedIn()) {
         try {
-          // Verify token is still valid by getting profile
+          // First try to get user from localStorage for instant loading
+          const storedUser = salesAPI.getStoredUser();
+          if (storedUser) {
+            setSalesUser(storedUser);
+            setUserRole('sales');
+          }
+
+          // Then verify token is still valid in the background
           const response = await salesAPI.getProfile();
           setSalesUser(response.user);
           setUserRole('sales');
         } catch (error) {
           // Token is invalid, clear storage
           salesAPI.logout();
+          setSalesUser(null);
+          setUserRole('normal');
         }
       }
     };

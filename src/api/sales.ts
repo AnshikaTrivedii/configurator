@@ -35,6 +35,25 @@ class SalesAPI {
     };
   }
 
+  // Cache for user data to avoid repeated API calls
+  private userCache: SalesUser | null = null;
+  private cacheTimestamp: number = 0;
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  private isCacheValid(): boolean {
+    return this.userCache !== null && (Date.now() - this.cacheTimestamp) < this.CACHE_DURATION;
+  }
+
+  private setUserCache(user: SalesUser): void {
+    this.userCache = user;
+    this.cacheTimestamp = Date.now();
+  }
+
+  private clearUserCache(): void {
+    this.userCache = null;
+    this.cacheTimestamp = 0;
+  }
+
   async login(email: string, password: string): Promise<LoginResponse> {
     const response = await fetch(`${API_BASE_URL}/sales/login`, {
       method: 'POST',
@@ -48,6 +67,11 @@ class SalesAPI {
 
     if (!response.ok) {
       throw new Error(data.message || 'Login failed');
+    }
+
+    // Cache user data for faster subsequent access
+    if (data.success && data.user) {
+      this.setUserCache(data.user);
     }
 
     return data;
@@ -86,6 +110,15 @@ class SalesAPI {
   }
 
   async getProfile(): Promise<{ success: boolean; user: SalesUser; mustChangePassword: boolean }> {
+    // Return cached data if available and valid
+    if (this.isCacheValid() && this.userCache) {
+      return {
+        success: true,
+        user: this.userCache,
+        mustChangePassword: false
+      };
+    }
+
     const response = await fetch(`${API_BASE_URL}/sales/profile`, {
       method: 'GET',
       headers: this.getAuthHeaders()
@@ -95,6 +128,11 @@ class SalesAPI {
 
     if (!response.ok) {
       throw new Error(data.message || 'Failed to get profile');
+    }
+
+    // Cache the user data
+    if (data.success && data.user) {
+      this.setUserCache(data.user);
     }
 
     return data;
@@ -113,11 +151,13 @@ class SalesAPI {
   logout(): void {
     localStorage.removeItem('salesToken');
     localStorage.removeItem('salesUser');
+    this.clearUserCache(); // Clear in-memory cache
   }
 
   setAuthData(token: string, user: SalesUser): void {
     localStorage.setItem('salesToken', token);
     localStorage.setItem('salesUser', JSON.stringify(user));
+    this.setUserCache(user); // Cache in memory for faster access
   }
 }
 

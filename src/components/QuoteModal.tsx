@@ -116,6 +116,16 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const [customerEmail, setCustomerEmail] = useState(userInfo?.email || '');
   const [customerPhone, setCustomerPhone] = useState(userInfo?.phoneNumber || '');
   const [selectedUserType, setSelectedUserType] = useState<'End User' | 'Reseller' | 'Channel'>(userInfo?.userType || 'End User');
+
+  // Update form fields when userInfo changes
+  React.useEffect(() => {
+    if (userInfo) {
+      setCustomerName(userInfo.fullName);
+      setCustomerEmail(userInfo.email);
+      setCustomerPhone(userInfo.phoneNumber);
+      setSelectedUserType(userInfo.userType);
+    }
+  }, [userInfo]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 

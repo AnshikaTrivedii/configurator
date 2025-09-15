@@ -15,8 +15,24 @@ export const authenticateToken = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
     
-    // Verify user still exists (include passwordHash for password verification)
-    const user = await SalesUser.findById(decoded.id);
+    // If token contains user data, use it directly for better performance
+    if (decoded.name && decoded.email && decoded.location && decoded.contactNumber) {
+      req.user = {
+        _id: decoded.id,
+        email: decoded.email,
+        name: decoded.name,
+        location: decoded.location,
+        contactNumber: decoded.contactNumber,
+        mustChangePassword: false // Default to false for cached data
+      };
+      return next();
+    }
+    
+    // Fallback: Verify user still exists (only if token doesn't contain user data)
+    const user = await SalesUser.findById(decoded.id)
+      .select('email name location contactNumber mustChangePassword')
+      .lean();
+    
     if (!user) {
       return res.status(401).json({ 
         success: false, 

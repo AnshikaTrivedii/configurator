@@ -1,5 +1,6 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import SalesUser from '../models/SalesUser.js';
 import { authenticateToken, generateToken } from '../middleware/auth.js';
 import { validateLogin, validateSetPassword, validateChangePassword } from '../middleware/validation.js';
@@ -11,8 +12,11 @@ router.post('/login', validateLogin, async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user by email
-    const user = await SalesUser.findOne({ email: email.toLowerCase() });
+    // Find user by email with optimized query (only select necessary fields)
+    const user = await SalesUser.findOne({ email: email.toLowerCase() })
+      .select('email name location contactNumber passwordHash mustChangePassword passwordSetAt')
+      .lean(); // Use lean() for better performance
+    
     if (!user) {
       return res.status(400).json({
         success: false,
@@ -20,8 +24,8 @@ router.post('/login', validateLogin, async (req, res) => {
       });
     }
 
-    // Check password
-    const isPasswordValid = user.checkPassword(password);
+    // Check password using bcrypt directly for better performance
+    const isPasswordValid = bcrypt.compareSync(password, user.passwordHash);
     if (!isPasswordValid) {
       return res.status(400).json({
         success: false,
@@ -29,20 +33,28 @@ router.post('/login', validateLogin, async (req, res) => {
       });
     }
 
-    // Generate JWT token
-    const token = generateToken(user);
+    // Generate JWT token with extended expiry for better session persistence
+    const token = jwt.sign(
+      { 
+        id: user._id, 
+        email: user.email,
+        name: user.name,
+        location: user.location,
+        contactNumber: user.contactNumber
+      },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '30d' } // Extended to 30 days for better UX
+    );
 
     // Return user data (excluding password hash)
-    const userData = user.toJSON();
-
     res.json({
       success: true,
       token,
       user: {
-        name: userData.name,
-        location: userData.location,
-        contactNumber: userData.contactNumber,
-        email: userData.email
+        name: user.name,
+        location: user.location,
+        contactNumber: user.contactNumber,
+        email: user.email
       },
       mustChangePassword: user.mustChangePassword
     });

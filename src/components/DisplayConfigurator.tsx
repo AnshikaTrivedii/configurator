@@ -59,6 +59,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
   const [pendingAction, setPendingAction] = useState<'quote' | 'pdf' | null>(null);
   const [isMandatoryFormSubmitted, setIsMandatoryFormSubmitted] = useState(false);
   const [quotationId, setQuotationId] = useState<string>('');
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // New state for processor/controller and mode
   const [selectedController, setSelectedController] = useState<string>('');
@@ -173,13 +174,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
     setUserInfo(userData);
     setIsUserInfoFormOpen(false);
     
-    // Generate unique quotation ID
-    const username = userRole === 'sales' && salesUser ? salesUser.name : userData.fullName;
-    const newQuotationId = QuotationIdGenerator.generateQuotationId(username);
-    setQuotationId(newQuotationId);
-    
-    // Store the quotation ID to maintain uniqueness
-    QuotationIdGenerator.storeQuotationId(newQuotationId, username);
+    // Generate unique quotation ID (only for new submissions, not edits)
+    if (!isEditMode) {
+      const username = userRole === 'sales' && salesUser ? salesUser.name : userData.fullName;
+      const newQuotationId = QuotationIdGenerator.generateQuotationId(username);
+      setQuotationId(newQuotationId);
+      
+      // Store the quotation ID to maintain uniqueness
+      QuotationIdGenerator.storeQuotationId(newQuotationId, username);
+    }
     
     // For sales users, mark the mandatory form as submitted
     if (userRole === 'sales') {
@@ -194,12 +197,20 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
     }
     
     setPendingAction(null);
+    setIsEditMode(false);
   };
 
   // Reset mandatory form state when user changes or logs out
   const resetMandatoryFormState = () => {
     setIsMandatoryFormSubmitted(false);
     setUserInfo(undefined);
+  };
+
+  // Handle opening the form in edit mode
+  const handleEditForm = () => {
+    setIsEditMode(true);
+    setPendingAction('pdf'); // Set to pdf since we want to regenerate the document
+    setIsUserInfoFormOpen(true);
   };
 
   const handleQuoteClick = () => {
@@ -790,6 +801,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
                             <Download className="w-5 h-5 mr-2" />
                             Download PDF
                           </button>
+                          <button
+                            onClick={handleEditForm}
+                            className="inline-flex items-center justify-center px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+                          >
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Edit Form
+                          </button>
                         </>
                       )}
                     </>
@@ -854,10 +874,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
         onClose={() => {
           setIsUserInfoFormOpen(false);
           setPendingAction(null);
+          setIsEditMode(false);
         }}
         onSubmit={handleUserInfoSubmit}
-        title={pendingAction === 'quote' ? 'Get a Quote' : 'View Document'}
-        submitButtonText={pendingAction === 'quote' ? 'Submit Quote Request' : 'View Document'}
+        title={isEditMode ? 'Edit Client Details' : (pendingAction === 'quote' ? 'Get a Quote' : 'View Document')}
+        submitButtonText={isEditMode ? 'Update & Regenerate' : (pendingAction === 'quote' ? 'Submit Quote Request' : 'View Document')}
+        initialData={userInfo}
+        isEditMode={isEditMode}
       />
     </div>
   );

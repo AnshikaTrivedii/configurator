@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, CheckCircle, ChevronDown } from 'lucide-react';
 
 interface UserInfo {
@@ -14,6 +14,8 @@ interface UserInfoFormProps {
   onSubmit: (userInfo: UserInfo) => void;
   title: string;
   submitButtonText: string;
+  initialData?: UserInfo; // Add support for pre-filled data
+  isEditMode?: boolean; // Add edit mode flag
 }
 
 export const UserInfoForm: React.FC<UserInfoFormProps> = ({
@@ -21,17 +23,28 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   onClose,
   onSubmit,
   title,
-  submitButtonText
+  submitButtonText,
+  initialData,
+  isEditMode = false
 }) => {
-  const [formData, setFormData] = useState<UserInfo>({
-    fullName: '',
-    email: '',
-    phoneNumber: '',
-    userType: 'End User'
-  });
+  const [formData, setFormData] = useState<UserInfo>(
+    initialData || {
+      fullName: '',
+      email: '',
+      phoneNumber: '',
+      userType: 'End User'
+    }
+  );
   const [errors, setErrors] = useState<Partial<UserInfo>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUserTypeDropdownOpen, setIsUserTypeDropdownOpen] = useState(false);
+
+  // Update form data when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+    }
+  }, [initialData]);
 
   const userTypeOptions: Array<{ value: 'End User' | 'Reseller' | 'Channel'; label: string }> = [
     { value: 'End User', label: 'End User' },
@@ -77,8 +90,10 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     
     try {
       await onSubmit(formData);
-      // Reset form after successful submission
-      setFormData({ fullName: '', email: '', phoneNumber: '', userType: 'End User' });
+      // Only reset form if not in edit mode
+      if (!isEditMode) {
+        setFormData({ fullName: '', email: '', phoneNumber: '', userType: 'End User' });
+      }
       setErrors({});
     } catch (error) {
       console.error('Error submitting form:', error);
@@ -117,7 +132,9 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
               </div>
               <div>
                 <h2 className="text-xl font-semibold">{title}</h2>
-                <p className="text-sm text-blue-100">Please provide your details to continue</p>
+                <p className="text-sm text-blue-100">
+                  {isEditMode ? 'Update client details and regenerate quotation' : 'Please provide your details to continue'}
+                </p>
               </div>
             </div>
             <button
