@@ -20,13 +20,14 @@ import { generateConfigurationDocx, generateConfigurationHtml, generateConfigura
 import { PdfViewModal } from './PdfViewModal';
 import { SalesUser } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
+import { SuperUserDashboard } from './SuperUserDashboard';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
 // See: https://github.com/wojtekmaj/react-pdf/wiki/Frequently-Asked-Questions#i-am-getting-error-warning-setting-up-fake-worker-failed-cannot-read-property-getdocument-of-undefined
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 interface DisplayConfiguratorProps {
-  userRole: 'normal' | 'sales';
+  userRole: 'normal' | 'sales' | 'super';
   salesUser: SalesUser | null;
   onShowSalesLogin: () => void;
   onSalesLogout: () => void;
@@ -60,6 +61,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
   const [isMandatoryFormSubmitted, setIsMandatoryFormSubmitted] = useState(false);
   const [quotationId, setQuotationId] = useState<string>('');
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   // New state for processor/controller and mode
   const [selectedController, setSelectedController] = useState<string>('');
@@ -382,6 +384,20 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
     //'P4':   { endUser: 95600, siChannel: 86700, reseller: 81300 },
   //};
 
+  // If dashboard is open, render only the dashboard
+  if (showDashboard && userRole === 'super') {
+    return (
+      <SuperUserDashboard 
+        onBack={() => setShowDashboard(false)} 
+        loggedInUser={salesUser ? {
+          role: salesUser.role,
+          name: salesUser.name,
+          email: salesUser.email
+        } : undefined}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       {/* Header */}
@@ -403,8 +419,30 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
           </div>
 
           {/* Sales Login/Logout - Top Right */}
-          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 lg:top-6 lg:right-6 lg:hidden">
-            {userRole === 'sales' ? (
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 lg:top-6 lg:right-6">
+            {(() => {
+              console.log('🎯 DisplayConfigurator - userRole:', userRole);
+              console.log('🎯 DisplayConfigurator - salesUser:', salesUser);
+              console.log('🎯 DisplayConfigurator - showDashboard:', showDashboard);
+              return null;
+            })()}
+            {userRole === 'super' ? (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowDashboard(true)}
+                  className="px-3 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Dashboard
+                </button>
+                <span className="text-white text-xs sm:text-sm">{salesUser?.name}</span>
+                <button
+                  onClick={onSalesLogout}
+                  className="px-3 py-1.5 bg-red-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : userRole === 'sales' ? (
               <div className="flex items-center space-x-2">
                 <span className="text-white text-xs sm:text-sm">{salesUser?.name}</span>
                 <button
@@ -417,34 +455,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
             ) : (
               <button
                 onClick={onShowSalesLogin}
-                className="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors border-2 border-white"
               >
-                Sales Login
+                🔐 SALES LOGIN
               </button>
             )}
           </div>
 
-          {/* Desktop Sales Login/Logout */}
-          <div className="hidden lg:block absolute top-6 right-6">
-            {userRole === 'sales' ? (
-              <div className="flex items-center space-x-3">
-                <span className="text-white text-sm">{salesUser?.name}</span>
-                <button
-                  onClick={onSalesLogout}
-                  className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={onShowSalesLogin}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Sales Login
-              </button>
-            )}
-          </div>
 
           {/* Logo - Top Left */}
           <div className="absolute top-3 left-3 sm:top-4 sm:left-4 lg:top-6 lg:left-6">
@@ -842,9 +859,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
           cabinetGrid={cabinetGrid}
           processor={selectedController}
           mode={selectedMode}
-          userInfo={userInfo}
+          userInfo={userInfo && userInfo.userType !== 'Channel' ? userInfo : undefined}
           title={userRole === 'sales' && salesUser ? 'Sales Quote' : 'Get a Quote'}
           submitButtonText={userRole === 'sales' && salesUser ? 'Submit Sales Quote' : 'Submit Quote Request'}
+          salesUser={salesUser}
+          quotationId={quotationId}
         />
       )}
 
@@ -865,6 +884,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
           )}
           onDownload={handleDownloadPdf}
           fileName={`${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.pdf`}
+          selectedProduct={selectedProduct}
+          config={config}
+          cabinetGrid={fixedCabinetGrid}
+          processor={selectedController}
+          mode={selectedMode}
+          userInfo={userInfo ? { ...userInfo, userType: userInfo.userType || 'End User' } : undefined}
+          salesUser={salesUser}
+          quotationId={quotationId}
         />
       )}
 
@@ -882,6 +909,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
         initialData={userInfo}
         isEditMode={isEditMode}
       />
+
     </div>
   );
 };

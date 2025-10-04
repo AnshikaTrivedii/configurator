@@ -35,6 +35,11 @@ const salesUserSchema = new mongoose.Schema({
   passwordSetAt: {
     type: Date,
     default: null
+  },
+  role: {
+    type: String,
+    enum: ['sales', 'super'],
+    default: 'sales'
   }
 }, {
   timestamps: true

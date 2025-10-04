@@ -26,9 +26,6 @@ export const EmailTemplate: React.FC<EmailTemplateProps> = ({
       <h1>New Quote Request for {productName}</h1>
       <p><strong>Message:</strong> {message}</p>
       
-      {userType && (
-        <p><strong>User Type:</strong> {userType}</p>
-      )}
       
       {resolution && (
         <p><strong>Resolution:</strong> {resolution}</p>

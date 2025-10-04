@@ -228,6 +228,17 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
                 src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png" 
                 alt="Orion LED Logo" 
                 className="w-full h-full object-contain p-1 sm:p-2"
+                onError={(e) => {
+                  // Fallback to a simple text display if image fails
+                  e.currentTarget.style.display = 'none';
+                  const parent = e.currentTarget.parentElement;
+                  if (parent && !parent.querySelector('.fallback-text')) {
+                    const fallback = document.createElement('div');
+                    fallback.className = 'fallback-text w-full h-full flex items-center justify-center bg-gray-200 text-gray-600 text-xs text-center p-2';
+                    fallback.textContent = 'LED Cabinet';
+                    parent.appendChild(fallback);
+                  }
+                }}
               />
             </div>
             
@@ -281,6 +292,17 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
                 src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png" 
                 alt="Orion LED Logo" 
                 className="w-full h-full object-contain p-1 sm:p-2"
+                onError={(e) => {
+                  // Fallback to a simple text display if image fails
+                  e.currentTarget.style.display = 'none';
+                  const parent = e.currentTarget.parentElement;
+                  if (parent && !parent.querySelector('.fallback-text')) {
+                    const fallback = document.createElement('div');
+                    fallback.className = 'fallback-text w-full h-full flex items-center justify-center bg-gray-200 text-gray-600 text-xs text-center p-2';
+                    fallback.textContent = 'LED Cabinet';
+                    parent.appendChild(fallback);
+                  }
+                }}
               />
             </div>
             <div className="absolute inset-0 border border-white opacity-50"></div>

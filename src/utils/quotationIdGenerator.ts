@@ -19,16 +19,24 @@ class QuotationIdGenerator {
 
   /**
    * Generate a unique quotation ID in the format: ORION/{YEAR}/{MONTH}/{USERNAME}/{SERIAL}
+   * Uses timestamp-based approach with random component to ensure uniqueness
    */
   static generateQuotationId(username: string): string {
     const now = new Date();
     const year = now.getFullYear().toString();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     
-    // Get the next serial number for this user and month
-    const serial = this.getNextSerialNumber(username, year, month);
+    // Use timestamp + random component for better uniqueness
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000); // 3-digit random
+    const serial = (timestamp.toString().slice(-3) + random.toString().padStart(3, '0')).slice(-6);
     
-    return `ORION/${year}/${month}/${username.toUpperCase()}/${serial}`;
+    const quotationId = `ORION/${year}/${month}/${username.toUpperCase()}/${serial}`;
+    
+    // Store the generated ID
+    this.storeQuotationId(quotationId, username);
+    
+    return quotationId;
   }
 
   /**
@@ -125,6 +133,21 @@ class QuotationIdGenerator {
       total: relevantIds.length,
       lastId: relevantIds.length > 0 ? relevantIds[relevantIds.length - 1].id : undefined
     };
+  }
+
+  /**
+   * Generate a fallback unique quotation ID using random components
+   * This is used when the standard format might have conflicts
+   */
+  static generateFallbackQuotationId(username: string): string {
+    const now = new Date();
+    const year = now.getFullYear().toString();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    
+    // Use random number for uniqueness
+    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    
+    return `ORION/${year}/${month}/${username.toUpperCase()}/${random}`;
   }
 
   /**

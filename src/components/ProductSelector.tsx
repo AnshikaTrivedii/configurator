@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
 import { Product } from '../types';
+import { isViewingDistanceInRange, getViewingDistanceRange, getViewingDistanceOptions, getRecommendedViewingDistance, getAllViewingDistanceOptions, getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistance, getPixelPitchesForViewingDistanceRange, getPixelPitchForViewingDistanceRange } from '../utils/viewingDistanceRanges';
 
 interface ProductWithOptionalSize extends Product {
   sizeInInches?: {
@@ -28,6 +29,17 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
   const [pendingRentalProduct, setPendingRentalProduct] = useState<ProductWithOptionalSize | null>(null);
   const [rentalOption, setRentalOption] = useState<'cabinet' | 'curve lock' | null>(null);
+  
+  // Viewing distance filter state
+  const [viewingDistance, setViewingDistance] = useState<string>('');
+  const [viewingDistanceUnit, setViewingDistanceUnit] = useState<'meters' | 'feet'>('meters');
+  const [viewingDistanceValue, setViewingDistanceValue] = useState<string>('');
+
+  // Clear viewing distance when selected product changes
+  useEffect(() => {
+    setViewingDistance('');
+    setViewingDistanceValue('');
+  }, [selectedProduct]);
 
   // Normalize environment for comparison
   const normalizeEnv = (env: string) => env.trim().toLowerCase();
@@ -73,6 +85,17 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   filteredProducts = filteredProducts.filter(
     (p) => selectedCategory === 'All' || p.category === selectedCategory
   );
+
+          // Apply viewing distance filter
+          if (viewingDistanceValue) {
+            // Get pixel pitches that match the selected viewing distance range
+            const matchingPixelPitches = getPixelPitchesForViewingDistanceRange(viewingDistanceValue, viewingDistanceUnit);
+            
+            filteredProducts = filteredProducts.filter((p) => {
+              // Check if the product's pixel pitch matches any of the matching pixel pitches
+              return matchingPixelPitches.some(pitch => Math.abs(p.pixelPitch - pitch) < 0.1);
+            });
+          }
 
   // Deduplicate products by id
   filteredProducts = filteredProducts.filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
@@ -174,6 +197,56 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 All outdoor products are SMD.
               </div>
             )}
+
+                      {/* Viewing Distance Filter */}
+                      <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
+                        <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Viewing Distance:</span>
+                        <div className="flex items-center gap-2">
+                          {/* Unit Selector */}
+                          <select
+                            value={viewingDistanceUnit}
+                            onChange={(e) => {
+                              setViewingDistanceUnit(e.target.value as 'meters' | 'feet');
+                              setViewingDistanceValue(''); // Clear distance when unit changes
+                            }}
+                            className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="meters">Meter</option>
+                            <option value="feet">Feet</option>
+                          </select>
+                          
+                          {/* Distance Selector */}
+                          <select
+                            value={viewingDistanceValue}
+                            onChange={(e) => setViewingDistanceValue(e.target.value)}
+                            className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-48"
+                          >
+                            <option value="">Select distance...</option>
+                            {getViewingDistanceOptionsByUnit(viewingDistanceUnit).map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          
+                          {(viewingDistanceValue || viewingDistanceUnit !== 'meters') && (
+                            <button
+                              onClick={() => {
+                                setViewingDistanceValue('');
+                                setViewingDistanceUnit('meters');
+                              }}
+                              className="px-2 py-1.5 text-xs sm:text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                        {viewingDistanceValue && (
+                          <div className="text-xs text-gray-600 mt-1">
+                            Filtering products for {viewingDistanceValue}{viewingDistanceUnit === 'meters' ? 'm' : 'ft'} viewing distance range
+                          </div>
+                        )}
+                      </div>
           </div>
         </div>
 
@@ -208,8 +281,18 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
         {/* Products grid */}
         <div className="p-3 sm:p-4 lg:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-            {filteredProducts.map((product: ProductWithOptionalSize) => (
+          {filteredProducts.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-gray-500 text-lg font-medium mb-2">
+                No products available for this viewing distance
+              </div>
+              <div className="text-gray-400 text-sm">
+                Try adjusting your viewing distance or other filters
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+              {filteredProducts.map((product: ProductWithOptionalSize) => (
               <div
                 key={product.id}
                 className={`relative bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
@@ -256,6 +339,14 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                     <div>
                       <p className="text-gray-500">Pixel Pitch</p>
                       <p className="font-medium text-gray-800">{product.pixelPitch} mm</p>
+                      {(() => {
+                        const range = getViewingDistanceRange(product.pixelPitch);
+                        return range ? (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Viewing: {range.minMeters}-{range.maxMeters}m ({range.minFeet}-{range.maxFeet}ft)
+                          </p>
+                        ) : null;
+                      })()}
                     </div>
                     <div>
                       <p className="text-gray-500">Brightness</p>
@@ -279,8 +370,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
         {/* Rental option modal */}
         {pendingRentalProduct && (

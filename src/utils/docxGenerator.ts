@@ -109,17 +109,24 @@ export const generateConfigurationDocx = async (
 
   const unitPrice = getProductPriceForDocx(selectedProduct, userInfo?.userType);
   
-  // Always calculate quantity in square feet, regardless of selected display unit
-  const widthInMeters = config.width / 1000;
-  const heightInMeters = config.height / 1000;
-  const widthInFeet = widthInMeters * METERS_TO_FEET;
-  const heightInFeet = heightInMeters * METERS_TO_FEET;
-  const quantity = widthInFeet * heightInFeet;
+  // Calculate quantity based on product type
+  let quantity: number;
+  if (selectedProduct.category?.toLowerCase().includes('rental')) {
+    // For rental series, calculate quantity as number of cabinets
+    quantity = cabinetGrid.columns * cabinetGrid.rows;
+  } else {
+    // For other products, calculate quantity in square feet
+    const widthInMeters = config.width / 1000;
+    const heightInMeters = config.height / 1000;
+    const widthInFeet = widthInMeters * METERS_TO_FEET;
+    const heightInFeet = heightInMeters * METERS_TO_FEET;
+    quantity = widthInFeet * heightInFeet;
+  }
   
   // Ensure quantity is a reasonable number and handle edge cases
   const safeQuantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
   const subtotal = unitPrice * safeQuantity;
-  const gstProduct = subtotal * 0.28;
+  const gstProduct = subtotal * 0.18;
   const totalProduct = subtotal + gstProduct;
   
   // Controller pricing - use actual controller price if available
@@ -588,7 +595,7 @@ export const generateConfigurationDocx = async (
                           size: 14,
                         }),
                         new TextRun({
-                          text: ` ${Math.round(safeQuantity * 100) / 100} Ft²`,
+                          text: ` ${selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}`,
                           size: 14,
                         }),
                       ],
@@ -612,7 +619,7 @@ export const generateConfigurationDocx = async (
                     new Paragraph({
                       children: [
                         new TextRun({
-                          text: `GST (28%):`,
+                          text: `GST (18%):`,
                           bold: true,
                           size: 14,
                         }),
@@ -989,17 +996,24 @@ export const generateConfigurationHtml = (
 
   const unitPrice = getProductPriceForHtml(selectedProduct, userInfo?.userType);
   
-  // Always calculate quantity in square feet, regardless of selected display unit
-  const widthInMeters = config.width / 1000;
-  const heightInMeters = config.height / 1000;
-  const widthInFeet = widthInMeters * METERS_TO_FEET;
-  const heightInFeet = heightInMeters * METERS_TO_FEET;
-  const quantity = widthInFeet * heightInFeet;
+  // Calculate quantity based on product type
+  let quantity: number;
+  if (selectedProduct.category?.toLowerCase().includes('rental')) {
+    // For rental series, calculate quantity as number of cabinets
+    quantity = cabinetGrid.columns * cabinetGrid.rows;
+  } else {
+    // For other products, calculate quantity in square feet
+    const widthInMeters = config.width / 1000;
+    const heightInMeters = config.height / 1000;
+    const widthInFeet = widthInMeters * METERS_TO_FEET;
+    const heightInFeet = heightInMeters * METERS_TO_FEET;
+    quantity = widthInFeet * heightInFeet;
+  }
   
   // Ensure quantity is a reasonable number and handle edge cases
   const safeQuantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
   const subtotal = unitPrice * safeQuantity;
-  const gstProduct = subtotal * 0.28;
+  const gstProduct = subtotal * 0.18;
   const totalProduct = subtotal + gstProduct;
   
   // Controller pricing - use actual controller price if available
@@ -1198,23 +1212,19 @@ export const generateConfigurationHtml = (
                         <h4 style="margin: 0 0 8px 0; color: #333; font-size: 0.9em; font-weight: bold;">PRICING DETAILS</h4>
                         <div style="space-y: 4px;">
                             <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.8em;">User Type:</span>
-                                <span style="color: #333; font-weight: 700; font-size: 0.8em;">${userInfo?.userType || 'End User'}</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e9ecef;">
                                 <span style="font-weight: 600; color: #333; font-size: 0.8em;">Unit Price:</span>
                                 <span style="color: #333; font-weight: 700; font-size: 0.8em;">₹${formatIndianNumber(unitPrice)}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e9ecef;">
                                 <span style="font-weight: 600; color: #333; font-size: 0.8em;">Quantity:</span>
-                                <span style="color: #333; font-weight: 600; font-size: 0.8em;">${Math.round(safeQuantity * 100) / 100} Ft²</span>
+                                <span style="color: #333; font-weight: 600; font-size: 0.8em;">${selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e9ecef;">
                                 <span style="font-weight: 600; color: #333; font-size: 0.8em;">Subtotal:</span>
                                 <span style="color: #333; font-weight: 700; font-size: 0.8em;">₹${formatIndianNumber(subtotal)}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.8em;">GST (28%):</span>
+                                <span style="font-weight: 600; color: #333; font-size: 0.8em;">GST (18%):</span>
                                 <span style="color: #dc3545; font-weight: 700; font-size: 0.8em;">₹${formatIndianNumber(gstProduct)}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; padding: 4px 0; background: white; margin: 0 -8px; padding: 6px 8px; border-radius: 4px; border: 1px solid #e9ecef;">

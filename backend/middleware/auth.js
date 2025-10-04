@@ -23,6 +23,7 @@ export const authenticateToken = async (req, res, next) => {
         name: decoded.name,
         location: decoded.location,
         contactNumber: decoded.contactNumber,
+        role: decoded.role || 'sales', // Default to sales for backward compatibility
         mustChangePassword: false // Default to false for cached data
       };
       return next();
@@ -30,7 +31,7 @@ export const authenticateToken = async (req, res, next) => {
     
     // Fallback: Verify user still exists (only if token doesn't contain user data)
     const user = await SalesUser.findById(decoded.id)
-      .select('email name location contactNumber mustChangePassword')
+      .select('email name location contactNumber mustChangePassword role')
       .lean();
     
     if (!user) {
@@ -66,9 +67,16 @@ export const authenticateToken = async (req, res, next) => {
 
 export const generateToken = (user) => {
   return jwt.sign(
-    { id: user._id, email: user.email },
+    { 
+      id: user._id, 
+      email: user.email,
+      name: user.name,
+      location: user.location,
+      contactNumber: user.contactNumber,
+      role: user.role
+    },
     process.env.JWT_SECRET || 'fallback-secret',
-    { expiresIn: '7d' }
+    { expiresIn: '30d' } // Match the login route expiry
   );
 };
 

@@ -109,3 +109,27 @@ export interface ControllerSelection {
   dataHubPorts: number;
   backupPorts: number;
 }
+
+export interface SalesUser {
+  name: string;
+  email: string;
+  location: string;
+  contactNumber: string;
+  role?: 'sales' | 'super';
+}
+
+export interface SalesUserWithQuotations {
+  _id: string;
+  name: string;
+  email: string;
+  location: string;
+  contactNumber: string;
+  quotationCount: number;
+  createdAt: string;
+}
+
+export interface DashboardFilters {
+  startDate?: string;
+  endDate?: string;
+  location?: string;
+}

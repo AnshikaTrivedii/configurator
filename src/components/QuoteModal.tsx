@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { X, Mail, User, Phone, MessageSquare, Package, ChevronDown } from 'lucide-react';
 import { submitQuoteRequest, QuoteRequest } from '../api/quote';
+import { salesAPI } from '../api/sales';
+import { SalesUser } from '../api/sales';
+import QuotationIdGenerator from '../utils/quotationIdGenerator';
+import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
 
 interface Product {
   id: string;
@@ -66,10 +70,12 @@ type QuoteModalProps = {
     fullName: string;
     email: string;
     phoneNumber: string;
-    userType: 'End User' | 'Reseller' | 'Channel';
+    userType: 'End User' | 'Reseller';
   };
   title?: string;
   submitButtonText?: string;
+  salesUser?: SalesUser | null;
+  quotationId?: string;
 };
 
 // Function to calculate greatest common divisor
@@ -109,13 +115,16 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   mode,
   userInfo,
   title = 'Get a Quote',
-  submitButtonText = 'Submit Quote Request'
+  submitButtonText = 'Submit Quote Request',
+  salesUser,
+  quotationId
 }) => {
   const [message, setMessage] = useState('');
   const [customerName, setCustomerName] = useState(userInfo?.fullName || '');
   const [customerEmail, setCustomerEmail] = useState(userInfo?.email || '');
   const [customerPhone, setCustomerPhone] = useState(userInfo?.phoneNumber || '');
-  const [selectedUserType, setSelectedUserType] = useState<'End User' | 'Reseller' | 'Channel'>(userInfo?.userType || 'End User');
+  const [selectedUserType, setSelectedUserType] = useState<'End User' | 'Reseller'>(userInfo?.userType || 'End User');
+  const [quotationStatus, setQuotationStatus] = useState<'New' | 'In Progress' | 'Rejected' | 'Hold' | 'Converted'>('New');
 
   // Update form fields when userInfo changes
   React.useEffect(() => {
@@ -132,12 +141,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   if (!isOpen) return null;
 
   // Get the current user type from local state with proper mapping
-  const getUserType = (): 'endUser' | 'siChannel' | 'reseller' => {
+  const getUserType = (): 'endUser' | 'reseller' => {
     switch (selectedUserType) {
       case 'Reseller':
         return 'reseller';
-      case 'Channel':
-        return 'siChannel';
       case 'End User':
       default:
         return 'endUser';
@@ -153,6 +160,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('🚀 QuoteModal handleSubmit called');
+    console.log('📋 Sales User:', salesUser);
+    console.log('🆔 Quotation ID:', quotationId);
+    console.log('📦 Selected Product:', selectedProduct?.name);
     
     // Validate required fields
     if (!selectedProduct) {
@@ -248,24 +260,156 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       
       console.log('Submitting quote data:', quoteData);
       
+      // First, save quotation to local database if this is a sales user
+      console.log('🔍 Checking conditions for database save:');
+      console.log('  - salesUser present:', !!salesUser);
+      console.log('  - quotationId present:', !!quotationId);
+      console.log('  - salesUser details:', salesUser ? { name: salesUser.name, email: salesUser.email } : 'null');
+      console.log('  - quotationId value:', quotationId);
+      
+      // Generate quotationId if missing but salesUser is present
+      let finalQuotationId = quotationId;
+      if (salesUser && !quotationId) {
+        console.log('⚠️ QuotationId missing, generating new one...');
+        finalQuotationId = QuotationIdGenerator.generateQuotationId(salesUser.name);
+        console.log('🆔 Generated new quotationId:', finalQuotationId);
+      }
+      
+      if (salesUser && finalQuotationId) {
+        console.log('✅ Conditions met - attempting to save quotation to database...');
+        console.log('📋 Sales User:', salesUser.name, salesUser.email);
+        console.log('🆔 Quotation ID:', finalQuotationId);
+        
+        try {
+          // Create comprehensive product details object
+          const comprehensiveProductDetails = {
+            // Basic product info
+            productId: selectedProduct.id,
+            productName: selectedProduct.name,
+            category: selectedProduct.category,
+            
+            // Display specifications
+            pixelPitch: selectedProduct.pixelPitch,
+            resolution: selectedProduct.resolution,
+            cabinetDimensions: selectedProduct.cabinetDimensions,
+            moduleDimensions: selectedProduct.moduleDimensions,
+            moduleResolution: selectedProduct.moduleResolution,
+            moduleQuantity: selectedProduct.moduleQuantity,
+            
+            // Technical specifications
+            pixelDensity: selectedProduct.pixelDensity,
+            brightness: selectedProduct.brightness,
+            refreshRate: selectedProduct.refreshRate,
+            environment: selectedProduct.environment,
+            maxPowerConsumption: selectedProduct.maxPowerConsumption,
+            avgPowerConsumption: selectedProduct.avgPowerConsumption,
+            weightPerCabinet: selectedProduct.weightPerCabinet,
+            
+            // Configuration details
+            cabinetGrid: cabinetGrid,
+            displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
+              width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
+              height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+            } : undefined,
+            aspectRatio: selectedProduct.resolution ? 
+              calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
+            processor: processor,
+            mode: mode,
+            
+            // User type and pricing context
+            userType: userType,
+            userTypeDisplayName: getUserTypeDisplayName(userType),
+            
+            // Timestamp
+            generatedAt: new Date().toISOString()
+          };
+
+          const quotationData = {
+            quotationId: finalQuotationId,
+            customerName: customerName.trim(),
+            customerEmail: customerEmail.trim(),
+            customerPhone: customerPhone.trim(),
+            productName: selectedProduct.name,
+            productDetails: comprehensiveProductDetails,
+            message: message.trim() || 'No additional message provided',
+            userType: userType,
+            userTypeDisplayName: getUserTypeDisplayName(userType),
+            status: quotationStatus,
+            totalPrice: calculateUserSpecificPrice(comprehensiveProductDetails, userType).userPrice
+          };
+
+          console.log('📤 Sending quotation data to API:', quotationData);
+          
+          const saveResult = await salesAPI.saveQuotation(quotationData);
+          console.log('✅ Quotation saved to database successfully:', saveResult);
+          
+          // Show success message to user
+          alert('Quotation saved successfully to database!');
+          
+        } catch (dbError: any) {
+          console.error('❌ Error saving quotation to database:', dbError);
+          console.error('❌ Error details:', {
+            message: dbError.message,
+            stack: dbError.stack,
+            quotationId,
+            salesUser: salesUser?.name
+          });
+          
+          // If it's a duplicate ID error, try with a fallback ID
+          if (dbError.message && dbError.message.includes('already exists')) {
+            console.log('🔄 Duplicate ID detected in QuoteModal, trying with fallback ID...');
+            try {
+              const fallbackQuotationId = QuotationIdGenerator.generateFallbackQuotationId(salesUser.name);
+              console.log('🆔 Generated fallback quotationId:', fallbackQuotationId);
+              
+              const fallbackQuotationData = {
+                ...quotationData,
+                quotationId: fallbackQuotationId
+              };
+              
+              const fallbackResult = await salesAPI.saveQuotation(fallbackQuotationData);
+              console.log('✅ Quotation saved with fallback ID:', fallbackResult);
+              
+              // Show success message to user
+              alert('Quotation saved successfully to database with fallback ID!');
+              
+            } catch (fallbackError: any) {
+              console.error('❌ Fallback save also failed:', fallbackError);
+              alert(`Failed to save quotation to database: ${fallbackError.message}`);
+            }
+          } else {
+            // Show error message to user
+            alert(`Failed to save quotation to database: ${dbError.message}`);
+          }
+          
+          // Don't fail the entire process if database save fails
+        }
+      } else {
+        console.log('❌ Quotation not saved to database - missing salesUser or quotationId');
+        console.log('📋 Sales User present:', !!salesUser);
+        console.log('🆔 Quotation ID present:', !!finalQuotationId);
+        console.log('🔍 Debug info:');
+        console.log('  - salesUser:', salesUser);
+        console.log('  - original quotationId:', quotationId);
+        console.log('  - final quotationId:', finalQuotationId);
+        console.log('  - typeof salesUser:', typeof salesUser);
+        console.log('  - typeof quotationId:', typeof quotationId);
+      }
+
+      // Then, try to submit to external API (for email notifications)
       try {
         const result = await submitQuoteRequest(quoteData);
-        console.log('Quote submission successful:', result);
-        
-        // Only proceed if the submission was successful
-        if (result.success) {
-          if (onSubmit) {
-            onSubmit(message);
-          }
-          setIsSubmitted(true);
-        } else {
-          throw new Error(result.message || 'Failed to submit quote');
-        }
-      } catch (error) {
-        console.error('Error in quote submission:', error);
-        alert(`Failed to submit quote: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        throw error; // Re-throw to be caught by the outer catch block
+        console.log('External quote submission successful:', result);
+      } catch (externalError) {
+        console.error('External quote submission failed:', externalError);
+        // Don't fail the entire process if external API fails
+        console.log('⚠️ External quote submission failed, but local save succeeded');
       }
+
+      if (onSubmit) {
+        onSubmit(message);
+      }
+      setIsSubmitted(true);
       
       // Reset form after 10 seconds
       setTimeout(() => {
@@ -393,7 +537,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                             className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all appearance-none bg-white"
                             value={selectedUserType}
                             onChange={(e) => {
-                              const newUserType = e.target.value as 'End User' | 'Reseller' | 'Channel';
+                              const newUserType = e.target.value as 'End User' | 'Reseller';
                               setSelectedUserType(newUserType);
                             }}
                             disabled={isSubmitting}
@@ -401,9 +545,36 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                           >
                             <option value="End User">End User</option>
                             <option value="Reseller">Reseller</option>
-                            <option value="Channel">Channel</option>
                           </select>
                           <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      {/* Quotation Status Field */}
+                      <div>
+                        <label htmlFor="quotationStatus" className="block text-base font-medium text-gray-700 mb-3">
+                          Quotation Status <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <select
+                            id="quotationStatus"
+                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all appearance-none bg-white"
+                            value={quotationStatus}
+                            onChange={(e) => {
+                              const newStatus = e.target.value as 'New' | 'In Progress' | 'Rejected' | 'Hold' | 'Converted';
+                              setQuotationStatus(newStatus);
+                            }}
+                            disabled={isSubmitting}
+                            required
+                          >
+                            <option value="New">New</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Rejected">Rejected</option>
+                            <option value="Hold">Hold</option>
+                            <option value="Converted">Converted</option>
+                          </select>
+                          <Package className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                         </div>
                       </div>
@@ -478,10 +649,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                             </div>
                           )}
                           
-                          <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
-                            <span className="text-sm font-medium text-gray-600">User Type:</span>
-                            <span className="font-semibold text-gray-900 text-sm">{getUserTypeDisplayName(getUserType())}</span>
-                          </div>
                         </div>
                       </div>
                     </div>
