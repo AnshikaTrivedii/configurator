@@ -89,3 +89,4 @@ All sales team members can login with:
 - **Emails**: See the complete list in `backend/scripts/seed.js`
 
 After first login, users will be prompted to set a new password.
+# Deployment triggered on Sat Oct  4 23:05:01 IST 2025
