@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
 import { Product } from '../types';
-import { isViewingDistanceInRange, getViewingDistanceRange, getViewingDistanceOptions, getRecommendedViewingDistance, getAllViewingDistanceOptions, getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistance, getPixelPitchesForViewingDistanceRange, getPixelPitchForViewingDistanceRange } from '../utils/viewingDistanceRanges';
+import { getViewingDistanceRange, getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistanceRange } from '../utils/viewingDistanceRanges';
 
 interface ProductWithOptionalSize extends Product {
   sizeInInches?: {
@@ -31,13 +31,11 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const [rentalOption, setRentalOption] = useState<'cabinet' | 'curve lock' | null>(null);
   
   // Viewing distance filter state
-  const [viewingDistance, setViewingDistance] = useState<string>('');
   const [viewingDistanceUnit, setViewingDistanceUnit] = useState<'meters' | 'feet'>('meters');
   const [viewingDistanceValue, setViewingDistanceValue] = useState<string>('');
 
   // Clear viewing distance when selected product changes
   useEffect(() => {
-    setViewingDistance('');
     setViewingDistanceValue('');
   }, [selectedProduct]);
 
@@ -47,10 +45,17 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
   // Helper to check SMD/COB type
   const getProductType = (product: Product) => {
+    // Check ledType property
     if (product.ledType) {
       if (normalizeType(product.ledType).includes('cob')) return 'COB';
       if (normalizeType(product.ledType).includes('smd')) return 'SMD';
     }
+    // Check pixelComposition property (for transparent series and similar)
+    if (product.pixelComposition) {
+      if (normalizeType(product.pixelComposition).includes('cob')) return 'COB';
+      if (normalizeType(product.pixelComposition).includes('smd')) return 'SMD';
+    }
+    // Check product name
     if (product.name.toLowerCase().includes('cob')) return 'COB';
     if (product.name.toLowerCase().includes('smd')) return 'SMD';
     return undefined;

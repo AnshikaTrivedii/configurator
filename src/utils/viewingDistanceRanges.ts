@@ -20,12 +20,18 @@ export const VIEWING_DISTANCE_RANGES: ViewingDistanceRange[] = [
   { pixelPitch: 2.9, minMeters: 2.9, maxMeters: 5.8, minFeet: 9.5, maxFeet: 19, displayText: "2.9-5.8m (9.5-19ft)" },
   { pixelPitch: 3, minMeters: 3, maxMeters: 6, minFeet: 10, maxFeet: 20, displayText: "3-6m (10-20ft)" },
   { pixelPitch: 3.8, minMeters: 3.8, maxMeters: 7.6, minFeet: 12, maxFeet: 25, displayText: "3.8-7.6m (12-25ft)" },
+  { pixelPitch: 3.91, minMeters: 3.91, maxMeters: 7.82, minFeet: 13, maxFeet: 26, displayText: "3.91-7.82m (13-26ft)" },
   { pixelPitch: 4, minMeters: 4, maxMeters: 8, minFeet: 13, maxFeet: 26, displayText: "4-8m (13-26ft)" },
   { pixelPitch: 4.8, minMeters: 4.8, maxMeters: 9.6, minFeet: 16, maxFeet: 31, displayText: "4.8-9.6m (16-31ft)" },
+  { pixelPitch: 5, minMeters: 5, maxMeters: 10, minFeet: 16, maxFeet: 33, displayText: "5-10m (16-33ft)" },
   { pixelPitch: 6, minMeters: 6, maxMeters: 12, minFeet: 20, maxFeet: 39, displayText: "6-12m (20-39ft)" },
+  { pixelPitch: 6.25, minMeters: 6.25, maxMeters: 12.5, minFeet: 20, maxFeet: 41, displayText: "6.25-12.5m (20-41ft)" },
+  { pixelPitch: 6.5, minMeters: 6.5, maxMeters: 13, minFeet: 21, maxFeet: 43, displayText: "6.5-13m (21-43ft)" },
   { pixelPitch: 6.6, minMeters: 6.6, maxMeters: 13.2, minFeet: 22, maxFeet: 43, displayText: "6.6-13.2m (22-43ft)" },
   { pixelPitch: 8, minMeters: 8, maxMeters: 16, minFeet: 26, maxFeet: 52, displayText: "8-16m (26-52ft)" },
-  { pixelPitch: 10, minMeters: 10, maxMeters: 20, minFeet: 32, maxFeet: 65, displayText: "10-20m (32-65ft)" }
+  { pixelPitch: 10, minMeters: 10, maxMeters: 20, minFeet: 32, maxFeet: 65, displayText: "10-20m (32-65ft)" },
+  { pixelPitch: 15, minMeters: 15, maxMeters: 30, minFeet: 49, maxFeet: 98, displayText: "15-30m (49-98ft)" },
+  { pixelPitch: 20, minMeters: 20, maxMeters: 40, minFeet: 65, maxFeet: 131, displayText: "20-40m (65-131ft)" }
 ];
 
 /**

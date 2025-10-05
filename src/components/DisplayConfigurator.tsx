@@ -692,6 +692,29 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
                       <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Total Cabinets</h4>
                       <p className="text-gray-600 text-xs sm:text-sm">{cabinetGrid.columns * cabinetGrid.rows} units</p>
                     </div>
+                    {/* Transparent Series specific properties */}
+                    {selectedProduct.category === 'Transparent Series' && (
+                      <>
+                        {selectedProduct.transparency && (
+                          <div>
+                            <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Transparency</h4>
+                            <p className="text-gray-600 text-xs sm:text-sm">{selectedProduct.transparency}%</p>
+                          </div>
+                        )}
+                        {selectedProduct.scanMode && (
+                          <div>
+                            <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Scan Mode</h4>
+                            <p className="text-gray-600 text-xs sm:text-sm">{selectedProduct.scanMode}</p>
+                          </div>
+                        )}
+                        {selectedProduct.pixelComposition && (
+                          <div>
+                            <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Pixel Composition</h4>
+                            <p className="text-gray-600 text-xs sm:text-sm">{selectedProduct.pixelComposition}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                   {/* Read More Button */}
                   {selectedProduct.pdf && (

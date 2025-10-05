@@ -1584,6 +1584,433 @@ export const products: Product[] = [
     ipGrade: 'IP65',
     certificates: 'CE, ROHS, ISO, BIS',
   },
+
+  // Transparent Series
+  // Group 1: Transparent adhesive in front of glass
+  {
+    id: 'transparent-front-glass-p3.91',
+    name: 'Transparent Adhesive in Front of Glass P3.91',
+    category: 'Transparent Series',
+    image: '/products/transparent-series/Transparent Series P3.91 Adhesive Front Glass.png',
+    resolution: {
+      width: 64,
+      height: 300
+    },
+    price: 44300,
+    siChannelPrice: 40100,
+    resellerPrice: 37600,
+    cabinetDimensions: {
+      width: 250,
+      height: 1200
+    },
+    moduleDimensions: {
+      width: 250,
+      height: 1200
+    },
+    moduleResolution: {
+      width: 64,
+      height: 300
+    },
+    moduleQuantity: 1,
+    pixelPitch: 3.91,
+    pixelDensity: 65536,
+    brightness: 5000,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 400,
+    avgPowerConsumption: 150,
+    weightPerCabinet: 8,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/transparent-series/Transparent+Front+Glass+P3.91.pdf',
+    transparency: 90,
+    scanMode: 'Static',
+    pixelComposition: 'SMD2121'
+  },
+  {
+    id: 'transparent-front-glass-p6.25',
+    name: 'Transparent Adhesive in Front of Glass P6.25',
+    category: 'Transparent Series',
+    image: '/products/transparent-series/Transparent Series P6.25 Adhesive Front Glass.png',
+    resolution: {
+      width: 40,
+      height: 188
+    },
+    price: 24300,
+    siChannelPrice: 22000,
+    resellerPrice: 20600,
+    cabinetDimensions: {
+      width: 250,
+      height: 1200
+    },
+    moduleDimensions: {
+      width: 250,
+      height: 1200
+    },
+    moduleResolution: {
+      width: 40,
+      height: 188
+    },
+    moduleQuantity: 1,
+    pixelPitch: 6.25,
+    pixelDensity: 25600,
+    brightness: 5000,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 350,
+    avgPowerConsumption: 120,
+    weightPerCabinet: 8,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/transparent-series/Transparent+Front+Glass+P6.25.pdf',
+    transparency: 95,
+    scanMode: 'Static',
+    pixelComposition: 'SMD2121'
+  },
+
+  // Group 2: Transparent adhesive behind glass
+  {
+    id: 'transparent-behind-glass-p6.5',
+    name: 'Transparent Adhesive Behind Glass P6.5',
+    category: 'Transparent Series',
+    image: '/products/transparent-series/Transparent Series P6.5 Adhesive Behind Glass.png',
+    resolution: {
+      width: 32,
+      height: 148
+    },
+    price: 22900,
+    siChannelPrice: 20800,
+    resellerPrice: 19500,
+    cabinetDimensions: {
+      width: 208,
+      height: 1000
+    },
+    moduleDimensions: {
+      width: 208,
+      height: 1000
+    },
+    moduleResolution: {
+      width: 32,
+      height: 148
+    },
+    moduleQuantity: 1,
+    pixelPitch: 6.5,
+    pixelDensity: 23716,
+    brightness: 5500,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 400,
+    avgPowerConsumption: 150,
+    weightPerCabinet: 6,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/transparent-series/Transparent+Behind+Glass+P6.5.pdf',
+    transparency: 55,
+    scanMode: 'Static',
+    pixelComposition: 'SMD2020'
+  },
+
+  // Group 3: Transparent adhesive rollable film behind glass
+  {
+    id: 'transparent-rollable-film-p5',
+    name: 'Transparent Rollable Film Behind Glass P5',
+    category: 'Transparent Series',
+    image: '/products/transparent-series/Transparent Series P5 Rollable Film Behind Glass.png',
+    resolution: {
+      width: 64,
+      height: 200
+    },
+    price: 40400,
+    siChannelPrice: 36700,
+    resellerPrice: 34400,
+    cabinetDimensions: {
+      width: 320,
+      height: 1000
+    },
+    moduleDimensions: {
+      width: 320,
+      height: 1000
+    },
+    moduleResolution: {
+      width: 64,
+      height: 200
+    },
+    moduleQuantity: 1,
+    pixelPitch: 5.0,
+    pixelDensity: 40000,
+    brightness: 2000,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 300,
+    avgPowerConsumption: 100,
+    weightPerCabinet: 2,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/transparent-series/Transparent+Rollable+P5.pdf',
+    transparency: 85,
+    scanMode: 'Static',
+    pixelComposition: 'SMD1313'
+  },
+  {
+    id: 'transparent-rollable-film-p6.25',
+    name: 'Transparent Rollable Film Behind Glass P6.25',
+    category: 'Transparent Series',
+    image: '/products/transparent-series/Transparent Series P6.25 Rollable Film Behind Glass.png',
+    resolution: {
+      width: 64,
+      height: 160
+    },
+    price: 30900,
+    siChannelPrice: 28000,
+    resellerPrice: 26300,
+    cabinetDimensions: {
+      width: 400,
+      height: 1000
+    },
+    moduleDimensions: {
+      width: 400,
+      height: 1000
+    },
+    moduleResolution: {
+      width: 64,
+      height: 160
+    },
+    moduleQuantity: 1,
+    pixelPitch: 6.25,
+    pixelDensity: 25600,
+    brightness: 2000,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 280,
+    avgPowerConsumption: 90,
+    weightPerCabinet: 2,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/transparent-series/Transparent+Rollable+P6.25.pdf',
+    transparency: 90,
+    scanMode: 'Static',
+    pixelComposition: 'SMD1313'
+  },
+  {
+    id: 'transparent-rollable-film-p8',
+    name: 'Transparent Rollable Film Behind Glass P8',
+    category: 'Transparent Series',
+    image: '/products/transparent-series/Transparent Series P8 Rollable Film Behind Glass.png',
+    resolution: {
+      width: 50,
+      height: 125
+    },
+    price: 24300,
+    siChannelPrice: 22000,
+    resellerPrice: 20600,
+    cabinetDimensions: {
+      width: 400,
+      height: 1000
+    },
+    moduleDimensions: {
+      width: 400,
+      height: 1000
+    },
+    moduleResolution: {
+      width: 50,
+      height: 125
+    },
+    moduleQuantity: 1,
+    pixelPitch: 8.0,
+    pixelDensity: 16500,
+    brightness: 2000,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 250,
+    avgPowerConsumption: 80,
+    weightPerCabinet: 2,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/transparent-series/Transparent+Rollable+P8.pdf',
+    transparency: 92,
+    scanMode: 'Static',
+    pixelComposition: 'SMD1313'
+  },
+  {
+    id: 'transparent-rollable-film-p10',
+    name: 'Transparent Rollable Film Behind Glass P10',
+    category: 'Transparent Series',
+    image: '/products/transparent-series/Transparent Series P10 Rollable Film Behind Glass.png',
+    resolution: {
+      width: 40,
+      height: 100
+    },
+    price: 19900,
+    siChannelPrice: 18000,
+    resellerPrice: 16900,
+    cabinetDimensions: {
+      width: 400,
+      height: 1000
+    },
+    moduleDimensions: {
+      width: 400,
+      height: 1000
+    },
+    moduleResolution: {
+      width: 40,
+      height: 100
+    },
+    moduleQuantity: 1,
+    pixelPitch: 10.0,
+    pixelDensity: 10000,
+    brightness: 2000,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 220,
+    avgPowerConsumption: 70,
+    weightPerCabinet: 2,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/transparent-series/Transparent+Rollable+P10.pdf',
+    transparency: 93,
+    scanMode: 'Static',
+    pixelComposition: 'SMD1313'
+  },
+  {
+    id: 'transparent-rollable-film-p15',
+    name: 'Transparent Rollable Film Behind Glass P15',
+    category: 'Transparent Series',
+    image: '/products/transparent-series/Transparent Series P15 Rollable Film Behind Glass.png',
+    resolution: {
+      width: 26,
+      height: 66
+    },
+    price: 15400,
+    siChannelPrice: 14000,
+    resellerPrice: 13100,
+    cabinetDimensions: {
+      width: 390,
+      height: 990
+    },
+    moduleDimensions: {
+      width: 390,
+      height: 990
+    },
+    moduleResolution: {
+      width: 26,
+      height: 66
+    },
+    moduleQuantity: 1,
+    pixelPitch: 15.0,
+    pixelDensity: 4356,
+    brightness: 2000,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 180,
+    avgPowerConsumption: 60,
+    weightPerCabinet: 2,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/transparent-series/Transparent+Rollable+P15.pdf',
+    transparency: 94,
+    scanMode: 'Static',
+    pixelComposition: 'SMD1313'
+  },
+  {
+    id: 'transparent-rollable-film-p20',
+    name: 'Transparent Rollable Film Behind Glass P20',
+    category: 'Transparent Series',
+    image: '/products/transparent-series/Transparent Series P20 Rollable Film Behind Glass.png',
+    resolution: {
+      width: 20,
+      height: 50
+    },
+    price: 13200,
+    siChannelPrice: 12000,
+    resellerPrice: 11300,
+    cabinetDimensions: {
+      width: 400,
+      height: 1000
+    },
+    moduleDimensions: {
+      width: 400,
+      height: 1000
+    },
+    moduleResolution: {
+      width: 20,
+      height: 50
+    },
+    moduleQuantity: 1,
+    pixelPitch: 20.0,
+    pixelDensity: 2500,
+    brightness: 2000,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 150,
+    avgPowerConsumption: 50,
+    weightPerCabinet: 2,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/transparent-series/Transparent+Rollable+P20.pdf',
+    transparency: 95,
+    scanMode: 'Static',
+    pixelComposition: 'SMD1313'
+  },
+
+  // Group 4: Standard transparent screen (indoor behind glass version)
+  {
+    id: 'transparent-standard-p3.91-7.82-256x128',
+    name: 'Standard Transparent Screen P3.91-7.82 (256x128)',
+    category: 'Transparent Series',
+    image: '/products/transparent-series/Transparent Series P3.91-7.82 Standard (256x128).png',
+    resolution: {
+      width: 256,
+      height: 128
+    },
+    price: 11200,
+    siChannelPrice: 10100,
+    resellerPrice: 9500,
+    cabinetDimensions: {
+      width: 1000,
+      height: 1000
+    },
+    moduleDimensions: {
+      width: 1000,
+      height: 1000
+    },
+    moduleResolution: {
+      width: 256,
+      height: 128
+    },
+    moduleQuantity: 1,
+    pixelPitch: 3.91, // Average of P3.91-7.82
+    pixelDensity: 32768,
+    brightness: 4500,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 350,
+    avgPowerConsumption: 120,
+    weightPerCabinet: 15,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/transparent-series/Standard+Transparent+P3.91-7.82.pdf',
+    transparency: 55,
+    scanMode: 'Static',
+    pixelComposition: 'SMD1921'
+  },
+  {
+    id: 'transparent-standard-p3.91-7.82-256x64',
+    name: 'Standard Transparent Screen P3.91-7.82 (256x64)',
+    category: 'Transparent Series',
+    image: '/products/transparent-series/Transparent Series P3.91-7.82 Standard (256x64).png',
+    resolution: {
+      width: 256,
+      height: 64
+    },
+    price: 11200,
+    siChannelPrice: 10100,
+    resellerPrice: 9500,
+    cabinetDimensions: {
+      width: 1000,
+      height: 500
+    },
+    moduleDimensions: {
+      width: 1000,
+      height: 500
+    },
+    moduleResolution: {
+      width: 256,
+      height: 64
+    },
+    moduleQuantity: 1,
+    pixelPitch: 3.91, // Average of P3.91-7.82
+    pixelDensity: 32768,
+    brightness: 4500,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 350,
+    avgPowerConsumption: 120,
+    weightPerCabinet: 15,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/transparent-series/Standard+Transparent+P3.91-7.82.pdf',
+    transparency: 55,
+    scanMode: 'Static',
+    pixelComposition: 'SMD1921'
+  },
 ];
 
 export const categories = Array.from(new Set(products.map(p => p.category)));
