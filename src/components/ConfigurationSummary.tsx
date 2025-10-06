@@ -389,21 +389,33 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
               <div className="text-xs sm:text-sm text-gray-600 mb-1">Pixel Pitch</div>
               <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.pixelPitch} mm</div>
             </div>
+            {selectedProduct.category === 'Transparent Series' && selectedProduct.transparency && (
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">Transparency</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.transparency}%</div>
+              </div>
+            )}
           </div>
           <div className="space-y-2 sm:space-y-3">
             <div className="bg-white rounded-lg p-2 sm:p-3">
               <div className="text-xs sm:text-sm text-gray-600 mb-1">Brightness</div>
               <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.brightness} nits</div>
-        </div>
+            </div>
             <div className="bg-white rounded-lg p-2 sm:p-3">
               <div className="text-xs sm:text-sm text-gray-600 mb-1">Refresh Rate</div>
               <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.refreshRate} Hz</div>
-                </div>
+            </div>
             <div className="bg-white rounded-lg p-2 sm:p-3">
               <div className="text-xs sm:text-sm text-gray-600 mb-1">Environment</div>
               <div className="font-medium text-gray-900 text-xs sm:text-sm capitalize">{selectedProduct.environment}</div>
-                </div>
+            </div>
+            {selectedProduct.category === 'Transparent Series' && selectedProduct.scanMode && (
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">Scan Mode</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.scanMode}</div>
               </div>
+            )}
+          </div>
           <div className="space-y-2 sm:space-y-3">
             <div className="bg-white rounded-lg p-2 sm:p-3">
               <div className="text-xs sm:text-sm text-gray-600 mb-1">Cabinet Size</div>
@@ -417,6 +429,12 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
               <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Weight</div>
               <div className="font-medium text-gray-900 text-xs sm:text-sm">{((selectedProduct.weightPerCabinet || 0) * cabinetGrid.columns * cabinetGrid.rows).toFixed(2)} kg</div>
             </div>
+            {selectedProduct.category === 'Transparent Series' && selectedProduct.pixelComposition && (
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">Pixel Composition</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.pixelComposition}</div>
+              </div>
+            )}
           </div>
         </div>
       </div>

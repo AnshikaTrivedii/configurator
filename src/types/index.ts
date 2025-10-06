@@ -78,6 +78,10 @@ export interface Product {
     cabinet: { endCustomer: number; siChannel: number; reseller: number };
     curveLock: { endCustomer: number; siChannel: number; reseller: number };
   };
+  // Transparent Series specific properties
+  transparency?: number; // Transparency percentage
+  scanMode?: string; // Scan mode (e.g., "Static")
+  pixelComposition?: string; // Pixel composition (e.g., "SMD2121", "SMD2020", "SMD1313", "SMD1921")
 }
 
 export interface AspectRatio {
