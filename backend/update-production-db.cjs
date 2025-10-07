@@ -14,31 +14,37 @@ async function updateProductionDatabase() {
     const db = mongoose.connection.db;
     const users = db.collection('salesusers');
     
-    // Create/update the user
+    // Create/update the super user
     const userData = {
-      email: 'anshika.trivedi@orion-led.com',
-      name: 'Anshika Trivedi',
-      location: 'Lucknow',
-      contactNumber: '9140526027',
+      email: 'super@orion-led.com',
+      name: 'Super User',
+      location: 'Delhi',
+      contactNumber: '98391 77083',
       passwordHash: bcrypt.hashSync('Orion@123', 10),
       mustChangePassword: true,
       passwordSetAt: null,
+      role: 'super',
       createdAt: new Date(),
       updatedAt: new Date()
     };
     
-    // Upsert the user
+    // Upsert the super user
     const result = await users.updateOne(
-      { email: 'anshika.trivedi@orion-led.com' },
+      { email: 'super@orion-led.com' },
       { $set: userData },
       { upsert: true }
     );
     
     if (result.upsertedCount > 0) {
-      console.log('✅ User created successfully');
+      console.log('✅ Super user created successfully');
     } else {
-      console.log('✅ User updated successfully');
+      console.log('✅ Super user updated successfully');
     }
+    
+    console.log('\n🔑 Super User Login Credentials:');
+    console.log('Email: super@orion-led.com');
+    console.log('Password: Orion@123');
+    console.log('Role: super');
     
     // Close connection
     await mongoose.connection.close();
