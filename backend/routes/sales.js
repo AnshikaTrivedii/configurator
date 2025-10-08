@@ -6,6 +6,195 @@ import Quotation from '../models/Quotation.js';
 import { authenticateToken, generateToken } from '../middleware/auth.js';
 import { validateLogin, validateSetPassword, validateChangePassword } from '../middleware/validation.js';
 
+// Function to calculate correct price using PDF pricing logic
+function calculateCorrectPrice(quotation) {
+  try {
+    const productDetails = quotation.productDetails;
+    const userType = quotation.userType || 'endUser';
+    
+    if (!productDetails) {
+      console.warn('No product details found for quotation:', quotation.quotationId);
+      return quotation.totalPrice || 0;
+    }
+
+    // Convert userType to match PDF logic
+    let pdfUserType = 'End User';
+    if (userType === 'reseller') {
+      pdfUserType = 'Reseller';
+    } else if (userType === 'siChannel') {
+      pdfUserType = 'Channel';
+    }
+
+    // Get unit price using PDF logic
+    const unitPrice = getProductPriceForPdf(productDetails, pdfUserType);
+    
+    // Calculate quantity based on product type (same logic as PDF)
+    let quantity;
+    if (productDetails.category?.toLowerCase().includes('rental')) {
+      // For rental series, calculate quantity as number of cabinets
+      quantity = productDetails.cabinetGrid ? 
+        (productDetails.cabinetGrid.columns * productDetails.cabinetGrid.rows) : 1;
+    } else {
+      // For other products, calculate quantity in square feet
+      const METERS_TO_FEET = 3.2808399;
+      const displaySize = productDetails.displaySize;
+      if (displaySize && displaySize.width && displaySize.height) {
+        // Use display size in meters, convert to feet, then to square feet
+        const widthInFeet = displaySize.width * METERS_TO_FEET;
+        const heightInFeet = displaySize.height * METERS_TO_FEET;
+        quantity = widthInFeet * heightInFeet;
+      } else {
+        // Fallback calculation
+        quantity = 1;
+      }
+    }
+
+    // Calculate total price
+    const subtotal = unitPrice * quantity;
+    
+    // Add processor price if available
+    let processorPrice = 0;
+    if (productDetails.processor) {
+      processorPrice = getProcessorPrice(productDetails.processor, pdfUserType);
+    }
+
+    const grandTotal = subtotal + processorPrice;
+    
+    console.log(`Price calculation for ${quotation.quotationId}:`, {
+      unitPrice,
+      quantity,
+      subtotal,
+      processorPrice,
+      grandTotal,
+      userType: pdfUserType
+    });
+
+    return Math.round(grandTotal);
+    
+  } catch (error) {
+    console.error('Error calculating correct price for quotation:', quotation.quotationId, error);
+    return quotation.totalPrice || 0; // Fallback to stored price
+  }
+}
+
+// Get product price using PDF logic
+function getProductPriceForPdf(productDetails, userType = 'End User') {
+  try {
+    // Handle different product types
+    if (productDetails.category?.toLowerCase().includes('rental') && productDetails.prices) {
+      // For rental products, use cabinet pricing based on user type
+      if (userType === 'Reseller') {
+        return productDetails.prices.cabinet.reseller;
+      } else if (userType === 'Channel') {
+        return productDetails.prices.cabinet.siChannel;
+      } else {
+        return productDetails.prices.cabinet.endCustomer;
+      }
+    }
+    
+    // For regular products, use the appropriate price field based on user type
+    if (userType === 'Reseller' && typeof productDetails.resellerPrice === 'number') {
+      return productDetails.resellerPrice;
+    } else if (userType === 'Channel' && typeof productDetails.siChannelPrice === 'number') {
+      return productDetails.siChannelPrice;
+    } else if (typeof productDetails.price === 'number') {
+      return productDetails.price;
+    } else if (typeof productDetails.price === 'string') {
+      // Handle string prices by converting to number
+      const parsedPrice = parseFloat(productDetails.price);
+      return isNaN(parsedPrice) ? 5300 : parsedPrice;
+    }
+    
+    // Fallback to default pricing if no price available
+    return 5300;
+    
+  } catch (error) {
+    console.error('Error getting product price:', error);
+    return 5300; // Fallback price
+  }
+}
+
+// Get processor price
+function getProcessorPrice(processorName, userType = 'End User') {
+  try {
+    // Processor pricing based on user type
+    const processorPrices = {
+      'TB2': {
+        endUser: 15000,
+        reseller: 12000,
+        channel: 10000
+      },
+      'TB40': {
+        endUser: 25000,
+        reseller: 20000,
+        channel: 17000
+      },
+      'TB60': {
+        endUser: 35000,
+        reseller: 28000,
+        channel: 24000
+      },
+      'VX1': {
+        endUser: 20000,
+        reseller: 16000,
+        channel: 14000
+      },
+      'VX400': {
+        endUser: 30000,
+        reseller: 24000,
+        channel: 21000
+      },
+      'VX400 Pro': {
+        endUser: 35000,
+        reseller: 28000,
+        channel: 24000
+      },
+      'VX600': {
+        endUser: 45000,
+        reseller: 36000,
+        channel: 31000
+      },
+      'VX600 Pro': {
+        endUser: 50000,
+        reseller: 40000,
+        channel: 34000
+      },
+      'VX1000': {
+        endUser: 65000,
+        reseller: 52000,
+        channel: 44000
+      },
+      'VX1000 Pro': {
+        endUser: 70000,
+        reseller: 56000,
+        channel: 48000
+      },
+      '4K PRIME': {
+        endUser: 100000,
+        reseller: 80000,
+        channel: 68000
+      }
+    };
+
+    const processor = processorPrices[processorName];
+    if (!processor) {
+      return 0; // No processor price
+    }
+
+    if (userType === 'Reseller') {
+      return processor.reseller;
+    } else if (userType === 'Channel') {
+      return processor.channel;
+    } else {
+      return processor.endUser;
+    }
+    
+  } catch (error) {
+    console.error('Error getting processor price:', error);
+    return 0;
+  }
+}
+
 const router = express.Router();
 
 // POST /api/sales/login
@@ -548,11 +737,15 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
         });
       }
       
+      // Recalculate the correct price using PDF pricing logic
+      const recalculatedPrice = calculateCorrectPrice(quotation);
+      
       customerMap.get(customerKey).quotations.push({
         quotationId: quotation.quotationId,
         productName: quotation.productName,
         productDetails: quotation.productDetails,
-        totalPrice: quotation.totalPrice,
+        totalPrice: recalculatedPrice, // Use recalculated price instead of stored price
+        originalStoredPrice: quotation.totalPrice, // Keep original for reference
         status: quotation.status,
         message: quotation.message,
         userType: quotation.userType,
