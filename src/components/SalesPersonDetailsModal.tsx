@@ -80,16 +80,43 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       console.log('📊 Sales person details response:', response);
       console.log('👥 Customers found:', response.customers?.length || 0);
       
-      // Log quotation statuses for debugging
-      response.customers?.forEach((customer, index) => {
-        console.log(`📋 Customer ${index + 1}: ${customer.customerName}`);
+      // CRITICAL: Verify each quotation has unique ID and price
+      console.log('\n═══════════════════════════════════════════════════════════════');
+      console.log('🔍 QUOTATION UNIQUENESS VERIFICATION (Frontend)');
+      console.log('═══════════════════════════════════════════════════════════════');
+      
+      const allQuotationIds = [];
+      const allQuotationPrices = [];
+      
+      response.customers?.forEach((customer, custIndex) => {
+        console.log(`\n📋 Customer ${custIndex + 1}: ${customer.customerName} (${customer.customerEmail})`);
+        console.log(`   Quotations: ${customer.quotations?.length || 0}`);
+        
         customer.quotations?.forEach((quotation, qIndex) => {
-          console.log(`  Quotation ${qIndex + 1}: ${quotation.quotationId} - Status: ${quotation.status}`);
-          console.log(`    Status type: ${typeof quotation.status}`);
-          console.log(`    Status length: ${quotation.status?.length}`);
-          console.log(`    Raw status: "${quotation.status}"`);
+          allQuotationIds.push(quotation.quotationId);
+          allQuotationPrices.push(quotation.totalPrice);
+          
+          console.log(`   ${qIndex + 1}. ID: ${quotation.quotationId}`);
+          console.log(`      Price: ₹${quotation.totalPrice?.toLocaleString('en-IN') || 'N/A'}`);
+          console.log(`      Product: ${quotation.productName}`);
+          console.log(`      Status: ${quotation.status}`);
         });
       });
+      
+      // Check for duplicates
+      const uniqueIds = [...new Set(allQuotationIds)];
+      if (allQuotationIds.length === uniqueIds.length) {
+        console.log(`\n✅ All ${allQuotationIds.length} quotation IDs are unique in API response`);
+      } else {
+        console.error(`\n❌ CRITICAL: Found ${allQuotationIds.length - uniqueIds.length} duplicate quotation IDs in API response!`);
+        const duplicates = allQuotationIds.filter((id, index) => allQuotationIds.indexOf(id) !== index);
+        console.error('Duplicate IDs:', [...new Set(duplicates)]);
+      }
+      
+      const uniquePrices = [...new Set(allQuotationPrices)];
+      console.log(`Prices: ${allQuotationPrices.length} total, ${uniquePrices.length} unique`);
+      
+      console.log('═══════════════════════════════════════════════════════════════\n');
       
       setSalesPerson(response.salesPerson);
       setCustomers(response.customers);
@@ -270,7 +297,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                 ) : (
                   <div className="space-y-6">
                     {customers.map((customer, customerIndex) => (
-                      <div key={customerIndex} className="border border-gray-200 rounded-lg p-6">
+                      <div key={`customer-${customer.customerEmail}-${customerIndex}`} className="border border-gray-200 rounded-lg p-6">
                         {/* Customer Info */}
                         <div className="mb-4">
                           <h4 className="text-md font-semibold text-gray-900 mb-2">{customer.customerName}</h4>
@@ -296,17 +323,27 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                             Quotations ({customer.quotations.length})
                           </h5>
                           <div className="space-y-3">
-                            {customer.quotations.map((quotation, quotationIndex) => (
-                              <div key={quotationIndex} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                                {/* Header with Product and Status */}
-                                <div className="flex items-start justify-between mb-4">
-                                  <div className="flex items-center space-x-3">
-                                    <Package className="w-5 h-5 text-blue-600" />
-                                    <div>
-                                      <p className="font-semibold text-gray-900 text-lg">{quotation.productName}</p>
-                                      <p className="text-sm text-gray-600">Quotation ID: {quotation.quotationId}</p>
+                            {customer.quotations.map((quotation, quotationIndex) => {
+                              // Validation log to ensure each quotation has unique data
+                              console.log(`🔍 Rendering quotation ${quotationIndex + 1}:`, {
+                                quotationId: quotation.quotationId,
+                                totalPrice: quotation.totalPrice,
+                                productName: quotation.productName,
+                                status: quotation.status,
+                                customerEmail: customer.customerEmail
+                              });
+                              
+                              return (
+                                <div key={quotation.quotationId} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                                  {/* Header with Product and Status */}
+                                  <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center space-x-3">
+                                      <Package className="w-5 h-5 text-blue-600" />
+                                      <div>
+                                        <p className="font-semibold text-gray-900 text-lg">{quotation.productName}</p>
+                                        <p className="text-sm text-gray-600">Quotation ID: {quotation.quotationId}</p>
+                                      </div>
                                     </div>
-                                  </div>
                                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(quotation.status)}`}>
                                     {(() => {
                                       const displayStatus = quotation.status?.replace('_', ' ') || 'Unknown';
@@ -505,8 +542,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                     <p className="text-gray-700 text-sm">{quotation.message}</p>
                                   </div>
                                 )}
-                              </div>
-                            ))}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
