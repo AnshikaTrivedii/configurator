@@ -706,11 +706,12 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
           ...dateFilter
         });
 
-        // Also get revenue for all quotations
+        // Get revenue only for 'Converted' quotations
         const revenueResult = await Quotation.aggregate([
           {
             $match: {
               salesUserId: user._id,
+              status: 'Converted', // Only include converted quotations
               ...dateFilter
             }
           },
@@ -744,10 +745,11 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     const maxQuotationCount = validPerformers.length > 0 ? validPerformers[0].quotationCount : 0;
     const topPerformers = validPerformers.filter(user => user.quotationCount === maxQuotationCount);
     
-    // Add additional statistics (for all quotations)
+    // Add additional statistics (only for 'Converted' quotations)
     const totalRevenue = await Quotation.aggregate([
       { 
         $match: { 
+          status: 'Converted', // Only include converted quotations for total revenue
           ...dateFilter
         } 
       },
@@ -757,6 +759,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     const quotationsByMonth = await Quotation.aggregate([
       { 
         $match: { 
+          status: 'Converted', // Only include converted quotations for monthly revenue
           ...dateFilter
         } 
       },
