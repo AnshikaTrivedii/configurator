@@ -393,21 +393,19 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
       .select('name email location contactNumber createdAt role')
       .lean();
 
-    // Get quotation counts for each user (only 'Converted' and 'In Progress' statuses)
+    // Get quotation counts for each user (all statuses)
     const usersWithQuotationCounts = await Promise.all(
       salesUsers.map(async (user) => {
         const quotationCount = await Quotation.countDocuments({
           salesUserId: user._id,
-          status: { $in: ['Converted', 'In Progress', 'pending'] }, // Include 'pending' status for backward compatibility
           ...dateFilter
         });
 
-        // Also get revenue for valid quotations only
+        // Also get revenue for all quotations
         const revenueResult = await Quotation.aggregate([
           {
             $match: {
               salesUserId: user._id,
-              status: { $in: ['Converted', 'In Progress', 'pending'] },
               ...dateFilter
             }
           },
@@ -436,17 +434,16 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     // Sort by quotation count (descending)
     usersWithQuotationCounts.sort((a, b) => b.quotationCount - a.quotationCount);
 
-    // Calculate top performers (users with the highest number of 'Converted' or 'In Progress' quotations)
+    // Calculate top performers (users with the highest number of quotations)
     const validPerformers = usersWithQuotationCounts.filter(user => user.quotationCount > 0);
     const maxQuotationCount = validPerformers.length > 0 ? validPerformers[0].quotationCount : 0;
     const topPerformers = validPerformers.filter(user => user.quotationCount === maxQuotationCount);
     
-    // Add additional statistics (only for 'Converted' and 'In Progress' quotations)
+    // Add additional statistics (for all quotations)
     const totalRevenue = await Quotation.aggregate([
       { 
         $match: { 
-          ...dateFilter,
-          status: { $in: ['Converted', 'In Progress', 'pending'] }
+          ...dateFilter
         } 
       },
       { $group: { _id: null, total: { $sum: '$totalPrice' } } }
@@ -455,8 +452,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     const quotationsByMonth = await Quotation.aggregate([
       { 
         $match: { 
-          ...dateFilter,
-          status: { $in: ['Converted', 'In Progress', 'pending'] }
+          ...dateFilter
         } 
       },
       { 
