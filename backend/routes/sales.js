@@ -102,15 +102,121 @@ function getProductPriceForPdf(productDetails, userType = 'End User') {
     } else if (typeof productDetails.price === 'string') {
       // Handle string prices by converting to number
       const parsedPrice = parseFloat(productDetails.price);
-      return isNaN(parsedPrice) ? 5300 : parsedPrice;
+      return isNaN(parsedPrice) ? getDefaultProductPrice(productDetails) : parsedPrice;
     }
     
-    // Fallback to default pricing if no price available
-    return 5300;
+    // Fallback to default pricing based on product ID
+    return getDefaultProductPrice(productDetails);
     
   } catch (error) {
     console.error('Error getting product price:', error);
-    return 5300; // Fallback price
+    return getDefaultProductPrice(productDetails); // Fallback price
+  }
+}
+
+// Get default product price based on product ID (for existing quotations without price data)
+function getDefaultProductPrice(productDetails) {
+  try {
+    const productId = productDetails.productId || '';
+    
+    // Product pricing mapping based on product ID
+    const productPricing = {
+      'bellatrix-indoor-cob-p1.25': {
+        price: 28700,
+        resellerPrice: 24395,
+        siChannelPrice: 25830
+      },
+      'rigel-p3-outdoor': {
+        price: 50000,
+        resellerPrice: 42500,
+        siChannelPrice: 45000
+      },
+      'rigel-p2.5-outdoor': {
+        price: 75000,
+        resellerPrice: 63750,
+        siChannelPrice: 67500
+      },
+      'rigel-p1.8-outdoor': {
+        price: 100000,
+        resellerPrice: 85000,
+        siChannelPrice: 90000
+      },
+      'rigel-p1.5-outdoor': {
+        price: 125000,
+        resellerPrice: 106250,
+        siChannelPrice: 112500
+      },
+      'rigel-p1.25-outdoor': {
+        price: 150000,
+        resellerPrice: 127500,
+        siChannelPrice: 135000
+      },
+      'rigel-p0.9-outdoor': {
+        price: 200000,
+        resellerPrice: 170000,
+        siChannelPrice: 180000
+      },
+      'rigel-p3-indoor': {
+        price: 40000,
+        resellerPrice: 34000,
+        siChannelPrice: 36000
+      },
+      'rigel-p2.5-indoor': {
+        price: 60000,
+        resellerPrice: 51000,
+        siChannelPrice: 54000
+      },
+      'rigel-p1.8-indoor': {
+        price: 80000,
+        resellerPrice: 68000,
+        siChannelPrice: 72000
+      },
+      'rigel-p1.5-indoor': {
+        price: 100000,
+        resellerPrice: 85000,
+        siChannelPrice: 90000
+      },
+      'rigel-p1.25-indoor': {
+        price: 120000,
+        resellerPrice: 102000,
+        siChannelPrice: 108000
+      },
+      'rigel-p0.9-indoor': {
+        price: 160000,
+        resellerPrice: 136000,
+        siChannelPrice: 144000
+      },
+      'orion-p3.9': {
+        price: 60000,
+        resellerPrice: 51000,
+        siChannelPrice: 54000
+      },
+      'orion-p3-outdoor-rigel': {
+        price: 80000,
+        resellerPrice: 68000,
+        siChannelPrice: 72000
+      }
+    };
+    
+    const pricing = productPricing[productId];
+    if (pricing) {
+      // Return the appropriate price based on user type
+      const userType = productDetails.userType || 'endUser';
+      if (userType === 'reseller') {
+        return pricing.resellerPrice || pricing.price || 5300;
+      } else if (userType === 'siChannel') {
+        return pricing.siChannelPrice || pricing.price || 5300;
+      } else {
+        return pricing.price || 5300;
+      }
+    }
+    
+    // If no specific pricing found, return default
+    return 5300;
+    
+  } catch (error) {
+    console.error('Error getting default product price:', error);
+    return 5300;
   }
 }
 

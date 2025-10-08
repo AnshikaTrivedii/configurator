@@ -4,7 +4,7 @@ import { submitQuoteRequest, QuoteRequest } from '../api/quote';
 import { salesAPI } from '../api/sales';
 import { SalesUser } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
-import { calculateTotalProductPrice } from '../utils/productPricing';
+import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
 
 interface Product {
   id: string;
@@ -288,6 +288,12 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             productName: selectedProduct.name,
             category: selectedProduct.category,
             
+            // Pricing information (CRITICAL for backend pricing calculation)
+            price: selectedProduct.price,
+            resellerPrice: selectedProduct.resellerPrice,
+            siChannelPrice: selectedProduct.siChannelPrice,
+            prices: selectedProduct.prices,
+            
             // Display specifications
             pixelPitch: selectedProduct.pixelPitch,
             resolution: selectedProduct.resolution,
@@ -335,7 +341,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
             status: quotationStatus,
-            totalPrice: cabinetGrid ? calculateTotalProductPrice(selectedProduct, cabinetGrid, userType).userPrice : 0
+            totalPrice: calculateUserSpecificPrice(comprehensiveProductDetails, userType).userPrice
           };
 
           console.log('📤 Sending quotation data to API:', quotationData);
