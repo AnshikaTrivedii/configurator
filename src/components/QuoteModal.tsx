@@ -4,7 +4,7 @@ import { submitQuoteRequest, QuoteRequest } from '../api/quote';
 import { salesAPI } from '../api/sales';
 import { SalesUser } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
-import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
+import { calculateTotalProductPrice } from '../utils/productPricing';
 
 interface Product {
   id: string;
@@ -335,7 +335,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
             status: quotationStatus,
-            totalPrice: calculateUserSpecificPrice(comprehensiveProductDetails, userType).userPrice
+            totalPrice: cabinetGrid ? calculateTotalProductPrice(selectedProduct, cabinetGrid, userType).userPrice : 0
           };
 
           console.log('📤 Sending quotation data to API:', quotationData);

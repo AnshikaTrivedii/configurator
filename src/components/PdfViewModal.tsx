@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Download, Save } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
-import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
+import { calculateTotalProductPrice } from '../utils/productPricing';
 
 interface PdfViewModalProps {
   isOpen: boolean;
@@ -108,7 +108,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       userType: getUserType(),
       userTypeDisplayName: getUserTypeDisplayName(),
       status: quotationStatus,
-      totalPrice: calculateUserSpecificPrice(comprehensiveProductDetails, getUserType()).userPrice
+      totalPrice: cabinetGrid ? calculateTotalProductPrice(selectedProduct, cabinetGrid, getUserType()).userPrice : 0
     };
 
     try {
