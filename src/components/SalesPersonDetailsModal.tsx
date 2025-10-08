@@ -454,38 +454,17 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                         <span className="text-gray-600">Total Price:</span>
                                         <div className="text-right">
                                           {(() => {
-                                            const userType = getUserTypeFromQuotation(quotation);
-                                            const userTypeDisplayName = quotation.userTypeDisplayName?.toLowerCase() || '';
-                                            
-                                            // Calculate accurate pricing based on user type and display name
-                                            let displayPrice = 0;
-                                            let pricingTier = '';
-                                            
-                                            // Check display name first for accurate pricing
-                                            if (userTypeDisplayName.includes('reseller')) {
-                                              displayPrice = 79695; // Reseller price
-                                              pricingTier = 'Reseller';
-                                            } else if (userTypeDisplayName.includes('channel') || userTypeDisplayName.includes('si')) {
-                                              displayPrice = 69090; // SI Channel price (35% discount)
-                                              pricingTier = 'SI Channel';
-                                            } else if (userType === 'reseller') {
-                                              displayPrice = 79695; // Reseller price
-                                              pricingTier = 'Reseller';
-                                            } else if (userType === 'siChannel' || userType === 'channel') {
-                                              displayPrice = 69090; // SI Channel price (35% discount)
-                                              pricingTier = 'SI Channel';
-                                            } else {
-                                              displayPrice = 106260; // End User price
-                                              pricingTier = 'End User';
-                                            }
+                                            // Use the actual stored price from the database
+                                            const actualPrice = quotation.totalPrice || 0;
+                                            const userTypeDisplayName = quotation.userTypeDisplayName || 'End User';
                                             
                                             return (
                                               <div>
                                                 <span className="font-semibold text-green-600">
-                                                  ₹{displayPrice.toLocaleString()}
+                                                  ₹{actualPrice.toLocaleString('en-IN')}
                                                 </span>
                                                 <div className="text-xs text-blue-600">
-                                                  {pricingTier} Pricing
+                                                  {userTypeDisplayName} Pricing
                                                 </div>
                                               </div>
                                             );
