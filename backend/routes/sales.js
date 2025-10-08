@@ -119,12 +119,22 @@ function getDefaultProductPrice(productDetails) {
   try {
     const productId = productDetails.productId || '';
     
-    // Product pricing mapping based on product ID
+    // Product pricing mapping based on product ID (from products.ts)
     const productPricing = {
       'bellatrix-indoor-cob-p1.25': {
         price: 28700,
         resellerPrice: 24395,
         siChannelPrice: 25830
+      },
+      'bellatrix-indoor-cob-p1.5': {
+        price: 27200,
+        resellerPrice: 23120,
+        siChannelPrice: 24480
+      },
+      'transparent-front-glass-p6.25': {
+        price: 24300,
+        resellerPrice: 20600,
+        siChannelPrice: 22000
       },
       'rigel-p3-outdoor': {
         price: 50000,
@@ -843,15 +853,12 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
         });
       }
       
-      // Recalculate the correct price using PDF pricing logic
-      const recalculatedPrice = calculateCorrectPrice(quotation);
-      
+      // Use the stored price directly (it's already correct and matches PDF)
       customerMap.get(customerKey).quotations.push({
         quotationId: quotation.quotationId,
         productName: quotation.productName,
         productDetails: quotation.productDetails,
-        totalPrice: recalculatedPrice, // Use recalculated price instead of stored price
-        originalStoredPrice: quotation.totalPrice, // Keep original for reference
+        totalPrice: quotation.totalPrice, // Use stored price (already correct)
         status: quotation.status,
         message: quotation.message,
         userType: quotation.userType,
