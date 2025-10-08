@@ -6,6 +6,125 @@ import { SalesUser } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
 
+// Import Product type for proper typing
+interface ProductWithPricing extends Product {
+  prices?: {
+    cabinet: { endCustomer: number; siChannel: number; reseller: number };
+    curveLock?: { endCustomer: number; siChannel: number; reseller: number };
+  };
+}
+
+// Calculate price using the same logic as PDF generation
+function calculateCorrectTotalPrice(
+  product: ProductWithPricing,
+  cabinetGrid: { columns: number; rows: number } | null,
+  processor: string | null,
+  userType: string
+): number {
+  const METERS_TO_FEET = 3.2808399;
+  
+  // Convert userType to match PDF logic
+  let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
+  if (userType === 'reseller') {
+    pdfUserType = 'Reseller';
+  } else if (userType === 'siChannel') {
+    pdfUserType = 'Channel';
+  }
+  
+  // Get unit price (same logic as PDF)
+  let unitPrice = 0;
+  
+  // Handle rental products
+  if (product.category?.toLowerCase().includes('rental') && product.prices) {
+    if (pdfUserType === 'Reseller') {
+      unitPrice = product.prices.cabinet.reseller;
+    } else if (pdfUserType === 'Channel') {
+      unitPrice = product.prices.cabinet.siChannel;
+    } else {
+      unitPrice = product.prices.cabinet.endCustomer;
+    }
+  } else {
+    // Handle regular products
+    if (pdfUserType === 'Reseller' && typeof product.resellerPrice === 'number') {
+      unitPrice = product.resellerPrice;
+    } else if (pdfUserType === 'Channel' && typeof product.siChannelPrice === 'number') {
+      unitPrice = product.siChannelPrice;
+    } else if (typeof product.price === 'number') {
+      unitPrice = product.price;
+    } else if (typeof product.price === 'string') {
+      const parsedPrice = parseFloat(product.price);
+      unitPrice = isNaN(parsedPrice) ? 5300 : parsedPrice;
+    } else {
+      unitPrice = 5300; // Default fallback
+    }
+  }
+  
+  // Calculate quantity based on product type (same logic as PDF)
+  let quantity = 0;
+  
+  if (product.category?.toLowerCase().includes('rental')) {
+    // For rental series, calculate quantity as number of cabinets
+    quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+  } else {
+    // For other products, calculate quantity in square feet
+    if (product.cabinetDimensions && cabinetGrid) {
+      const widthInMeters = (product.cabinetDimensions.width * cabinetGrid.columns) / 1000;
+      const heightInMeters = (product.cabinetDimensions.height * cabinetGrid.rows) / 1000;
+      const widthInFeet = widthInMeters * METERS_TO_FEET;
+      const heightInFeet = heightInMeters * METERS_TO_FEET;
+      quantity = widthInFeet * heightInFeet;
+    } else {
+      quantity = 1;
+    }
+  }
+  
+  // Calculate subtotal
+  const subtotal = unitPrice * quantity;
+  
+  // Add processor price if available
+  let processorPrice = 0;
+  if (processor) {
+    const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
+      'TB2': { endUser: 15000, reseller: 12000, channel: 10000 },
+      'TB40': { endUser: 25000, reseller: 20000, channel: 17000 },
+      'TB60': { endUser: 35000, reseller: 28000, channel: 24000 },
+      'VX1': { endUser: 20000, reseller: 16000, channel: 14000 },
+      'VX400': { endUser: 30000, reseller: 24000, channel: 21000 },
+      'VX400 Pro': { endUser: 35000, reseller: 28000, channel: 24000 },
+      'VX600': { endUser: 45000, reseller: 36000, channel: 31000 },
+      'VX600 Pro': { endUser: 50000, reseller: 40000, channel: 34000 },
+      'VX1000': { endUser: 65000, reseller: 52000, channel: 44000 },
+      'VX1000 Pro': { endUser: 70000, reseller: 56000, channel: 48000 },
+      '4K PRIME': { endUser: 100000, reseller: 80000, channel: 68000 }
+    };
+    
+    const procPricing = processorPrices[processor];
+    if (procPricing) {
+      if (pdfUserType === 'Reseller') {
+        processorPrice = procPricing.reseller;
+      } else if (pdfUserType === 'Channel') {
+        processorPrice = procPricing.channel;
+      } else {
+        processorPrice = procPricing.endUser;
+      }
+    }
+  }
+  
+  const grandTotal = subtotal + processorPrice;
+  
+  console.log('💰 Price Calculation (PDF Logic):', {
+    product: product.name,
+    userType: pdfUserType,
+    unitPrice,
+    quantity,
+    subtotal,
+    processorPrice,
+    grandTotal: Math.round(grandTotal)
+  });
+  
+  return Math.round(grandTotal);
+}
+
 interface Product {
   id: string;
   name: string;
@@ -330,6 +449,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             generatedAt: new Date().toISOString()
           };
 
+          // Calculate total price using the same logic as PDF generation
+          const correctTotalPrice = calculateCorrectTotalPrice(
+            selectedProduct as ProductWithPricing,
+            cabinetGrid,
+            processor,
+            userType
+          );
+
           const quotationData = {
             quotationId: finalQuotationId,
             customerName: customerName.trim(),
@@ -341,7 +468,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
             status: quotationStatus,
-            totalPrice: calculateUserSpecificPrice(comprehensiveProductDetails, userType).userPrice
+            totalPrice: correctTotalPrice  // Use PDF pricing logic instead of old calculator
           };
 
           console.log('📤 Sending quotation data to API:', quotationData);
