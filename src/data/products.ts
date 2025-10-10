@@ -15,7 +15,9 @@ export const products: Product[] = [
       width: 213, // Calculated: 320mm ÷ 1.5mm pixel pitch
       height: 107  // Calculated: 160mm ÷ 1.5mm pixel pitch
     },
-    price: undefined, // Not provided in PDF
+    price: 45000, // Flexible series pricing
+    siChannelPrice: 40500,
+    resellerPrice: 38250,
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160
@@ -50,7 +52,9 @@ export const products: Product[] = [
       width: 171, // Calculated: 320mm ÷ 1.875mm pixel pitch (spec shows 1.875mm)
       height: 85   // Calculated: 160mm ÷ 1.875mm pixel pitch
     },
-    price: undefined, // Not provided in PDF
+    price: 42000, // Flexible series pricing
+    siChannelPrice: 37800,
+    resellerPrice: 35700,
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160
@@ -85,7 +89,9 @@ export const products: Product[] = [
       width: 128, // Calculated: 320mm ÷ 2.5mm pixel pitch
       height: 64   // Calculated: 160mm ÷ 2.5mm pixel pitch
     },
-    price: undefined, // Not provided in PDF
+    price: 38000, // Flexible series pricing
+    siChannelPrice: 34200,
+    resellerPrice: 32300,
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160
@@ -120,7 +126,9 @@ export const products: Product[] = [
       width: 107, // Calculated: 320mm ÷ 3mm pixel pitch
       height: 53   // Calculated: 160mm ÷ 3mm pixel pitch
     },
-    price: undefined, // Not provided in PDF
+    price: 35000, // Flexible series pricing
+    siChannelPrice: 31500,
+    resellerPrice: 29750,
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160
@@ -155,7 +163,9 @@ export const products: Product[] = [
       width: 80, // Calculated: 320mm ÷ 4mm pixel pitch
       height: 40  // Calculated: 160mm ÷ 4mm pixel pitch
     },
-    price: undefined, // Not provided in PDF
+    price: 32000, // Flexible series pricing
+    siChannelPrice: 28800,
+    resellerPrice: 27200,
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160

@@ -557,16 +557,62 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             totalPrice: correctTotalPrice,  // CRITICAL: Grand Total with GST - matches PDF exactly
             
             // Store exact pricing breakdown as shown on the page
-            exactPricingBreakdown: {
-              unitPrice: selectedProduct.price || selectedProduct.resellerPrice || selectedProduct.siChannelPrice || 0,
-              quantity: cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1,
-              subtotal: (selectedProduct.price || selectedProduct.resellerPrice || selectedProduct.siChannelPrice || 0) * (cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1),
-              gstRate: 18,
-              gstAmount: ((selectedProduct.price || selectedProduct.resellerPrice || selectedProduct.siChannelPrice || 0) * (cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1)) * 0.18,
-              processorPrice: processor ? getProcessorPrice(processor, userType) : 0,
-              processorGst: processor ? (getProcessorPrice(processor, userType) * 0.18) : 0,
-              grandTotal: correctTotalPrice
-            },
+            // CRITICAL: Use the SAME calculation logic as calculateCorrectTotalPrice
+            exactPricingBreakdown: (() => {
+              // Get unit price using same logic as calculateCorrectTotalPrice
+              let unitPrice = 0;
+              if (selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.prices) {
+                if (userType === 'reseller') {
+                  unitPrice = selectedProduct.prices.cabinet.reseller;
+                } else if (userType === 'siChannel') {
+                  unitPrice = selectedProduct.prices.cabinet.siChannel;
+                } else {
+                  unitPrice = selectedProduct.prices.cabinet.endCustomer;
+                }
+              } else {
+                // Handle regular products
+                if (userType === 'reseller' && typeof selectedProduct.resellerPrice === 'number') {
+                  unitPrice = selectedProduct.resellerPrice;
+                } else if (userType === 'siChannel' && typeof selectedProduct.siChannelPrice === 'number') {
+                  unitPrice = selectedProduct.siChannelPrice;
+                } else if (typeof selectedProduct.price === 'number') {
+                  unitPrice = selectedProduct.price;
+                } else if (typeof selectedProduct.price === 'string') {
+                  const parsedPrice = parseFloat(selectedProduct.price);
+                  unitPrice = isNaN(parsedPrice) ? 5300 : parsedPrice;
+                } else {
+                  unitPrice = 5300; // Default fallback
+                }
+              }
+              
+              // Calculate quantity using same logic as calculateCorrectTotalPrice
+              let quantity = 0;
+              if (selectedProduct.category?.toLowerCase().includes('rental')) {
+                quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+              } else {
+                const widthInMeters = config.width / 1000;
+                const heightInMeters = config.height / 1000;
+                const widthInFeet = widthInMeters * 3.2808399;
+                const heightInFeet = heightInMeters * 3.2808399;
+                quantity = widthInFeet * heightInFeet;
+              }
+              
+              const subtotal = unitPrice * quantity;
+              const gstAmount = subtotal * 0.18;
+              const processorPrice = processor ? getProcessorPrice(processor, userType) : 0;
+              const processorGst = processorPrice * 0.18;
+              
+              return {
+                unitPrice,
+                quantity,
+                subtotal,
+                gstRate: 18,
+                gstAmount,
+                processorPrice,
+                processorGst,
+                grandTotal: correctTotalPrice
+              };
+            })(),
             
             // Store exact product specifications as shown
             exactProductSpecs: {
