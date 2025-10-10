@@ -133,17 +133,17 @@ export const generateConfigurationDocx = async (
   let controllerPrice = 0;
   if (processor) {
     const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
-      'TB2': { endUser: 15000, reseller: 12000, channel: 10000 },
-      'TB40': { endUser: 25000, reseller: 20000, channel: 17000 },
-      'TB60': { endUser: 35000, reseller: 28000, channel: 24000 },
-      'VX1': { endUser: 20000, reseller: 16000, channel: 14000 },
-      'VX400': { endUser: 30000, reseller: 24000, channel: 21000 },
-      'VX400 Pro': { endUser: 35000, reseller: 28000, channel: 24000 },
-      'VX600': { endUser: 45000, reseller: 36000, channel: 31000 },
-      'VX600 Pro': { endUser: 50000, reseller: 40000, channel: 34000 },
-      'VX1000': { endUser: 65000, reseller: 52000, channel: 44000 },
-      'VX1000 Pro': { endUser: 70000, reseller: 56000, channel: 48000 },
-      '4K PRIME': { endUser: 100000, reseller: 80000, channel: 68000 }
+      'TB2': { endUser: 35000, reseller: 29800, channel: 31500 },
+      'TB40': { endUser: 35000, reseller: 29800, channel: 31500 },
+      'TB60': { endUser: 65000, reseller: 55300, channel: 58500 },
+      'VX1': { endUser: 35000, reseller: 29800, channel: 31500 },
+      'VX400': { endUser: 100000, reseller: 85000, channel: 90000 },
+      'VX400 Pro': { endUser: 110000, reseller: 93500, channel: 99000 },
+      'VX600': { endUser: 120000, reseller: 102000, channel: 108000 },
+      'VX600 Pro': { endUser: 130000, reseller: 110500, channel: 117000 },
+      'VX1000': { endUser: 150000, reseller: 127500, channel: 135000 },
+      'VX1000 Pro': { endUser: 160000, reseller: 136000, channel: 144000 },
+      '4K PRIME': { endUser: 290000, reseller: 246500, channel: 261000 }
     };
     
     const procPricing = processorPrices[processor];
@@ -1048,17 +1048,17 @@ export const generateConfigurationHtml = (
   let controllerPrice = 0;
   if (processor) {
     const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
-      'TB2': { endUser: 15000, reseller: 12000, channel: 10000 },
-      'TB40': { endUser: 25000, reseller: 20000, channel: 17000 },
-      'TB60': { endUser: 35000, reseller: 28000, channel: 24000 },
-      'VX1': { endUser: 20000, reseller: 16000, channel: 14000 },
-      'VX400': { endUser: 30000, reseller: 24000, channel: 21000 },
-      'VX400 Pro': { endUser: 35000, reseller: 28000, channel: 24000 },
-      'VX600': { endUser: 45000, reseller: 36000, channel: 31000 },
-      'VX600 Pro': { endUser: 50000, reseller: 40000, channel: 34000 },
-      'VX1000': { endUser: 65000, reseller: 52000, channel: 44000 },
-      'VX1000 Pro': { endUser: 70000, reseller: 56000, channel: 48000 },
-      '4K PRIME': { endUser: 100000, reseller: 80000, channel: 68000 }
+      'TB2': { endUser: 35000, reseller: 29800, channel: 31500 },
+      'TB40': { endUser: 35000, reseller: 29800, channel: 31500 },
+      'TB60': { endUser: 65000, reseller: 55300, channel: 58500 },
+      'VX1': { endUser: 35000, reseller: 29800, channel: 31500 },
+      'VX400': { endUser: 100000, reseller: 85000, channel: 90000 },
+      'VX400 Pro': { endUser: 110000, reseller: 93500, channel: 99000 },
+      'VX600': { endUser: 120000, reseller: 102000, channel: 108000 },
+      'VX600 Pro': { endUser: 130000, reseller: 110500, channel: 117000 },
+      'VX1000': { endUser: 150000, reseller: 127500, channel: 135000 },
+      'VX1000 Pro': { endUser: 160000, reseller: 136000, channel: 144000 },
+      '4K PRIME': { endUser: 290000, reseller: 246500, channel: 261000 }
     };
     
     const procPricing = processorPrices[processor];

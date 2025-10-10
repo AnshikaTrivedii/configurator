@@ -71,9 +71,9 @@ const realProducts = {
 
 // Processor pricing (from PDF logic)
 const processorPrices = {
-  'TB2': { endUser: 15000, reseller: 12000, channel: 10000 },
-  'TB40': { endUser: 25000, reseller: 20000, channel: 17000 },
-  'TB60': { endUser: 35000, reseller: 28000, channel: 24000 }
+  'TB2': { endUser: 35000, reseller: 29800, channel: 31500 },
+  'TB40': { endUser: 35000, reseller: 29800, channel: 31500 },
+  'TB60': { endUser: 65000, reseller: 55300, channel: 58500 }
 };
 
 async function createRealTestQuotations() {
