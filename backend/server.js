@@ -32,8 +32,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.get('/health', (req, res) => {
   res.json({ 
     success: true, 
-    message: 'Configurator Backend API is running',
-    timestamp: new Date().toISOString()
+    message: 'Configurator Backend API is running - UPDATED CODE VERSION',
+    timestamp: new Date().toISOString(),
+    version: 'v2.1.0'
   });
 });
 

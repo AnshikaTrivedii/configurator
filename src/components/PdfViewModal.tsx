@@ -2,7 +2,131 @@ import React, { useState } from 'react';
 import { X, Download, Save } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
-import { calculateTotalProductPrice } from '../utils/productPricing';
+
+// Calculate correct total price with GST - same logic as QuoteModal
+function calculateCorrectTotalPrice(
+  product: any,
+  cabinetGrid: { columns: number; rows: number } | null,
+  processor: string | null,
+  userType: string,
+  config: { width: number; height: number; unit: string }
+): number {
+  const METERS_TO_FEET = 3.28084;
+  
+  // Determine user type for pricing
+  let pdfUserType = 'End User';
+  if (userType === 'reseller') {
+    pdfUserType = 'Reseller';
+  } else if (userType === 'siChannel') {
+    pdfUserType = 'Channel';
+  }
+  
+  // Get unit price based on user type
+  let unitPrice = product.price || 0;
+  if (pdfUserType === 'Reseller' && product.resellerPrice) {
+    unitPrice = product.resellerPrice;
+  } else if (pdfUserType === 'Channel' && product.siChannelPrice) {
+    unitPrice = product.siChannelPrice;
+  }
+  
+  // Calculate quantity - SAME AS PDF LOGIC
+  const widthInMeters = config.width / 1000;
+  const heightInMeters = config.height / 1000;
+  const widthInFeet = widthInMeters * METERS_TO_FEET;
+  const heightInFeet = heightInMeters * METERS_TO_FEET;
+  const quantity = widthInFeet * heightInFeet;
+  
+  // Calculate subtotal
+  const subtotal = unitPrice * quantity;
+  
+  // Get processor price based on user type
+  let processorPrice = 0;
+  if (processor) {
+    const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
+      'TB2': { endUser: 15000, reseller: 12000, channel: 10000 },
+      'TB40': { endUser: 25000, reseller: 20000, channel: 17000 },
+      'TB60': { endUser: 35000, reseller: 28000, channel: 24000 },
+      'VX1': { endUser: 20000, reseller: 16000, channel: 14000 },
+      'VX400': { endUser: 30000, reseller: 24000, channel: 21000 },
+      'VX400 Pro': { endUser: 35000, reseller: 28000, channel: 24000 },
+      'VX600': { endUser: 45000, reseller: 36000, channel: 31000 },
+      'VX600 Pro': { endUser: 50000, reseller: 40000, channel: 34000 },
+      'VX1000': { endUser: 65000, reseller: 52000, channel: 44000 },
+      'VX1000 Pro': { endUser: 70000, reseller: 56000, channel: 48000 },
+      '4K PRIME': { endUser: 100000, reseller: 80000, channel: 68000 }
+    };
+    
+    const procPricing = processorPrices[processor];
+    if (procPricing) {
+      if (pdfUserType === 'Reseller') {
+        processorPrice = procPricing.reseller;
+      } else if (pdfUserType === 'Channel') {
+        processorPrice = procPricing.channel;
+      } else {
+        processorPrice = procPricing.endUser;
+      }
+    }
+  }
+  
+  // Calculate totals with GST (18%) - SAME LOGIC AS PDF
+  const gstProduct = subtotal * 0.18;
+  const totalProduct = subtotal + gstProduct;
+  
+  const gstProcessor = processorPrice * 0.18;
+  const totalProcessor = processorPrice + gstProcessor;
+  
+  // GRAND TOTAL (A + B) - This matches the PDF exactly
+  const grandTotal = totalProduct + totalProcessor;
+  
+  return Math.round(grandTotal);
+}
+
+// Get processor price based on user type
+const getProcessorPrice = (processor: string, userType: string): number => {
+  const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
+    'TB2': { endUser: 15000, reseller: 12000, channel: 10000 },
+    'TB40': { endUser: 25000, reseller: 20000, channel: 17000 },
+    'TB60': { endUser: 35000, reseller: 28000, channel: 24000 },
+    'VX1': { endUser: 20000, reseller: 16000, channel: 14000 },
+    'VX400': { endUser: 30000, reseller: 24000, channel: 21000 },
+    'VX400 Pro': { endUser: 35000, reseller: 28000, channel: 24000 },
+    'VX600': { endUser: 45000, reseller: 36000, channel: 31000 },
+    'VX600 Pro': { endUser: 50000, reseller: 40000, channel: 34000 },
+    'VX1000': { endUser: 65000, reseller: 52000, channel: 44000 },
+    'VX1000 Pro': { endUser: 70000, reseller: 56000, channel: 48000 },
+    '4K PRIME': { endUser: 100000, reseller: 80000, channel: 68000 }
+  };
+  
+  const procPricing = processorPrices[processor];
+  if (!procPricing) return 0;
+  
+  if (userType === 'reseller') {
+    return procPricing.reseller;
+  } else if (userType === 'siChannel') {
+    return procPricing.channel;
+  } else {
+    return procPricing.endUser;
+  }
+};
+
+// Get user type display name
+const getUserTypeDisplayName = (type: string): string => {
+  switch(type) {
+    case 'siChannel':
+      return 'SI/Channel Partner';
+    case 'reseller':
+      return 'Reseller';
+    default:
+      return 'End Customer';
+  }
+};
+
+// Calculate aspect ratio
+const calculateAspectRatio = (width: number, height: number): string => {
+  const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
+  const divisor = gcd(width, height);
+  return `${width / divisor}:${height / divisor}`;
+};
 
 interface PdfViewModalProps {
   isOpen: boolean;
@@ -54,7 +178,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     // Generate quotationId if not provided
     let finalQuotationId = quotationId;
     if (!finalQuotationId) {
-      finalQuotationId = QuotationIdGenerator.generateQuotationId(salesUser.name);
+      finalQuotationId = await QuotationIdGenerator.generateQuotationId(salesUser.name);
       console.log('🆔 Generated new quotationId:', finalQuotationId);
     }
 
@@ -97,26 +221,83 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       generatedAt: new Date().toISOString()
     };
 
-    const quotationData = {
+    // Calculate correct total price using the same logic as QuoteModal
+    const userTypeForCalc = getUserType();
+    const correctTotalPrice = calculateCorrectTotalPrice(
+      selectedProduct,
+      cabinetGrid,
+      processor || null,
+      userTypeForCalc,
+      config || { width: 2400, height: 1010, unit: 'mm' }
+    );
+
+    console.log('💰 Calculated price for quotation (WITH GST - matches PDF):', {
+      quotationId: finalQuotationId,
+      totalPrice: correctTotalPrice,
+      formatted: `₹${correctTotalPrice.toLocaleString('en-IN')}`,
+      includesGST: true,
+      gstRate: '18%',
+      userType: getUserTypeDisplayName(userTypeForCalc),
+      product: selectedProduct.name
+    });
+
+    // Capture exact quotation data as shown on the page
+    const exactQuotationData = {
+      // Basic quotation info
       quotationId: finalQuotationId,
       customerName: userInfo.fullName.trim(),
       customerEmail: userInfo.email.trim(),
       customerPhone: userInfo.phoneNumber.trim(),
       productName: selectedProduct.name,
-      productDetails: comprehensiveProductDetails,
       message: 'Quotation saved from PDF view',
-      userType: getUserType(),
-      userTypeDisplayName: getUserTypeDisplayName(),
+      userType: userTypeForCalc,
+      userTypeDisplayName: getUserTypeDisplayName(userTypeForCalc),
       status: quotationStatus,
-      totalPrice: cabinetGrid ? calculateTotalProductPrice(selectedProduct, cabinetGrid, getUserType()).userPrice : 0
+      totalPrice: correctTotalPrice,  // CRITICAL: Grand Total with GST - matches PDF exactly
+      
+      // Store exact pricing breakdown as shown on the page
+      exactPricingBreakdown: {
+        unitPrice: selectedProduct.price || selectedProduct.resellerPrice || selectedProduct.siChannelPrice || 0,
+        quantity: cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1,
+        subtotal: (selectedProduct.price || selectedProduct.resellerPrice || selectedProduct.siChannelPrice || 0) * (cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1),
+        gstRate: 18,
+        gstAmount: ((selectedProduct.price || selectedProduct.resellerPrice || selectedProduct.siChannelPrice || 0) * (cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1)) * 0.18,
+        processorPrice: processor ? getProcessorPrice(processor, userTypeForCalc) : 0,
+        processorGst: processor ? (getProcessorPrice(processor, userTypeForCalc) * 0.18) : 0,
+        grandTotal: correctTotalPrice
+      },
+      
+      // Store exact product specifications as shown
+      exactProductSpecs: {
+        productName: selectedProduct.name,
+        category: selectedProduct.category,
+        pixelPitch: selectedProduct.pixelPitch,
+        resolution: selectedProduct.resolution,
+        cabinetDimensions: selectedProduct.cabinetDimensions,
+        displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
+          width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
+          height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+        } : undefined,
+        aspectRatio: selectedProduct.resolution ? 
+          calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
+        processor: processor,
+        mode: mode,
+        cabinetGrid: cabinetGrid
+      },
+      
+      // Store comprehensive product details for backend compatibility
+      productDetails: comprehensiveProductDetails,
+      
+      // Timestamp when quotation was created
+      createdAt: new Date().toISOString()
     };
 
     try {
       console.log('🔄 Saving quotation from PDF view...');
-      console.log('📤 Sending quotation data to API:', quotationData);
+      console.log('📤 Sending exact quotation data to API:', exactQuotationData);
 
-      const saveResult = await salesAPI.saveQuotation(quotationData);
-      console.log('✅ Quotation saved successfully:', saveResult);
+      const saveResult = await salesAPI.saveQuotation(exactQuotationData);
+      console.log('✅ Quotation saved to database successfully:', saveResult);
 
       setSaveSuccess(true);
       
@@ -125,61 +306,53 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         setSaveSuccess(false);
       }, 3000);
 
-            } catch (error: any) {
-              console.error('❌ Error saving quotation:', error);
-              
-              // If it's a duplicate ID error, try with a fallback ID
-              if (error.message && error.message.includes('already exists')) {
-                console.log('🔄 Duplicate ID detected, trying with fallback ID...');
-                try {
-                  const fallbackQuotationId = QuotationIdGenerator.generateFallbackQuotationId(salesUser.name);
-                  console.log('🆔 Generated fallback quotationId:', fallbackQuotationId);
-                  
-                  const fallbackQuotationData = {
-                    ...quotationData,
-                    quotationId: fallbackQuotationId
-                  };
-                  
-                  const fallbackResult = await salesAPI.saveQuotation(fallbackQuotationData);
-                  console.log('✅ Quotation saved with fallback ID:', fallbackResult);
-                  
-                  setSaveSuccess(true);
-                  
-                  // Clear success message after 3 seconds
-                  setTimeout(() => {
-                    setSaveSuccess(false);
-                  }, 3000);
-                  
-                } catch (fallbackError: any) {
-                  console.error('❌ Fallback save also failed:', fallbackError);
-                  setSaveError(fallbackError.message || 'Failed to save quotation even with fallback ID');
-                }
-              } else {
-                setSaveError(error.message || 'Failed to save quotation');
-              }
-            } finally {
-              setIsSaving(false);
-            }
+    } catch (error: any) {
+      console.error('❌ Error saving quotation:', error);
+      
+      // If it's a duplicate ID error, try with a fallback ID
+      if (error.message && error.message.includes('already exists')) {
+        console.log('🔄 Duplicate ID detected, trying with fallback ID...');
+        try {
+          const fallbackQuotationId = QuotationIdGenerator.generateFallbackQuotationId(salesUser.name);
+          console.log('🆔 Generated fallback quotationId:', fallbackQuotationId);
+          
+          const fallbackQuotationData = {
+            ...exactQuotationData,
+            quotationId: fallbackQuotationId
+          };
+          
+          const fallbackResult = await salesAPI.saveQuotation(fallbackQuotationData);
+          console.log('✅ Quotation saved with fallback ID:', fallbackResult);
+          
+          setSaveSuccess(true);
+          
+          // Clear success message after 3 seconds
+          setTimeout(() => {
+            setSaveSuccess(false);
+          }, 3000);
+          
+        } catch (fallbackError: any) {
+          console.error('❌ Fallback save also failed:', fallbackError);
+          setSaveError(fallbackError.message || 'Failed to save quotation even with fallback ID');
+        }
+      } else {
+        setSaveError(error.message || 'Failed to save quotation');
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const getUserType = (): 'endUser' | 'reseller' => {
+  const getUserType = (): 'endUser' | 'reseller' | 'siChannel' => {
     switch (userInfo?.userType) {
       case 'Reseller':
         return 'reseller';
+      case 'SI/Channel Partner':
+        return 'siChannel';
       case 'End User':
       default:
         return 'endUser';
     }
-  };
-
-  const getUserTypeDisplayName = (): string => {
-    return userInfo?.userType || 'End Customer';
-  };
-
-  const calculateAspectRatio = (width: number, height: number): string => {
-    const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
-    const divisor = gcd(width, height);
-    return `${width / divisor}:${height / divisor}`;
   };
 
   if (!isOpen) return null;

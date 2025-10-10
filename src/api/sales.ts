@@ -260,7 +260,12 @@ class SalesAPI {
     totalCustomers: number 
   }> {
     console.log('🌐 API Call: getSalesPersonDetails for ID:', salesPersonId);
-    const response = await fetch(`${API_BASE_URL}/sales/salesperson/${salesPersonId}`, {
+    
+    // Add cache-busting parameter to ensure fresh data
+    const url = `${API_BASE_URL}/sales/salesperson/${salesPersonId}?t=${Date.now()}`;
+    console.log('🔗 Final URL:', url);
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: this.getAuthHeaders()
     });
@@ -273,12 +278,12 @@ class SalesAPI {
       throw new Error(data.message || 'Failed to get sales person details');
     }
 
-    // Log specific quotation statuses from API response
+    // Log specific quotation statuses and pricing from API response
     if (data.customers) {
       data.customers.forEach((customer: any, index: number) => {
         console.log(`🔍 API Customer ${index + 1}: ${customer.customerName}`);
         customer.quotations?.forEach((quotation: any, qIndex: number) => {
-          console.log(`  📋 API Quotation ${qIndex + 1}: ${quotation.quotationId} - Status: ${quotation.status}`);
+          console.log(`  📋 API Quotation ${qIndex + 1}: ${quotation.quotationId} - Status: ${quotation.status} - Price: ₹${quotation.totalPrice?.toLocaleString('en-IN')}`);
         });
       });
     }

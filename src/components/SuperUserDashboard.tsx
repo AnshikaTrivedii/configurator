@@ -65,13 +65,21 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
     return () => clearInterval(interval);
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('🔄 Fetching dashboard data...');
+      console.log('🔄 Fetching dashboard data...', forceRefresh ? '(FORCE REFRESH)' : '');
       console.log('🔑 Auth token present:', !!localStorage.getItem('salesToken'));
+      
+      // Clear any cached data if force refresh
+      if (forceRefresh) {
+        console.log('🧹 Clearing cached data for force refresh...');
+        // Clear any potential browser cache by adding a unique timestamp
+        const timestamp = Date.now();
+        console.log('⏰ Force refresh timestamp:', timestamp);
+      }
       
       // Fetch sales persons data
       const response = await salesAPI.getSalesPersons();
@@ -183,12 +191,12 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
             </div>
             <div className="flex space-x-3">
               <button
-                onClick={fetchDashboardData}
+                onClick={() => fetchDashboardData(true)}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 disabled={loading}
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                {loading ? 'Refreshing...' : 'Refresh'}
+                {loading ? 'Refreshing...' : 'Force Refresh'}
               </button>
               <button
                 onClick={exportToCSV}

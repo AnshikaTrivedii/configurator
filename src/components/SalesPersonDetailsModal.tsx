@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, Clock, MessageSquare, RefreshCw } from 'lucide-react';
 import { salesAPI } from '../api/sales';
-import { getPricingDisplayInfo, formatPrice, getUserTypeFromQuotation } from '../utils/pricingCalculator';
 
-// Import pricing utilities
+// NOTE: We display prices directly from the database (quotation.totalPrice)
+// This ensures the dashboard shows the exact same price as the PDF
+// Do NOT use pricingCalculator utilities for price display
 
 interface SalesPerson {
   _id: string;
@@ -23,6 +24,30 @@ interface Quotation {
   status: string;
   message: string;
   createdAt: string;
+  // Exact quotation data as shown on the page
+  exactPricingBreakdown?: {
+    unitPrice: number;
+    quantity: number;
+    subtotal: number;
+    gstRate: number;
+    gstAmount: number;
+    processorPrice: number;
+    processorGst: number;
+    grandTotal: number;
+  };
+  exactProductSpecs?: {
+    productName: string;
+    category: string;
+    pixelPitch: number;
+    resolution: any;
+    cabinetDimensions: any;
+    displaySize: any;
+    aspectRatio: string;
+    processor: string;
+    mode: string;
+    cabinetGrid: any;
+  };
+  quotationData?: any;
 }
 
 interface Customer {
@@ -491,23 +516,126 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                         <span className="text-gray-600">Total Price:</span>
                                         <div className="text-right">
                                           {(() => {
-                                            // Use the actual stored price from the database
+                                            // CRITICAL: Use the exact stored price from the database
+                                            // This price was calculated using the same logic as the PDF when saved
+                                            // Do NOT recalculate - always display the stored value to match PDF
                                             const actualPrice = quotation.totalPrice || 0;
                                             const userTypeDisplayName = quotation.userTypeDisplayName || 'End User';
                                             
+                                            // Log for verification
+                                            console.log(`💰 Displaying price for ${quotation.quotationId}:`, {
+                                              storedPrice: actualPrice,
+                                              formatted: actualPrice.toLocaleString('en-IN'),
+                                              userType: userTypeDisplayName,
+                                              source: 'database (matches PDF)'
+                                            });
+                                            
                                             return (
                                               <div>
-                                                <span className="font-semibold text-green-600">
+                                                <span className="font-semibold text-green-600 text-lg">
                                                   ₹{actualPrice.toLocaleString('en-IN')}
                                                 </span>
                                                 <div className="text-xs text-blue-600">
                                                   {userTypeDisplayName} Pricing
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                  (Incl. 18% GST - From DB)
                                                 </div>
                                               </div>
                                             );
                                           })()}
                                         </div>
                                       </div>
+                                      
+                                      {/* Display exact pricing breakdown if available */}
+                                      {quotation.exactPricingBreakdown && (
+                                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                                          <div className="text-sm font-medium text-gray-700 mb-2">
+                                            📊 Exact Pricing Breakdown (As Shown on Page):
+                                          </div>
+                                          <div className="space-y-1 text-xs">
+                                            <div className="flex justify-between">
+                                              <span>Unit Price:</span>
+                                              <span>₹{quotation.exactPricingBreakdown.unitPrice?.toLocaleString('en-IN')}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>Quantity:</span>
+                                              <span>{quotation.exactPricingBreakdown.quantity}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>Subtotal:</span>
+                                              <span>₹{quotation.exactPricingBreakdown.subtotal?.toLocaleString('en-IN')}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>GST ({quotation.exactPricingBreakdown.gstRate}%):</span>
+                                              <span>₹{quotation.exactPricingBreakdown.gstAmount?.toLocaleString('en-IN')}</span>
+                                            </div>
+                                            {quotation.exactPricingBreakdown.processorPrice > 0 && (
+                                              <>
+                                                <div className="flex justify-between">
+                                                  <span>Processor:</span>
+                                                  <span>₹{quotation.exactPricingBreakdown.processorPrice?.toLocaleString('en-IN')}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                  <span>Processor GST:</span>
+                                                  <span>₹{quotation.exactPricingBreakdown.processorGst?.toLocaleString('en-IN')}</span>
+                                                </div>
+                                              </>
+                                            )}
+                                            <div className="flex justify-between font-semibold border-t pt-1">
+                                              <span>Grand Total:</span>
+                                              <span className="text-green-600">₹{quotation.exactPricingBreakdown.grandTotal?.toLocaleString('en-IN')}</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {/* Display exact product specs if available */}
+                                      {quotation.exactProductSpecs && (
+                                        <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                                          <div className="text-sm font-medium text-gray-700 mb-2">
+                                            📋 Exact Product Specs (As Shown on Page):
+                                          </div>
+                                          <div className="space-y-1 text-xs">
+                                            <div className="flex justify-between">
+                                              <span>Product:</span>
+                                              <span>{quotation.exactProductSpecs.productName}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>Category:</span>
+                                              <span>{quotation.exactProductSpecs.category}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>Pixel Pitch:</span>
+                                              <span>P{quotation.exactProductSpecs.pixelPitch}</span>
+                                            </div>
+                                            {quotation.exactProductSpecs.displaySize && (
+                                              <div className="flex justify-between">
+                                                <span>Display Size:</span>
+                                                <span>{quotation.exactProductSpecs.displaySize.width}m × {quotation.exactProductSpecs.displaySize.height}m</span>
+                                              </div>
+                                            )}
+                                            {quotation.exactProductSpecs.aspectRatio && (
+                                              <div className="flex justify-between">
+                                                <span>Aspect Ratio:</span>
+                                                <span>{quotation.exactProductSpecs.aspectRatio}</span>
+                                              </div>
+                                            )}
+                                            {quotation.exactProductSpecs.processor && (
+                                              <div className="flex justify-between">
+                                                <span>Processor:</span>
+                                                <span>{quotation.exactProductSpecs.processor}</span>
+                                              </div>
+                                            )}
+                                            {quotation.exactProductSpecs.cabinetGrid && (
+                                              <div className="flex justify-between">
+                                                <span>Cabinet Grid:</span>
+                                                <span>{quotation.exactProductSpecs.cabinetGrid.columns}×{quotation.exactProductSpecs.cabinetGrid.rows}</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
                                       <div className="flex justify-between">
                                         <span className="text-gray-600">Created:</span>
                                         <span className="font-medium">

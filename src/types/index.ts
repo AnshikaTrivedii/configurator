@@ -137,3 +137,23 @@ export interface DashboardFilters {
   endDate?: string;
   location?: string;
 }
+
+export interface Quotation {
+  _id: string;
+  quotationId: string;
+  salesUserId: string;
+  salesUserName: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  productName: string;
+  productDetails: any;
+  message: string;
+  userType: string;
+  userTypeDisplayName: string;
+  totalPrice: number;
+  status: string;
+  pdfPage6HTML?: string;
+  createdAt: string;
+  updatedAt: string;
+}

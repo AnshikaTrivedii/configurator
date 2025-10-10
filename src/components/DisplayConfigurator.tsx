@@ -179,11 +179,18 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
     // Generate unique quotation ID (only for new submissions, not edits)
     if (!isEditMode) {
       const username = userRole === 'sales' && salesUser ? salesUser.name : userData.fullName;
-      const newQuotationId = QuotationIdGenerator.generateQuotationId(username);
-      setQuotationId(newQuotationId);
-      
-      // Store the quotation ID to maintain uniqueness
-      QuotationIdGenerator.storeQuotationId(newQuotationId, username);
+      try {
+        const newQuotationId = await QuotationIdGenerator.generateQuotationId(username);
+        setQuotationId(newQuotationId);
+        
+        // Store the quotation ID to maintain uniqueness
+        QuotationIdGenerator.storeQuotationId(newQuotationId, username);
+      } catch (error) {
+        console.error('Failed to generate quotation ID:', error);
+        // Fallback to a simple timestamp-based ID
+        const fallbackId = `ORION/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getDate()).padStart(2, '0')}/${username.toUpperCase()}/001`;
+        setQuotationId(fallbackId);
+      }
     }
     
     // For sales users, mark the mandatory form as submitted

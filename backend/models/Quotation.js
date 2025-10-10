@@ -57,6 +57,23 @@ const quotationSchema = new mongoose.Schema({
     type: String,
     enum: ['New', 'In Progress', 'Rejected', 'Hold', 'Converted'],
     default: 'New'
+  },
+  pdfPage6HTML: {
+    type: String,
+    required: false
+  },
+  // Store exact quotation data as shown on the page
+  exactPricingBreakdown: {
+    type: mongoose.Schema.Types.Mixed,
+    required: false
+  },
+  exactProductSpecs: {
+    type: mongoose.Schema.Types.Mixed,
+    required: false
+  },
+  quotationData: {
+    type: mongoose.Schema.Types.Mixed,
+    required: false
   }
 }, {
   timestamps: true

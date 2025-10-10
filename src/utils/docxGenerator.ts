@@ -129,10 +129,38 @@ export const generateConfigurationDocx = async (
   const gstProduct = subtotal * 0.18;
   const totalProduct = subtotal + gstProduct;
   
-  // Controller pricing - use actual controller price if available
-  const controllerPrice = 35000; // Default controller price
+  // Controller pricing - use SAME LOGIC as quotation calculation
+  let controllerPrice = 0;
+  if (processor) {
+    const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
+      'TB2': { endUser: 15000, reseller: 12000, channel: 10000 },
+      'TB40': { endUser: 25000, reseller: 20000, channel: 17000 },
+      'TB60': { endUser: 35000, reseller: 28000, channel: 24000 },
+      'VX1': { endUser: 20000, reseller: 16000, channel: 14000 },
+      'VX400': { endUser: 30000, reseller: 24000, channel: 21000 },
+      'VX400 Pro': { endUser: 35000, reseller: 28000, channel: 24000 },
+      'VX600': { endUser: 45000, reseller: 36000, channel: 31000 },
+      'VX600 Pro': { endUser: 50000, reseller: 40000, channel: 34000 },
+      'VX1000': { endUser: 65000, reseller: 52000, channel: 44000 },
+      'VX1000 Pro': { endUser: 70000, reseller: 56000, channel: 48000 },
+      '4K PRIME': { endUser: 100000, reseller: 80000, channel: 68000 }
+    };
+    
+    const procPricing = processorPrices[processor];
+    if (procPricing) {
+      // Use same user type logic as quotation calculation
+      if (userInfo?.userType === 'Reseller') {
+        controllerPrice = procPricing.reseller;
+      } else if (userInfo?.userType === 'Channel') {
+        controllerPrice = procPricing.channel;
+      } else {
+        controllerPrice = procPricing.endUser;
+      }
+    }
+  }
+  
   const gstController = controllerPrice * 0.18;
-  // const totalController = controllerPrice + gstController;
+  const totalController = controllerPrice + gstController;
   // Keep for potential future total breakdown
   // const grandTotal = totalProduct + totalProduct;
 
@@ -1016,8 +1044,36 @@ export const generateConfigurationHtml = (
   const gstProduct = subtotal * 0.18;
   const totalProduct = subtotal + gstProduct;
   
-  // Controller pricing - use actual controller price if available
-  const controllerPrice = 35000; // Default controller price
+  // Controller pricing - use SAME LOGIC as quotation calculation
+  let controllerPrice = 0;
+  if (processor) {
+    const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
+      'TB2': { endUser: 15000, reseller: 12000, channel: 10000 },
+      'TB40': { endUser: 25000, reseller: 20000, channel: 17000 },
+      'TB60': { endUser: 35000, reseller: 28000, channel: 24000 },
+      'VX1': { endUser: 20000, reseller: 16000, channel: 14000 },
+      'VX400': { endUser: 30000, reseller: 24000, channel: 21000 },
+      'VX400 Pro': { endUser: 35000, reseller: 28000, channel: 24000 },
+      'VX600': { endUser: 45000, reseller: 36000, channel: 31000 },
+      'VX600 Pro': { endUser: 50000, reseller: 40000, channel: 34000 },
+      'VX1000': { endUser: 65000, reseller: 52000, channel: 44000 },
+      'VX1000 Pro': { endUser: 70000, reseller: 56000, channel: 48000 },
+      '4K PRIME': { endUser: 100000, reseller: 80000, channel: 68000 }
+    };
+    
+    const procPricing = processorPrices[processor];
+    if (procPricing) {
+      // Use same user type logic as quotation calculation
+      if (userInfo?.userType === 'Reseller') {
+        controllerPrice = procPricing.reseller;
+      } else if (userInfo?.userType === 'Channel') {
+        controllerPrice = procPricing.channel;
+      } else {
+        controllerPrice = procPricing.endUser;
+      }
+    }
+  }
+  
   const gstController = controllerPrice * 0.18;
   const totalController = controllerPrice + gstController;
   const grandTotal = totalProduct + totalController;

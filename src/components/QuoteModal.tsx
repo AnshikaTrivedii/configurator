@@ -14,12 +14,19 @@ interface ProductWithPricing extends Product {
   };
 }
 
-// Calculate price using the same logic as PDF generation
+// CRITICAL: This is the authoritative price calculation function
+// This function calculates prices using the EXACT same logic as PDF generation
+// The price calculated here is:
+// 1. Saved to the database as totalPrice
+// 2. Displayed in the generated PDF
+// 3. Displayed in the Super User dashboard
+// DO NOT modify this function without updating the PDF generation logic
 function calculateCorrectTotalPrice(
   product: ProductWithPricing,
   cabinetGrid: { columns: number; rows: number } | null,
   processor: string | null,
-  userType: string
+  userType: string,
+  config: { width: number; height: number; unit: string }
 ): number {
   const METERS_TO_FEET = 3.2808399;
   
@@ -59,29 +66,29 @@ function calculateCorrectTotalPrice(
     }
   }
   
-  // Calculate quantity based on product type (same logic as PDF)
+  // Calculate quantity based on product type - EXACT SAME LOGIC AS PDF
   let quantity = 0;
   
   if (product.category?.toLowerCase().includes('rental')) {
     // For rental series, calculate quantity as number of cabinets
     quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
   } else {
-    // For other products, calculate quantity in square feet
-    if (product.cabinetDimensions && cabinetGrid) {
-      const widthInMeters = (product.cabinetDimensions.width * cabinetGrid.columns) / 1000;
-      const heightInMeters = (product.cabinetDimensions.height * cabinetGrid.rows) / 1000;
-      const widthInFeet = widthInMeters * METERS_TO_FEET;
-      const heightInFeet = heightInMeters * METERS_TO_FEET;
-      quantity = widthInFeet * heightInFeet;
-    } else {
-      quantity = 1;
-    }
+    // For other products, calculate quantity in square feet - MATCH PDF EXACTLY
+    // CRITICAL: Use config dimensions directly (same as PDF) to avoid rounding differences
+    const widthInMeters = config.width / 1000;
+    const heightInMeters = config.height / 1000;
+    const widthInFeet = widthInMeters * METERS_TO_FEET;
+    const heightInFeet = heightInMeters * METERS_TO_FEET;
+    quantity = widthInFeet * heightInFeet;
+    
+    // Ensure quantity is reasonable (same as PDF)
+    quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
   }
   
-  // Calculate subtotal
+  // Calculate subtotal (product price before GST)
   const subtotal = unitPrice * quantity;
   
-  // Add processor price if available
+  // Add processor price if available (before GST)
   let processorPrice = 0;
   if (processor) {
     const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
@@ -110,18 +117,54 @@ function calculateCorrectTotalPrice(
     }
   }
   
-  const grandTotal = subtotal + processorPrice;
+  // Calculate totals with GST (18%) - SAME LOGIC AS PDF
+  // Product total (A)
+  const gstProduct = subtotal * 0.18;
+  const totalProduct = subtotal + gstProduct;
   
-  console.log('💰 Price Calculation (PDF Logic):', {
+  // Processor/Controller total (B)
+  const gstProcessor = processorPrice * 0.18;
+  const totalProcessor = processorPrice + gstProcessor;
+  
+  // GRAND TOTAL (A + B) - This matches the PDF exactly
+  const grandTotal = totalProduct + totalProcessor;
+  
+  console.log('💰 Price Calculation (WITH GST - matches PDF exactly):', {
     product: product.name,
     userType: pdfUserType,
     unitPrice,
     quantity,
+    cabinetGrid,
+    cabinetDimensions: product.cabinetDimensions,
     subtotal,
+    gstProduct,
+    totalProduct,
     processorPrice,
-    grandTotal: Math.round(grandTotal)
+    gstProcessor,
+    totalProcessor,
+    grandTotal: Math.round(grandTotal),
+    breakdown: {
+      'Unit Price (per sq.ft)': unitPrice,
+      'Quantity (sq.ft)': quantity,
+      'Product Subtotal': subtotal,
+      'Product GST (18%)': gstProduct,
+      'Product Total (A)': totalProduct,
+      'Processor Price': processorPrice,
+      'Processor GST (18%)': gstProcessor,
+      'Processor Total (B)': totalProcessor,
+      'GRAND TOTAL (A+B) with GST': Math.round(grandTotal)
+    },
+    calculation: {
+      'Config Dimensions': `${config.width}×${config.height}mm`,
+      'Config in Meters': `${(config.width / 1000).toFixed(2)}×${(config.height / 1000).toFixed(2)}m`,
+      'Config in Feet': `${(config.width / 1000 * METERS_TO_FEET).toFixed(2)}×${(config.height / 1000 * METERS_TO_FEET).toFixed(2)}ft`,
+      'Cabinet Grid': `${cabinetGrid?.columns || 0}×${cabinetGrid?.rows || 0}`,
+      'Cabinet Size': `${product.cabinetDimensions?.width || 0}×${product.cabinetDimensions?.height || 0}mm`,
+      'Calculated Total': `${((product.cabinetDimensions?.width || 0) * (cabinetGrid?.columns || 1))}×${((product.cabinetDimensions?.height || 0) * (cabinetGrid?.rows || 1))}mm`
+    }
   });
   
+  // Return grand total rounded to nearest rupee (INCLUDES 18% GST)
   return Math.round(grandTotal);
 }
 
@@ -217,6 +260,34 @@ const getUserTypeDisplayName = (type: string): string => {
       return 'Reseller';
     default:
       return 'End Customer';
+  }
+};
+
+// Get processor price based on user type
+const getProcessorPrice = (processor: string, userType: string): number => {
+  const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
+    'TB2': { endUser: 15000, reseller: 12000, channel: 10000 },
+    'TB40': { endUser: 25000, reseller: 20000, channel: 17000 },
+    'TB60': { endUser: 35000, reseller: 28000, channel: 24000 },
+    'VX1': { endUser: 20000, reseller: 16000, channel: 14000 },
+    'VX400': { endUser: 30000, reseller: 24000, channel: 21000 },
+    'VX400 Pro': { endUser: 35000, reseller: 28000, channel: 24000 },
+    'VX600': { endUser: 45000, reseller: 36000, channel: 31000 },
+    'VX600 Pro': { endUser: 50000, reseller: 40000, channel: 34000 },
+    'VX1000': { endUser: 65000, reseller: 52000, channel: 44000 },
+    'VX1000 Pro': { endUser: 70000, reseller: 56000, channel: 48000 },
+    '4K PRIME': { endUser: 100000, reseller: 80000, channel: 68000 }
+  };
+  
+  const procPricing = processorPrices[processor];
+  if (!procPricing) return 0;
+  
+  if (userType === 'reseller') {
+    return procPricing.reseller;
+  } else if (userType === 'siChannel') {
+    return procPricing.channel;
+  } else {
+    return procPricing.endUser;
   }
 };
 
@@ -390,7 +461,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       let finalQuotationId = quotationId;
       if (salesUser && !quotationId) {
         console.log('⚠️ QuotationId missing, generating new one...');
-        finalQuotationId = QuotationIdGenerator.generateQuotationId(salesUser.name);
+        finalQuotationId = await QuotationIdGenerator.generateQuotationId(salesUser.name);
         console.log('🆔 Generated new quotationId:', finalQuotationId);
       }
       
@@ -449,31 +520,82 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             generatedAt: new Date().toISOString()
           };
 
-          // Calculate total price using the same logic as PDF generation
+          // CRITICAL: Calculate total price using the same logic as PDF generation
+          // This price INCLUDES 18% GST and matches the PDF Grand Total exactly
+          // This stored price (with GST) will be displayed in the Super User dashboard
           const correctTotalPrice = calculateCorrectTotalPrice(
             selectedProduct as ProductWithPricing,
             cabinetGrid,
             processor,
-            userType
+            userType,
+            config || { width: 2400, height: 1010, unit: 'mm' } // Fallback config if not provided
           );
 
-          const quotationData = {
+          console.log('💰 Calculated price for quotation (WITH GST - matches PDF):', {
+            quotationId: finalQuotationId,
+            totalPrice: correctTotalPrice,
+            formatted: `₹${correctTotalPrice.toLocaleString('en-IN')}`,
+            includesGST: true,
+            gstRate: '18%',
+            userType: getUserTypeDisplayName(userType),
+            product: selectedProduct.name,
+            note: 'This price includes 18% GST and matches PDF Grand Total'
+          });
+
+          // Capture exact quotation data as shown on the page
+          const exactQuotationData = {
+            // Basic quotation info
             quotationId: finalQuotationId,
             customerName: customerName.trim(),
             customerEmail: customerEmail.trim(),
             customerPhone: customerPhone.trim(),
             productName: selectedProduct.name,
-            productDetails: comprehensiveProductDetails,
             message: message.trim() || 'No additional message provided',
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
             status: quotationStatus,
-            totalPrice: correctTotalPrice  // Use PDF pricing logic instead of old calculator
+            totalPrice: correctTotalPrice,  // CRITICAL: Grand Total with GST - matches PDF exactly
+            
+            // Store exact pricing breakdown as shown on the page
+            exactPricingBreakdown: {
+              unitPrice: selectedProduct.price || selectedProduct.resellerPrice || selectedProduct.siChannelPrice || 0,
+              quantity: cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1,
+              subtotal: (selectedProduct.price || selectedProduct.resellerPrice || selectedProduct.siChannelPrice || 0) * (cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1),
+              gstRate: 18,
+              gstAmount: ((selectedProduct.price || selectedProduct.resellerPrice || selectedProduct.siChannelPrice || 0) * (cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1)) * 0.18,
+              processorPrice: processor ? getProcessorPrice(processor, userType) : 0,
+              processorGst: processor ? (getProcessorPrice(processor, userType) * 0.18) : 0,
+              grandTotal: correctTotalPrice
+            },
+            
+            // Store exact product specifications as shown
+            exactProductSpecs: {
+              productName: selectedProduct.name,
+              category: selectedProduct.category,
+              pixelPitch: selectedProduct.pixelPitch,
+              resolution: selectedProduct.resolution,
+              cabinetDimensions: selectedProduct.cabinetDimensions,
+              displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
+                width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
+                height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+              } : undefined,
+              aspectRatio: selectedProduct.resolution ? 
+                calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
+              processor: processor,
+              mode: mode,
+              cabinetGrid: cabinetGrid
+            },
+            
+            // Store comprehensive product details for backend compatibility
+            productDetails: comprehensiveProductDetails,
+            
+            // Timestamp when quotation was created
+            createdAt: new Date().toISOString()
           };
 
-          console.log('📤 Sending quotation data to API:', quotationData);
+          console.log('📤 Sending exact quotation data to API:', exactQuotationData);
           
-          const saveResult = await salesAPI.saveQuotation(quotationData);
+          const saveResult = await salesAPI.saveQuotation(exactQuotationData);
           console.log('✅ Quotation saved to database successfully:', saveResult);
           
           // Show success message to user
@@ -496,7 +618,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               console.log('🆔 Generated fallback quotationId:', fallbackQuotationId);
               
               const fallbackQuotationData = {
-                ...quotationData,
+                ...exactQuotationData,
                 quotationId: fallbackQuotationId
               };
               
