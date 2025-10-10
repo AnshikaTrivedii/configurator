@@ -21,20 +21,40 @@ function calculateCorrectTotalPrice(
     pdfUserType = 'Channel';
   }
   
-  // Get unit price based on user type
-  let unitPrice = product.price || 0;
-  if (pdfUserType === 'Reseller' && product.resellerPrice) {
-    unitPrice = product.resellerPrice;
-  } else if (pdfUserType === 'Channel' && product.siChannelPrice) {
-    unitPrice = product.siChannelPrice;
-  }
+  // Get unit price based on product type and user type
+  let unitPrice = 0;
+  let quantity = 0;
   
-  // Calculate quantity - SAME AS PDF LOGIC
-  const widthInMeters = config.width / 1000;
-  const heightInMeters = config.height / 1000;
-  const widthInFeet = widthInMeters * METERS_TO_FEET;
-  const heightInFeet = heightInMeters * METERS_TO_FEET;
-  const quantity = widthInFeet * heightInFeet;
+  // Handle rental products
+  if (product.category?.toLowerCase().includes('rental') && product.prices) {
+    // For rental products, use cabinet pricing
+    if (pdfUserType === 'Reseller') {
+      unitPrice = product.prices.cabinet.reseller;
+    } else if (pdfUserType === 'Channel') {
+      unitPrice = product.prices.cabinet.siChannel;
+    } else {
+      unitPrice = product.prices.cabinet.endCustomer;
+    }
+    
+    // For rental, quantity = number of cabinets
+    quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+  } else {
+    // Handle regular products
+    if (pdfUserType === 'Reseller' && product.resellerPrice) {
+      unitPrice = product.resellerPrice;
+    } else if (pdfUserType === 'Channel' && product.siChannelPrice) {
+      unitPrice = product.siChannelPrice;
+    } else {
+      unitPrice = product.price || 0;
+    }
+    
+    // For regular products, quantity = square feet
+    const widthInMeters = config.width / 1000;
+    const heightInMeters = config.height / 1000;
+    const widthInFeet = widthInMeters * METERS_TO_FEET;
+    const heightInFeet = heightInMeters * METERS_TO_FEET;
+    quantity = widthInFeet * heightInFeet;
+  }
   
   // Calculate subtotal
   const subtotal = unitPrice * quantity;
@@ -256,16 +276,56 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       totalPrice: correctTotalPrice,  // CRITICAL: Grand Total with GST - matches PDF exactly
       
       // Store exact pricing breakdown as shown on the page
-      exactPricingBreakdown: {
-        unitPrice: selectedProduct.price || selectedProduct.resellerPrice || selectedProduct.siChannelPrice || 0,
-        quantity: cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1,
-        subtotal: (selectedProduct.price || selectedProduct.resellerPrice || selectedProduct.siChannelPrice || 0) * (cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1),
-        gstRate: 18,
-        gstAmount: ((selectedProduct.price || selectedProduct.resellerPrice || selectedProduct.siChannelPrice || 0) * (cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1)) * 0.18,
-        processorPrice: processor ? getProcessorPrice(processor, userTypeForCalc) : 0,
-        processorGst: processor ? (getProcessorPrice(processor, userTypeForCalc) * 0.18) : 0,
-        grandTotal: correctTotalPrice
-      },
+      // CRITICAL: Use the SAME calculation logic as calculateCorrectTotalPrice
+      exactPricingBreakdown: (() => {
+        let unitPrice = 0;
+        let quantity = 0;
+        
+        // Handle rental products
+        if (selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.prices) {
+          if (userTypeForCalc === 'reseller') {
+            unitPrice = selectedProduct.prices.cabinet.reseller;
+          } else if (userTypeForCalc === 'siChannel') {
+            unitPrice = selectedProduct.prices.cabinet.siChannel;
+          } else {
+            unitPrice = selectedProduct.prices.cabinet.endCustomer;
+          }
+          quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+        } else {
+          // Handle regular products
+          if (userTypeForCalc === 'reseller' && typeof selectedProduct.resellerPrice === 'number') {
+            unitPrice = selectedProduct.resellerPrice;
+          } else if (userTypeForCalc === 'siChannel' && typeof selectedProduct.siChannelPrice === 'number') {
+            unitPrice = selectedProduct.siChannelPrice;
+          } else if (typeof selectedProduct.price === 'number') {
+            unitPrice = selectedProduct.price;
+          } else {
+            unitPrice = 0;
+          }
+          
+          const widthInMeters = config.width / 1000;
+          const heightInMeters = config.height / 1000;
+          const widthInFeet = widthInMeters * 3.28084;
+          const heightInFeet = heightInMeters * 3.28084;
+          quantity = widthInFeet * heightInFeet;
+        }
+        
+        const subtotal = unitPrice * quantity;
+        const gstAmount = subtotal * 0.18;
+        const processorPrice = processor ? getProcessorPrice(processor, userTypeForCalc) : 0;
+        const processorGst = processorPrice * 0.18;
+        
+        return {
+          unitPrice,
+          quantity,
+          subtotal,
+          gstRate: 18,
+          gstAmount,
+          processorPrice,
+          processorGst,
+          grandTotal: correctTotalPrice
+        };
+      })(),
       
       // Store exact product specifications as shown
       exactProductSpecs: {
