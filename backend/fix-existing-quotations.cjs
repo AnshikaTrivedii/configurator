@@ -32,7 +32,7 @@ const Quotation = mongoose.model('Quotation', quotationSchema);
 // Processor prices (same as in the application)
 const processorPrices = {
   'TB2': { endUser: 15000, reseller: 12000, channel: 10000 },
-  'TB40': { endUser: 35000, reseller: 28000, channel: 24000 },
+  'TB40': { endUser: 25000, reseller: 20000, channel: 17000 },
   'TB60': { endUser: 35000, reseller: 28000, channel: 24000 },
   'VX1': { endUser: 20000, reseller: 16000, channel: 14000 },
   'VX400': { endUser: 30000, reseller: 24000, channel: 21000 },
