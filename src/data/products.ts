@@ -1473,6 +1473,9 @@ export const products: Product[] = [
     serviceAccess: 'Rear Access',
     ipGrade: 'IP65',
     certificates: 'CE, ROHS, ISO, BIS',
+    price: 6600,
+    siChannelPrice: 6000,
+    resellerPrice: 5600,
   },
   // Jumbo Series Outdoor P4
   {
@@ -1515,6 +1518,9 @@ export const products: Product[] = [
     serviceAccess: 'Rear Access',
     ipGrade: 'IP65',
     certificates: 'CE, ROHS, ISO, BIS',
+    price: 7900,
+    siChannelPrice: 7200,
+    resellerPrice: 6800,
   },
   // Jumbo Series Outdoor P3
   {
@@ -1557,6 +1563,9 @@ export const products: Product[] = [
     serviceAccess: 'Rear Access',
     ipGrade: 'IP65',
     certificates: 'CE, ROHS, ISO, BIS',
+    price: 9400,
+    siChannelPrice: 8500,
+    resellerPrice: 8000,
   },
   // Jumbo Series Outdoor P2.5
   {
@@ -1599,6 +1608,9 @@ export const products: Product[] = [
     serviceAccess: 'Rear Access',
     ipGrade: 'IP65',
     certificates: 'CE, ROHS, ISO, BIS',
+    price: 12500,
+    siChannelPrice: 11300,
+    resellerPrice: 10600,
   },
 
   // Transparent Series
