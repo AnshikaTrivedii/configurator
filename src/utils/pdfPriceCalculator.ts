@@ -89,10 +89,26 @@ export function getProductUnitPrice(product: Product, userType: string): number 
 }
 
 /**
- * Get processor price based on user type (matches PDF logic exactly)
+ * Check if product is a Jumbo Series product (prices include controllers)
  */
-export function getProcessorPrice(processorName: string, userType: string): number {
+function isJumboSeriesProduct(product: Product): boolean {
+  return product.category?.toLowerCase().includes('jumbo') || 
+         product.id?.toLowerCase().startsWith('jumbo-') ||
+         product.name?.toLowerCase().includes('jumbo series');
+}
+
+/**
+ * Get processor price based on user type (matches PDF logic exactly)
+ * Returns 0 for Jumbo Series products as their prices already include controllers
+ */
+export function getProcessorPrice(processorName: string, userType: string, product?: Product): number {
   try {
+    // Skip processor price for Jumbo Series products (prices already include controllers)
+    if (product && isJumboSeriesProduct(product)) {
+      console.log('🚫 Skipping processor price for Jumbo Series product:', product.name);
+      return 0;
+    }
+
     const processor = PROCESSOR_PRICES[processorName];
     if (!processor) {
       return 0; // No processor price
@@ -134,8 +150,11 @@ export function calculateQuantity(
       const heightInFeet = heightInMeters * METERS_TO_FEET;
       const quantity = widthInFeet * heightInFeet;
       
+      // Round to 2 decimal places for consistency with display
+      const roundedQuantity = Math.round(quantity * 100) / 100;
+      
       // Ensure quantity is reasonable (same as PDF)
-      return isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
+      return isNaN(roundedQuantity) || roundedQuantity <= 0 ? 1 : Math.max(0.01, Math.min(roundedQuantity, 10000));
     }
   } catch (error) {
     console.error('Error calculating quantity:', error);
@@ -178,7 +197,8 @@ export function calculatePricingBreakdown(
     const productTotal = productSubtotal + productGST;
     
     // Calculate processor pricing (before GST)
-    const processorPrice = processor ? getProcessorPrice(processor, pdfUserType) : 0;
+    // Note: For Jumbo Series, processor price will be 0 as prices already include controllers
+    const processorPrice = processor ? getProcessorPrice(processor, pdfUserType, product) : 0;
     const processorGST = processorPrice * 0.18;
     const processorTotal = processorPrice + processorGST;
     

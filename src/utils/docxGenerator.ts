@@ -120,7 +120,10 @@ export const generateConfigurationDocx = async (
     const heightInMeters = config.height / 1000;
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
-    quantity = widthInFeet * heightInFeet;
+    const rawQuantity = widthInFeet * heightInFeet;
+    
+    // Round to 2 decimal places for consistency with calculation
+    quantity = Math.round(rawQuantity * 100) / 100;
   }
   
   // Ensure quantity is a reasonable number and handle edge cases
@@ -129,9 +132,15 @@ export const generateConfigurationDocx = async (
   const gstProduct = subtotal * 0.18;
   const totalProduct = subtotal + gstProduct;
   
+  // Check if product is Jumbo Series (prices already include controllers)
+  const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
+                        selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
+                        selectedProduct.name?.toLowerCase().includes('jumbo series');
+  
   // Controller pricing - use SAME LOGIC as quotation calculation
+  // Note: Skip controller price for Jumbo Series products as their prices already include controllers
   let controllerPrice = 0;
-  if (processor) {
+  if (processor && !isJumboSeries) {
     const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
       'TB2': { endUser: 35000, reseller: 29800, channel: 31500 },
       'TB40': { endUser: 35000, reseller: 29800, channel: 31500 },
@@ -1035,7 +1044,10 @@ export const generateConfigurationHtml = (
     const heightInMeters = config.height / 1000;
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
-    quantity = widthInFeet * heightInFeet;
+    const rawQuantity = widthInFeet * heightInFeet;
+    
+    // Round to 2 decimal places for consistency with calculation
+    quantity = Math.round(rawQuantity * 100) / 100;
   }
   
   // Ensure quantity is a reasonable number and handle edge cases
@@ -1044,9 +1056,15 @@ export const generateConfigurationHtml = (
   const gstProduct = subtotal * 0.18;
   const totalProduct = subtotal + gstProduct;
   
+  // Check if product is Jumbo Series (prices already include controllers)
+  const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
+                        selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
+                        selectedProduct.name?.toLowerCase().includes('jumbo series');
+  
   // Controller pricing - use SAME LOGIC as quotation calculation
+  // Note: Skip controller price for Jumbo Series products as their prices already include controllers
   let controllerPrice = 0;
-  if (processor) {
+  if (processor && !isJumboSeries) {
     const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
       'TB2': { endUser: 35000, reseller: 29800, channel: 31500 },
       'TB40': { endUser: 35000, reseller: 29800, channel: 31500 },
@@ -1296,6 +1314,7 @@ export const generateConfigurationHtml = (
                 </div>
             </div>
             
+            ${!isJumboSeries ? `
             <!-- Section B: Control System - Clean Layout -->
             <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e9ecef;">
                 <h2 style="color: #333; margin: 0 0 15px 0; font-size: 1.1em; border-bottom: 2px solid #333; padding-bottom: 8px;">
@@ -1342,12 +1361,13 @@ export const generateConfigurationHtml = (
                     </div>
                 </div>
             </div>
+            ` : ''}
             
             <!-- Grand Total - Clean Design -->
             <div style="background: #333; color: white; padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center;">
                 <h2 style="margin: 0 0 8px 0; font-size: 1.2em; font-weight: bold;">GRAND TOTAL</h2>
                 <p style="margin: 0; font-size: 1.8em; font-weight: bold;">₹${formatIndianNumber(grandTotal)}</p>
-                <p style="margin: 4px 0 0 0; font-size: 0.8em; opacity: 0.9;">(A + B)</p>
+                ${!isJumboSeries ? `<p style="margin: 4px 0 0 0; font-size: 0.8em; opacity: 0.9;">(A + B)</p>` : ''}
             </div>
             
             <!-- Bottom Spacer to prevent cropping -->

@@ -14,6 +14,13 @@ interface ProductWithPricing extends Product {
   };
 }
 
+// Check if product is a Jumbo Series product (prices include controllers)
+function isJumboSeriesProduct(product: ProductWithPricing): boolean {
+  return product.category?.toLowerCase().includes('jumbo') || 
+         product.id?.toLowerCase().startsWith('jumbo-') ||
+         product.name?.toLowerCase().includes('jumbo series');
+}
+
 // CRITICAL: This is the authoritative price calculation function
 // This function calculates prices using the EXACT same logic as PDF generation
 // The price calculated here is:
@@ -79,7 +86,10 @@ function calculateCorrectTotalPrice(
     const heightInMeters = config.height / 1000;
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
-    quantity = widthInFeet * heightInFeet;
+    const rawQuantity = widthInFeet * heightInFeet;
+    
+    // Round to 2 decimal places for consistency with display
+    quantity = Math.round(rawQuantity * 100) / 100;
     
     // Ensure quantity is reasonable (same as PDF)
     quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
@@ -89,8 +99,9 @@ function calculateCorrectTotalPrice(
   const subtotal = unitPrice * quantity;
   
   // Add processor price if available (before GST)
+  // Note: Skip processor price for Jumbo Series products as their prices already include controllers
   let processorPrice = 0;
-  if (processor) {
+  if (processor && !isJumboSeriesProduct(product)) {
     const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
       'TB2': { endUser: 35000, reseller: 29800, channel: 31500 },
       'TB40': { endUser: 35000, reseller: 29800, channel: 31500 },
@@ -115,6 +126,8 @@ function calculateCorrectTotalPrice(
         processorPrice = procPricing.endUser;
       }
     }
+  } else if (processor && isJumboSeriesProduct(product)) {
+    console.log('🚫 Skipping processor price for Jumbo Series product:', product.name);
   }
   
   // Calculate totals with GST (18%) - SAME LOGIC AS PDF

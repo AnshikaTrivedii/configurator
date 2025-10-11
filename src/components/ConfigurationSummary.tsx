@@ -33,6 +33,11 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
 }) => {
   if (!selectedProduct) return null;
 
+  // Check if product is Jumbo Series (prices already include controllers)
+  const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
+                        selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
+                        selectedProduct.name?.toLowerCase().includes('jumbo series');
+
   // Conversion constants
   const METERS_TO_FEET = 3.2808399;
 
@@ -439,8 +444,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
         </div>
       </div>
 
-      {/* Controller Information */}
-      {(processor || mode) && (
+      {/* Controller Information - Hidden for Jumbo Series (prices include controllers) */}
+      {!isJumboSeries && (processor || mode) && (
         <div className="bg-indigo-50 rounded-xl p-3 sm:p-4 transition-all duration-200 hover:shadow-md">
           <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
             <div className="p-1.5 sm:p-2 rounded-lg bg-indigo-100 text-indigo-500 bg-opacity-50">
