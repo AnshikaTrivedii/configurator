@@ -685,13 +685,13 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check if quotation ID already exists
+    // Check if quotation ID already exists (safety check)
     const existingQuotation = await Quotation.findOne({ quotationId });
     if (existingQuotation) {
       console.error('❌ Quotation ID already exists:', quotationId);
       return res.status(400).json({
         success: false,
-        message: 'Quotation ID already exists'
+        message: 'Quotation ID already exists. Please try saving again to generate a new unique ID.'
       });
     }
 
@@ -1052,7 +1052,104 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Check latest quotation ID for a specific user and date to prevent duplicates
+// Generate globally unique quotation ID with atomic serial number generation
+router.post('/generate-quotation-id', async (req, res) => {
+  const session = await mongoose.startSession();
+  
+  try {
+    await session.withTransaction(async () => {
+      console.log('🔍 Generating globally unique quotation ID...');
+      const { firstName, year, month, day } = req.body;
+      
+      if (!firstName || !year || !month || !day) {
+        throw new Error('Missing required fields: firstName, year, month, day');
+      }
+      
+      console.log('📊 Generating ID for user:', firstName, 'on date:', `${day}/${month}/${year}`);
+      
+      // Step 1: Get the highest serial number ever used in ANY quotation ID
+      const latestQuotation = await Quotation.findOne({
+        quotationId: { $regex: /^ORION\/\d{4}\/\d{2}\/\d{2}\/[A-Z]+\/\d{3}$/ }
+      }).sort({ quotationId: -1 }).session(session);
+      
+      let nextSerial = 1; // Default to 001 if no quotations exist
+      
+      if (latestQuotation && latestQuotation.quotationId) {
+        // Extract the serial number from the latest quotation ID
+        const parts = latestQuotation.quotationId.split('/');
+        if (parts.length === 6) {
+          const lastSerial = parseInt(parts[5], 10) || 0;
+          nextSerial = lastSerial + 1;
+        }
+        console.log('✅ Found latest quotation ID:', latestQuotation.quotationId, 'Next serial:', nextSerial);
+      } else {
+        console.log('ℹ️ No existing quotations found, starting with serial 001');
+      }
+      
+      // Step 2: Generate the new quotation ID
+      const serial = nextSerial.toString().padStart(3, '0');
+      const quotationId = `ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/${serial}`;
+      
+      // Step 3: Safety check - verify the new ID doesn't already exist
+      const existingQuotation = await Quotation.findOne({ quotationId }).session(session);
+      if (existingQuotation) {
+        // If ID exists, find the next available serial number
+        console.log('⚠️ Generated ID already exists, finding next available...');
+        
+        // Get all quotations with the same prefix (ORION/YYYY/MM/DD/FIRSTNAME/)
+        const prefix = `ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/`;
+        const existingQuotations = await Quotation.find({
+          quotationId: { $regex: new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\d{3}$`) }
+        }).sort({ quotationId: -1 }).session(session);
+        
+        let maxSerial = 0;
+        existingQuotations.forEach(q => {
+          const parts = q.quotationId.split('/');
+          if (parts.length === 6) {
+            const serialNum = parseInt(parts[5], 10) || 0;
+            maxSerial = Math.max(maxSerial, serialNum);
+          }
+        });
+        
+        nextSerial = maxSerial + 1;
+        const newSerial = nextSerial.toString().padStart(3, '0');
+        const newQuotationId = `ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/${newSerial}`;
+        
+        console.log('✅ Generated new unique ID:', newQuotationId);
+        
+        res.json({
+          success: true,
+          quotationId: newQuotationId,
+          serial: newSerial,
+          isGloballyUnique: true,
+          message: 'Globally unique quotation ID generated successfully'
+        });
+      } else {
+        console.log('✅ Generated unique ID:', quotationId);
+        
+        res.json({
+          success: true,
+          quotationId,
+          serial,
+          isGloballyUnique: true,
+          message: 'Globally unique quotation ID generated successfully'
+        });
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error generating quotation ID:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to generate quotation ID',
+      details: error.message 
+    });
+  } finally {
+    await session.endSession();
+  }
+});
+
+// Check latest quotation ID for a specific user and date to prevent duplicates (legacy endpoint)
 router.post('/check-latest-quotation-id', async (req, res) => {
   try {
     console.log('🔍 Checking latest quotation ID...');
