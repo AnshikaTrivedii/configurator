@@ -2,6 +2,7 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, Width
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
+import { getProcessorPrice } from './processorPrices';
 
 // Phone number mapping for sales team members
 const SALES_PHONE_MAPPING: Record<string, string> = {
@@ -17,7 +18,6 @@ const SALES_PHONE_MAPPING: Record<string, string> = {
   'anshika.trivedi@orion-led.com': '9140526027',
   'madhur@orion-led.com': '98391 77046',
   'amisha@orion-led.com': '98391 77083',
-  'admin@orion-led.com': '98391 77083'
 };
 
 // Default phone number fallback
@@ -109,11 +109,51 @@ export const generateConfigurationDocx = async (
 
   const unitPrice = getProductPriceForDocx(selectedProduct, userInfo?.userType);
   
+  // Check if product is Jumbo Series (prices already include controllers)
+  const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
+                        selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
+                        selectedProduct.name?.toLowerCase().includes('jumbo series');
+  
   // Calculate quantity based on product type
   let quantity: number;
   if (selectedProduct.category?.toLowerCase().includes('rental')) {
     // For rental series, calculate quantity as number of cabinets
     quantity = cabinetGrid.columns * cabinetGrid.rows;
+  } else if (isJumboSeries) {
+    // For Jumbo Series, use fixed area-based pricing
+    const pixelPitch = selectedProduct.pixelPitch;
+    
+    if (pixelPitch === 4 || pixelPitch === 2.5) {
+      // P4 and P2.5: Fixed area = 7.34ft × 4.72ft = 34.64 sqft
+      const widthInFeet = 7.34;
+      const heightInFeet = 4.72;
+      const fixedQuantity = widthInFeet * heightInFeet;
+      
+      console.log('🎯 DOCX Jumbo Series P4/P2.5 Fixed Pricing:', {
+        product: selectedProduct.name,
+        pixelPitch,
+        fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
+        quantity: fixedQuantity.toFixed(2) + ' sqft'
+      });
+      
+      quantity = Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
+    } else if (pixelPitch === 3 || pixelPitch === 6) {
+      // P3 and P6: Fixed area = 6.92ft × 5.04ft = 34.88 sqft
+      const widthInFeet = 6.92;
+      const heightInFeet = 5.04;
+      const fixedQuantity = widthInFeet * heightInFeet;
+      
+      console.log('🎯 DOCX Jumbo Series P3/P6 Fixed Pricing:', {
+        product: selectedProduct.name,
+        pixelPitch,
+        fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
+        quantity: fixedQuantity.toFixed(2) + ' sqft'
+      });
+      
+      quantity = Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
+    } else {
+      quantity = 1; // Fallback
+    }
   } else {
     // For other products, calculate quantity in square feet
     const widthInMeters = config.width / 1000;
@@ -132,40 +172,13 @@ export const generateConfigurationDocx = async (
   const gstProduct = subtotal * 0.18;
   const totalProduct = subtotal + gstProduct;
   
-  // Check if product is Jumbo Series (prices already include controllers)
-  const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
-                        selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
-                        selectedProduct.name?.toLowerCase().includes('jumbo series');
   
   // Controller pricing - use SAME LOGIC as quotation calculation
   // Note: Skip controller price for Jumbo Series products as their prices already include controllers
   let controllerPrice = 0;
   if (processor && !isJumboSeries) {
-    const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
-      'TB2': { endUser: 35000, reseller: 29800, channel: 31500 },
-      'TB40': { endUser: 35000, reseller: 29800, channel: 31500 },
-      'TB60': { endUser: 65000, reseller: 55300, channel: 58500 },
-      'VX1': { endUser: 35000, reseller: 29800, channel: 31500 },
-      'VX400': { endUser: 100000, reseller: 85000, channel: 90000 },
-      'VX400 Pro': { endUser: 110000, reseller: 93500, channel: 99000 },
-      'VX600': { endUser: 120000, reseller: 102000, channel: 108000 },
-      'VX600 Pro': { endUser: 130000, reseller: 110500, channel: 117000 },
-      'VX1000': { endUser: 150000, reseller: 127500, channel: 135000 },
-      'VX1000 Pro': { endUser: 160000, reseller: 136000, channel: 144000 },
-      '4K PRIME': { endUser: 290000, reseller: 246500, channel: 261000 }
-    };
-    
-    const procPricing = processorPrices[processor];
-    if (procPricing) {
-      // Use same user type logic as quotation calculation
-      if (userInfo?.userType === 'Reseller') {
-        controllerPrice = procPricing.reseller;
-      } else if (userInfo?.userType === 'Channel') {
-        controllerPrice = procPricing.channel;
-      } else {
-        controllerPrice = procPricing.endUser;
-      }
-    }
+    // Use centralized processor pricing
+    controllerPrice = getProcessorPrice(processor, userInfo?.userType || 'End User');
   }
   
   const gstController = controllerPrice * 0.18;
@@ -1033,11 +1046,51 @@ export const generateConfigurationHtml = (
 
   const unitPrice = getProductPriceForHtml(selectedProduct, userInfo?.userType);
   
+  // Check if product is Jumbo Series (prices already include controllers)
+  const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
+                        selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
+                        selectedProduct.name?.toLowerCase().includes('jumbo series');
+  
   // Calculate quantity based on product type
   let quantity: number;
   if (selectedProduct.category?.toLowerCase().includes('rental')) {
     // For rental series, calculate quantity as number of cabinets
     quantity = cabinetGrid.columns * cabinetGrid.rows;
+  } else if (isJumboSeries) {
+    // For Jumbo Series, use fixed area-based pricing
+    const pixelPitch = selectedProduct.pixelPitch;
+    
+    if (pixelPitch === 4 || pixelPitch === 2.5) {
+      // P4 and P2.5: Fixed area = 7.34ft × 4.72ft = 34.64 sqft
+      const widthInFeet = 7.34;
+      const heightInFeet = 4.72;
+      const fixedQuantity = widthInFeet * heightInFeet;
+      
+      console.log('🎯 HTML Jumbo Series P4/P2.5 Fixed Pricing:', {
+        product: selectedProduct.name,
+        pixelPitch,
+        fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
+        quantity: fixedQuantity.toFixed(2) + ' sqft'
+      });
+      
+      quantity = Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
+    } else if (pixelPitch === 3 || pixelPitch === 6) {
+      // P3 and P6: Fixed area = 6.92ft × 5.04ft = 34.88 sqft
+      const widthInFeet = 6.92;
+      const heightInFeet = 5.04;
+      const fixedQuantity = widthInFeet * heightInFeet;
+      
+      console.log('🎯 HTML Jumbo Series P3/P6 Fixed Pricing:', {
+        product: selectedProduct.name,
+        pixelPitch,
+        fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
+        quantity: fixedQuantity.toFixed(2) + ' sqft'
+      });
+      
+      quantity = Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
+    } else {
+      quantity = 1; // Fallback
+    }
   } else {
     // For other products, calculate quantity in square feet
     const widthInMeters = config.width / 1000;
@@ -1056,40 +1109,13 @@ export const generateConfigurationHtml = (
   const gstProduct = subtotal * 0.18;
   const totalProduct = subtotal + gstProduct;
   
-  // Check if product is Jumbo Series (prices already include controllers)
-  const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
-                        selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
-                        selectedProduct.name?.toLowerCase().includes('jumbo series');
   
   // Controller pricing - use SAME LOGIC as quotation calculation
   // Note: Skip controller price for Jumbo Series products as their prices already include controllers
   let controllerPrice = 0;
   if (processor && !isJumboSeries) {
-    const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
-      'TB2': { endUser: 35000, reseller: 29800, channel: 31500 },
-      'TB40': { endUser: 35000, reseller: 29800, channel: 31500 },
-      'TB60': { endUser: 65000, reseller: 55300, channel: 58500 },
-      'VX1': { endUser: 35000, reseller: 29800, channel: 31500 },
-      'VX400': { endUser: 100000, reseller: 85000, channel: 90000 },
-      'VX400 Pro': { endUser: 110000, reseller: 93500, channel: 99000 },
-      'VX600': { endUser: 120000, reseller: 102000, channel: 108000 },
-      'VX600 Pro': { endUser: 130000, reseller: 110500, channel: 117000 },
-      'VX1000': { endUser: 150000, reseller: 127500, channel: 135000 },
-      'VX1000 Pro': { endUser: 160000, reseller: 136000, channel: 144000 },
-      '4K PRIME': { endUser: 290000, reseller: 246500, channel: 261000 }
-    };
-    
-    const procPricing = processorPrices[processor];
-    if (procPricing) {
-      // Use same user type logic as quotation calculation
-      if (userInfo?.userType === 'Reseller') {
-        controllerPrice = procPricing.reseller;
-      } else if (userInfo?.userType === 'Channel') {
-        controllerPrice = procPricing.channel;
-      } else {
-        controllerPrice = procPricing.endUser;
-      }
-    }
+    // Use centralized processor pricing
+    controllerPrice = getProcessorPrice(processor, userInfo?.userType || 'End User');
   }
   
   const gstController = controllerPrice * 0.18;

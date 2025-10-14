@@ -1,0 +1,373 @@
+/**
+ * CENTRALIZED PRICING CALCULATION
+ * 
+ * This is the SINGLE SOURCE OF TRUTH for all pricing calculations.
+ * All systems (database storage, PDF generation, dashboard display) MUST use this function
+ * to ensure 100% price consistency.
+ * 
+ * CRITICAL: Any changes to pricing logic MUST be made here only.
+ */
+
+import { Product } from '../types';
+import { getProcessorPrice } from './processorPrices';
+
+export interface PricingCalculationResult {
+  // Product pricing
+  unitPrice: number;
+  quantity: number;
+  productSubtotal: number;
+  productGST: number;
+  productTotal: number;
+  
+  // Processor pricing
+  processorPrice: number;
+  processorGST: number;
+  processorTotal: number;
+  
+  // Grand total
+  grandTotal: number;
+  
+  // Metadata
+  userType: string;
+  productName: string;
+  processorName?: string;
+  cabinetGrid?: { columns: number; rows: number };
+  displaySize?: { width: number; height: number };
+  
+  // Price availability
+  isAvailable: boolean; // false if price is NA
+}
+
+/**
+ * Check if product is a Jumbo Series product (prices include controllers)
+ */
+function isJumboSeriesProduct(product: Product): boolean {
+  return product.category?.toLowerCase().includes('jumbo') || 
+         product.id?.toLowerCase().startsWith('jumbo-') ||
+         product.name?.toLowerCase().includes('jumbo series');
+}
+
+/**
+ * Get product unit price based on user type
+ * Returns null if price is NA (Not Available)
+ */
+function getProductUnitPrice(product: Product, userType: string): number | null {
+  try {
+    // Handle rental products
+    if (product.category?.toLowerCase().includes('rental') && product.prices) {
+      if (userType === 'Reseller') {
+        const price = product.prices.cabinet.reseller;
+        return (price === 'NA' || price === 'N/A') ? null : price;
+      } else if (userType === 'Channel') {
+        const price = product.prices.cabinet.siChannel;
+        return (price === 'NA' || price === 'N/A') ? null : price;
+      } else {
+        const price = product.prices.cabinet.endCustomer;
+        return (price === 'NA' || price === 'N/A') ? null : price;
+      }
+    }
+    
+    // For regular products, use the appropriate price field based on user type
+    let selectedPrice: any;
+    
+    if (userType === 'Reseller') {
+      selectedPrice = product.resellerPrice;
+    } else if (userType === 'Channel') {
+      selectedPrice = product.siChannelPrice;
+    } else {
+      selectedPrice = product.price;
+    }
+    
+    // Check if price is NA
+    if (selectedPrice === 'NA' || selectedPrice === 'N/A' || selectedPrice === null || selectedPrice === undefined) {
+      return null;
+    }
+    
+    // Handle numeric prices
+    if (typeof selectedPrice === 'number') {
+      return selectedPrice;
+    }
+    
+    // Handle string prices
+    if (typeof selectedPrice === 'string') {
+      const parsedPrice = parseFloat(selectedPrice);
+      return isNaN(parsedPrice) ? 5300 : parsedPrice;
+    }
+    
+    // Fallback to default pricing
+    return 5300;
+    
+  } catch (error) {
+    console.error('Error getting product unit price:', error);
+    return 5300;
+  }
+}
+
+/**
+ * Calculate quantity based on product type and configuration
+ */
+function calculateQuantity(
+  product: Product,
+  cabinetGrid: { columns: number; rows: number } | null,
+  config: { width: number; height: number; unit: string }
+): number {
+  try {
+    const METERS_TO_FEET = 3.2808399;
+    
+    if (product.category?.toLowerCase().includes('rental')) {
+      // For rental series, calculate quantity as number of cabinets
+      return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+    } else if (isJumboSeriesProduct(product)) {
+      // For Jumbo Series, use fixed area-based pricing
+      const pixelPitch = product.pixelPitch;
+      
+      if (pixelPitch === 4 || pixelPitch === 2.5) {
+        // P4 and P2.5: Fixed area = 7.34ft × 4.72ft = 34.64 sqft
+        const widthInFeet = 7.34;
+        const heightInFeet = 4.72;
+        const fixedQuantity = widthInFeet * heightInFeet;
+        
+        console.log('🎯 Jumbo Series P4/P2.5 Fixed Pricing:', {
+          product: product.name,
+          pixelPitch,
+          fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
+          quantity: fixedQuantity.toFixed(2) + ' sqft'
+        });
+        
+        return Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
+      } else if (pixelPitch === 3 || pixelPitch === 6) {
+        // P3 and P6: Fixed area = 6.92ft × 5.04ft = 34.88 sqft
+        const widthInFeet = 6.92;
+        const heightInFeet = 5.04;
+        const fixedQuantity = widthInFeet * heightInFeet;
+        
+        console.log('🎯 Jumbo Series P3/P6 Fixed Pricing:', {
+          product: product.name,
+          pixelPitch,
+          fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
+          quantity: fixedQuantity.toFixed(2) + ' sqft'
+        });
+        
+        return Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
+      }
+    } else {
+      // For other products, calculate quantity in square feet
+      const widthInMeters = config.width / 1000;
+      const heightInMeters = config.height / 1000;
+      const widthInFeet = widthInMeters * METERS_TO_FEET;
+      const heightInFeet = heightInMeters * METERS_TO_FEET;
+      const quantity = widthInFeet * heightInFeet;
+      
+      // Round to 2 decimal places for consistency
+      const roundedQuantity = Math.round(quantity * 100) / 100;
+      
+      // Ensure quantity is reasonable
+      return isNaN(roundedQuantity) || roundedQuantity <= 0 ? 1 : Math.max(0.01, Math.min(roundedQuantity, 10000));
+    }
+    
+    // Fallback
+    return 1;
+  } catch (error) {
+    console.error('Error calculating quantity:', error);
+    return 1;
+  }
+}
+
+/**
+ * CENTRALIZED PRICING CALCULATION FUNCTION
+ * 
+ * This function calculates prices with consistent rounding and is used by:
+ * 1. Database storage (QuoteModal)
+ * 2. PDF generation (pdfPriceCalculator)
+ * 3. Dashboard display
+ * 
+ * CRITICAL: All pricing calculations MUST use this function
+ */
+export function calculateCentralizedPricing(
+  product: Product,
+  cabinetGrid: { columns: number; rows: number } | null,
+  processor: string | null,
+  userType: string,
+  config: { width: number; height: number; unit: string }
+): PricingCalculationResult {
+  try {
+    // Convert userType to match processor pricing format
+    let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
+    if (userType === 'reseller') {
+      pdfUserType = 'Reseller';
+    } else if (userType === 'siChannel') {
+      pdfUserType = 'Channel';
+    }
+    
+    // Get unit price
+    const unitPrice = getProductUnitPrice(product, pdfUserType);
+    
+    // Check if price is available
+    if (unitPrice === null) {
+      // Price is NA - return "Not Available" result
+      console.log('⚠️ PRICE NOT AVAILABLE:', {
+        product: product.name,
+        userType: pdfUserType,
+        reason: 'Price is set to NA'
+      });
+      
+      return {
+        unitPrice: 0,
+        quantity: 0,
+        productSubtotal: 0,
+        productGST: 0,
+        productTotal: 0,
+        processorPrice: 0,
+        processorGST: 0,
+        processorTotal: 0,
+        grandTotal: 0,
+        userType: pdfUserType,
+        productName: product.name,
+        processorName: processor || undefined,
+        cabinetGrid: cabinetGrid || undefined,
+        displaySize: {
+          width: Number((config.width / 1000).toFixed(2)),
+          height: Number((config.height / 1000).toFixed(2))
+        },
+        isAvailable: false
+      };
+    }
+    
+    // Calculate quantity with proper rounding
+    const quantity = calculateQuantity(product, cabinetGrid, config);
+    
+    // Calculate product pricing with consistent rounding at each step
+    // CRITICAL: Round quantity to 2 decimal places first to match PDF calculation
+    const roundedQuantity = Math.round(quantity * 100) / 100;
+    const productSubtotal = Math.round((unitPrice * roundedQuantity) * 100) / 100;
+    const productGST = Math.round((productSubtotal * 0.18) * 100) / 100;
+    const productTotal = Math.round((productSubtotal + productGST) * 100) / 100;
+    
+    // Calculate processor pricing (before GST) - ROUND TO 2 DECIMAL PLACES
+    let processorPrice = 0;
+    if (processor && !isJumboSeriesProduct(product)) {
+      processorPrice = getProcessorPrice(processor, pdfUserType);
+    }
+    
+    const processorGST = Math.round((processorPrice * 0.18) * 100) / 100;
+    const processorTotal = Math.round((processorPrice + processorGST) * 100) / 100;
+    
+    // Calculate Grand Total - ROUND TO NEAREST RUPEE
+    const grandTotal = Math.round(productTotal + processorTotal);
+    
+    const result: PricingCalculationResult = {
+      unitPrice,
+      quantity: roundedQuantity, // Use rounded quantity for consistency
+      productSubtotal,
+      productGST,
+      productTotal,
+      processorPrice,
+      processorGST,
+      processorTotal,
+      grandTotal,
+      userType: pdfUserType,
+      productName: product.name,
+      processorName: processor || undefined,
+      cabinetGrid: cabinetGrid || undefined,
+      displaySize: {
+        width: Number((config.width / 1000).toFixed(2)),
+        height: Number((config.height / 1000).toFixed(2))
+      },
+      isAvailable: true
+    };
+    
+    console.log('💰 CENTRALIZED PRICING CALCULATION:', {
+      product: product.name,
+      userType: pdfUserType,
+      unitPrice,
+      quantity: roundedQuantity,
+      productSubtotal,
+      productGST,
+      productTotal,
+      processorPrice,
+      processorGST,
+      processorTotal,
+      grandTotal,
+      breakdown: {
+        'Unit Price (per sq.ft)': unitPrice,
+        'Quantity (sq.ft)': roundedQuantity,
+        'Product Subtotal': productSubtotal,
+        'Product GST (18%)': productGST,
+        'Product Total (A)': productTotal,
+        'Processor Price': processorPrice,
+        'Processor GST (18%)': processorGST,
+        'Processor Total (B)': processorTotal,
+        'GRAND TOTAL (A+B) with GST': grandTotal
+      }
+    });
+    
+    return result;
+    
+  } catch (error) {
+    console.error('Error in centralized pricing calculation:', error);
+    // Return fallback pricing
+    return {
+      unitPrice: 5300,
+      quantity: 1,
+      productSubtotal: 5300,
+      productGST: 954,
+      productTotal: 6254,
+      processorPrice: 0,
+      processorGST: 0,
+      processorTotal: 0,
+      grandTotal: 6254,
+      userType: 'End User',
+      productName: product.name,
+      isAvailable: true
+    };
+  }
+}
+
+/**
+ * Validate that stored price matches centralized calculation
+ */
+export function validatePriceConsistency(
+  storedPrice: number,
+  product: Product,
+  cabinetGrid: { columns: number; rows: number } | null,
+  processor: string | null,
+  userType: string,
+  config: { width: number; height: number; unit: string }
+): { isValid: boolean; calculatedPrice: number; difference: number; message: string } {
+  try {
+    const calculatedResult = calculateCentralizedPricing(product, cabinetGrid, processor, userType, config);
+    const calculatedPrice = calculatedResult.grandTotal;
+    const difference = Math.abs(storedPrice - calculatedPrice);
+    const tolerance = 1; // Allow 1 rupee difference for rounding
+    
+    const isValid = difference <= tolerance;
+    
+    const message = isValid 
+      ? `✅ Price consistency verified: Stored (₹${storedPrice.toLocaleString('en-IN')}) matches calculation (₹${calculatedPrice.toLocaleString('en-IN')})`
+      : `❌ Price mismatch detected: Stored (₹${storedPrice.toLocaleString('en-IN')}) vs Calculation (₹${calculatedPrice.toLocaleString('en-IN')}) - Difference: ₹${difference.toLocaleString('en-IN')}`;
+    
+    console.log('🔍 Price Consistency Check:', {
+      storedPrice,
+      calculatedPrice,
+      difference,
+      isValid,
+      message
+    });
+    
+    return {
+      isValid,
+      calculatedPrice,
+      difference,
+      message
+    };
+    
+  } catch (error) {
+    console.error('Error validating price consistency:', error);
+    return {
+      isValid: false,
+      calculatedPrice: 0,
+      difference: storedPrice,
+      message: `❌ Price validation failed: ${error.message}`
+    };
+  }
+}

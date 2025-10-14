@@ -1,7 +1,6 @@
 import { Product } from '../types';
 
 // Define NA constant for products without pricing
-const NA = "NA";
 
 export const products: Product[] = [
 
@@ -15,9 +14,14 @@ export const products: Product[] = [
       width: 213, // Calculated: 320mm ÷ 1.5mm pixel pitch
       height: 107  // Calculated: 160mm ÷ 1.5mm pixel pitch
     },
-    price: 45000, // Flexible series pricing
-    siChannelPrice: 40500,
-    resellerPrice: 38250,
+    price: 14167, // Flexible series pricing (₹25,700 per ft² × 0.551 ft²)
+    siChannelPrice: 12842, // (₹23,300 per ft² × 0.551 ft²)
+    resellerPrice: 12072, // (₹21,900 per ft² × 0.551 ft²)
+    prices: {
+      cabinet: { endCustomer: 14167, siChannel: 12842, reseller: 12072 },
+      curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
+    },
+    // Structure Cost: End Customer ₹700, SI Channel ₹700, Reseller ₹600
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160
@@ -52,9 +56,14 @@ export const products: Product[] = [
       width: 171, // Calculated: 320mm ÷ 1.875mm pixel pitch (spec shows 1.875mm)
       height: 85   // Calculated: 160mm ÷ 1.875mm pixel pitch
     },
-    price: 42000, // Flexible series pricing
-    siChannelPrice: 37800,
-    resellerPrice: 35700,
+    price: 9700, // Flexible series pricing (₹17,600 per ft² × 0.551 ft²)
+    siChannelPrice: 8816, // (₹16,000 per ft² × 0.551 ft²)
+    resellerPrice: 8265, // (₹15,000 per ft² × 0.551 ft²)
+    prices: {
+      cabinet: { endCustomer: 9700, siChannel: 8816, reseller: 8265 },
+      curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
+    },
+    // Structure Cost: End Customer ₹700, SI Channel ₹700, Reseller ₹600
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160
@@ -89,9 +98,14 @@ export const products: Product[] = [
       width: 128, // Calculated: 320mm ÷ 2.5mm pixel pitch
       height: 64   // Calculated: 160mm ÷ 2.5mm pixel pitch
     },
-    price: 38000, // Flexible series pricing
-    siChannelPrice: 34200,
-    resellerPrice: 32300,
+    price: 6888, // Flexible series pricing (₹12,500 per ft² × 0.551 ft²)
+    siChannelPrice: 6227, // (₹11,300 per ft² × 0.551 ft²)
+    resellerPrice: 5841, // (₹10,600 per ft² × 0.551 ft²)
+    prices: {
+      cabinet: { endCustomer: 6888, siChannel: 6227, reseller: 5841 },
+      curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
+    },
+    // Structure Cost: End Customer ₹700, SI Channel ₹700, Reseller ₹600
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160
@@ -126,9 +140,14 @@ export const products: Product[] = [
       width: 107, // Calculated: 320mm ÷ 3mm pixel pitch
       height: 53   // Calculated: 160mm ÷ 3mm pixel pitch
     },
-    price: 35000, // Flexible series pricing
-    siChannelPrice: 31500,
-    resellerPrice: 29750,
+    price: 3193, // Flexible series pricing (₹10,300 per ft² × 0.31 ft²)
+    siChannelPrice: 2883, // (₹9,300 per ft² × 0.31 ft²)
+    resellerPrice: 2728, // (₹8,800 per ft² × 0.31 ft²)
+    prices: {
+      cabinet: { endCustomer: 3193, siChannel: 2883, reseller: 2728 },
+      curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
+    },
+    // Structure Cost: End Customer ₹700, SI Channel ₹700, Reseller ₹600
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160
@@ -189,6 +208,7 @@ export const products: Product[] = [
     weightPerCabinet: 0, // Not specified in PDF
     pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P4.pdf"
   },
+
 
   // Bellatrix Series
   {
@@ -961,9 +981,6 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
-    price: NA,
-    siChannelPrice: NA,
-    resellerPrice: NA,
   },
   // Betel Series Indoor SMD P1.5
   {
@@ -1003,9 +1020,6 @@ export const products: Product[] = [
     powerSupply: 'Meanwell',
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
-    price: NA,
-    siChannelPrice: NA,
-    resellerPrice: NA,
   },
   // Betel Series Indoor SMD P1.8
   {
@@ -1438,11 +1452,12 @@ export const products: Product[] = [
     name: 'Jumbo Series Outdoor P6',
     category: 'Jumbo Series',
     image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM.png',
-    resolution: { width: 192, height: 192 }, // Module size 192x192, pixel pitch 6mm
-    cabinetDimensions: { width: 960, height: 960 },
-    moduleDimensions: { width: 192, height: 192 },
+    resolution: { width: 352, height: 256 }, // 11 columns x 8 rows x 32 pixels per module
+    cabinetDimensions: { width: 2109, height: 1536 }, // Fixed display size: 6.92ft x 5.04ft
+    moduleDimensions: { width: 192, height: 192 }, // Fixed module size: 192x192mm
     moduleResolution: { width: 32, height: 32 },
-    moduleQuantity: 25, // 5x5
+    moduleQuantity: 88, // 11 columns x 8 rows
+    moduleGrid: { columns: 11, rows: 8 },
     pixelPitch: 6,
     pixelDensity: 27776,
     brightness: 5500,
@@ -1483,11 +1498,12 @@ export const products: Product[] = [
     name: 'Jumbo Series Outdoor P4',
     category: 'Jumbo Series',
     image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy.png',
-    resolution: { width: 320, height: 160 }, // Module size 320x160, pixel pitch 4mm
-    cabinetDimensions: { width: 960, height: 960 },
-    moduleDimensions: { width: 320, height: 160 },
+    resolution: { width: 560, height: 360 }, // 7 columns x 9 rows x 80x40 pixels per module
+    cabinetDimensions: { width: 2237, height: 1439 }, // Fixed display size: 7.34ft x 4.72ft
+    moduleDimensions: { width: 320, height: 160 }, // Fixed module size: 320x160mm
     moduleResolution: { width: 80, height: 40 },
-    moduleQuantity: 18, // 3x6
+    moduleQuantity: 63, // 7 columns x 9 rows
+    moduleGrid: { columns: 7, rows: 9 },
     pixelPitch: 4,
     pixelDensity: 62500,
     brightness: 5000,
@@ -1528,11 +1544,12 @@ export const products: Product[] = [
     name: 'Jumbo Series Outdoor P3',
     category: 'Jumbo Series',
     image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy 2.png',
-    resolution: { width: 192, height: 192 }, // Module size 192x192, pixel pitch 3mm
-    cabinetDimensions: { width: 960, height: 960 },
-    moduleDimensions: { width: 192, height: 192 },
+    resolution: { width: 704, height: 512 }, // 11 columns x 8 rows x 64 pixels per module
+    cabinetDimensions: { width: 2109, height: 1536 }, // Fixed display size: 6.92ft x 5.04ft
+    moduleDimensions: { width: 192, height: 192 }, // Fixed module size: 192x192mm
     moduleResolution: { width: 64, height: 64 },
-    moduleQuantity: 25, // 5x5
+    moduleQuantity: 88, // 11 columns x 8 rows
+    moduleGrid: { columns: 11, rows: 8 },
     pixelPitch: 3,
     pixelDensity: 111000,
     brightness: 5000,
@@ -1573,11 +1590,12 @@ export const products: Product[] = [
     name: 'Jumbo Series Indoor P2.5',
     category: 'Jumbo Series',
     image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy 3.png',
-    resolution: { width: 320, height: 160 }, // Module size 320x160, pixel pitch 2.5mm
-    cabinetDimensions: { width: 960, height: 960 },
-    moduleDimensions: { width: 320, height: 160 },
+    resolution: { width: 896, height: 576 }, // 7 columns x 9 rows x 128x64 pixels per module
+    cabinetDimensions: { width: 2237, height: 1439 }, // Fixed display size: 7.34ft x 4.72ft
+    moduleDimensions: { width: 320, height: 160 }, // Fixed module size: 320x160mm
     moduleResolution: { width: 128, height: 64 },
-    moduleQuantity: 18, // 3x6
+    moduleQuantity: 63, // 7 columns x 9 rows
+    moduleGrid: { columns: 7, rows: 9 },
     pixelPitch: 2.5,
     pixelDensity: 160000,
     brightness: 4500,

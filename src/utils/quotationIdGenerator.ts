@@ -19,8 +19,8 @@ class QuotationIdGenerator {
   private static readonly MAX_SERIAL = 999; // Maximum 3-digit serial
 
   /**
-   * Generate a unique quotation ID in the format: ORION/{YEAR}/{MONTH}/{DAY}/{FIRSTNAME}/{SERIAL}
-   * Auto-increments the 3-digit counter and checks database for duplicates
+   * Generate a globally unique quotation ID in the format: ORION/{YEAR}/{MONTH}/{DAY}/{FIRSTNAME}/{SERIAL}
+   * Uses backend transaction to ensure globally unique serial numbers that never repeat
    */
   static async generateQuotationId(username: string): Promise<string> {
     const now = new Date();
@@ -31,15 +31,50 @@ class QuotationIdGenerator {
     // Extract only the first name from the full name
     const firstName = username.trim().split(' ')[0].toUpperCase();
     
-    // Get the next serial number for this user and date
-    const serial = await this.getNextSerialNumber(firstName, year, month, day);
-    
-    const quotationId = `ORION/${year}/${month}/${day}/${firstName}/${serial}`;
-    
-    // Store the generated ID
-    this.storeQuotationId(quotationId, firstName);
-    
-    return quotationId;
+    try {
+      // Use the new backend endpoint for globally unique ID generation
+      const response = await fetch('/api/sales/generate-quotation-id', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName,
+          year,
+          month,
+          day
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.quotationId) {
+          console.log('✅ Generated globally unique quotation ID:', data.quotationId);
+          
+          // Store the generated ID
+          this.storeQuotationId(data.quotationId, firstName);
+          
+          return data.quotationId;
+        } else {
+          throw new Error(data.error || 'Failed to generate quotation ID');
+        }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Backend error generating quotation ID');
+      }
+    } catch (error) {
+      console.error('❌ Error generating quotation ID via backend:', error);
+      
+      // Fallback to local generation if backend fails
+      console.log('🔄 Falling back to local quotation ID generation...');
+      const serial = await this.getNextSerialNumber(firstName, year, month, day);
+      const quotationId = `ORION/${year}/${month}/${day}/${firstName}/${serial}`;
+      
+      // Store the generated ID
+      this.storeQuotationId(quotationId, firstName);
+      
+      return quotationId;
+    }
   }
 
   /**

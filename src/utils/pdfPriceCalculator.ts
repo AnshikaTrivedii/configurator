@@ -11,21 +11,8 @@
  */
 
 import { Product } from '../types';
-
-// Processor pricing mapping (matches PDF exactly)
-const PROCESSOR_PRICES: Record<string, { endUser: number; reseller: number; channel: number }> = {
-  'TB2': { endUser: 15000, reseller: 12000, channel: 10000 },
-  'TB40': { endUser: 25000, reseller: 20000, channel: 17000 },
-  'TB60': { endUser: 35000, reseller: 28000, channel: 24000 },
-  'VX1': { endUser: 20000, reseller: 16000, channel: 14000 },
-  'VX400': { endUser: 30000, reseller: 24000, channel: 21000 },
-  'VX400 Pro': { endUser: 35000, reseller: 28000, channel: 24000 },
-  'VX600': { endUser: 45000, reseller: 36000, channel: 31000 },
-  'VX600 Pro': { endUser: 50000, reseller: 40000, channel: 34000 },
-  'VX1000': { endUser: 65000, reseller: 52000, channel: 44000 },
-  'VX1000 Pro': { endUser: 70000, reseller: 56000, channel: 48000 },
-  '4K PRIME': { endUser: 100000, reseller: 80000, channel: 68000 }
-};
+import { getProcessorPrice } from './processorPrices';
+import { calculateCentralizedPricing } from './centralizedPricing';
 
 export interface PricingBreakdown {
   // Product pricing
@@ -101,7 +88,7 @@ function isJumboSeriesProduct(product: Product): boolean {
  * Get processor price based on user type (matches PDF logic exactly)
  * Returns 0 for Jumbo Series products as their prices already include controllers
  */
-export function getProcessorPrice(processorName: string, userType: string, product?: Product): number {
+export function getProcessorPriceForProduct(processorName: string, userType: string, product?: Product): number {
   try {
     // Skip processor price for Jumbo Series products (prices already include controllers)
     if (product && isJumboSeriesProduct(product)) {
@@ -109,18 +96,8 @@ export function getProcessorPrice(processorName: string, userType: string, produ
       return 0;
     }
 
-    const processor = PROCESSOR_PRICES[processorName];
-    if (!processor) {
-      return 0; // No processor price
-    }
-
-    if (userType === 'Reseller') {
-      return processor.reseller;
-    } else if (userType === 'Channel') {
-      return processor.channel;
-    } else {
-      return processor.endUser;
-    }
+    // Use centralized processor pricing
+    return getProcessorPrice(processorName, userType);
     
   } catch (error) {
     console.error('Error getting processor price:', error);
@@ -142,6 +119,39 @@ export function calculateQuantity(
     if (product.category?.toLowerCase().includes('rental')) {
       // For rental series, calculate quantity as number of cabinets
       return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+    } else if (isJumboSeriesProduct(product)) {
+      // For Jumbo Series, use fixed area-based pricing
+      const pixelPitch = product.pixelPitch;
+      
+      if (pixelPitch === 4 || pixelPitch === 2.5) {
+        // P4 and P2.5: Fixed area = 7.34ft × 4.72ft = 34.64 sqft
+        const widthInFeet = 7.34;
+        const heightInFeet = 4.72;
+        const fixedQuantity = widthInFeet * heightInFeet;
+        
+        console.log('🎯 PDF Jumbo Series P4/P2.5 Fixed Pricing:', {
+          product: product.name,
+          pixelPitch,
+          fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
+          quantity: fixedQuantity.toFixed(2) + ' sqft'
+        });
+        
+        return Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
+      } else if (pixelPitch === 3 || pixelPitch === 6) {
+        // P3 and P6: Fixed area = 6.92ft × 5.04ft = 34.88 sqft
+        const widthInFeet = 6.92;
+        const heightInFeet = 5.04;
+        const fixedQuantity = widthInFeet * heightInFeet;
+        
+        console.log('🎯 PDF Jumbo Series P3/P6 Fixed Pricing:', {
+          product: product.name,
+          pixelPitch,
+          fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
+          quantity: fixedQuantity.toFixed(2) + ' sqft'
+        });
+        
+        return Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
+      }
     } else {
       // For other products, calculate quantity in square feet - MATCH PDF EXACTLY
       const widthInMeters = config.width / 1000;
@@ -156,6 +166,9 @@ export function calculateQuantity(
       // Ensure quantity is reasonable (same as PDF)
       return isNaN(roundedQuantity) || roundedQuantity <= 0 ? 1 : Math.max(0.01, Math.min(roundedQuantity, 10000));
     }
+    
+    // Fallback
+    return 1;
   } catch (error) {
     console.error('Error calculating quantity:', error);
     return 1;
@@ -168,6 +181,8 @@ export function calculateQuantity(
  * 1. PDF generation
  * 2. Database storage
  * 3. Super Admin Dashboard
+ * 
+ * CRITICAL: Now uses centralized pricing function for 100% consistency
  */
 export function calculatePricingBreakdown(
   product: Product,
@@ -177,77 +192,38 @@ export function calculatePricingBreakdown(
   config: { width: number; height: number; unit: string }
 ): PricingBreakdown {
   try {
-    // Convert userType to match PDF logic
-    let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
-    if (userType === 'reseller') {
-      pdfUserType = 'Reseller';
-    } else if (userType === 'siChannel') {
-      pdfUserType = 'Channel';
-    }
+    // Use centralized pricing calculation for 100% consistency
+    const pricingResult = calculateCentralizedPricing(
+      product,
+      cabinetGrid,
+      processor,
+      userType,
+      config
+    );
     
-    // Get unit price (same logic as PDF)
-    const unitPrice = getProductUnitPrice(product, pdfUserType);
-    
-    // Calculate quantity (same logic as PDF)
-    const quantity = calculateQuantity(product, cabinetGrid, config);
-    
-    // Calculate product pricing (before GST)
-    const productSubtotal = unitPrice * quantity;
-    const productGST = productSubtotal * 0.18;
-    const productTotal = productSubtotal + productGST;
-    
-    // Calculate processor pricing (before GST)
-    // Note: For Jumbo Series, processor price will be 0 as prices already include controllers
-    const processorPrice = processor ? getProcessorPrice(processor, pdfUserType, product) : 0;
-    const processorGST = processorPrice * 0.18;
-    const processorTotal = processorPrice + processorGST;
-    
-    // Calculate Grand Total (A + B) - matches PDF exactly
-    const grandTotal = productTotal + processorTotal;
-    
+    // Convert to PricingBreakdown format
     const breakdown: PricingBreakdown = {
-      unitPrice,
-      quantity,
-      productSubtotal,
-      productGST,
-      productTotal,
-      processorPrice,
-      processorGST,
-      processorTotal,
-      grandTotal: Math.round(grandTotal), // Round to nearest rupee
-      userType: pdfUserType,
-      productName: product.name,
-      processorName: processor || undefined,
-      cabinetGrid: cabinetGrid || undefined,
-      displaySize: {
-        width: Number((config.width / 1000).toFixed(2)),
-        height: Number((config.height / 1000).toFixed(2))
-      }
+      unitPrice: pricingResult.unitPrice,
+      quantity: pricingResult.quantity,
+      productSubtotal: pricingResult.productSubtotal,
+      productGST: pricingResult.productGST,
+      productTotal: pricingResult.productTotal,
+      processorPrice: pricingResult.processorPrice,
+      processorGST: pricingResult.processorGST,
+      processorTotal: pricingResult.processorTotal,
+      grandTotal: pricingResult.grandTotal,
+      userType: pricingResult.userType,
+      productName: pricingResult.productName,
+      processorName: pricingResult.processorName,
+      cabinetGrid: pricingResult.cabinetGrid,
+      displaySize: pricingResult.displaySize
     };
     
-    console.log('💰 PDF Price Calculator - Complete Breakdown:', {
+    console.log('💰 PDF Price Calculator - Using Centralized Calculation:', {
       product: product.name,
-      userType: pdfUserType,
-      unitPrice,
-      quantity,
-      productSubtotal,
-      productGST,
-      productTotal,
-      processorPrice,
-      processorGST,
-      processorTotal,
+      userType: pricingResult.userType,
       grandTotal: breakdown.grandTotal,
-      breakdown: {
-        'Unit Price (per sq.ft)': unitPrice,
-        'Quantity (sq.ft)': quantity,
-        'Product Subtotal': productSubtotal,
-        'Product GST (18%)': productGST,
-        'Product Total (A)': productTotal,
-        'Processor Price': processorPrice,
-        'Processor GST (18%)': processorGST,
-        'Processor Total (B)': processorTotal,
-        'GRAND TOTAL (A+B) with GST': breakdown.grandTotal
-      }
+      note: 'Using centralized pricing function for 100% consistency'
     });
     
     return breakdown;

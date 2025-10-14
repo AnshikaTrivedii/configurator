@@ -374,8 +374,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
         updateWidth(selectedProduct.cabinetDimensions.width);
         updateHeight(selectedProduct.cabinetDimensions.height);
       } else if (jumboGrid) {
-        updateWidth(jumboGrid.columns * selectedProduct.cabinetDimensions.width);
-        updateHeight(jumboGrid.rows * selectedProduct.cabinetDimensions.height);
+        // For Jumbo Series, use the fixed cabinet dimensions directly
+        updateWidth(selectedProduct.cabinetDimensions.width);
+        updateHeight(selectedProduct.cabinetDimensions.height);
       } else {
         const grid = calculateCabinetGrid(selectedProduct);
         updateWidth(grid.totalWidth);

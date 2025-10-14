@@ -5,6 +5,8 @@ import { salesAPI } from '../api/sales';
 import { SalesUser } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
+import { getProcessorPrice } from '../utils/processorPrices';
+import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 
 // Import Product type for proper typing
 interface ProductWithPricing extends Product {
@@ -79,6 +81,41 @@ function calculateCorrectTotalPrice(
   if (product.category?.toLowerCase().includes('rental')) {
     // For rental series, calculate quantity as number of cabinets
     quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+  } else if (isJumboSeriesProduct(product)) {
+    // For Jumbo Series, use fixed area-based pricing
+    const pixelPitch = product.pixelPitch;
+    
+    if (pixelPitch === 4 || pixelPitch === 2.5) {
+      // P4 and P2.5: Fixed area = 7.34ft × 4.72ft = 34.64 sqft
+      const widthInFeet = 7.34;
+      const heightInFeet = 4.72;
+      const fixedQuantity = widthInFeet * heightInFeet;
+      
+      console.log('🎯 QuoteModal Jumbo Series P4/P2.5 Fixed Pricing:', {
+        product: product.name,
+        pixelPitch,
+        fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
+        quantity: fixedQuantity.toFixed(2) + ' sqft'
+      });
+      
+      quantity = Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
+    } else if (pixelPitch === 3 || pixelPitch === 6) {
+      // P3 and P6: Fixed area = 6.92ft × 5.04ft = 34.88 sqft
+      const widthInFeet = 6.92;
+      const heightInFeet = 5.04;
+      const fixedQuantity = widthInFeet * heightInFeet;
+      
+      console.log('🎯 QuoteModal Jumbo Series P3/P6 Fixed Pricing:', {
+        product: product.name,
+        pixelPitch,
+        fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
+        quantity: fixedQuantity.toFixed(2) + ' sqft'
+      });
+      
+      quantity = Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
+    } else {
+      quantity = 1; // Fallback
+    }
   } else {
     // For other products, calculate quantity in square feet - MATCH PDF EXACTLY
     // CRITICAL: Use config dimensions directly (same as PDF) to avoid rounding differences
@@ -102,30 +139,14 @@ function calculateCorrectTotalPrice(
   // Note: Skip processor price for Jumbo Series products as their prices already include controllers
   let processorPrice = 0;
   if (processor && !isJumboSeriesProduct(product)) {
-    const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
-      'TB2': { endUser: 35000, reseller: 29800, channel: 31500 },
-      'TB40': { endUser: 35000, reseller: 29800, channel: 31500 },
-      'TB60': { endUser: 65000, reseller: 55300, channel: 58500 },
-      'VX1': { endUser: 35000, reseller: 29800, channel: 31500 },
-      'VX400': { endUser: 100000, reseller: 85000, channel: 90000 },
-      'VX400 Pro': { endUser: 110000, reseller: 93500, channel: 99000 },
-      'VX600': { endUser: 120000, reseller: 102000, channel: 108000 },
-      'VX600 Pro': { endUser: 130000, reseller: 110500, channel: 117000 },
-      'VX1000': { endUser: 150000, reseller: 127500, channel: 135000 },
-      'VX1000 Pro': { endUser: 160000, reseller: 136000, channel: 144000 },
-      '4K PRIME': { endUser: 290000, reseller: 246500, channel: 261000 }
-    };
-    
-    const procPricing = processorPrices[processor];
-    if (procPricing) {
-      if (pdfUserType === 'Reseller') {
-        processorPrice = procPricing.reseller;
-      } else if (pdfUserType === 'Channel') {
-        processorPrice = procPricing.channel;
-      } else {
-        processorPrice = procPricing.endUser;
-      }
-    }
+    // Use centralized processor pricing
+    processorPrice = getProcessorPrice(processor, pdfUserType);
+    console.log('🔧 Processor Price Calculation:', {
+      processor,
+      pdfUserType,
+      calculatedPrice: processorPrice,
+      note: 'Using centralized processor pricing'
+    });
   } else if (processor && isJumboSeriesProduct(product)) {
     console.log('🚫 Skipping processor price for Jumbo Series product:', product.name);
   }
@@ -276,32 +297,17 @@ const getUserTypeDisplayName = (type: string): string => {
   }
 };
 
-// Get processor price based on user type
-const getProcessorPrice = (processor: string, userType: string): number => {
-  const processorPrices: Record<string, { endUser: number; reseller: number; channel: number }> = {
-    'TB2': { endUser: 35000, reseller: 29800, channel: 31500 },
-    'TB40': { endUser: 35000, reseller: 29800, channel: 31500 },
-    'TB60': { endUser: 65000, reseller: 55300, channel: 58500 },
-    'VX1': { endUser: 35000, reseller: 29800, channel: 31500 },
-    'VX400': { endUser: 100000, reseller: 85000, channel: 90000 },
-    'VX400 Pro': { endUser: 110000, reseller: 93500, channel: 99000 },
-    'VX600': { endUser: 120000, reseller: 102000, channel: 108000 },
-    'VX600 Pro': { endUser: 130000, reseller: 110500, channel: 117000 },
-    'VX1000': { endUser: 150000, reseller: 127500, channel: 135000 },
-    'VX1000 Pro': { endUser: 160000, reseller: 136000, channel: 144000 },
-    '4K PRIME': { endUser: 290000, reseller: 246500, channel: 261000 }
-  };
-  
-  const procPricing = processorPrices[processor];
-  if (!procPricing) return 0;
-  
+// Get processor price based on user type (using centralized pricing)
+const getProcessorPriceLocal = (processor: string, userType: string): number => {
+  // Convert userType to match centralized pricing format
+  let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
   if (userType === 'reseller') {
-    return procPricing.reseller;
+    pdfUserType = 'Reseller';
   } else if (userType === 'siChannel') {
-    return procPricing.channel;
-  } else {
-    return procPricing.endUser;
+    pdfUserType = 'Channel';
   }
+  
+  return getProcessorPrice(processor, pdfUserType);
 };
 
 
@@ -533,16 +539,23 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             generatedAt: new Date().toISOString()
           };
 
-          // CRITICAL: Calculate total price using the same logic as PDF generation
-          // This price INCLUDES 18% GST and matches the PDF Grand Total exactly
-          // This stored price (with GST) will be displayed in the Super User dashboard
-          const correctTotalPrice = calculateCorrectTotalPrice(
-            selectedProduct as ProductWithPricing,
+          // CRITICAL: Calculate total price using centralized pricing function
+          // This ensures 100% consistency between database storage and PDF generation
+          const pricingResult = calculateCentralizedPricing(
+            selectedProduct,
             cabinetGrid,
             processor,
             userType,
             config || { width: 2400, height: 1010, unit: 'mm' } // Fallback config if not provided
           );
+          
+          // Check if price is available
+          if (!pricingResult.isAvailable) {
+            alert('❌ Price is not available for this product configuration. Please contact sales for pricing information.');
+            return;
+          }
+          
+          const correctTotalPrice = pricingResult.grandTotal;
 
           console.log('💰 Calculated price for quotation (WITH GST - matches PDF):', {
             quotationId: finalQuotationId,
@@ -569,63 +582,17 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             status: quotationStatus,
             totalPrice: correctTotalPrice,  // CRITICAL: Grand Total with GST - matches PDF exactly
             
-            // Store exact pricing breakdown as shown on the page
-            // CRITICAL: Use the SAME calculation logic as calculateCorrectTotalPrice
-            exactPricingBreakdown: (() => {
-              // Get unit price using same logic as calculateCorrectTotalPrice
-              let unitPrice = 0;
-              if (selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.prices) {
-                if (userType === 'reseller') {
-                  unitPrice = selectedProduct.prices.cabinet.reseller;
-                } else if (userType === 'siChannel') {
-                  unitPrice = selectedProduct.prices.cabinet.siChannel;
-                } else {
-                  unitPrice = selectedProduct.prices.cabinet.endCustomer;
-                }
-              } else {
-                // Handle regular products
-                if (userType === 'reseller' && typeof selectedProduct.resellerPrice === 'number') {
-                  unitPrice = selectedProduct.resellerPrice;
-                } else if (userType === 'siChannel' && typeof selectedProduct.siChannelPrice === 'number') {
-                  unitPrice = selectedProduct.siChannelPrice;
-                } else if (typeof selectedProduct.price === 'number') {
-                  unitPrice = selectedProduct.price;
-                } else if (typeof selectedProduct.price === 'string') {
-                  const parsedPrice = parseFloat(selectedProduct.price);
-                  unitPrice = isNaN(parsedPrice) ? 5300 : parsedPrice;
-                } else {
-                  unitPrice = 5300; // Default fallback
-                }
-              }
-              
-              // Calculate quantity using same logic as calculateCorrectTotalPrice
-              let quantity = 0;
-              if (selectedProduct.category?.toLowerCase().includes('rental')) {
-                quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-              } else {
-                const widthInMeters = config.width / 1000;
-                const heightInMeters = config.height / 1000;
-                const widthInFeet = widthInMeters * 3.2808399;
-                const heightInFeet = heightInMeters * 3.2808399;
-                quantity = widthInFeet * heightInFeet;
-              }
-              
-              const subtotal = unitPrice * quantity;
-              const gstAmount = subtotal * 0.18;
-              const processorPrice = processor ? getProcessorPrice(processor, userType) : 0;
-              const processorGst = processorPrice * 0.18;
-              
-              return {
-                unitPrice,
-                quantity,
-                subtotal,
-                gstRate: 18,
-                gstAmount,
-                processorPrice,
-                processorGst,
-                grandTotal: correctTotalPrice
-              };
-            })(),
+            // Store exact pricing breakdown using centralized calculation
+            exactPricingBreakdown: {
+              unitPrice: pricingResult.unitPrice,
+              quantity: pricingResult.quantity,
+              subtotal: pricingResult.productSubtotal,
+              gstRate: 18,
+              gstAmount: pricingResult.productGST,
+              processorPrice: pricingResult.processorPrice,
+              processorGst: pricingResult.processorGST,
+              grandTotal: pricingResult.grandTotal
+            },
             
             // Store exact product specifications as shown
             exactProductSpecs: {

@@ -240,14 +240,16 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
           </div>
         </div>
 
-        {/* Number of Cabinets */}
+        {/* Number of Cabinets/Modules */}
         <div className="bg-amber-50 p-3 sm:p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
           <div className="flex items-start space-x-2 sm:space-x-3">
             <div className="p-1.5 sm:p-2 rounded-lg bg-amber-100 text-amber-500 bg-opacity-50 flex-shrink-0">
               <Boxes className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Number of Cabinets</h3>
+              <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">
+                {isJumboSeries ? 'Number of Modules' : 'Number of Cabinets'}
+              </h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-amber-700 break-words">
                 {cabinetGrid.columns * cabinetGrid.rows} ({cabinetGrid.columns} × {cabinetGrid.rows})
               </p>

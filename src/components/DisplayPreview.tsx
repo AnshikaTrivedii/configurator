@@ -261,12 +261,19 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   const moduleGrid = useModuleGrid && selectedProduct ? (
     selectedProduct.category?.toLowerCase().includes('digital standee')
       ? { columns: 7, rows: 5, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
-      : {
-          columns: Math.round(previewWidth / selectedProduct.moduleDimensions.width),
-          rows: Math.round(previewHeight / selectedProduct.moduleDimensions.height),
-          width: selectedProduct.moduleDimensions.width,
-          height: selectedProduct.moduleDimensions.height,
-        }
+      : selectedProduct.moduleGrid
+        ? { 
+            columns: selectedProduct.moduleGrid.columns, 
+            rows: selectedProduct.moduleGrid.rows, 
+            width: selectedProduct.moduleDimensions.width, 
+            height: selectedProduct.moduleDimensions.height 
+          }
+        : {
+            columns: Math.round(previewWidth / selectedProduct.moduleDimensions.width),
+            rows: Math.round(previewHeight / selectedProduct.moduleDimensions.height),
+            width: selectedProduct.moduleDimensions.width,
+            height: selectedProduct.moduleDimensions.height,
+          }
   ) : null;
 
   const renderModuleGrid = () => {

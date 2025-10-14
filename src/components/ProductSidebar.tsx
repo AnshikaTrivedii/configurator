@@ -210,7 +210,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Configuration</h3>
               <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm text-gray-600">
                 <div className="flex justify-between">
-                  <span>Total Cabinets:</span>
+                  <span>{isJumbo ? 'Total Modules:' : 'Total Cabinets:'}</span>
                   <span className="font-medium text-gray-900">{cabinetGrid.columns * cabinetGrid.rows}</span>
                 </div>
                 <div className="flex justify-between">

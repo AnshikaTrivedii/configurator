@@ -31,6 +31,10 @@ export interface Product {
     height: number;
   };
   moduleQuantity: number;
+  moduleGrid?: {
+    columns: number;
+    rows: number;
+  };
   pixelPitch: number;
   pixelDensity: number;
   brightness: number;
