@@ -10,14 +10,12 @@ const SALES_TEAM_DATA = [
   { email: 'onkar@orion-led.com', name: 'Onkar', phoneNumber: '9820318887', location: 'Mumbai' },
   { email: 'prachi.sharma@orion-led.com', name: 'Prachi Sharma', phoneNumber: '8826888050', location: 'Delhi' },
   { email: 'rajneesh.rawat@orion-led.com', name: 'Rajneesh Rawat', phoneNumber: '9839177000', location: 'Delhi' },
-  { email: 'sales@orion-led.com', name: 'Sales Team', phoneNumber: '98391 77083', location: 'Delhi' },
   { email: 'vivekanand@orion-led.com', name: 'Vivekanand', phoneNumber: '9810163963', location: 'Delhi' },
   { email: 'khushi.jafri@orion-led.com', name: 'Khushi Jafri', phoneNumber: '8588882820', location: 'Lucknow' },
   { email: 'ashwani.yadav@orion-led.com', name: 'Ashwani Yadav', phoneNumber: '98391 77083', location: 'Lucknow' },
   { email: 'anshika.trivedi@orion-led.com', name: 'Anshika Trivedi', phoneNumber: '9140526027', location: 'Lucknow' },
   { email: 'madhur@orion-led.com', name: 'Madhur', phoneNumber: '98391 77046', location: 'Delhi' },
   { email: 'amisha@orion-led.com', name: 'Amisha', phoneNumber: '98391 77083', location: 'Lucknow' },
-  { email: 'admin@orion-led.com', name: 'Admin', phoneNumber: '98391 77083', location: 'Delhi' }
 ];
 
 const DEFAULT_PASSWORD = 'Orion@123';
