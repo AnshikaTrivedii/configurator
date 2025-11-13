@@ -383,7 +383,6 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">Sales Team</h3>
             <p className="text-sm text-gray-600">Showing {filteredSalesPersons.length} of {salesPersons.length} sales persons</p>
-            <p className="text-xs text-gray-500 mt-1">*Valid quotations include only 'Converted' and 'In Progress' statuses</p>
           </div>
           
           <div className="overflow-x-auto">

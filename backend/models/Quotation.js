@@ -53,11 +53,6 @@ const quotationSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  status: {
-    type: String,
-    enum: ['New', 'In Progress', 'Rejected', 'Hold', 'Converted'],
-    default: 'New'
-  },
   pdfPage6HTML: {
     type: String,
     required: false

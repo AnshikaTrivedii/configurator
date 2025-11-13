@@ -38,7 +38,7 @@ const salesUserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['sales', 'super'],
+    enum: ['sales', 'super', 'super_admin'],
     default: 'sales'
   }
 }, {

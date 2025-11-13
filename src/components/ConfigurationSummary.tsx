@@ -38,15 +38,19 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
                         selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
                         selectedProduct.name?.toLowerCase().includes('jumbo series');
 
-  // Conversion constants
-  const METERS_TO_FEET = 3.2808399;
+  // Conversion constants - using exact values for precision
+  const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
+  const MM_TO_FEET = 1 / FEET_TO_MM;
 
-  // Convert mm to display unit with 2 decimal places
+  // Convert mm to display unit with high precision
   const toDisplayUnit = (mm: number, unit: string) => {
-    const meters = mm / 1000;
     if (unit === 'ft') {
-      return (meters * METERS_TO_FEET).toFixed(2);
+      // Direct conversion from mm to ft for precision (matches wizard conversion)
+      const feet = mm * MM_TO_FEET;
+      return feet.toFixed(2);
     }
+    // Convert mm to meters
+    const meters = mm / 1000;
     return meters.toFixed(2);
   };
   
@@ -69,14 +73,17 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     displayedWidth: displayedWidth,
     displayedHeight: displayedHeight,
     expectedAreaFromDisplayed: displayedWidth * displayedHeight,
-    METERS_TO_FEET: METERS_TO_FEET
+    MM_TO_FEET: MM_TO_FEET
   });
   
 
   
   // Calculate diagonal in display units
   const diagonalMeters = Math.sqrt(Math.pow(config.width/1000, 2) + Math.pow(config.height/1000, 2));
-  const diagonalInDisplayUnit = config.unit === 'ft' ? diagonalMeters * METERS_TO_FEET : diagonalMeters;
+  // Convert diagonal to feet if needed using direct mm to ft conversion
+  const diagonalInDisplayUnit = config.unit === 'ft' 
+    ? Math.sqrt(Math.pow(config.width * MM_TO_FEET, 2) + Math.pow(config.height * MM_TO_FEET, 2))
+    : diagonalMeters;
   
   // Convert to inches for imperial display
   const diagonalInches = diagonalMeters * 39.3701;

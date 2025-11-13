@@ -5,6 +5,9 @@ import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { getProcessorPrice } from '../utils/processorPrices';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 
+// Conversion constant
+const METERS_TO_FEET = 3.2808399;
+
 // Calculate correct total price with GST - using centralized pricing for consistency
 // Returns null if price is not available
 function calculateCorrectTotalPrice(
@@ -34,14 +37,37 @@ function calculateCorrectTotalPrice(
       return null;
     }
     
+    // Calculate screen area in square feet for Structure and Installation pricing
+    const widthInMeters = config.width / 1000;
+    const heightInMeters = config.height / 1000;
+    const widthInFeet = widthInMeters * METERS_TO_FEET;
+    const heightInFeet = heightInMeters * METERS_TO_FEET;
+    const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
+    
+    // Structure Price: ₹2500 per square foot + 18% GST
+    const structureBasePrice = screenAreaSqFt * 2500;
+    const structureGST = structureBasePrice * 0.18;
+    const totalStructure = structureBasePrice + structureGST;
+    
+    // Installation Price: ₹500 per square foot + 18% GST
+    const installationBasePrice = screenAreaSqFt * 500;
+    const installationGST = installationBasePrice * 0.18;
+    const totalInstallation = installationBasePrice + installationGST;
+    
+    // Add Structure and Installation to grand total
+    const grandTotal = pricingResult.grandTotal + totalStructure + totalInstallation;
+    
     console.log('💰 PdfViewModal - Using Centralized Calculation:', {
       product: product.name,
       userType: pricingResult.userType,
-      grandTotal: pricingResult.grandTotal,
-      note: 'Using centralized pricing function for 100% consistency'
+      baseGrandTotal: pricingResult.grandTotal,
+      structureTotal: totalStructure,
+      installationTotal: totalInstallation,
+      finalGrandTotal: grandTotal,
+      note: 'Using centralized pricing function + Structure + Installation'
     });
     
-    return pricingResult.grandTotal;
+    return Math.round(grandTotal);
     
   } catch (error) {
     console.error('Error in PdfViewModal calculation:', error);
@@ -87,6 +113,7 @@ interface PdfViewModalProps {
   onClose: () => void;
   htmlContent: string;
   onDownload: () => void;
+  onDownloadDocx?: () => void;
   fileName: string;
   // Data needed for saving quotation
   selectedProduct?: any;
@@ -104,6 +131,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   onClose,
   htmlContent,
   onDownload,
+  onDownloadDocx,
   fileName,
   selectedProduct,
   config,
@@ -117,7 +145,6 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [quotationStatus, setQuotationStatus] = useState<'New' | 'In Progress' | 'Rejected' | 'Hold' | 'Converted'>('New');
 
   const handleSave = async () => {
     if (!salesUser || !selectedProduct || !userInfo) {
@@ -212,7 +239,6 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       message: 'Quotation saved from PDF view',
       userType: userTypeForCalc,
       userTypeDisplayName: getUserTypeDisplayName(userTypeForCalc),
-      status: quotationStatus,
       totalPrice: correctTotalPrice,  // CRITICAL: Grand Total with GST - matches PDF exactly
       
       // Store exact pricing breakdown using centralized calculation
@@ -343,32 +369,9 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              {/* Quotation Status Dropdown and Save button - only show for sales users */}
+              {/* Save button - only show for sales users */}
               {salesUser && userInfo && (
                 <>
-                  {/* Quotation Status Dropdown */}
-                  <div className="flex items-center space-x-2">
-                    <label htmlFor="quotationStatus" className="text-white text-sm font-medium">
-                      Status:
-                    </label>
-                    <select
-                      id="quotationStatus"
-                      value={quotationStatus}
-                      onChange={(e) => {
-                        const newStatus = e.target.value as 'New' | 'In Progress' | 'Rejected' | 'Hold' | 'Converted';
-                        setQuotationStatus(newStatus);
-                      }}
-                      className="px-3 py-1 bg-white text-gray-900 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={isSaving}
-                    >
-                      <option value="New">New</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Rejected">Rejected</option>
-                      <option value="Hold">Hold</option>
-                      <option value="Converted">Converted</option>
-                    </select>
-                  </div>
-                  
                   {/* Save button */}
                   <button
                     onClick={handleSave}
@@ -387,6 +390,15 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                 <Download className="w-4 h-4 mr-2" />
                 Download PDF
               </button>
+              {onDownloadDocx && (
+                <button
+                  onClick={onDownloadDocx}
+                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Word
+                </button>
+              )}
               <button
                 className="text-gray-300 hover:text-white p-2"
                 onClick={onClose}

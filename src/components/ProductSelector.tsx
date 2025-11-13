@@ -105,6 +105,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   // Deduplicate products by id
   filteredProducts = filteredProducts.filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
 
+  // Sort products by pixel pitch in ascending order (lowest to highest)
+  filteredProducts = filteredProducts.sort((a, b) => a.pixelPitch - b.pixelPitch);
+
   if (!isOpen) return null;
 
   return (

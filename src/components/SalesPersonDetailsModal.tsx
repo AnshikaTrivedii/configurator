@@ -21,7 +21,6 @@ interface Quotation {
   productName: string;
   productDetails: any;
   totalPrice: number;
-  status: string;
   message: string;
   createdAt: string;
   // Exact quotation data as shown on the page
@@ -124,7 +123,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           console.log(`   ${qIndex + 1}. ID: ${quotation.quotationId}`);
           console.log(`      Price: ₹${quotation.totalPrice?.toLocaleString('en-IN') || 'N/A'}`);
           console.log(`      Product: ${quotation.productName}`);
-          console.log(`      Status: ${quotation.status}`);
         });
       });
       
@@ -155,22 +153,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'New': return 'bg-blue-100 text-blue-800';
-      case 'In Progress': return 'bg-yellow-100 text-yellow-800';
-      case 'Rejected': return 'bg-red-100 text-red-800';
-      case 'Hold': return 'bg-orange-100 text-orange-800';
-      case 'Converted': return 'bg-green-100 text-green-800';
-      // Legacy status values for backward compatibility
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'sent': return 'bg-blue-100 text-blue-800';
-      case 'followed_up': return 'bg-purple-100 text-purple-800';
-      case 'converted': return 'bg-green-100 text-green-800';
-      case 'lost': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   const formatProductDetails = (productDetails: any) => {
     if (!productDetails) return 'N/A';
@@ -354,13 +336,12 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                 quotationId: quotation.quotationId,
                                 totalPrice: quotation.totalPrice,
                                 productName: quotation.productName,
-                                status: quotation.status,
                                 customerEmail: customer.customerEmail
                               });
                               
                               return (
                                 <div key={quotation.quotationId} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                                  {/* Header with Product and Status */}
+                                  {/* Header with Product */}
                                   <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center space-x-3">
                                       <Package className="w-5 h-5 text-blue-600" />
@@ -369,17 +350,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                         <p className="text-sm text-gray-600">Quotation ID: {quotation.quotationId}</p>
                                       </div>
                                     </div>
-                                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(quotation.status)}`}>
-                                    {(() => {
-                                      const displayStatus = quotation.status?.replace('_', ' ') || 'Unknown';
-                                      console.log(`🎨 Rendering status for ${quotation.quotationId}:`, {
-                                        original: quotation.status,
-                                        display: displayStatus,
-                                        colorClass: getStatusColor(quotation.status)
-                                      });
-                                      return displayStatus;
-                                    })()}
-                                  </span>
                                 </div>
                                 
                                 {/* Product Specifications Grid */}

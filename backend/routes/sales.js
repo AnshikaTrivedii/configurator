@@ -553,7 +553,6 @@ router.get('/test-db', async (req, res) => {
       message: 'DB test',
       userType: 'endUser',
       userTypeDisplayName: 'DB Test User',
-      status: 'New',
       totalPrice: 999999
     });
     
@@ -611,7 +610,6 @@ router.post('/test-quotation', async (req, res) => {
       message: req.body.message || 'Simple test',
       userType: req.body.userType || 'endUser',
       userTypeDisplayName: req.body.userTypeDisplayName || 'Simple Test User',
-      status: req.body.status || 'New',
       totalPrice: req.body.totalPrice || 100000
     });
     
@@ -663,7 +661,6 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       message,
       userType,
       userTypeDisplayName,
-      status,
       totalPrice,
       // New exact quotation data fields
       exactPricingBreakdown,
@@ -712,7 +709,6 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       message: message || '',
       userType,
       userTypeDisplayName,
-      status: status || 'New',
       totalPrice: totalPrice || 0,
       // Store exact quotation data as shown on the page
       exactPricingBreakdown: exactPricingBreakdown || null,
@@ -811,14 +807,15 @@ router.post('/quotation', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/sales/dashboard (Super User dashboard - get all sales users with quotation counts)
+// GET /api/sales/dashboard (Dashboard - get all sales users with quotation counts)
+// Accessible by both super users and sales users
 router.get('/dashboard', authenticateToken, async (req, res) => {
   try {
-    // Check if user is a super user
-    if (req.user.role !== 'super') {
+    // Allow super_admin and super users to access admin dashboard
+    if (req.user.role !== 'super' && req.user.role !== 'super_admin') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Super User role required.'
+        message: 'Access denied. Super Admin role required.'
       });
     }
 
@@ -847,7 +844,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
       .select('name email location contactNumber createdAt role')
       .lean();
 
-    // Get quotation counts for each user (all statuses)
+      // Get quotation counts for each user
     const usersWithQuotationCounts = await Promise.all(
       salesUsers.map(async (user) => {
         const quotationCount = await Quotation.countDocuments({
@@ -855,12 +852,11 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
           ...dateFilter
         });
 
-        // Get revenue only for 'Converted' quotations
+        // Get revenue for all quotations
         const revenueResult = await Quotation.aggregate([
           {
             $match: {
               salesUserId: user._id,
-              status: 'Converted', // Only include converted quotations
               ...dateFilter
             }
           },
@@ -894,11 +890,10 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     const maxQuotationCount = validPerformers.length > 0 ? validPerformers[0].quotationCount : 0;
     const topPerformers = validPerformers.filter(user => user.quotationCount === maxQuotationCount);
     
-    // Add additional statistics (only for 'Converted' quotations)
+    // Add additional statistics
     const totalRevenue = await Quotation.aggregate([
       { 
         $match: { 
-          status: 'Converted', // Only include converted quotations for total revenue
           ...dateFilter
         } 
       },
@@ -908,7 +903,6 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     const quotationsByMonth = await Quotation.aggregate([
       { 
         $match: { 
-          status: 'Converted', // Only include converted quotations for monthly revenue
           ...dateFilter
         } 
       },
@@ -958,14 +952,94 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /api/sales/my-dashboard (Get current sales user's own dashboard data)
+router.get('/my-dashboard', authenticateToken, async (req, res) => {
+  try {
+    // Only sales users can access their own dashboard
+    if (req.user.role !== 'sales') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Sales role required.'
+      });
+    }
+
+    const userId = req.user._id || req.user.id;
+
+    // Get all quotations for this sales user
+    const quotations = await Quotation.find({ salesUserId: userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log(`📊 Found ${quotations.length} quotations for sales user ${userId}`);
+
+    // Group quotations by customer
+    const customerMap = new Map();
+    
+    let totalRevenue = 0;
+    
+    quotations.forEach(quotation => {
+      const customerKey = `${quotation.customerEmail}-${quotation.customerName}`;
+      
+      if (!customerMap.has(customerKey)) {
+        customerMap.set(customerKey, {
+          customerName: quotation.customerName,
+          customerEmail: quotation.customerEmail,
+          customerPhone: quotation.customerPhone,
+          userType: quotation.userType,
+          userTypeDisplayName: quotation.userTypeDisplayName,
+          quotations: []
+        });
+      }
+      
+      totalRevenue += quotation.totalPrice || 0;
+      
+      customerMap.get(customerKey).quotations.push({
+        quotationId: quotation.quotationId,
+        productName: quotation.productName,
+        productDetails: quotation.productDetails,
+        totalPrice: quotation.totalPrice,
+        message: quotation.message,
+        userType: quotation.userType,
+        userTypeDisplayName: quotation.userTypeDisplayName,
+        createdAt: quotation.createdAt
+      });
+    });
+
+    const customers = Array.from(customerMap.values());
+
+    res.json({
+      success: true,
+      salesPerson: {
+        _id: userId,
+        name: req.user.name,
+        email: req.user.email,
+        location: req.user.location,
+        contactNumber: req.user.contactNumber,
+        role: req.user.role
+      },
+      customers,
+      totalQuotations: quotations.length,
+      totalCustomers: customers.length,
+      totalRevenue
+    });
+
+  } catch (error) {
+    console.error('Sales dashboard error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 // GET /api/sales/salesperson/:id (Get sales person details with their quotations)
 router.get('/salesperson/:id', authenticateToken, async (req, res) => {
   try {
-    // Check if user is a super user
-    if (req.user.role !== 'super') {
+    // Check if user is a super_admin or super user
+    if (req.user.role !== 'super' && req.user.role !== 'super_admin') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Super User role required.'
+        message: 'Access denied. Super Admin role required.'
       });
     }
 
@@ -1017,7 +1091,6 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
         productName: quotation.productName,
         productDetails: quotation.productDetails,
         totalPrice: quotation.totalPrice, // Grand Total with 18% GST - matches PDF exactly
-        status: quotation.status,
         message: quotation.message,
         userType: quotation.userType,
         userTypeDisplayName: quotation.userTypeDisplayName,

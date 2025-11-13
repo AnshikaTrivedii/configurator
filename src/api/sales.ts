@@ -5,7 +5,7 @@ export interface SalesUser {
   name: string;
   location: string;
   contactNumber: string;
-  role?: 'sales' | 'super';
+  role?: 'sales' | 'super' | 'super_admin';
 }
 
 export interface LoginResponse {
@@ -56,26 +56,45 @@ class SalesAPI {
   }
 
   async login(email: string, password: string): Promise<LoginResponse> {
-    const response = await fetch(`${API_BASE_URL}/sales/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/sales/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      });
 
-    const data = await response.json();
+      // Handle network errors
+      if (!response.ok && response.status === 0) {
+        throw new Error('Failed to connect to server. Please check if the backend is running.');
+      }
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Login failed');
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        throw new Error('Invalid response from server. Please try again.');
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+
+      // Cache user data for faster subsequent access
+      if (data.success && data.user) {
+        this.setUserCache(data.user);
+      }
+
+      return data;
+    } catch (error: any) {
+      // Handle network errors (fetch failed completely)
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Failed to connect to server. Please ensure the backend is running on port 3001.');
+      }
+      // Re-throw other errors
+      throw error;
     }
-
-    // Cache user data for faster subsequent access
-    if (data.success && data.user) {
-      this.setUserCache(data.user);
-    }
-
-    return data;
   }
 
   async setPassword(passwordData: SetPasswordRequest): Promise<LoginResponse> {
@@ -278,14 +297,36 @@ class SalesAPI {
       throw new Error(data.message || 'Failed to get sales person details');
     }
 
-    // Log specific quotation statuses and pricing from API response
+    // Log specific quotation pricing from API response
     if (data.customers) {
       data.customers.forEach((customer: any, index: number) => {
         console.log(`🔍 API Customer ${index + 1}: ${customer.customerName}`);
         customer.quotations?.forEach((quotation: any, qIndex: number) => {
-          console.log(`  📋 API Quotation ${qIndex + 1}: ${quotation.quotationId} - Status: ${quotation.status} - Price: ₹${quotation.totalPrice?.toLocaleString('en-IN')}`);
+          console.log(`  📋 API Quotation ${qIndex + 1}: ${quotation.quotationId} - Price: ₹${quotation.totalPrice?.toLocaleString('en-IN')}`);
         });
       });
+    }
+
+    return data;
+  }
+
+  async getMyDashboard(): Promise<{ 
+    success: boolean; 
+    salesPerson: any; 
+    customers: any[]; 
+    totalQuotations: number; 
+    totalCustomers: number;
+    totalRevenue: number;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/sales/my-dashboard`, {
+      method: 'GET',
+      headers: this.getAuthHeaders()
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to get sales dashboard data');
     }
 
     return data;

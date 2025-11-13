@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { getProcessorPrice } from './processorPrices';
+import { calculateCentralizedPricing } from './centralizedPricing';
 
 // Phone number mapping for sales team members
 const SALES_PHONE_MAPPING: Record<string, string> = {
@@ -76,139 +77,94 @@ export const generateConfigurationDocx = async (
   // Calculate total pixels
   void cabinetGrid; void selectedProduct;
 
-  // Calculate pricing based on actual product data for DOCX
-  const getProductPriceForDocx = (product: Product, userType: 'End User' | 'Reseller' | 'Channel' = 'End User'): number => {
-    // Handle different product types
-    if (product.category?.toLowerCase().includes('rental') && product.prices) {
-      // For rental products, use cabinet pricing based on user type
-      if (userType === 'Reseller') {
-        return product.prices.cabinet.reseller;
-      } else if (userType === 'Channel') {
-        return product.prices.cabinet.siChannel;
-      } else {
-        return product.prices.cabinet.endCustomer;
-      }
-    }
-    
-    // For regular products, use the appropriate price field based on user type
-    if (userType === 'Reseller' && typeof product.resellerPrice === 'number') {
-      return product.resellerPrice;
-    } else if (userType === 'Channel' && typeof product.siChannelPrice === 'number') {
-      return product.siChannelPrice;
-    } else if (typeof product.price === 'number') {
-      return product.price;
-    } else if (typeof product.price === 'string') {
-      // Handle string prices by converting to number
-      const parsedPrice = parseFloat(product.price);
-      return isNaN(parsedPrice) ? 5300 : parsedPrice;
-    }
-    
-    // Fallback to default pricing if no price available
-    return 5300;
-  };
+  // Use centralized pricing calculation to ensure 100% match with PDF
+  const userTypeForCalc = userInfo?.userType === 'Channel' ? 'Channel' : 
+                         userInfo?.userType === 'Reseller' ? 'Reseller' : 'End User';
+  
+  const pricingResult = calculateCentralizedPricing(
+    selectedProduct,
+    cabinetGrid,
+    processor || null,
+    userTypeForCalc,
+    config
+  );
 
-  const unitPrice = getProductPriceForDocx(selectedProduct, userInfo?.userType);
+  // Extract values from centralized pricing
+  const unitPrice = pricingResult.unitPrice;
+  const safeQuantity = pricingResult.quantity;
+  const subtotal = pricingResult.productSubtotal;
+  const gstProduct = pricingResult.productGST;
+  const totalProduct = pricingResult.productTotal;
+  const controllerPrice = pricingResult.processorPrice;
+  const gstController = pricingResult.processorGST;
+  const totalController = pricingResult.processorTotal;
+  
+  // Calculate screen area in square feet for Structure and Installation pricing
+  const widthInMeters = config.width / 1000;
+  const heightInMeters = config.height / 1000;
+  const widthInFeet = widthInMeters * METERS_TO_FEET;
+  const heightInFeet = heightInMeters * METERS_TO_FEET;
+  const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
+  
+  // Structure Price: ₹2500 per square foot + 18% GST
+  const structureBasePrice = screenAreaSqFt * 2500;
+  const structureGST = structureBasePrice * 0.18;
+  const totalStructure = structureBasePrice + structureGST;
+  
+  // Installation Price: ₹500 per square foot + 18% GST
+  const installationBasePrice = screenAreaSqFt * 500;
+  const installationGST = installationBasePrice * 0.18;
+  const totalInstallation = installationBasePrice + installationGST;
+  
+  // Update grand total to include Structure and Installation
+  const grandTotal = pricingResult.grandTotal + totalStructure + totalInstallation;
   
   // Check if product is Jumbo Series (prices already include controllers)
   const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
                         selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
                         selectedProduct.name?.toLowerCase().includes('jumbo series');
-  
-  // Calculate quantity based on product type
-  let quantity: number;
-  if (selectedProduct.category?.toLowerCase().includes('rental')) {
-    // For rental series, calculate quantity as number of cabinets
-    quantity = cabinetGrid.columns * cabinetGrid.rows;
-  } else if (isJumboSeries) {
-    // For Jumbo Series, use fixed area-based pricing
-    const pixelPitch = selectedProduct.pixelPitch;
-    
-    if (pixelPitch === 4 || pixelPitch === 2.5) {
-      // P4 and P2.5: Fixed area = 7.34ft × 4.72ft = 34.64 sqft
-      const widthInFeet = 7.34;
-      const heightInFeet = 4.72;
-      const fixedQuantity = widthInFeet * heightInFeet;
-      
-      console.log('🎯 DOCX Jumbo Series P4/P2.5 Fixed Pricing:', {
-        product: selectedProduct.name,
-        pixelPitch,
-        fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
-        quantity: fixedQuantity.toFixed(2) + ' sqft'
-      });
-      
-      quantity = Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
-    } else if (pixelPitch === 3 || pixelPitch === 6) {
-      // P3 and P6: Fixed area = 6.92ft × 5.04ft = 34.88 sqft
-      const widthInFeet = 6.92;
-      const heightInFeet = 5.04;
-      const fixedQuantity = widthInFeet * heightInFeet;
-      
-      console.log('🎯 DOCX Jumbo Series P3/P6 Fixed Pricing:', {
-        product: selectedProduct.name,
-        pixelPitch,
-        fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
-        quantity: fixedQuantity.toFixed(2) + ' sqft'
-      });
-      
-      quantity = Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
-    } else {
-      quantity = 1; // Fallback
-    }
-  } else {
-    // For other products, calculate quantity in square feet
-    const widthInMeters = config.width / 1000;
-    const heightInMeters = config.height / 1000;
-    const widthInFeet = widthInMeters * METERS_TO_FEET;
-    const heightInFeet = heightInMeters * METERS_TO_FEET;
-    const rawQuantity = widthInFeet * heightInFeet;
-    
-    // Round to 2 decimal places for consistency with calculation
-    quantity = Math.round(rawQuantity * 100) / 100;
-  }
-  
-  // Ensure quantity is a reasonable number and handle edge cases
-  const safeQuantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
-  const subtotal = unitPrice * safeQuantity;
-  const gstProduct = subtotal * 0.18;
-  const totalProduct = subtotal + gstProduct;
-  
-  
-  // Controller pricing - use SAME LOGIC as quotation calculation
-  // Note: Skip controller price for Jumbo Series products as their prices already include controllers
-  let controllerPrice = 0;
-  if (processor && !isJumboSeries) {
-    // Use centralized processor pricing
-    controllerPrice = getProcessorPrice(processor, userInfo?.userType || 'End User');
-  }
-  
-  const gstController = controllerPrice * 0.18;
-  const totalController = controllerPrice + gstController;
-  // Keep for potential future total breakdown
-  // const grandTotal = totalProduct + totalProduct;
 
-  // Helper function to format price or show NA
+  // Format Indian number with clean formatting (same as PDF)
+  const formatIndianNumber = (x: number): string => {
+    // Round to whole numbers for cleaner display
+    const rounded = Math.round(x);
+    
+    // Convert to string
+    const s = rounded.toString();
+    
+    // Format with Indian numbering system (commas for thousands)
+    if (s.length > 3) {
+      const lastThree = s.slice(-3);
+      const remaining = s.slice(0, s.length - 3);
+      const formatted = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree;
+      return formatted;
+    }
+    return s;
+  };
+
+  // Helper function to format price using Indian number format (same as PDF)
   const formatPrice = (price: number | undefined | string | null): string => {
     if (price === undefined || price === null || price === "NA" || price === "na") {
       return "NA";
     }
     if (typeof price === 'number') {
-      return `₹${price.toLocaleString()}`;
+      return `₹${formatIndianNumber(price)}`;
     }
     return "NA";
   };
 
   // Build document without embedding images for maximum compatibility
 
-  // Create document with proper page breaks and layout
+  // Create document with proper page breaks and layout (matching PDF margins)
   const doc = new Document({
     sections: [{
       properties: {
         page: {
           margin: {
-            top: 1440, // 1 inch
-            right: 1440,
-            bottom: 1440,
-            left: 1440,
+            top: 720, // 0.5 inch (matching PDF padding)
+            right: 720,
+            bottom: 720,
+            left: 720,
           },
           size: {
             width: 11906, // A4 width in twips
@@ -645,7 +601,7 @@ export const generateConfigurationDocx = async (
                           size: 14,
                         }),
                         new TextRun({
-                          text: ` ${selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}`,
+                          text: ` ${selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : safeQuantity.toFixed(2) + ' Ft²'}`,
                           size: 14,
                         }),
                       ],
@@ -735,19 +691,20 @@ export const generateConfigurationDocx = async (
           },
         }),
 
-        // Section B: Control System
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "B. CONTROL SYSTEM & ACCESSORIES",
-              bold: true,
-              size: 24,
-            }),
-          ],
-          spacing: { before: 400, after: 200 }
-        }),
+        // Section B: Control System (only show if not Jumbo Series)
+        ...(!isJumboSeries ? [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "B. CONTROL SYSTEM & ACCESSORIES",
+                bold: true,
+                size: 24,
+              }),
+            ],
+            spacing: { before: 400, after: 200 }
+          }),
 
-        // Controller details table
+          // Controller details table
         new Table({
           width: {
             size: 100,
@@ -843,19 +800,200 @@ export const generateConfigurationDocx = async (
             }),
           ],
         }),
+        ] : []),
 
-        // Grand Total
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: `GRAND TOTAL: ${formatPrice((subtotal + gstProduct) + (controllerPrice + gstController))}`,
-              bold: true,
-              size: 28,
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-          spacing: { before: 400, after: 400 }
-        }),
+        // Structure and Installation Price Section (shown for all products)
+        [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "STRUCTURE AND INSTALLATION PRICE",
+                bold: true,
+                size: 20,
+              }),
+            ],
+            spacing: { before: 400, after: 200 }
+          }),
+          
+          // Structure and Installation table
+          new Table({
+            width: {
+              size: 100,
+              type: WidthType.PERCENTAGE,
+            },
+            rows: [
+              new TableRow({
+                children: [
+                  // Structure Price Column
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: "STRUCTURE PRICE",
+                            bold: true,
+                            size: 18,
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `Area: ${screenAreaSqFt.toFixed(2)} Ft²`,
+                            size: 14,
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: "Rate: ₹2,500 / Ft²",
+                            size: 14,
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `Base Cost: ${formatPrice(structureBasePrice)}`,
+                            size: 14,
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `GST (18%): ${formatPrice(structureGST)}`,
+                            size: 14,
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `TOTAL: ${formatPrice(totalStructure)}`,
+                            bold: true,
+                            size: 16,
+                          }),
+                        ],
+                      }),
+                    ],
+                    width: {
+                      size: 50,
+                      type: WidthType.PERCENTAGE,
+                    },
+                  }),
+                  // Installation Price Column
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: "INSTALLATION PRICE",
+                            bold: true,
+                            size: 18,
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `Area: ${screenAreaSqFt.toFixed(2)} Ft²`,
+                            size: 14,
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: "Rate: ₹500 / Ft²",
+                            size: 14,
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `Base Cost: ${formatPrice(installationBasePrice)}`,
+                            size: 14,
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `GST (18%): ${formatPrice(installationGST)}`,
+                            size: 14,
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `TOTAL: ${formatPrice(totalInstallation)}`,
+                            bold: true,
+                            size: 16,
+                          }),
+                        ],
+                      }),
+                    ],
+                    width: {
+                      size: 50,
+                      type: WidthType.PERCENTAGE,
+                    },
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+
+        // Grand Total (only show if not Jumbo Series, or always show with proper calculation)
+        ...(!isJumboSeries ? [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `GRAND TOTAL: ${formatPrice(grandTotal)}`,
+                bold: true,
+                size: 28,
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 400, after: 200 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "(A + B + C)",
+                size: 20,
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 }
+          }),
+        ] : [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `GRAND TOTAL: ${formatPrice(grandTotal)}`,
+                bold: true,
+                size: 28,
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 400, after: 200 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "(A + C)",
+                size: 20,
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 }
+          }),
+        ]),
 
         // Footer
         new Paragraph({
@@ -1120,7 +1258,27 @@ export const generateConfigurationHtml = (
   
   const gstController = controllerPrice * 0.18;
   const totalController = controllerPrice + gstController;
-  const grandTotal = totalProduct + totalController;
+  
+  // Calculate screen area in square feet for Structure and Installation pricing
+  // This should always be based on actual display dimensions, not quantity
+  const widthInMeters = config.width / 1000;
+  const heightInMeters = config.height / 1000;
+  const widthInFeet = widthInMeters * METERS_TO_FEET;
+  const heightInFeet = heightInMeters * METERS_TO_FEET;
+  const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
+  
+  // Structure Price: ₹2500 per square foot + 18% GST
+  const structureBasePrice = screenAreaSqFt * 2500;
+  const structureGST = structureBasePrice * 0.18;
+  const totalStructure = structureBasePrice + structureGST;
+  
+  // Installation Price: ₹500 per square foot + 18% GST
+  const installationBasePrice = screenAreaSqFt * 500;
+  const installationGST = installationBasePrice * 0.18;
+  const totalInstallation = installationBasePrice + installationGST;
+  
+  // Update grand total to include Structure and Installation
+  const grandTotal = totalProduct + totalController + totalStructure + totalInstallation;
 
   // Format Indian number with clean formatting
   const formatIndianNumber = (x: number): string => {
@@ -1148,240 +1306,373 @@ export const generateConfigurationHtml = (
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>ORION LED - Configuration Report</title>
         <style>
+            * {
+                box-sizing: border-box;
+            }
             body {
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                line-height: 1.6;
+                line-height: 1.3;
                 color: #333;
                 margin: 0;
                 padding: 0;
                 background-color: #f8f9fa;
+                font-size: 10px;
+                width: 100%;
+                overflow-x: hidden;
+            }
+            html {
+                width: 100%;
+                overflow-x: hidden;
             }
             .page {
                 width: 210mm;
                 height: 297mm;
-                margin: 15px auto;
+                min-width: 210mm;
+                max-width: 210mm;
+                min-height: 297mm;
+                max-height: 297mm;
+                margin: 0 auto;
                 background: white;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.15);
                 display: block;
                 page-break-after: always;
                 overflow: hidden;
+                padding: 0;
+                position: relative;
+                box-sizing: border-box;
             }
             .page img {
                 width: 100%;
                 height: 100%;
                 object-fit: contain;
             }
+            .page-bg {
+                width: 100%;
+                height: 100%;
+                min-width: 210mm;
+                max-width: 210mm;
+                min-height: 297mm;
+                max-height: 297mm;
+                background-size: contain;
+                background-position: center center;
+                background-repeat: no-repeat;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            .quotation-overlay {
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                display: flex;
+                flex-direction: column;
+                padding-top: 55mm;
+                padding-bottom: 25mm;
+                padding-left: 12mm;
+                padding-right: 12mm;
+                box-sizing: border-box;
+                overflow: hidden;
+                z-index: 1;
+                justify-content: flex-start;
+            }
+            .quotation-section {
+                width: 100%;
+                margin-bottom: 4px;
+                flex-shrink: 0;
+            }
+            .quotation-overlay > .quotation-section:last-child {
+                flex-shrink: 0;
+            }
+            .quotation-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+                width: 100%;
+                margin: 3px 0;
+                align-items: stretch;
+                grid-auto-rows: 1fr;
+            }
+            .quotation-card {
+                background: rgba(255, 255, 255, 0.98);
+                border-radius: 3px;
+                padding: 6px 8px;
+                border: 1px solid rgba(233, 236, 239, 0.9);
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+                min-height: 100%;
+                align-items: stretch;
+                height: 100%;
+            }
+            .quotation-row {
+                display: grid;
+                grid-template-columns: 1fr auto;
+                gap: 8px;
+                align-items: center;
+                padding: 4px 2px;
+                border-bottom: 1px solid rgba(233, 236, 239, 0.7);
+                min-height: 16px;
+            }
+            .quotation-row:nth-child(even) {
+                background: rgba(248, 249, 250, 0.5);
+            }
+            .quotation-row:last-child {
+                border-bottom: none;
+            }
+            .quotation-label {
+                font-weight: 600;
+                color: #333;
+                font-size: 11px;
+                text-align: left;
+                line-height: 1.2;
+            }
+            .quotation-value {
+                color: #333;
+                font-weight: 600;
+                font-size: 11px;
+                text-align: right;
+                white-space: nowrap;
+                line-height: 1.2;
+            }
+            .quotation-total-row {
+                background: rgba(240, 248, 255, 0.8);
+                padding: 6px 8px;
+                border-radius: 3px;
+                border: 2px solid rgba(51, 51, 51, 0.2);
+                margin-top: 4px;
+                min-height: 40px;
+                display: flex;
+                align-items: center;
+            }
             .page:last-child {
                 page-break-after: auto;
             }
+            .quotation-content {
+                width: 100%;
+                height: 100%;
+                max-width: 100%;
+                max-height: 100%;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                box-sizing: border-box;
+            }
+            .quotation-content > * {
+                flex-shrink: 1;
+                min-height: 0;
+            }
             @media print {
+                body {
+                    background: white;
+                    width: 100%;
+                    overflow-x: hidden;
+                }
+                html {
+                    width: 100%;
+                    overflow-x: hidden;
+                }
                 .page {
                     margin: 0;
                     box-shadow: none;
                     page-break-after: always;
+                    padding: 0;
+                    width: 210mm;
+                    height: 297mm;
+                    min-width: 210mm;
+                    max-width: 210mm;
+                    min-height: 297mm;
+                    max-height: 297mm;
+                }
+                .page-bg {
+                    padding: 0;
+                    width: 100%;
+                    height: 100%;
+                    min-width: 210mm;
+                    max-width: 210mm;
+                    min-height: 297mm;
+                    max-height: 297mm;
                 }
             }
         </style>
     </head>
     <body>
-        <div class="page">
-            <img src="/Pages to JPG/Indian Industries Association_page-0001.jpg" alt="Page 1" />
+        <div class="page page-bg" style="background-image: url('/Pages to JPG/1.png');">
         </div>
-        <div class="page">
-            <img src="/Pages to JPG/Indian Industries Association_page-0002.jpg" alt="Page 2" />
+        <div class="page page-bg" style="background-image: url('/Pages to JPG/2.png');">
         </div>
-        <div class="page">
-            <img src="/Pages to JPG/Indian Industries Association_page-0003.jpg" alt="Page 3" />
+        <div class="page page-bg" style="background-image: url('/Pages to JPG/3.png');">
         </div>
-        <div class="page">
-            <img src="/Pages to JPG/Indian Industries Association_page-0004.jpg" alt="Page 4" />
+        <div class="page page-bg" style="background-image: url('/Pages to JPG/4.png');">
         </div>
-        <div class="page">
-            <img src="/Pages to JPG/Indian Industries Association_page-0005.jpg" alt="Page 5" />
+        <div class="page page-bg" style="background-image: url('/Pages to JPG/5.png');">
         </div>
-        <div class="page" style="padding: 15px; padding-bottom: 40px; display: block; text-align: left; font-size: 0.8em; line-height: 1.4; background: #ffffff; min-height: 100vh; overflow-y: auto;">
-            <!-- Clean Header with Company Info -->
-            <div style="background: #eff6ff; color: #333; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #bfdbfe;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <!-- Left Side - Logo Area -->
-                    <div style="flex-shrink: 0;">
-                        <div style="background: black; width: 60px; height: 60px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #e9ecef;">
-                            <img src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png" alt="ORION LED Logo" style="width: 50px; height: 50px; object-fit: contain;">
-                        </div>
-                    </div>
-                    
-                    <!-- Right Side - Company Info -->
-                    <div style="flex: 1;">
-                        <h2 style="color: #2563eb; font-size: 1.1em; margin: 0 0 4px 0; font-weight: bold;">ATENTI ORIGINS</h2>
-                        <p style="color: #666; font-size: 0.8em; margin: 1px 0; font-weight: 500;">
-                            ATENTI ORIGINS PHOTOELECTRICITY CONSORT PVT.LTD.
-                        </p>
-                        <p style="color: #666; font-size: 0.7em; margin: 1px 0;">
-                            Reg. Office: 504, 5th Floor ABW Elegance Tower, Jasola District Centre, Jasola, New Delhi 110025
-                        </p>
-                        <p style="color: #666; font-size: 0.7em; margin: 1px 0;">
-                            Factory: B-10, Sector-88, Noida - 201301
-                        </p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Clean QUOTATION title -->
-            <div style="background: #2563eb; color: white; padding: 12px; text-align: center; margin: 20px 0; border-radius: 8px;">
-                <h1 style="margin: 0; font-size: 1.3em; font-weight: bold;">QUOTATION</h1>
-            </div>
-            
-            <!-- Quotation Details -->
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e9ecef;">
+        <div class="page page-bg" style="background-image: url('/Pages to JPG/6.png'); position: relative;">
+            <div class="quotation-overlay">
+            <!-- Quotation Details (header is in background image) -->
+            <div class="quotation-section" style="background: rgba(248, 249, 250, 0.95); padding: 5px 8px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8); flex-shrink: 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="flex: 1;">
-                        <p style="margin: 5px 0; font-size: 0.9em; color: #333;"><strong>Quotation #:</strong> <span style="color: #333; font-weight: bold;">${quotationId || 'ORION/2025/07/Prachi/0193'}</span></p>
-                        <p style="margin: 5px 0; font-size: 0.9em; color: #333;"><strong>Date:</strong> <span style="color: #333; font-weight: bold;">${new Date().toLocaleDateString('en-GB')}</span></p>
+                        <p style="margin: 0 0 2px 0; font-size: 11px; color: #333; line-height: 1.2;"><strong>Quotation #:</strong> <span style="color: #333; font-weight: bold;">${quotationId || 'ORION/2025/07/Prachi/0193'}</span></p>
+                        <p style="margin: 0; font-size: 11px; color: #333; line-height: 1.2;"><strong>Date:</strong> <span style="color: #333; font-weight: bold;">${new Date().toLocaleDateString('en-GB')}</span></p>
                     </div>
                 </div>
             </div>
               
               ${userInfo ? `
               <!-- Clean Client Information Section -->
-              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e9ecef;">
-                  <h3 style="color: #333; margin: 0 0 12px 0; font-size: 1em; border-bottom: 2px solid #333; padding-bottom: 6px;">
+              <div class="quotation-section" style="background: rgba(248, 249, 250, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8); flex-shrink: 0;">
+                  <h3 style="color: #333; margin: 0 0 4px 0; font-size: 13px; border-bottom: 2px solid #333; padding-bottom: 3px; font-weight: bold;">
                       CLIENT INFORMATION
                   </h3>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                      <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef;">
-                          <h4 style="margin: 0 0 8px 0; color: #333; font-size: 0.9em; font-weight: bold;">CLIENT DETAILS</h4>
-                          <p style="margin: 4px 0; font-weight: bold; color: #333;">Name: ${userInfo.fullName}</p>
-                          <p style="margin: 4px 0; color: #666;">Email: ${userInfo.email}</p>
-                          <p style="margin: 4px 0; color: #666;">Phone: ${userInfo.phoneNumber}</p>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                      <div class="quotation-card" style="background: white;">
+                          <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">CLIENT DETAILS</h4>
+                          <p style="margin: 0 0 3px 0; font-weight: bold; color: #333; font-size: 11px; line-height: 1.2;">Name: ${userInfo.fullName}</p>
+                          <p style="margin: 0 0 3px 0; color: #666; font-size: 11px; line-height: 1.2;">Email: ${userInfo.email}</p>
+                          <p style="margin: 0; color: #666; font-size: 11px; line-height: 1.2;">Phone: ${userInfo.phoneNumber}</p>
                       </div>
-                      <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef;">
-                          <h4 style="margin: 0 0 8px 0; color: #333; font-size: 0.9em; font-weight: bold;">ORION SALES TEAM</h4>
-                          <p style="margin: 4px 0; color: #666;">Location: ${salesUser?.location || 'Delhi'}</p>
-                          <p style="margin: 4px 0; color: #666;">Sales Person: ${salesUser ? salesUser.name : 'Ashwani Yadav'}</p>
-                          <p style="margin: 4px 0; color: #666;">Contact: ${getSalesPhoneNumber(salesUser)}</p>
-                          <p style="margin: 4px 0; color: #666;">Email: ${salesUser ? salesUser.email : 'ashwani.yadav@orion-led.com'}</p>
+                      <div class="quotation-card" style="background: white;">
+                          <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">ORION SALES TEAM</h4>
+                          <p style="margin: 0 0 3px 0; color: #666; font-size: 11px; line-height: 1.2;">Location: ${salesUser?.location || 'Delhi'}</p>
+                          <p style="margin: 0 0 3px 0; color: #666; font-size: 11px; line-height: 1.2;">Sales Person: ${salesUser ? salesUser.name : 'Ashwani Yadav'}</p>
+                          <p style="margin: 0 0 3px 0; color: #666; font-size: 11px; line-height: 1.2;">Contact: ${getSalesPhoneNumber(salesUser)}</p>
+                          <p style="margin: 0; color: #666; font-size: 11px; line-height: 1.2;">Email: ${salesUser ? salesUser.email : 'ashwani.yadav@orion-led.com'}</p>
                       </div>
                   </div>
               </div>
               ` : ''}
               
               <!-- Section A: Product Description - Clean Layout -->
-            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e9ecef;">
-                <h2 style="color: #333; margin: 0 0 15px 0; font-size: 1.1em; border-bottom: 2px solid #333; padding-bottom: 8px;">
+            <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
+                <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
                     A. PRODUCT DESCRIPTION
                 </h2>
                 
-                <div style="display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 25px; margin: 15px 0;">
+                <div class="quotation-grid">
                     <!-- Left Column - Specifications -->
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px solid #e9ecef;">
-                        <h4 style="margin: 0 0 15px 0; color: #333; font-size: 1.1em; font-weight: bold;">PRODUCT SPECIFICATIONS</h4>
-                        <div style="space-y: 10px;">
-                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.95em;">Series/Environment:</span>
-                                <span style="color: #333; font-weight: 600; font-size: 0.95em;">${selectedProduct.category}, ${selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1)}</span>
+                    <div class="quotation-card" style="display: flex; flex-direction: column;">
+                        <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">PRODUCT SPECIFICATIONS</h4>
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            <div class="quotation-row">
+                                <span class="quotation-label">Series/Environment:</span>
+                                <span class="quotation-value">${selectedProduct.category}, ${selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1)}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.95em;">Pixel Pitch:</span>
-                                <span style="color: #333; font-weight: 600; font-size: 0.95em;">P${selectedProduct.pixelPitch}</span>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Pixel Pitch:</span>
+                                <span class="quotation-value">P${selectedProduct.pixelPitch}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.95em;">Module Dimension:</span>
-                                <span style="color: #333; font-weight: 600; font-size: 0.95em;">${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm</span>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Module Dimension:</span>
+                                <span class="quotation-value">${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.95em;">Display Size (m):</span>
-                                <span style="color: #333; font-weight: 600; font-size: 0.95em;">${toDisplayUnit(config.width, 'm')} x ${toDisplayUnit(config.height, 'm')}</span>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Display Size (m):</span>
+                                <span class="quotation-value">${toDisplayUnit(config.width, 'm')} x ${toDisplayUnit(config.height, 'm')}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.95em;">Display Size (ft):</span>
-                                <span style="color: #333; font-weight: 600; font-size: 0.95em;">${toDisplayUnit(config.width, 'ft')} x ${toDisplayUnit(config.height, 'ft')}</span>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Display Size (ft):</span>
+                                <span class="quotation-value">${toDisplayUnit(config.width, 'ft')} x ${toDisplayUnit(config.height, 'ft')}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.95em;">Resolution:</span>
-                                <span style="color: #333; font-weight: 600; font-size: 0.95em;">${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}</span>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Resolution:</span>
+                                <span class="quotation-value">${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.95em;">Matrix:</span>
-                                <span style="color: #333; font-weight: 600; font-size: 0.95em;">${cabinetGrid.columns} x ${cabinetGrid.rows}</span>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Matrix:</span>
+                                <span class="quotation-value">${cabinetGrid.columns} x ${cabinetGrid.rows}</span>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Right Column - Pricing -->
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 8px; border: 1px solid #e9ecef;">
-                        <h4 style="margin: 0 0 8px 0; color: #333; font-size: 0.9em; font-weight: bold;">PRICING DETAILS</h4>
-                        <div style="space-y: 4px;">
-                            <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.8em;">Unit Price:</span>
-                                <span style="color: #333; font-weight: 700; font-size: 0.8em;">₹${formatIndianNumber(unitPrice)}</span>
+                    <div class="quotation-card" style="display: flex; flex-direction: column;">
+                        <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">PRICING DETAILS</h4>
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            <div class="quotation-row">
+                                <span class="quotation-label">Unit Price:</span>
+                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(unitPrice)}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.8em;">Quantity:</span>
-                                <span style="color: #333; font-weight: 600; font-size: 0.8em;">${selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}</span>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Quantity:</span>
+                                <span class="quotation-value">${selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.8em;">Subtotal:</span>
-                                <span style="color: #333; font-weight: 700; font-size: 0.8em;">₹${formatIndianNumber(subtotal)}</span>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Subtotal:</span>
+                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(subtotal)}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.8em;">GST (18%):</span>
-                                <span style="color: #dc3545; font-weight: 700; font-size: 0.8em;">₹${formatIndianNumber(gstProduct)}</span>
+                            <div class="quotation-row">
+                                <span class="quotation-label">GST (18%):</span>
+                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(gstProduct)}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 4px 0; background: white; margin: 0 -8px; padding: 6px 8px; border-radius: 4px; border: 1px solid #e9ecef;">
-                                <span style="font-weight: 700; color: #333; font-size: 0.85em;">TOTAL:</span>
-                                <span style="color: #333; font-weight: 700; font-size: 0.85em;">₹${formatIndianNumber(totalProduct)}</span>
+                            <div class="quotation-total-row" style="margin-top: auto;">
+                                <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 4px 2px; border-bottom: none;">
+                                    <span style="font-weight: 700; color: #333; font-size: 12px; text-align: left;">TOTAL:</span>
+                                    <span style="color: #333; font-weight: 700; font-size: 12px; text-align: right; white-space: nowrap;">₹${formatIndianNumber(totalProduct)}</span>
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                <div style="background: #333; color: white; padding: 12px; border-radius: 6px; margin-top: 15px; text-align: center;">
-                    <p style="margin: 0; font-size: 1em; font-weight: bold;">TOTAL A: ₹${formatIndianNumber(totalProduct)}</p>
                 </div>
             </div>
             
             ${!isJumboSeries ? `
             <!-- Section B: Control System - Clean Layout -->
-            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e9ecef;">
-                <h2 style="color: #333; margin: 0 0 15px 0; font-size: 1.1em; border-bottom: 2px solid #333; padding-bottom: 8px;">
+            <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 4px 5px; border-radius: 3px; margin: 0 0 3px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
+                <h2 style="color: #2563eb; margin: 0 0 3px 0; font-size: 13px; border-bottom: 2px solid #2563eb; padding-bottom: 2px; font-weight: bold;">
                     B. CONTROL SYSTEM & ACCESSORIES
                 </h2>
                 
-                <div style="display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 25px; margin: 15px 0;">
+                <div class="quotation-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; align-items: stretch;">
                     <!-- Left Column - Controller Details -->
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px solid #e9ecef;">
-                        <h4 style="margin: 0 0 15px 0; color: #333; font-size: 1.1em; font-weight: bold;">CONTROLLER DETAILS</h4>
-                        <div style="space-y: 10px;">
-                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.95em;">Controller Model:</span>
-                                <span style="color: #333; font-weight: 600; font-size: 0.95em;">${processor || "Nova TB2"}</span>
+                    <div class="quotation-card" style="display: flex; flex-direction: column; padding: 5px 6px;">
+                        <h4 style="margin: 0 0 3px 0; color: #333; font-size: 11px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 2px;">CONTROLLER DETAILS</h4>
+                        <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div>
+                                <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
+                                    <span class="quotation-label" style="font-size: 10px;">Controller Model:</span>
+                                    <span class="quotation-value" style="font-size: 10px;">${processor || "Nova TB2"}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.95em;">Quantity:</span>
-                                <span style="color: #333; font-weight: 600; font-size: 0.95em;">1</span>
+                                <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
+                                    <span class="quotation-label" style="font-size: 10px;">Quantity:</span>
+                                    <span class="quotation-value" style="font-size: 10px;">1</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.95em;">UOM:</span>
-                                <span style="color: #333; font-weight: 600; font-size: 0.95em;">Nos.</span>
+                                <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
+                                    <span class="quotation-label" style="font-size: 10px;">UOM:</span>
+                                    <span class="quotation-value" style="font-size: 10px;">Nos.</span>
+                                </div>
+                            </div>
+                            <div class="quotation-total-row" style="background: transparent; border: none; padding: 5px 6px; margin-top: 3px; min-height: 35px; display: flex; align-items: center; visibility: hidden;">
+                                <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; padding: 3px 2px;">
+                                    <span style="font-weight: 700; color: #333; font-size: 11px;">TOTAL:</span>
+                                    <span style="color: #333; font-weight: 700; font-size: 11px;">₹0</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Right Column - Controller Pricing -->
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 8px; border: 1px solid #e9ecef;">
-                        <h4 style="margin: 0 0 8px 0; color: #333; font-size: 0.9em; font-weight: bold;">CONTROLLER PRICING</h4>
-                        <div style="space-y: 4px;">
-                            <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.75em;">Unit Price:</span>
-                                <span style="color: #333; font-weight: 700; font-size: 0.75em;">₹${formatIndianNumber(controllerPrice)}</span>
+                    <div class="quotation-card" style="display: flex; flex-direction: column; padding: 5px 6px;">
+                        <h4 style="margin: 0 0 3px 0; color: #333; font-size: 11px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 2px;">CONTROLLER PRICING</h4>
+                        <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div>
+                                <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
+                                    <span class="quotation-label" style="font-size: 10px;">Unit Price:</span>
+                                    <span class="quotation-value" style="font-size: 10px; font-weight: 700;">₹${formatIndianNumber(controllerPrice)}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e9ecef;">
-                                <span style="font-weight: 600; color: #333; font-size: 0.75em;">GST (18%):</span>
-                                <span style="color: #dc3545; font-weight: 700; font-size: 0.75em;">₹${formatIndianNumber(gstController)}</span>
+                                <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
+                                    <span class="quotation-label" style="font-size: 10px;">GST (18%):</span>
+                                    <span class="quotation-value" style="font-size: 10px; color: #dc3545; font-weight: 700;">₹${formatIndianNumber(gstController)}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; padding: 4px 0; background: white; margin: 0 -8px; padding: 6px 8px; border-radius: 4px; border: 1px solid #e9ecef;">
-                                <span style="font-weight: 700; color: #333; font-size: 0.85em;">TOTAL:</span>
-                                <span style="color: #333; font-weight: 700; font-size: 0.85em;">₹${formatIndianNumber(totalController)}</span>
+                            </div>
+                            <div class="quotation-total-row" style="padding: 5px 6px; margin-top: auto; min-height: 35px;">
+                                <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; padding: 3px 2px; border-bottom: none;">
+                                    <span style="font-weight: 700; color: #333; font-size: 11px; text-align: left;">TOTAL:</span>
+                                    <span style="color: #333; font-weight: 700; font-size: 11px; text-align: right; white-space: nowrap;">₹${formatIndianNumber(totalController)}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1389,27 +1680,86 @@ export const generateConfigurationHtml = (
             </div>
             ` : ''}
             
-            <!-- Grand Total - Clean Design -->
-            <div style="background: #333; color: white; padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center;">
-                <h2 style="margin: 0 0 8px 0; font-size: 1.2em; font-weight: bold;">GRAND TOTAL</h2>
-                <p style="margin: 0; font-size: 1.8em; font-weight: bold;">₹${formatIndianNumber(grandTotal)}</p>
-                ${!isJumboSeries ? `<p style="margin: 4px 0 0 0; font-size: 0.8em; opacity: 0.9;">(A + B)</p>` : ''}
+            <!-- Structure and Installation Price Section (shown for all products) -->
+            <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
+                <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
+                    C. STRUCTURE AND INSTALLATION PRICE
+                </h2>
+                
+                <div class="quotation-grid">
+            <!-- Structure Price Card -->
+            <div class="quotation-card" style="display: flex; flex-direction: column;">
+                <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">STRUCTURE PRICE</h4>
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            <div class="quotation-row">
+                                <span class="quotation-label">Area:</span>
+                                <span class="quotation-value">${screenAreaSqFt.toFixed(2)} Ft²</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Rate:</span>
+                                <span class="quotation-value">₹2,500 / Ft²</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Base Cost:</span>
+                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(structureBasePrice)}</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">GST (18%):</span>
+                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(structureGST)}</span>
+                            </div>
+                    <div class="quotation-total-row" style="margin-top: auto;">
+                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 4px 2px; border-bottom: none;">
+                            <span style="font-weight: 700; color: #333; font-size: 12px; text-align: left;">TOTAL:</span>
+                            <span style="color: #333; font-weight: 700; font-size: 12px; text-align: right; white-space: nowrap;">₹${formatIndianNumber(totalStructure)}</span>
+                        </div>
+                    </div>
+                        </div>
             </div>
             
-            <!-- Bottom Spacer to prevent cropping -->
-            <div style="height: 30px; width: 100%;"></div>
+            <!-- Installation Price Card -->
+            <div class="quotation-card" style="display: flex; flex-direction: column;">
+                <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">INSTALLATION PRICE</h4>
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            <div class="quotation-row">
+                                <span class="quotation-label">Area:</span>
+                                <span class="quotation-value">${screenAreaSqFt.toFixed(2)} Ft²</span>
         </div>
-        <div class="page">
-            <img src="/Pages to JPG/Indian Industries Association_page-0007.jpg" alt="Page 7" />
+                            <div class="quotation-row">
+                                <span class="quotation-label">Rate:</span>
+                                <span class="quotation-value">₹500 / Ft²</span>
         </div>
-        <div class="page">
-            <img src="/Pages to JPG/Indian Industries Association_page-0008.jpg" alt="Page 8" />
+                            <div class="quotation-row">
+                                <span class="quotation-label">Base Cost:</span>
+                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(installationBasePrice)}</span>
         </div>
-        <div class="page">
-            <img src="/Pages to JPG/Indian Industries Association_page-0009.jpg" alt="Page 9" />
+                            <div class="quotation-row">
+                                <span class="quotation-label">GST (18%):</span>
+                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(installationGST)}</span>
         </div>
-        <div class="page">
-            <img src="/Pages to JPG/Indian Industries Association_page-0010.jpg" alt="Page 10" />
+                    <div class="quotation-total-row" style="margin-top: auto;">
+                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 4px 2px; border-bottom: none;">
+                            <span style="font-weight: 700; color: #333; font-size: 12px; text-align: left;">TOTAL:</span>
+                            <span style="color: #333; font-weight: 700; font-size: 12px; text-align: right; white-space: nowrap;">₹${formatIndianNumber(totalInstallation)}</span>
+                        </div>
+                    </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Grand Total - Clean Design -->
+            <div class="quotation-section" style="background: rgba(51, 51, 51, 0.95); color: white; padding: 5px 8px; border-radius: 3px; margin: 3px 0 0 0; text-align: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); width: 100%; min-height: auto;">
+                <h2 style="margin: 0 0 2px 0; font-size: 13px; font-weight: bold; line-height: 1.1;">GRAND TOTAL</h2>
+                <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatIndianNumber(grandTotal)}</p>
+                ${!isJumboSeries ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C)</p>` : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + C)</p>`}
+            </div>
+            </div>
+        </div>
+        <div class="page page-bg" style="background-image: url('/Pages to JPG/7.png');">
+        </div>
+        <div class="page page-bg" style="background-image: url('/Pages to JPG/9.png');">
+        </div>
+        <div class="page page-bg" style="background-image: url('/Pages to JPG/10.png');">
         </div>
     </body>
     </html>
@@ -1471,19 +1821,65 @@ export const generateConfigurationPdf = async (
 
   for (let i = 0; i < pages.length; i++) {
     const pageEl = pages[i];
+    
+    // Wait a bit for layout to stabilize
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // For page 6 (quotation page), ensure content fits within A4
+    if (pageEl.classList.contains('page-bg') && pageEl.querySelector('.quotation-overlay')) {
+      const overlay = pageEl.querySelector('.quotation-overlay') as HTMLElement;
+      if (overlay) {
+        // Force a reflow to get accurate measurements
+        void overlay.offsetHeight;
+        
+        // Get the actual content height (including all children)
+        const sections = overlay.querySelectorAll('.quotation-section');
+        let totalContentHeight = 0;
+        sections.forEach((section: Element) => {
+          totalContentHeight += (section as HTMLElement).offsetHeight;
+        });
+        
+        // Add margins between sections
+        const sectionMargin = 8; // 8px margin between sections
+        totalContentHeight += (sections.length - 1) * sectionMargin;
+        
+        const availableHeight = overlay.clientHeight;
+        
+        // If content overflows, calculate scale factor to fit
+        if (totalContentHeight > availableHeight) {
+          const scaleFactor = Math.min(0.98, availableHeight / totalContentHeight);
+          
+          // Apply scaling to the overlay
+          overlay.style.transform = `scale(${scaleFactor})`;
+          overlay.style.transformOrigin = 'top left';
+          
+          // Adjust dimensions to account for scaling
+          const originalWidth = overlay.offsetWidth;
+          const originalHeight = overlay.offsetHeight;
+          overlay.style.width = `${originalWidth / scaleFactor}px`;
+          overlay.style.height = `${originalHeight / scaleFactor}px`;
+        }
+      }
+    }
+    
     const canvas = await html2canvas(pageEl, {
       scale: 2,
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
-      windowWidth: pageEl.scrollWidth,
-      windowHeight: pageEl.scrollHeight,
+      windowWidth: pageEl.offsetWidth,
+      windowHeight: pageEl.offsetHeight,
+      height: pageEl.offsetHeight,
+      width: pageEl.offsetWidth,
+      allowTaint: false,
     });
 
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
     if (i > 0) pdf.addPage();
-    // Draw each rendered page to full A4 size to avoid stretching/cropping
-    pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM);
+    
+    // Always fit to A4 dimensions exactly (210mm x 297mm)
+    // This ensures no cropping or stretching
+    pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'FAST');
   }
 
   const blob = pdf.output('blob');

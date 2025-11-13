@@ -160,8 +160,26 @@ function calculateCorrectTotalPrice(
   const gstProcessor = processorPrice * 0.18;
   const totalProcessor = processorPrice + gstProcessor;
   
-  // GRAND TOTAL (A + B) - This matches the PDF exactly
-  const grandTotal = totalProduct + totalProcessor;
+  // Calculate screen area in square feet for Structure and Installation pricing
+  // This should always be based on actual display dimensions
+  const widthInMeters = config.width / 1000;
+  const heightInMeters = config.height / 1000;
+  const widthInFeet = widthInMeters * METERS_TO_FEET;
+  const heightInFeet = heightInMeters * METERS_TO_FEET;
+  const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
+  
+  // Structure Price: ₹2500 per square foot + 18% GST
+  const structureBasePrice = screenAreaSqFt * 2500;
+  const structureGST = structureBasePrice * 0.18;
+  const totalStructure = structureBasePrice + structureGST;
+  
+  // Installation Price: ₹500 per square foot + 18% GST
+  const installationBasePrice = screenAreaSqFt * 500;
+  const installationGST = installationBasePrice * 0.18;
+  const totalInstallation = installationBasePrice + installationGST;
+  
+  // GRAND TOTAL (A + B + Structure + Installation) - This matches the PDF exactly
+  const grandTotal = totalProduct + totalProcessor + totalStructure + totalInstallation;
   
   console.log('💰 Price Calculation (WITH GST - matches PDF exactly):', {
     product: product.name,
@@ -333,7 +351,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const [customerEmail, setCustomerEmail] = useState(userInfo?.email || '');
   const [customerPhone, setCustomerPhone] = useState(userInfo?.phoneNumber || '');
   const [selectedUserType, setSelectedUserType] = useState<'End User' | 'Reseller'>(userInfo?.userType || 'End User');
-  const [quotationStatus, setQuotationStatus] = useState<'New' | 'In Progress' | 'Rejected' | 'Hold' | 'Converted'>('New');
 
   // Update form fields when userInfo changes
   React.useEffect(() => {
@@ -579,7 +596,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             message: message.trim() || 'No additional message provided',
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
-            status: quotationStatus,
             totalPrice: correctTotalPrice,  // CRITICAL: Grand Total with GST - matches PDF exactly
             
             // Store exact pricing breakdown using centralized calculation
@@ -828,34 +844,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                             <option value="Reseller">Reseller</option>
                           </select>
                           <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                          <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                        </div>
-                      </div>
-
-                      {/* Quotation Status Field */}
-                      <div>
-                        <label htmlFor="quotationStatus" className="block text-base font-medium text-gray-700 mb-3">
-                          Quotation Status <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <select
-                            id="quotationStatus"
-                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all appearance-none bg-white"
-                            value={quotationStatus}
-                            onChange={(e) => {
-                              const newStatus = e.target.value as 'New' | 'In Progress' | 'Rejected' | 'Hold' | 'Converted';
-                              setQuotationStatus(newStatus);
-                            }}
-                            disabled={isSubmitting}
-                            required
-                          >
-                            <option value="New">New</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Rejected">Rejected</option>
-                            <option value="Hold">Hold</option>
-                            <option value="Converted">Converted</option>
-                          </select>
-                          <Package className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                         </div>
                       </div>

@@ -26,26 +26,32 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
   const cabinetWidth = selectedProduct?.cabinetDimensions?.width || 600;
   const cabinetHeight = selectedProduct?.cabinetDimensions?.height || 337.5;
 
-  // Conversion constants
+  // Conversion constants - using exact values for precision
   const METERS_TO_FEET = 3.2808399;
   const FEET_TO_METERS = 1 / METERS_TO_FEET;
+  const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
+  const MM_TO_FEET = 1 / FEET_TO_MM;
 
-  // Convert mm to display unit
+  // Convert mm to display unit with high precision
   const toDisplayUnit = (mm: number, unit: 'm' | 'ft') => {
-    const meters = mm / 1000;
     if (unit === 'ft') {
-      return (meters * METERS_TO_FEET).toFixed(2);
+      // Direct conversion from mm to ft for precision
+      const feet = mm * MM_TO_FEET;
+      return feet.toFixed(2);
     }
+    // Convert mm to meters
+    const meters = mm / 1000;
     return meters.toFixed(2);
   };
 
-  // Convert display unit to mm
+  // Convert display unit to mm with high precision
   const fromDisplayUnit = (value: number, unit: 'm' | 'ft') => {
-    let meters = value;
     if (unit === 'ft') {
-      meters = value * FEET_TO_METERS;
+      // Direct conversion from ft to mm for precision
+      return value * FEET_TO_MM;
     }
-    return Math.round(meters * 1000);
+    // Convert meters to mm
+    return value * 1000;
   };
   
   // Step size in display unit

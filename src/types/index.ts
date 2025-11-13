@@ -156,7 +156,6 @@ export interface Quotation {
   userType: string;
   userTypeDisplayName: string;
   totalPrice: number;
-  status: string;
   pdfPage6HTML?: string;
   createdAt: string;
   updatedAt: string;

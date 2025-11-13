@@ -320,12 +320,19 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     return modules;
   };
 
-  // Convert mm to display unit with 2 decimal places
+  // Convert mm to display unit with high precision
+  // Using exact conversion factors to match wizard input
+  const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
+  const MM_TO_FEET = 1 / FEET_TO_MM;
+  
   const toDisplayUnit = (mm: number): string => {
-    const meters = mm / 1000;
     if (config.unit === 'ft') {
-      return (meters * 3.2808399).toFixed(2);
+      // Direct conversion from mm to ft for precision (matches wizard conversion)
+      const feet = mm * MM_TO_FEET;
+      return feet.toFixed(2);
     }
+    // Convert mm to meters
+    const meters = mm / 1000;
     return meters.toFixed(2);
   };
 

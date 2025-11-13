@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Package, Menu, X, Mail, Download, FileText } from 'lucide-react';
 import { useDisplayCalculations } from '../hooks/useDisplayCalculations';
 import { DimensionControls } from './DimensionControls';
@@ -21,20 +21,46 @@ import { PdfViewModal } from './PdfViewModal';
 import { SalesUser } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { SuperUserDashboard } from './SuperUserDashboard';
+import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
 // See: https://github.com/wojtekmaj/react-pdf/wiki/Frequently-Asked-Questions#i-am-getting-error-warning-setting-up-fake-worker-failed-cannot-read-property-getdocument-of-undefined
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 interface DisplayConfiguratorProps {
-  userRole: 'normal' | 'sales' | 'super';
+  userRole: 'normal' | 'sales' | 'super' | 'super_admin';
   salesUser: SalesUser | null;
   onShowSalesLogin: () => void;
   onSalesLogout: () => void;
+  initialConfig?: {
+    width: number;
+    height: number;
+    unit: 'mm' | 'cm' | 'm' | 'ft';
+    viewingDistance: string;
+    viewingDistanceUnit: 'meters' | 'feet';
+    environment: 'Indoor' | 'Outdoor';
+    pixelPitch: number | null;
+    selectedProduct: Product | null;
+  } | null;
+  showDashboard?: boolean;
+  onDashboardClose?: () => void;
 }
 
-export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRole, salesUser, onShowSalesLogin, onSalesLogout }) => {
-  const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
+export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ 
+  userRole, 
+  salesUser, 
+  onShowSalesLogin, 
+  onSalesLogout,
+  initialConfig,
+  showDashboard: showDashboardProp,
+  onDashboardClose
+}) => {
+  const { config: globalConfig, updateDimensions: updateGlobalDimensions } = useDisplayConfig();
+  const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(
+    initialConfig?.selectedProduct || undefined
+  );
+  const [showLeftPanel, setShowLeftPanel] = useState(!!initialConfig?.selectedProduct);
+  const isInitialMount = useRef(true);
   
   const {
     config,
@@ -44,8 +70,182 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
     updateUnit,
     updateAspectRatio,
     displayDimensions,
-    calculateCabinetGrid
+    calculateCabinetGrid,
+    setConfig
   } = useDisplayCalculations(selectedProduct);
+
+  // Initialize dimensions from global context or initialConfig
+  useEffect(() => {
+    // Set flag to prevent sync during initialization
+    isInitialMount.current = true;
+    
+    if (initialConfig) {
+      // If we have initialConfig from wizard, use it exactly as provided
+      // initialConfig.width and initialConfig.height are already in mm
+      console.log('📐 Loading from initialConfig:', {
+        originalWidth: initialConfig.width,
+        originalHeight: initialConfig.height,
+        originalUnit: initialConfig.unit,
+        widthMM: initialConfig.width,
+        heightMM: initialConfig.height,
+        // Show what should be displayed
+        expectedWidthDisplay: initialConfig.unit === 'm' 
+          ? (initialConfig.width / 1000).toFixed(2) + ' m'
+          : initialConfig.unit === 'ft'
+          ? (initialConfig.width / 304.8).toFixed(2) + ' ft'
+          : initialConfig.width + ' mm',
+        expectedHeightDisplay: initialConfig.unit === 'm'
+          ? (initialConfig.height / 1000).toFixed(2) + ' m'
+          : initialConfig.unit === 'ft'
+          ? (initialConfig.height / 304.8).toFixed(2) + ' ft'
+          : initialConfig.height + ' mm'
+      });
+      
+      // Set dimensions directly using setConfig to preserve exact values
+      // Convert unit if needed (wizard uses 'mm' | 'cm' | 'm' | 'ft', but configurator uses 'm' | 'ft')
+      // IMPORTANT: Preserve 'ft' unit if user entered feet, convert mm/cm to 'm'
+      const displayUnit = initialConfig.unit === 'mm' || initialConfig.unit === 'cm' 
+        ? 'm' 
+        : initialConfig.unit; // Keep 'ft' or 'm' as entered
+      
+      // Use a function form of setConfig to ensure we're setting the exact values
+      setConfig(prevConfig => {
+        const newConfig = {
+          width: initialConfig.width,  // Already in mm, exact value from wizard
+          height: initialConfig.height, // Already in mm, exact value from wizard
+          unit: displayUnit, // Preserve 'ft' or 'm' as user entered
+          aspectRatio: 'None' // Reset aspect ratio to allow free dimensions
+        };
+        
+        console.log('📐 setConfig called with:', {
+          newWidth: newConfig.width,
+          newHeight: newConfig.height,
+          newUnit: newConfig.unit,
+          prevWidth: prevConfig.width,
+          prevHeight: prevConfig.height,
+          prevUnit: prevConfig.unit
+        });
+        
+        return newConfig;
+      });
+      
+      // Update global state with original unit from wizard
+      updateGlobalDimensions(initialConfig.width, initialConfig.height, initialConfig.unit);
+    } else {
+      // Otherwise, load from global context (localStorage)
+      console.log('📐 Loading from globalConfig:', {
+        width: globalConfig.width,
+        height: globalConfig.height,
+        unit: globalConfig.unit
+      });
+      
+      // Convert unit if needed
+      const displayUnit = globalConfig.unit === 'mm' || globalConfig.unit === 'cm' ? 'm' : globalConfig.unit;
+      
+      setConfig(prevConfig => ({
+        width: globalConfig.width,
+        height: globalConfig.height,
+        unit: displayUnit,
+        aspectRatio: 'None'
+      }));
+    }
+    
+    // Mark initialization complete after a short delay to ensure state is set
+    setTimeout(() => {
+      isInitialMount.current = false;
+      console.log('✅ Initialization complete, sync enabled. Current config:', {
+        width: config.width,
+        height: config.height,
+        unit: config.unit
+      });
+    }, 200);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialConfig]);
+
+  // Sync local config changes to global state (only after initial mount)
+  useEffect(() => {
+    // Skip sync on initial mount to avoid overwriting values
+    if (isInitialMount.current) {
+      console.log('⏸️ Skipping sync - still in initial mount phase');
+      return;
+    }
+    
+    // Don't sync if we just set values from initialConfig
+    if (initialConfig && 
+        config.width === initialConfig.width && 
+        config.height === initialConfig.height) {
+      // This is likely the initial set, don't sync yet
+      return;
+    }
+    
+    console.log('🔄 Syncing config to global state:', {
+      width: config.width,
+      height: config.height,
+      unit: config.unit
+    });
+    
+    // Convert 'm' back to the stored format (keep as 'm' in global state)
+    const unitForStorage = config.unit === 'm' ? 'm' : config.unit;
+    updateGlobalDimensions(config.width, config.height, unitForStorage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.width, config.height, config.unit]);
+
+  // Verify dimensions are correct after initialization
+  useEffect(() => {
+    if (initialConfig && !isInitialMount.current) {
+      // Verify the displayed values match what was entered
+      const expectedWidth = initialConfig.unit === 'm' 
+        ? (initialConfig.width / 1000).toFixed(2)
+        : initialConfig.unit === 'ft'
+        ? (initialConfig.width / 304.8).toFixed(2)
+        : initialConfig.width.toString();
+      
+      const expectedHeight = initialConfig.unit === 'm'
+        ? (initialConfig.height / 1000).toFixed(2)
+        : initialConfig.unit === 'ft'
+        ? (initialConfig.height / 304.8).toFixed(2)
+        : initialConfig.height.toString();
+      
+      const actualWidth = config.unit === 'm'
+        ? (config.width / 1000).toFixed(2)
+        : (config.width / 304.8).toFixed(2);
+      
+      const actualHeight = config.unit === 'm'
+        ? (config.height / 1000).toFixed(2)
+        : (config.height / 304.8).toFixed(2);
+      
+      console.log('🔍 Dimension Verification:', {
+        expected: `${expectedWidth} ${initialConfig.unit} x ${expectedHeight} ${initialConfig.unit}`,
+        actual: `${actualWidth} ${config.unit} x ${actualHeight} ${config.unit}`,
+        widthMatch: Math.abs(parseFloat(expectedWidth) - parseFloat(actualWidth)) < 0.01,
+        heightMatch: Math.abs(parseFloat(expectedHeight) - parseFloat(actualHeight)) < 0.01,
+        configWidthMM: config.width,
+        configHeightMM: config.height,
+        initialWidthMM: initialConfig.width,
+        initialHeightMM: initialConfig.height
+      });
+      
+      // If values don't match, force update
+      if (Math.abs(config.width - initialConfig.width) > 1 || 
+          Math.abs(config.height - initialConfig.height) > 1) {
+        console.warn('⚠️ Dimension mismatch detected! Forcing correction...');
+        setConfig({
+          width: initialConfig.width,
+          height: initialConfig.height,
+          unit: initialConfig.unit === 'mm' || initialConfig.unit === 'cm' ? 'm' : initialConfig.unit,
+          aspectRatio: 'None'
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.width, config.height, initialConfig]);
+
+  // Show left panel when product is selected
+  useEffect(() => {
+    if (selectedProduct) {
+      setShowLeftPanel(true);
+    }
+  }, [selectedProduct]);
 
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
@@ -61,7 +261,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
   const [isMandatoryFormSubmitted, setIsMandatoryFormSubmitted] = useState(false);
   const [quotationId, setQuotationId] = useState<string>('');
   const [isEditMode, setIsEditMode] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(false);
+  const [showDashboardInternal, setShowDashboardInternal] = useState(false);
+  
+  // Use prop if provided, otherwise use internal state
+  const showDashboard = showDashboardProp !== undefined ? showDashboardProp : showDashboardInternal;
+  const setShowDashboard = onDashboardClose || (() => setShowDashboardInternal(false));
 
   // New state for processor/controller and mode
   const [selectedController, setSelectedController] = useState<string>('');
@@ -392,11 +596,17 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
     //'P4':   { endUser: 95600, siChannel: 86700, reseller: 81300 },
   //};
 
-  // If dashboard is open, render only the dashboard
-  if (showDashboard && userRole === 'super') {
+  // If dashboard is open, render only the admin dashboard (for super_admin users only)
+  if (showDashboard && (userRole === 'super' || userRole === 'super_admin')) {
     return (
       <SuperUserDashboard 
-        onBack={() => setShowDashboard(false)} 
+        onBack={() => {
+          if (onDashboardClose) {
+            onDashboardClose();
+          } else {
+            setShowDashboardInternal(false);
+          }
+        }} 
         loggedInUser={salesUser ? {
           role: salesUser.role,
           name: salesUser.name,
@@ -434,10 +644,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
               console.log('🎯 DisplayConfigurator - showDashboard:', showDashboard);
               return null;
             })()}
-            {userRole === 'super' ? (
+            {(userRole === 'super' || userRole === 'super_admin') ? (
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => setShowDashboard(true)}
+                  onClick={() => {
+                    if (onDashboardClose === undefined) {
+                      setShowDashboardInternal(true);
+                    }
+                  }}
                   className="px-3 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
                 >
                   Dashboard
@@ -504,10 +718,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
         {/* Sidebar */}
         <div className={`
           fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto
-          transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
+          transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${showLeftPanel ? 'lg:translate-x-0' : 'lg:-translate-x-full'}
           transition-transform duration-300 ease-in-out
           w-72 sm:w-80 flex-shrink-0 border-r border-gray-200 bg-white
-          lg:block
+          ${showLeftPanel ? 'lg:block' : 'lg:hidden'}
         `}>
           <ProductSidebar
             selectedProduct={selectedProduct}
@@ -659,7 +873,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Resolution</h4>
+                      <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Cabinet Resolution</h4>
                       <p className="text-gray-600 text-xs sm:text-sm">
                         {selectedProduct.resolution.width} × {selectedProduct.resolution.height}
                       </p>
@@ -914,6 +1128,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ userRo
             quotationId
           )}
           onDownload={handleDownloadPdf}
+          onDownloadDocx={handleDownloadDocx}
           fileName={`${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.pdf`}
           selectedProduct={selectedProduct}
           config={config}
