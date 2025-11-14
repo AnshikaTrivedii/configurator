@@ -286,54 +286,6 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
           </div>
         )}
 
-        {/* Top Performers Section */}
-        {stats && stats.topPerformers && stats.topPerformers.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                🏆 Top Performer{stats.topPerformers.length > 1 ? 's' : ''}
-              </h3>
-              <span className="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-                Based on Converted & In Progress quotations
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {stats.topPerformers.map((performer) => (
-                <div key={performer._id} className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
-                      <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">
-                          {performer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{performer.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{performer.email}</p>
-                      <div className="mt-2 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-bold text-orange-600">
-                            {performer.quotationCount} valid quotation{performer.quotationCount !== 1 ? 's' : ''}
-                          </p>
-                          <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
-                            {performer.location}
-                          </span>
-                        </div>
-                        {performer.revenue && performer.revenue > 0 && (
-                          <p className="text-xs font-medium text-green-600">
-                            Revenue: ₹{performer.revenue.toLocaleString('en-IN')}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Filters */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="flex flex-wrap gap-4">

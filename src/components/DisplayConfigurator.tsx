@@ -248,6 +248,17 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   }, [selectedProduct]);
 
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
+
+  // Auto-open product selector if no product is selected and no initial config (direct product selection mode)
+  useEffect(() => {
+    if (!initialConfig && !selectedProduct) {
+      // Small delay to ensure component is fully mounted
+      const timer = setTimeout(() => {
+        setIsProductSelectorOpen(true);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [initialConfig, selectedProduct]);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
