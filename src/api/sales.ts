@@ -57,6 +57,13 @@ class SalesAPI {
 
   async login(email: string, password: string): Promise<LoginResponse> {
     try {
+      console.log('🔐 ========== LOGIN ATTEMPT ==========');
+      console.log('🔐 API Base URL:', API_BASE_URL);
+      console.log('🔐 Full Login URL:', `${API_BASE_URL}/sales/login`);
+      console.log('📧 Email:', email);
+      console.log('🔐 Environment:', import.meta.env.MODE);
+      console.log('🔐 VITE_API_URL:', import.meta.env.VITE_API_URL);
+      
       const response = await fetch(`${API_BASE_URL}/sales/login`, {
         method: 'POST',
         headers: {
@@ -65,34 +72,73 @@ class SalesAPI {
         body: JSON.stringify({ email, password })
       });
 
-      // Handle network errors
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+
+      // Handle network errors (CORS, connection refused, etc.)
       if (!response.ok && response.status === 0) {
-        throw new Error('Failed to connect to server. Please check if the backend is running.');
+        console.error('❌ Network error: Response status is 0');
+        throw new Error('Failed to connect to server. Please check if the backend is running on port 3001.');
       }
 
       let data;
       try {
         data = await response.json();
+        console.log('📦 Response data:', data);
       } catch (jsonError) {
-        throw new Error('Invalid response from server. Please try again.');
+        console.error('❌ JSON parse error:', jsonError);
+        const text = await response.text();
+        console.error('📄 Response text:', text);
+        throw new Error(`Invalid response from server (${response.status}). Please check if the backend is running and accessible.`);
       }
 
       if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
+        console.error('❌ Login failed:', data);
+        // Provide more specific error messages
+        if (response.status === 400) {
+          throw new Error(data.message || 'Invalid email or password. Please check your credentials.');
+        } else if (response.status === 401) {
+          throw new Error(data.message || 'Authentication failed. Please check your credentials.');
+        } else if (response.status === 500) {
+          throw new Error(data.message || 'Server error. Please try again later.');
+        } else if (response.status === 404) {
+          throw new Error('Login endpoint not found. Please check if the backend API is configured correctly.');
+        } else {
+          throw new Error(data.message || `Login failed with status ${response.status}. Please try again.`);
+        }
       }
 
       // Cache user data for faster subsequent access
       if (data.success && data.user) {
         this.setUserCache(data.user);
+        console.log('✅ Login successful for user:', data.user.email);
       }
 
       return data;
     } catch (error: any) {
-      // Handle network errors (fetch failed completely)
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Failed to connect to server. Please ensure the backend is running on port 3001.');
+      console.error('❌ ========== LOGIN ERROR ==========');
+      console.error('❌ Error type:', error?.constructor?.name);
+      console.error('❌ Error message:', error?.message);
+      console.error('❌ Error stack:', error?.stack);
+      console.error('❌ Full error object:', error);
+      console.error('❌ API Base URL:', API_BASE_URL);
+      console.error('❌ =================================');
+      
+      // Handle network errors (fetch failed completely - CORS, connection refused, etc.)
+      if (error instanceof TypeError) {
+        if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+          console.error('❌ Network error detected - Backend server may not be running or accessible');
+          console.error('❌ Trying to connect to:', `${API_BASE_URL}/sales/login`);
+          throw new Error('Cannot connect to backend server. Please ensure:\n1. Backend server is running on port 3001\n2. Backend URL is correct: ' + API_BASE_URL + '\n3. No firewall is blocking the connection\n4. Test backend: Open http://localhost:3001/health in browser');
+        }
+        if (error.message.includes('CORS')) {
+          console.error('❌ CORS error detected');
+          throw new Error('CORS error: Backend server is not allowing requests from this origin. Please check CORS configuration in backend/server.js');
+        }
       }
-      // Re-throw other errors
+      
+      // Re-throw other errors with their original messages
       throw error;
     }
   }

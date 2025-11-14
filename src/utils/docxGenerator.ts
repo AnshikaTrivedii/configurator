@@ -1,9 +1,12 @@
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle } from 'docx';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, ImageRun, Media } from 'docx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { getProcessorPrice } from './processorPrices';
 import { calculateCentralizedPricing } from './centralizedPricing';
+
+// For HTML to DOCX conversion, we'll use a browser-compatible approach
+// Using the existing docx library with HTML content processed for Word compatibility
 
 // Phone number mapping for sales team members
 const SALES_PHONE_MAPPING: Record<string, string> = {
@@ -43,1067 +46,193 @@ const getSalesPhoneNumber = (salesUser: { email: string; name: string; contactNu
 
 //
 
+/**
+ * Generate DOCX file from HTML quotation document
+ * This function ensures pixel-perfect export by:
+ * 1. Using the exact HTML content from generateConfigurationHtml
+ * 2. Converting each HTML page to a high-quality image using html2canvas
+ * 3. Embedding images in DOCX with exact A4 dimensions (210mm x 297mm)
+ * 4. Preserving page breaks and layout
+ * 
+ * Note: This approach converts HTML to images for pixel-perfect rendering in Word.
+ * The resulting DOCX will contain images of the pages, ensuring exact visual fidelity.
+ */
 export const generateConfigurationDocx = async (
   config: DisplayConfig,
   selectedProduct: Product,
   cabinetGrid: CabinetGrid,
   processor?: string,
-  _mode?: string,
+  mode?: string,
   userInfo?: UserInfo,
   salesUser?: { email: string; name: string; contactNumber: string; location: string } | null,
   quotationId?: string
 ): Promise<Blob> => {
   try {
-  // Calculate display area
-  const METERS_TO_FEET = 3.2808399;
-  const toDisplayUnit = (mm: number, unit: string) => {
-    const meters = mm / 1000;
-    if (unit === 'ft') {
-      return (meters * METERS_TO_FEET).toFixed(2);
-    }
-    return meters.toFixed(2);
-  };
-
-  const displayedWidth = parseFloat(toDisplayUnit(config.width, config.unit));
-  const displayedHeight = parseFloat(toDisplayUnit(config.height, config.unit));
-  // Derived values (calculated only if needed in future; suppress unused warnings)
-  void displayedWidth; void displayedHeight;
-
-  // Calculate power consumption
-  const avgPowerPerCabinet = selectedProduct.avgPowerConsumption || 91.7;
-  const maxPowerPerCabinet = selectedProduct.maxPowerConsumption || (avgPowerPerCabinet * 3);
-  void avgPowerPerCabinet; void maxPowerPerCabinet;
-
-  // Calculate total pixels
-  void cabinetGrid; void selectedProduct;
-
-  // Use centralized pricing calculation to ensure 100% match with PDF
-  const userTypeForCalc = userInfo?.userType === 'Channel' ? 'Channel' : 
-                         userInfo?.userType === 'Reseller' ? 'Reseller' : 'End User';
-  
-  const pricingResult = calculateCentralizedPricing(
-    selectedProduct,
-    cabinetGrid,
-    processor || null,
-    userTypeForCalc,
-    config
-  );
-
-  // Extract values from centralized pricing
-  const unitPrice = pricingResult.unitPrice;
-  const safeQuantity = pricingResult.quantity;
-  const subtotal = pricingResult.productSubtotal;
-  const gstProduct = pricingResult.productGST;
-  const totalProduct = pricingResult.productTotal;
-  const controllerPrice = pricingResult.processorPrice;
-  const gstController = pricingResult.processorGST;
-  const totalController = pricingResult.processorTotal;
-  
-  // Calculate screen area in square feet for Structure and Installation pricing
-  const widthInMeters = config.width / 1000;
-  const heightInMeters = config.height / 1000;
-  const widthInFeet = widthInMeters * METERS_TO_FEET;
-  const heightInFeet = heightInMeters * METERS_TO_FEET;
-  const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
-  
-  // Structure Price: ₹2500 per square foot + 18% GST
-  const structureBasePrice = screenAreaSqFt * 2500;
-  const structureGST = structureBasePrice * 0.18;
-  const totalStructure = structureBasePrice + structureGST;
-  
-  // Installation Price: ₹500 per square foot + 18% GST
-  const installationBasePrice = screenAreaSqFt * 500;
-  const installationGST = installationBasePrice * 0.18;
-  const totalInstallation = installationBasePrice + installationGST;
-  
-  // Update grand total to include Structure and Installation
-  const grandTotal = pricingResult.grandTotal + totalStructure + totalInstallation;
-  
-  // Check if product is Jumbo Series (prices already include controllers)
-  const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
-                        selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
-                        selectedProduct.name?.toLowerCase().includes('jumbo series');
-
-  // Format Indian number with clean formatting (same as PDF)
-  const formatIndianNumber = (x: number): string => {
-    // Round to whole numbers for cleaner display
-    const rounded = Math.round(x);
+    // Generate the HTML content using the same function as PDF export
+    const htmlContent = generateConfigurationHtml(
+      config,
+      selectedProduct,
+      cabinetGrid,
+      processor,
+      mode,
+      userInfo,
+      salesUser,
+      quotationId
+    );
     
-    // Convert to string
-    const s = rounded.toString();
+    // For browser-compatible DOCX export, we convert HTML pages to images
+    // and embed them in DOCX. This ensures pixel-perfect rendering.
     
-    // Format with Indian numbering system (commas for thousands)
-    if (s.length > 3) {
-      const lastThree = s.slice(-3);
-      const remaining = s.slice(0, s.length - 3);
-      const formatted = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree;
-      return formatted;
-    }
-    return s;
-  };
-
-  // Helper function to format price using Indian number format (same as PDF)
-  const formatPrice = (price: number | undefined | string | null): string => {
-    if (price === undefined || price === null || price === "NA" || price === "na") {
-      return "NA";
-    }
-    if (typeof price === 'number') {
-      return `₹${formatIndianNumber(price)}`;
-    }
-    return "NA";
-  };
-
-  // Build document without embedding images for maximum compatibility
-
-  // Create document with proper page breaks and layout (matching PDF margins)
-  const doc = new Document({
-    sections: [{
-      properties: {
-        page: {
-          margin: {
-            top: 720, // 0.5 inch (matching PDF padding)
-            right: 720,
-            bottom: 720,
-            left: 720,
-          },
-          size: {
-            width: 11906, // A4 width in twips
-            height: 16838, // A4 height in twips
-          },
-        },
-      },
-      children: [
-
-        // Company header section
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "ATENTI ORIGINS",
-              bold: true,
-              size: 28,
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 200 }
-        }),
-
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "ATENTI ORIGINS PHOTOELECTRICITY CONSORT PVT.LTD.",
-              size: 20,
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 100 }
-        }),
-
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "Reg. Office: 504, 5th Floor ABW Elegance Tower, Jasola District Centre, Jasola, New Delhi 110025",
-              size: 16,
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 100 }
-        }),
-
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "Factory: B-10, Sector-88, Noida - 201301",
-              size: 16,
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 400 }
-        }),
-
-        // Quotation title
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "QUOTATION",
-              bold: true,
-              size: 32,
-              color: "FFFFFF",
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-          spacing: { before: 200, after: 200 },
-          shading: {
-            fill: "2563eb",
-          },
-        }),
-
-        // Quotation details table
-        new Table({
-          width: {
-            size: 100,
-            type: WidthType.PERCENTAGE,
-          },
-          rows: [
-            new TableRow({
-              children: [
-                new TableCell({
-                  children: [
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: "Quotation #:",
-                          bold: true,
-                          size: 16,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: quotationId || "ORION/2025/07/Prachi/0193",
-                          size: 16,
-                        }),
-                      ],
-                    }),
-                  ],
-                  width: {
-                    size: 50,
-                    type: WidthType.PERCENTAGE,
-                  },
-                }),
-                new TableCell({
-                  children: [
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: "Date:",
-                          bold: true,
-                          size: 16,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: new Date().toLocaleDateString('en-GB'),
-                          size: 16,
-                        }),
-                      ],
-                    }),
-                  ],
-                  width: {
-                    size: 50,
-                    type: WidthType.PERCENTAGE,
-                  },
-                }),
-              ],
-            }),
-          ],
-        }),
-
-        // Client information if available
-        ...(userInfo ? [
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "CLIENT INFORMATION",
-                bold: true,
-                size: 24,
-              }),
-            ],
-            spacing: { before: 400, after: 200 }
-          }),
-
-          new Table({
-            width: {
-              size: 100,
-              type: WidthType.PERCENTAGE,
-            },
-            rows: [
-              new TableRow({
-                children: [
-                  new TableCell({
-                    children: [
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: "CLIENT DETAILS",
-                            bold: true,
-                            size: 16,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `Name: ${userInfo.fullName}`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `Email: ${userInfo.email}`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `Phone: ${userInfo.phoneNumber}`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                    ],
-                    width: {
-                      size: 50,
-                      type: WidthType.PERCENTAGE,
-                    },
-                  }),
-                  new TableCell({
-                    children: [
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: "ORION SALES TEAM",
-                            bold: true,
-                            size: 16,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `Location: ${salesUser?.location || 'Delhi'}`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `Sales Person: ${salesUser ? salesUser.name : 'Ashwani Yadav'}`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `Contact: ${getSalesPhoneNumber(salesUser)}`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `Email: ${salesUser ? salesUser.email : 'ashwani.yadav@orion-led.com'}`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                    ],
-                    width: {
-                      size: 50,
-                      type: WidthType.PERCENTAGE,
-                    },
-                  }),
-                ],
-              }),
-            ],
-          }),
-        ] : []),
-
-        // Section A: Product Description
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "A. PRODUCT DESCRIPTION",
-              bold: true,
-              size: 24,
-            }),
-          ],
-          spacing: { before: 400, after: 200 }
-        }),
-
-        // Product specifications and pricing in two-column layout with exact HTML styling
-        new Table({
-          width: {
-            size: 100,
-            type: WidthType.PERCENTAGE,
-          },
-          margins: { top: 400, bottom: 400, left: 200, right: 200 },
-          rows: [
-            new TableRow({
-              children: [
-                new TableCell({
-                  children: [
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: "PRODUCT SPECIFICATIONS",
-                          bold: true,
-                          size: 18,
-                        }),
-                      ],
-                      spacing: { before: 200, after: 200 }
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `Series/Environment:`,
-                          bold: true,
-                          size: 14,
-                        }),
-                        new TextRun({
-                          text: ` ${selectedProduct.category}, ${selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1)}`,
-                          size: 14,
-                        }),
-                      ],
-                      spacing: { before: 200, after: 200 }
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `Pixel Pitch:`,
-                          bold: true,
-                          size: 14,
-                        }),
-                        new TextRun({
-                          text: ` P${selectedProduct.pixelPitch}`,
-                          size: 14,
-                        }),
-                      ],
-                      spacing: { before: 100, after: 100 }
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `Module Dimension:`,
-                          bold: true,
-                          size: 14,
-                        }),
-                        new TextRun({
-                          text: ` ${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm`,
-                          size: 14,
-                        }),
-                      ],
-                      spacing: { before: 100, after: 100 }
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `Display Size (m):`,
-                          bold: true,
-                          size: 14,
-                        }),
-                        new TextRun({
-                          text: ` ${toDisplayUnit(config.width, 'm')} x ${toDisplayUnit(config.height, 'm')}`,
-                          size: 14,
-                        }),
-                      ],
-                      spacing: { before: 100, after: 100 }
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `Display Size (ft):`,
-                          bold: true,
-                          size: 14,
-                        }),
-                        new TextRun({
-                          text: ` ${toDisplayUnit(config.width, 'ft')} x ${toDisplayUnit(config.height, 'ft')}`,
-                          size: 14,
-                        }),
-                      ],
-                      spacing: { before: 100, after: 100 }
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `Resolution:`,
-                          bold: true,
-                          size: 14,
-                        }),
-                        new TextRun({
-                          text: ` ${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}`,
-                          size: 14,
-                        }),
-                      ],
-                      spacing: { before: 100, after: 100 }
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `Matrix:`,
-                          bold: true,
-                          size: 14,
-                        }),
-                        new TextRun({
-                          text: ` ${cabinetGrid.columns} x ${cabinetGrid.rows}`,
-                          size: 14,
-                        }),
-                      ],
-                      spacing: { before: 100, after: 100 }
-                    }),
-                  ],
-                  width: {
-                    size: 60,
-                    type: WidthType.PERCENTAGE,
-                  },
-                  shading: {
-                    fill: "F8F9FA",
-                  },
-                                       borders: {
-                       top: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
-                       bottom: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
-                       left: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
-                       right: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
-                     },
-                  margins: { top: 400, bottom: 400, left: 400, right: 400 },
-                }),
-                new TableCell({
-                  children: [
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: "PRICING DETAILS",
-                          bold: true,
-                          size: 18,
-                        }),
-                      ],
-                      spacing: { before: 300, after: 300 }
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `Unit Price:`,
-                          bold: true,
-                          size: 14,
-                        }),
-                        new TextRun({
-                          text: ` ${formatPrice(unitPrice)}`,
-                          bold: true,
-                          size: 14,
-                        }),
-                      ],
-                      spacing: { before: 100, after: 100 }
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `Quantity:`,
-                          bold: true,
-                          size: 14,
-                        }),
-                        new TextRun({
-                          text: ` ${selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : safeQuantity.toFixed(2) + ' Ft²'}`,
-                          size: 14,
-                        }),
-                      ],
-                      spacing: { before: 100, after: 100 }
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `Subtotal:`,
-                          bold: true,
-                          size: 14,
-                        }),
-                        new TextRun({
-                          text: ` ${formatPrice(subtotal)}`,
-                          bold: true,
-                          size: 14,
-                        }),
-                      ],
-                      spacing: { before: 100, after: 100 }
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `GST (18%):`,
-                          bold: true,
-                          size: 14,
-                        }),
-                        new TextRun({
-                          text: ` ${formatPrice(gstProduct)}`,
-                          bold: true,
-                          size: 14,
-                          color: "DC3545",
-                        }),
-                      ],
-                      spacing: { before: 100, after: 100 }
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `TOTAL:`,
-                          bold: true,
-                          size: 16,
-                        }),
-                        new TextRun({
-                          text: ` ${formatPrice(totalProduct)}`,
-                          bold: true,
-                          size: 16,
-                        }),
-                      ],
-                      spacing: { before: 100, after: 100 }
-                    }),
-                  ],
-                                      width: {
-                      size: 40,
-                      type: WidthType.PERCENTAGE,
-                    },
-                    shading: {
-                      fill: "F8F9FA",
-                    },
-                    borders: {
-                      top: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
-                      bottom: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
-                      left: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
-                      right: { style: BorderStyle.SINGLE, size: 0.5, color: "E9ECEF" },
-                    },
-                    margins: { top: 400, bottom: 400, left: 400, right: 400 },
-                }),
-              ],
-            }),
-          ],
-        }),
-
-        // TOTAL A section with exact HTML styling
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: `TOTAL A: ${formatPrice(totalProduct)}`,
-              bold: true,
-              size: 20,
-              color: "FFFFFF",
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-          spacing: { before: 200, after: 200 },
-          shading: {
-            fill: "333333",
-          },
-        }),
-
-        // Section B: Control System (only show if not Jumbo Series)
-        ...(!isJumboSeries ? [
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "B. CONTROL SYSTEM & ACCESSORIES",
-                bold: true,
-                size: 24,
-              }),
-            ],
-            spacing: { before: 400, after: 200 }
-          }),
-
-          // Controller details table
-        new Table({
-          width: {
-            size: 100,
-            type: WidthType.PERCENTAGE,
-          },
-          rows: [
-            new TableRow({
-              children: [
-                new TableCell({
-                  children: [
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: "CONTROLLER DETAILS",
-                          bold: true,
-                          size: 18,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `Controller Model: ${processor || "Nova TB2"}`,
-                          size: 14,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: "Quantity: 1",
-                          size: 14,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: "UOM: Nos.",
-                          size: 14,
-                        }),
-                      ],
-                    }),
-                  ],
-                  width: {
-                    size: 50,
-                    type: WidthType.PERCENTAGE,
-                  },
-                }),
-                new TableCell({
-                  children: [
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: "CONTROLLER PRICING",
-                          bold: true,
-                          size: 18,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `Unit Price: ${formatPrice(controllerPrice)}`,
-                          size: 14,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `GST (18%): ${formatPrice(gstController)}`,
-                          size: 14,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: `TOTAL B: ${formatPrice(controllerPrice + gstController)}`,
-                          bold: true,
-                          size: 16,
-                        }),
-                      ],
-                    }),
-                  ],
-                  width: {
-                    size: 50,
-                    type: WidthType.PERCENTAGE,
-                  },
-                }),
-              ],
-            }),
-          ],
-        }),
-        ] : []),
-
-        // Structure and Installation Price Section (shown for all products)
-        [
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "STRUCTURE AND INSTALLATION PRICE",
-                bold: true,
-                size: 20,
-              }),
-            ],
-            spacing: { before: 400, after: 200 }
-          }),
-          
-          // Structure and Installation table
-          new Table({
-            width: {
-              size: 100,
-              type: WidthType.PERCENTAGE,
-            },
-            rows: [
-              new TableRow({
-                children: [
-                  // Structure Price Column
-                  new TableCell({
-                    children: [
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: "STRUCTURE PRICE",
-                            bold: true,
-                            size: 18,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `Area: ${screenAreaSqFt.toFixed(2)} Ft²`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: "Rate: ₹2,500 / Ft²",
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `Base Cost: ${formatPrice(structureBasePrice)}`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `GST (18%): ${formatPrice(structureGST)}`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `TOTAL: ${formatPrice(totalStructure)}`,
-                            bold: true,
-                            size: 16,
-                          }),
-                        ],
-                      }),
-                    ],
-                    width: {
-                      size: 50,
-                      type: WidthType.PERCENTAGE,
-                    },
-                  }),
-                  // Installation Price Column
-                  new TableCell({
-                    children: [
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: "INSTALLATION PRICE",
-                            bold: true,
-                            size: 18,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `Area: ${screenAreaSqFt.toFixed(2)} Ft²`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: "Rate: ₹500 / Ft²",
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `Base Cost: ${formatPrice(installationBasePrice)}`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `GST (18%): ${formatPrice(installationGST)}`,
-                            size: 14,
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: `TOTAL: ${formatPrice(totalInstallation)}`,
-                            bold: true,
-                            size: 16,
-                          }),
-                        ],
-                      }),
-                    ],
-                    width: {
-                      size: 50,
-                      type: WidthType.PERCENTAGE,
-                    },
-                  }),
-                ],
-              }),
-            ],
-          }),
-        ],
-
-        // Grand Total (only show if not Jumbo Series, or always show with proper calculation)
-        ...(!isJumboSeries ? [
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `GRAND TOTAL: ${formatPrice(grandTotal)}`,
-                bold: true,
-                size: 28,
-              }),
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 400, after: 200 }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "(A + B + C)",
-                size: 20,
-              }),
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 200 }
-          }),
-        ] : [
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `GRAND TOTAL: ${formatPrice(grandTotal)}`,
-                bold: true,
-                size: 28,
-              }),
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 400, after: 200 }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "(A + C)",
-                size: 20,
-              }),
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 200 }
-          }),
-        ]),
-
-        // Footer
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "Valid for 30 days from the date of quotation",
-              size: 14,
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-        }),
-
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "Note: Product catalog pages are available separately upon request",
-              size: 12,
-              color: "666666",
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-          spacing: { before: 200 }
-        }),
-      ]
-    }]
-  });
-
-    return await Packer.toBlob(doc);
-  } catch (error) {
-    console.error('Error generating DOCX:', error);
+    // Create a temporary container to render the HTML
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '-10000px';
+    container.style.top = '0';
+    container.style.width = '210mm';
+    container.style.background = '#ffffff';
+    container.innerHTML = htmlContent;
+    document.body.appendChild(container);
     
-    // Fallback: Create a simple document without images
-    const fallbackDoc = new Document({
+    // Wait for images to load
+    const allImages = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
+    await Promise.all(
+      allImages.map(img =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise<void>(resolve => {
+              img.onload = () => resolve();
+              img.onerror = () => resolve();
+            })
+      )
+    );
+    
+    // Small delay to ensure rendering is complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Get all page elements
+    const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
+    
+    if (pages.length === 0) {
+      document.body.removeChild(container);
+      throw new Error('No pages found in HTML content');
+    }
+    
+    // A4 dimensions conversion:
+    // - For images: Use EMU (English Metric Units), 1 inch = 914400 EMU
+    // - For page size: Use twips, 1 inch = 1440 twips
+    // A4: 210mm x 297mm = 8.2677" x 11.6929"
+    const A4_WIDTH_INCHES = 210 / 25.4;
+    const A4_HEIGHT_INCHES = 297 / 25.4;
+    
+    // Image dimensions in EMU
+    const A4_WIDTH_EMU = Math.round(A4_WIDTH_INCHES * 914400);
+    const A4_HEIGHT_EMU = Math.round(A4_HEIGHT_INCHES * 914400);
+    
+    // Page size in twips (1 inch = 1440 twips)
+    const A4_WIDTH_TWIPS = Math.round(A4_WIDTH_INCHES * 1440);
+    const A4_HEIGHT_TWIPS = Math.round(A4_HEIGHT_INCHES * 1440);
+    
+    const docChildren: any[] = [];
+    
+    // Convert each page to an image and add to DOCX
+    for (let i = 0; i < pages.length; i++) {
+      const pageEl = pages[i];
+      
+      try {
+        // Convert page to canvas with high quality
+        const canvas = await html2canvas(pageEl, {
+          scale: 2, // Higher scale for better quality
+          useCORS: true,
+          logging: false,
+          width: pageEl.scrollWidth || pageEl.offsetWidth,
+          height: pageEl.scrollHeight || pageEl.offsetHeight,
+          backgroundColor: '#ffffff',
+          windowWidth: pageEl.scrollWidth || 794, // A4 width in pixels at 96 DPI
+          windowHeight: pageEl.scrollHeight || 1123, // A4 height in pixels at 96 DPI
+        });
+        
+        // Convert canvas to blob
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to convert canvas to blob'));
+            }
+          }, 'image/png', 1.0); // Maximum quality
+        });
+        
+        // Convert blob to ArrayBuffer, then to Uint8Array
+        // docx library works with Uint8Array in browser environments
+        const arrayBuffer = await blob.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        
+        // Create image run with exact A4 dimensions in EMU
+        // docx library v9 expects data as Uint8Array and transformation in EMU
+        const imageRun = new ImageRun({
+          data: uint8Array,
+          transformation: {
+            width: A4_WIDTH_EMU,
+            height: A4_HEIGHT_EMU,
+          },
+        });
+        
+        // Add paragraph with image
+        docChildren.push(
+          new Paragraph({
+            children: [imageRun],
+            spacing: { after: 0, before: 0 },
+          })
+        );
+        
+        // Add page break after each page (except the last)
+        if (i < pages.length - 1) {
+          docChildren.push(
+            new Paragraph({
+              children: [],
+              pageBreakBefore: true,
+            })
+          );
+        }
+      } catch (error) {
+        console.error(`Error converting page ${i + 1} to image:`, error);
+        // Continue with next page if one fails
+      }
+    }
+    
+    // Remove temporary container
+    document.body.removeChild(container);
+    
+    // Create document with proper A4 dimensions in twips
+    const doc = new Document({
+      creator: 'ORION LED Configurator',
+      title: 'Configuration Quotation',
+      description: 'LED Display Configuration Quotation',
       sections: [{
         properties: {
           page: {
-            margin: {
-              top: 1440,
-              right: 1440,
-              bottom: 1440,
-              left: 1440,
-            },
             size: {
-              width: 11906,
-              height: 16838,
+              width: A4_WIDTH_TWIPS,
+              height: A4_HEIGHT_TWIPS,
+            },
+            margin: {
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0,
             },
           },
         },
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "ORION LED Configuration Report",
-                bold: true,
-                size: 32,
-              }),
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 400 }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `Product: ${selectedProduct.name}`,
-                size: 20,
-              }),
-            ],
-            spacing: { after: 200 }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `Display Size: ${(config.width / 1000).toFixed(2)}m x ${(config.height / 1000).toFixed(2)}m`,
-                size: 16,
-              }),
-            ],
-            spacing: { after: 200 }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `Matrix: ${cabinetGrid.columns} x ${cabinetGrid.rows}`,
-                size: 16,
-              }),
-            ],
-            spacing: { after: 200 }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `Controller: ${processor || 'Nova TB2'}`,
-                size: 16,
-              }),
-            ],
-            spacing: { after: 200 }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "Generated on: " + new Date().toLocaleDateString(),
-                size: 14,
-              }),
-            ],
-            spacing: { after: 200 }
-          }),
-        ]
-      }]
+        children: docChildren,
+      }],
     });
     
-    return await Packer.toBlob(fallbackDoc);
+    // Generate blob
+    const blob = await Packer.toBlob(doc);
+    return blob;
+  } catch (error) {
+    console.error('Error generating DOCX from HTML:', error);
+    throw new Error('Failed to generate DOCX file. Please try again.');
   }
 };
 

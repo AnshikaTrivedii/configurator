@@ -264,6 +264,13 @@ router.post('/login', validateLogin, async (req, res) => {
       .select('email name location contactNumber passwordHash mustChangePassword passwordSetAt role')
       .lean(); // Use lean() for better performance
     
+    console.log('🔐 Database user query result:', {
+      email: user?.email,
+      hasRole: !!user?.role,
+      role: user?.role,
+      roleType: typeof user?.role
+    });
+    
     if (!user) {
       return res.status(400).json({
         success: false,
@@ -280,6 +287,14 @@ router.post('/login', validateLogin, async (req, res) => {
       });
     }
 
+    // Ensure role is set (default to 'sales' if not set)
+    // This handles cases where users were created before role field was added
+    const userRole = user.role || 'sales';
+    
+    console.log('🔐 User login - email:', user.email);
+    console.log('🔐 User role from DB:', user.role);
+    console.log('🔐 Final userRole (with fallback):', userRole);
+    
     // Generate JWT token with extended expiry for better session persistence
     const token = jwt.sign(
       { 
@@ -288,23 +303,30 @@ router.post('/login', validateLogin, async (req, res) => {
         name: user.name,
         location: user.location,
         contactNumber: user.contactNumber,
-        role: user.role
+        role: userRole // Always include role in token
       },
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '30d' } // Extended to 30 days for better UX
     );
 
+    // Build user object for response - ALWAYS include role
+    const userResponse = {
+      name: user.name,
+      location: user.location,
+      contactNumber: user.contactNumber,
+      email: user.email,
+      role: userRole // CRITICAL: Always include role, default to 'sales' if not set
+    };
+    
+    console.log('🔐 Sending user response:', JSON.stringify(userResponse, null, 2));
+    console.log('🔐 User response role:', userResponse.role);
+    console.log('🔐 User response has role property:', 'role' in userResponse);
+
     // Return user data (excluding password hash)
     res.json({
       success: true,
       token,
-      user: {
-        name: user.name,
-        location: user.location,
-        contactNumber: user.contactNumber,
-        email: user.email,
-        role: user.role
-      },
+      user: userResponse,
       mustChangePassword: user.mustChangePassword
     });
 
