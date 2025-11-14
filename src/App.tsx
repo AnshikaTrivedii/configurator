@@ -92,7 +92,25 @@ function App() {
   const handleSalesLogin = (user: SalesUser) => {
     console.log('🎯 App.tsx - handleSalesLogin - user:', user);
     console.log('🎯 App.tsx - user.role:', user.role);
-    setSalesUser(user);
+    console.log('🎯 App.tsx - user object (full):', JSON.stringify(user, null, 2));
+    
+    // CRITICAL FIX: If user doesn't have a role, default to 'sales'
+    // This handles cases where backend hasn't been updated or database doesn't have roles
+    if (!user.role) {
+      console.warn('⚠️ WARNING: User object missing role! Defaulting to "sales"');
+      user.role = 'sales';
+      // Update the stored user as well
+      const updatedUser = { ...user, role: 'sales' };
+      setSalesUser(updatedUser);
+      // Update localStorage
+      const token = localStorage.getItem('salesToken');
+      if (token) {
+        salesAPI.setAuthData(token, updatedUser);
+      }
+    } else {
+      setSalesUser(user);
+    }
+    
     // Map 'super' to 'super_admin' for backward compatibility
     const newRole = user.role === 'super' || user.role === 'super_admin' 
       ? 'super_admin' 
@@ -100,7 +118,7 @@ function App() {
       ? 'sales' 
       : 'normal';
     console.log('🎯 App.tsx - setting userRole to:', newRole);
-    console.log('🎯 App.tsx - user object:', JSON.stringify(user, null, 2));
+    console.log('🎯 App.tsx - user.role after fix:', user.role);
     setUserRole(newRole);
     setShowSalesLogin(false);
     // If sales/super_admin user, skip landing page and go to their respective views
@@ -115,6 +133,7 @@ function App() {
       }
     } else {
       console.warn('⚠️ App.tsx - Unknown role, staying on landing page:', newRole);
+      console.warn('⚠️ App.tsx - User object:', JSON.stringify(user, null, 2));
       setShowLandingPage(true);
       setShowDashboard(false);
     }

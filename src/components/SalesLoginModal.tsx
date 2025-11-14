@@ -38,15 +38,35 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
     setLoadingStep('Authenticating...');
 
     try {
+      console.log('🚀 Starting login process...');
+      console.log('📧 Email entered:', email);
+      console.log('🔐 Password entered:', password ? '***' : '(empty)');
+      
       setLoadingStep('Verifying credentials...');
       const response = await salesAPI.login(email, password);
+      
+      console.log('✅ Login API call successful');
+      console.log('📦 Full response:', JSON.stringify(response, null, 2));
+      console.log('📦 Response.user:', JSON.stringify(response.user, null, 2));
+      console.log('📦 Response.user.role:', response.user?.role);
+      console.log('📦 Response.user has role?:', 'role' in (response.user || {}));
+      
+      // Ensure role is set - if backend didn't return it, default to 'sales'
+      if (!response.user.role) {
+        console.warn('⚠️ WARNING: User object missing role! Defaulting to "sales"');
+        response.user.role = 'sales';
+      }
       
       setLoadingStep('Setting up session...');
       // Store auth data
       salesAPI.setAuthData(response.token, response.user);
+      console.log('✅ Auth data stored');
+      console.log('✅ Stored user object:', JSON.stringify(response.user, null, 2));
+      console.log('✅ Stored user.role:', response.user.role);
       
       // Check if user needs to set password
       if (response.mustChangePassword) {
+        console.log('⚠️ User must change password');
         setCurrentUserEmail(response.user.email);
         setShowPasswordSetup(true);
         setIsLoading(false);
@@ -60,10 +80,36 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
       dataPrefetcher.prefetchUserData().catch(console.warn);
       
       // Login successful, proceed normally
+      console.log('✅ Login successful, calling onLogin callback with user:', JSON.stringify(response.user, null, 2));
+      console.log('✅ User role before callback:', response.user.role);
       onLogin(response.user);
       
     } catch (error: any) {
-      setError(error.message || 'Login failed. Please check your credentials.');
+      console.error('❌ ========== LOGIN ERROR IN MODAL ==========');
+      console.error('❌ Error type:', error?.constructor?.name);
+      console.error('❌ Error message:', error?.message);
+      console.error('❌ Error stack:', error?.stack);
+      console.error('❌ Full error:', error);
+      console.error('❌ Error toString:', error?.toString());
+      console.error('❌ =========================================');
+      
+      // Display error message, handling both string errors and Error objects
+      let errorMessage = error?.message || error?.toString() || 'Login failed. Please check your credentials.';
+      
+      // Provide more helpful error messages
+      if (errorMessage.includes('Cannot connect') || errorMessage.includes('Failed to connect') || errorMessage.includes('fetch')) {
+        errorMessage = `Cannot connect to backend server.\n\nPlease ensure:\n1. Backend server is running on port 3001\n2. Backend URL is correct: ${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}\n3. No firewall is blocking the connection\n4. Test: Open http://localhost:3001/health in browser\n\nTo start the backend:\ncd backend && npm start`;
+      } else if (errorMessage.includes('Invalid email or password')) {
+        errorMessage = `Invalid email or password.\n\nPlease check:\n1. Email is correct (e.g., ashoo.nitin@orion-led.com)\n2. Password is correct (default: Orion@123)\n3. Database has been seeded with sales users\n\nTo seed the database:\ncd backend && npm run seed`;
+      } else if (errorMessage.includes('Internal server error')) {
+        errorMessage = `Server error occurred.\n\nPlease check:\n1. MongoDB is running\n2. Database connection is working\n3. Backend server logs for errors\n\nCommon fixes:\n- Start MongoDB: mongod (or check MongoDB service)\n- Seed database: cd backend && npm run seed\n- Check backend console for error messages`;
+      } else if (errorMessage.includes('CORS')) {
+        errorMessage = `CORS error detected.\n\nPlease check:\n1. Backend CORS configuration in backend/server.js\n2. Frontend URL is in CORS origins\n3. Backend is allowing credentials\n\nFix: Add your frontend URL to CORS origins in backend/server.js`;
+      } else if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+        errorMessage = `Login endpoint not found.\n\nPlease check:\n1. Backend API routes are configured correctly\n2. Backend server is running\n3. API URL is correct: ${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}\n\nFix: Check backend/routes/sales.js for /login route`;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
       setLoadingStep('');
@@ -113,7 +159,7 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm whitespace-pre-line">
               {error}
             </div>
           )}

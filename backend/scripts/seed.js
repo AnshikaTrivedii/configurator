@@ -33,7 +33,18 @@ const seedSalesUsers = async () => {
         const existingUser = await SalesUser.findOne({ email: userData.email });
         
         if (existingUser) {
-          console.log(`User ${userData.email} already exists, skipping...`);
+          // Update existing user if role is missing or incorrect
+          let updated = false;
+          if (!existingUser.role || existingUser.role !== 'sales') {
+            existingUser.role = 'sales';
+            await existingUser.save();
+            console.log(`Updated user ${userData.email} - set role to 'sales'`);
+            updated = true;
+          }
+          
+          if (!updated) {
+            console.log(`User ${userData.email} already exists with correct role, skipping...`);
+          }
           skippedCount++;
           continue;
         }
@@ -48,15 +59,16 @@ const seedSalesUsers = async () => {
           contactNumber: userData.phoneNumber,
           passwordHash,
           mustChangePassword: true,
-          passwordSetAt: null
+          passwordSetAt: null,
+          role: 'sales' // Explicitly set role to 'sales' for all sales users
         });
 
         await newUser.save();
-        console.log(`Created user: ${userData.email}`);
+        console.log(`Created user: ${userData.email} with role: sales`);
         createdCount++;
         
       } catch (error) {
-        console.error(`Error creating user ${userData.email}:`, error.message);
+        console.error(`Error creating/updating user ${userData.email}:`, error.message);
       }
     }
 

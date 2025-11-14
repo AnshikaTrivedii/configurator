@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -14,6 +14,9 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Product, CabinetGrid } from '../types';
+import { toPng, toJpeg, toSvg } from 'html-to-image';
+import download from 'downloadjs';
+import jsPDF from 'jspdf';
 
 interface Props {
   product: Product;
@@ -30,6 +33,248 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     type: string;
     data: any;
   } | null>(null);
+  
+  // --- Export functionality ---
+  const flowRef = useRef<HTMLDivElement>(null);
+  const reactFlowInstanceRef = useRef<any>(null);
+  
+  const getFlowViewport = (): HTMLElement | null => {
+    if (!flowRef.current) return null;
+    // Find the React Flow viewport element - it contains the full diagram SVG
+    const viewport = flowRef.current.querySelector('.react-flow__viewport') as HTMLElement;
+    return viewport || flowRef.current;
+  };
+  
+  const exportAsImage = async (format: 'png' | 'jpeg' | 'svg') => {
+    const instance = reactFlowInstanceRef.current;
+    if (!instance) {
+      console.error('React Flow instance not available');
+      return;
+    }
+    
+    const viewportElement = getFlowViewport();
+    if (!viewportElement) {
+      console.error('Could not find React Flow viewport');
+      return;
+    }
+    
+    try {
+      // Save current viewport state
+      const currentViewport = instance.getViewport();
+      
+      // Fit view to show entire diagram before export
+      instance.fitView({ padding: 0.2, duration: 200 });
+      
+      // Wait for fitView animation to complete
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Calculate bounds from all nodes using React Flow API
+      const nodes = instance.getNodes();
+      if (nodes.length === 0) {
+        console.error('No nodes found in diagram');
+        return;
+      }
+      
+      // Calculate bounding box from node positions and dimensions
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      
+      nodes.forEach(node => {
+        const nodeWidth = node.width || 0;
+        const nodeHeight = node.height || 0;
+        minX = Math.min(minX, node.position.x);
+        minY = Math.min(minY, node.position.y);
+        maxX = Math.max(maxX, node.position.x + nodeWidth);
+        maxY = Math.max(maxY, node.position.y + nodeHeight);
+      });
+      
+      // Add padding and calculate full dimensions
+      const padding = 50;
+      const fullWidth = Math.ceil(maxX - minX + padding * 2);
+      const fullHeight = Math.ceil(maxY - minY + padding * 2);
+      
+      // Capture the viewport with transform removed and explicit dimensions
+      const options = {
+        pixelRatio: 3,
+        backgroundColor: '#f8fafc',
+        quality: 1,
+        width: fullWidth,
+        height: fullHeight,
+        style: {
+          transform: 'none',
+          transformOrigin: 'top left',
+        },
+        filter: (node: any) => {
+          // Exclude controls, minimap, and export buttons from export
+          if (!node || !node.className) return true;
+          const className = typeof node.className === 'string' ? node.className : '';
+          return !className.includes('react-flow__controls') && 
+                 !className.includes('react-flow__minimap') &&
+                 !className.includes('react-flow__panel') &&
+                 !className.includes('absolute') && // Exclude export buttons
+                 !node.classList?.contains('absolute');
+        },
+      };
+      
+      let dataUrl: string;
+      let filename: string;
+      let mimeType: string;
+      
+      switch (format) {
+        case 'png':
+          dataUrl = await toPng(viewportElement, options);
+          filename = 'power-wiring-diagram.png';
+          mimeType = 'image/png';
+          break;
+        case 'jpeg':
+          dataUrl = await toJpeg(viewportElement, options);
+          filename = 'power-wiring-diagram.jpg';
+          mimeType = 'image/jpeg';
+          break;
+        case 'svg':
+          dataUrl = await toSvg(viewportElement, options);
+          filename = 'power-wiring-diagram.svg';
+          mimeType = 'image/svg+xml';
+          break;
+      }
+      
+      // Restore viewport after capture
+      instance.setViewport(currentViewport);
+      
+      download(dataUrl, filename, mimeType);
+    } catch (error) {
+      console.error('Error exporting image:', error);
+      // Try to restore viewport even on error
+      if (reactFlowInstanceRef.current) {
+        try {
+          reactFlowInstanceRef.current.fitView({ padding: 0.1 });
+        } catch (e) {
+          // Ignore restore errors
+        }
+      }
+    }
+  };
+  
+  const exportAsPDF = async () => {
+    const instance = reactFlowInstanceRef.current;
+    if (!instance) {
+      console.error('React Flow instance not available');
+      return;
+    }
+    
+    const viewportElement = getFlowViewport();
+    if (!viewportElement) {
+      console.error('Could not find React Flow viewport');
+      return;
+    }
+    
+    try {
+      // Save current viewport state
+      const currentViewport = instance.getViewport();
+      
+      // Fit view to show entire diagram before export
+      instance.fitView({ padding: 0.2, duration: 200 });
+      
+      // Wait for fitView animation to complete
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Calculate bounds from all nodes using React Flow API
+      const nodes = instance.getNodes();
+      if (nodes.length === 0) {
+        console.error('No nodes found in diagram');
+        return;
+      }
+      
+      // Calculate bounding box from node positions and dimensions
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      
+      nodes.forEach(node => {
+        const nodeWidth = node.width || 0;
+        const nodeHeight = node.height || 0;
+        minX = Math.min(minX, node.position.x);
+        minY = Math.min(minY, node.position.y);
+        maxX = Math.max(maxX, node.position.x + nodeWidth);
+        maxY = Math.max(maxY, node.position.y + nodeHeight);
+      });
+      
+      // Add padding and calculate full dimensions
+      const padding = 50;
+      const fullWidth = Math.ceil(maxX - minX + padding * 2);
+      const fullHeight = Math.ceil(maxY - minY + padding * 2);
+      
+      // Capture the viewport with transform removed and explicit dimensions
+      const options = {
+        pixelRatio: 3,
+        backgroundColor: '#f8fafc',
+        quality: 1,
+        width: fullWidth,
+        height: fullHeight,
+        style: {
+          transform: 'none',
+          transformOrigin: 'top left',
+        },
+        filter: (node: any) => {
+          // Exclude controls, minimap, and export buttons from export
+          if (!node || !node.className) return true;
+          const className = typeof node.className === 'string' ? node.className : '';
+          return !className.includes('react-flow__controls') && 
+                 !className.includes('react-flow__minimap') &&
+                 !className.includes('react-flow__panel') &&
+                 !className.includes('absolute') && // Exclude export buttons
+                 !node.classList?.contains('absolute');
+        },
+      };
+      
+      // Convert to PNG first
+      const dataUrl = await toPng(viewportElement, options);
+      
+      // Restore viewport before PDF creation (so user sees normal view)
+      instance.setViewport(currentViewport);
+      
+      // Create PDF in landscape orientation using points
+      const pdf = new jsPDF('landscape', 'pt', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      // Get image properties
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const imgAspectRatio = imgProps.width / imgProps.height;
+      const pdfAspectRatio = pdfWidth / pdfHeight;
+      
+      let finalWidth = pdfWidth;
+      let finalHeight = pdfHeight;
+      
+      if (imgAspectRatio > pdfAspectRatio) {
+        // Image is wider, fit to width
+        finalHeight = pdfWidth / imgAspectRatio;
+      } else {
+        // Image is taller, fit to height
+        finalWidth = pdfHeight * imgAspectRatio;
+      }
+      
+      // Center the image
+      const xOffset = (pdfWidth - finalWidth) / 2;
+      const yOffset = (pdfHeight - finalHeight) / 2;
+      
+      pdf.addImage(dataUrl, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
+      pdf.save('power-wiring-diagram.pdf');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      // Try to restore viewport even on error
+      if (reactFlowInstanceRef.current) {
+        try {
+          reactFlowInstanceRef.current.fitView({ padding: 0.1 });
+        } catch (e) {
+          // Ignore restore errors
+        }
+      }
+    }
+  };
 
   // Calculate pixel count per cabinet
   const pixelPitch = product.pixelPitch; // in mm
@@ -585,7 +830,7 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
 
   // --- PR badge with lock icon ---
   return (
-    <div style={{ width: '100%', height: '600px', position: 'relative', background: 'linear-gradient(to bottom right, #f8fafc, #e2e8f0)' }}>
+    <div ref={flowRef} style={{ width: '100%', height: '600px', position: 'relative', background: 'linear-gradient(to bottom right, #f8fafc, #e2e8f0)' }}>
       {/* Tooltip */}
       {tooltip && (
         <div style={{ position: 'fixed', left: tooltip.x + 12, top: tooltip.y + 12, background: '#fff', border: '1px solid #ddd', borderRadius: 8, padding: '8px 14px', fontSize: 14, color: '#222', zIndex: 1000, pointerEvents: 'none', boxShadow: '0 2px 8px #0002' }}>{tooltip.content}</div>
@@ -597,6 +842,9 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        onInit={(instance) => {
+          reactFlowInstanceRef.current = instance;
+        }}
         fitView
         className="bg-transparent"
         fitViewOptions={{ padding: 0.1 }}
@@ -609,6 +857,34 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
         <Background color="#e2e8f0" gap={30} size={1} className="opacity-30" />
         <MiniMap nodeColor={n => n.type === 'power' ? '#2563eb' : '#10b981'} />
       </ReactFlow>
+      
+      {/* Export Toolbar */}
+      <div className="absolute right-4 bottom-20 flex flex-col gap-2 z-10">
+        <button
+          onClick={() => exportAsImage('png')}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors duration-200 font-medium text-sm"
+        >
+          Export PNG
+        </button>
+        <button
+          onClick={() => exportAsImage('jpeg')}
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors duration-200 font-medium text-sm"
+        >
+          Export JPEG
+        </button>
+        <button
+          onClick={() => exportAsImage('svg')}
+          className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors duration-200 font-medium text-sm"
+        >
+          Export SVG
+        </button>
+        <button
+          onClick={exportAsPDF}
+          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors duration-200 font-medium text-sm"
+        >
+          Export PDF
+        </button>
+      </div>
       {/* Optionally, add a badge at the top of each column */}
       {/* Remove the PR badges block at the top of each column */}
       {/* Delete the Array.from({ length: cabinetGrid.columns }) map that renders the PR badges ... */}

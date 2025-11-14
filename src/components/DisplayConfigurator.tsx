@@ -190,56 +190,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.width, config.height, config.unit]);
 
-  // Verify dimensions are correct after initialization
-  useEffect(() => {
-    if (initialConfig && !isInitialMount.current) {
-      // Verify the displayed values match what was entered
-      const expectedWidth = initialConfig.unit === 'm' 
-        ? (initialConfig.width / 1000).toFixed(2)
-        : initialConfig.unit === 'ft'
-        ? (initialConfig.width / 304.8).toFixed(2)
-        : initialConfig.width.toString();
-      
-      const expectedHeight = initialConfig.unit === 'm'
-        ? (initialConfig.height / 1000).toFixed(2)
-        : initialConfig.unit === 'ft'
-        ? (initialConfig.height / 304.8).toFixed(2)
-        : initialConfig.height.toString();
-      
-      const actualWidth = config.unit === 'm'
-        ? (config.width / 1000).toFixed(2)
-        : (config.width / 304.8).toFixed(2);
-      
-      const actualHeight = config.unit === 'm'
-        ? (config.height / 1000).toFixed(2)
-        : (config.height / 304.8).toFixed(2);
-      
-      console.log('🔍 Dimension Verification:', {
-        expected: `${expectedWidth} ${initialConfig.unit} x ${expectedHeight} ${initialConfig.unit}`,
-        actual: `${actualWidth} ${config.unit} x ${actualHeight} ${config.unit}`,
-        widthMatch: Math.abs(parseFloat(expectedWidth) - parseFloat(actualWidth)) < 0.01,
-        heightMatch: Math.abs(parseFloat(expectedHeight) - parseFloat(actualHeight)) < 0.01,
-        configWidthMM: config.width,
-        configHeightMM: config.height,
-        initialWidthMM: initialConfig.width,
-        initialHeightMM: initialConfig.height
-      });
-      
-      // If values don't match, force update
-      if (Math.abs(config.width - initialConfig.width) > 1 || 
-          Math.abs(config.height - initialConfig.height) > 1) {
-        console.warn('⚠️ Dimension mismatch detected! Forcing correction...');
-        setConfig({
-          width: initialConfig.width,
-          height: initialConfig.height,
-          unit: initialConfig.unit === 'mm' || initialConfig.unit === 'cm' ? 'm' : initialConfig.unit,
-          aspectRatio: 'None'
-        });
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.width, config.height, initialConfig]);
-
   // Show left panel when product is selected
   useEffect(() => {
     if (selectedProduct) {
@@ -571,23 +521,56 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     updateHeight(newHeight);
   };
 
-  // When a Jumbo product is selected, set the width/height to match the fixed grid
+  // Track the last selected product ID to only reset dimensions when product actually changes
+  const previousProductIdRef = useRef<string | undefined>(undefined);
+  
+  // When a product is selected, set initial dimensions ONLY once per product selection
+  // This effect ONLY runs when the product ID changes, NEVER when dimensions change
   useEffect(() => {
-    if (selectedProduct) {
-      if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
-        updateWidth(selectedProduct.cabinetDimensions.width);
-        updateHeight(selectedProduct.cabinetDimensions.height);
-      } else if (jumboGrid) {
-        // For Jumbo Series, use the fixed cabinet dimensions directly
-        updateWidth(selectedProduct.cabinetDimensions.width);
-        updateHeight(selectedProduct.cabinetDimensions.height);
-      } else {
-        const grid = calculateCabinetGrid(selectedProduct);
-        updateWidth(grid.totalWidth);
-        updateHeight(grid.totalHeight);
-      }
+    if (!selectedProduct) {
+      previousProductIdRef.current = undefined;
+      return;
     }
-  }, [selectedProduct]);
+    
+    const currentProductId = selectedProduct.id;
+    const isProductChanging = previousProductIdRef.current !== currentProductId;
+    
+    // Only set dimensions when product actually changes (not on every render)
+    if (isProductChanging) {
+      previousProductIdRef.current = currentProductId;
+      
+      // Wait for initialConfig to be processed first (if it exists)
+      // Use a small delay to ensure initialConfig useEffect has run
+      const timer = setTimeout(() => {
+        // For fixed grid products (Digital Standee, Jumbo), always set fixed dimensions
+        if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
+          updateWidth(selectedProduct.cabinetDimensions.width);
+          updateHeight(selectedProduct.cabinetDimensions.height);
+        } else if (jumboGrid) {
+          updateWidth(selectedProduct.cabinetDimensions.width);
+          updateHeight(selectedProduct.cabinetDimensions.height);
+        } else {
+          // For other products, only set if NOT from wizard (wizard dimensions are already set)
+          const isFromWizard = initialConfig?.selectedProduct?.id === selectedProduct.id;
+          
+          if (!isFromWizard) {
+            // Calculate initial grid based on product cabinet dimensions
+            // Use a reasonable default starting size (3x3 grid)
+            const cabinetWidth = selectedProduct.cabinetDimensions.width || 600;
+            const cabinetHeight = selectedProduct.cabinetDimensions.height || 337.5;
+            const initialWidth = cabinetWidth * 3;
+            const initialHeight = cabinetHeight * 3;
+            updateWidth(initialWidth);
+            updateHeight(initialHeight);
+          }
+          // If from wizard, dimensions are already set by initialConfig useEffect - do nothing
+        }
+      }, 150); // Small delay to let initialConfig useEffect run first
+      
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProduct?.id, jumboGrid]); // Only depend on product ID - this prevents the effect from running when dimensions change
 
   // Digital Standee Series price mapping by model and user type
   //const digitalStandeePrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
@@ -855,7 +838,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   className="w-full sm:w-auto bg-black text-white px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2 text-xs sm:text-sm lg:text-base"
                 >
                   <Package size={14} />
-                  <span>Change Product</span>
+                  <span>Choose Product</span>
                 </button>
               </div>
 
