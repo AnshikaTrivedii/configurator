@@ -33,11 +33,20 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   // Viewing distance filter state
   const [viewingDistanceUnit, setViewingDistanceUnit] = useState<'meters' | 'feet'>('meters');
   const [viewingDistanceValue, setViewingDistanceValue] = useState<string>('');
+  
+  // Pixel pitch filter state
+  const [selectedPixelPitch, setSelectedPixelPitch] = useState<string>('All');
 
-  // Clear viewing distance when selected product changes
+  // Clear viewing distance and pixel pitch when selected product changes
   useEffect(() => {
     setViewingDistanceValue('');
+    setSelectedPixelPitch('All');
   }, [selectedProduct]);
+
+  // Clear pixel pitch when viewing distance changes
+  useEffect(() => {
+    setSelectedPixelPitch('All');
+  }, [viewingDistanceValue, viewingDistanceUnit]);
 
   // Normalize environment for comparison
   const normalizeEnv = (env: string) => env.trim().toLowerCase();
@@ -65,6 +74,40 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const isRentalSeries = (product: Product) =>
     product.category && product.category.toLowerCase().includes('rental');
 
+  // Get recommended pixel pitches based on viewing distance
+  const getRecommendedPixelPitches = (): number[] => {
+    if (!viewingDistanceValue) return [];
+    return getPixelPitchesForViewingDistanceRange(viewingDistanceValue, viewingDistanceUnit);
+  };
+
+  // Get available pixel pitches for current filters (environment, category, etc.)
+  const getAvailablePixelPitches = (): number[] => {
+    let tempProducts = products;
+    
+    // Apply environment filter
+    if (selectedFilter === 'Indoor') {
+      tempProducts = tempProducts.filter((p) => normalizeEnv(p.environment) === 'indoor');
+    } else if (selectedFilter === 'Outdoor') {
+      tempProducts = tempProducts.filter((p) => normalizeEnv(p.environment) === 'outdoor');
+    }
+    
+    // Apply indoor type filter
+    if (selectedFilter === 'Indoor' && indoorType !== 'All') {
+      tempProducts = tempProducts.filter((p) => getProductType(p) === indoorType);
+    }
+    
+    // Apply category filter
+    tempProducts = tempProducts.filter(
+      (p) => selectedCategory === 'All' || p.category === selectedCategory
+    );
+    
+    // Get unique pixel pitches
+    const uniquePixelPitches = Array.from(new Set(tempProducts.map(p => p.pixelPitch)))
+      .sort((a, b) => a - b);
+    
+    return uniquePixelPitches;
+  };
+
   // Filter products based on selected filter
   let filteredProducts = products;
   
@@ -91,16 +134,26 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     (p) => selectedCategory === 'All' || p.category === selectedCategory
   );
 
-          // Apply viewing distance filter
-          if (viewingDistanceValue) {
-            // Get pixel pitches that match the selected viewing distance range
-            const matchingPixelPitches = getPixelPitchesForViewingDistanceRange(viewingDistanceValue, viewingDistanceUnit);
-            
-            filteredProducts = filteredProducts.filter((p) => {
-              // Check if the product's pixel pitch matches any of the matching pixel pitches
-              return matchingPixelPitches.some(pitch => Math.abs(p.pixelPitch - pitch) < 0.1);
-            });
-          }
+  // Apply pixel pitch filter (manual selection takes precedence over viewing distance)
+  if (selectedPixelPitch !== 'All') {
+    const pitchValue = parseFloat(selectedPixelPitch);
+    if (!isNaN(pitchValue)) {
+      filteredProducts = filteredProducts.filter((p) => 
+        Math.abs(p.pixelPitch - pitchValue) < 0.1
+      );
+    }
+  } else if (viewingDistanceValue) {
+    // Apply viewing distance filter only if pixel pitch is not manually selected
+    // Get pixel pitches that match the selected viewing distance range
+    const matchingPixelPitches = getPixelPitchesForViewingDistanceRange(viewingDistanceValue, viewingDistanceUnit);
+    
+    if (matchingPixelPitches.length > 0) {
+      filteredProducts = filteredProducts.filter((p) => {
+        // Check if the product's pixel pitch matches any of the matching pixel pitches
+        return matchingPixelPitches.some(pitch => Math.abs(p.pixelPitch - pitch) < 0.1);
+      });
+    }
+  }
 
   // Deduplicate products by id
   filteredProducts = filteredProducts.filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
@@ -255,6 +308,76 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                           </div>
                         )}
                       </div>
+
+                      {/* Pixel Pitch Filter */}
+                      <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
+                        <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Pixel Pitch:</span>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={selectedPixelPitch}
+                            onChange={(e) => setSelectedPixelPitch(e.target.value)}
+                            className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-48"
+                          >
+                            <option value="All">All Pixel Pitches</option>
+                            {(() => {
+                              const recommendedPitches = getRecommendedPixelPitches();
+                              const availablePitches = getAvailablePixelPitches();
+                              
+                              // If viewing distance is selected, show recommended pitches first, then others
+                              if (viewingDistanceValue && recommendedPitches.length > 0) {
+                                return (
+                                  <>
+                                    <optgroup label="Recommended (based on viewing distance)">
+                                      {recommendedPitches
+                                        .filter(pitch => availablePitches.includes(pitch))
+                                        .map(pitch => (
+                                          <option key={pitch} value={pitch.toString()}>
+                                            P{pitch} mm (Recommended)
+                                          </option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Other Available">
+                                      {availablePitches
+                                        .filter(pitch => !recommendedPitches.includes(pitch))
+                                        .map(pitch => (
+                                          <option key={pitch} value={pitch.toString()}>
+                                            P{pitch} mm
+                                          </option>
+                                        ))}
+                                    </optgroup>
+                                  </>
+                                );
+                              } else {
+                                // Show all available pitches
+                                return availablePitches.map(pitch => (
+                                  <option key={pitch} value={pitch.toString()}>
+                                    P{pitch} mm
+                                  </option>
+                                ));
+                              }
+                            })()}
+                          </select>
+                          
+                          {selectedPixelPitch !== 'All' && (
+                            <button
+                              onClick={() => setSelectedPixelPitch('All')}
+                              className="px-2 py-1.5 text-xs sm:text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                        {selectedPixelPitch !== 'All' && (
+                          <div className="text-xs text-gray-600 mt-1">
+                            Filtering products for P{selectedPixelPitch} mm pixel pitch
+                          </div>
+                        )}
+                        {viewingDistanceValue && selectedPixelPitch === 'All' && (
+                          <div className="text-xs text-blue-600 mt-1">
+                            💡 Select a pixel pitch to refine your search, or leave as "All" to see recommended options
+                          </div>
+                        )}
+                      </div>
           </div>
         </div>
 
@@ -292,10 +415,14 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
           {filteredProducts.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-gray-500 text-lg font-medium mb-2">
-                No products available for this viewing distance
+                No products found matching your filters
               </div>
               <div className="text-gray-400 text-sm">
-                Try adjusting your viewing distance or other filters
+                {selectedPixelPitch !== 'All' 
+                  ? `Try adjusting the pixel pitch filter or other filters`
+                  : viewingDistanceValue
+                  ? `Try adjusting your viewing distance, pixel pitch, or other filters`
+                  : `Try adjusting your environment, category, or other filters`}
               </div>
             </div>
           ) : (

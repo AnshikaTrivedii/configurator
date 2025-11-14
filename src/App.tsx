@@ -154,6 +154,13 @@ function App() {
     setShowWizard(true);
   };
 
+  const handleChooseProductDirectly = () => {
+    // Skip wizard and go directly to dashboard/configurator
+    setShowLandingPage(false);
+    setShowWizard(false);
+    setInitialConfig(null); // No initial config for direct product selection
+  };
+
   const handleWizardComplete = (config: {
     width: number;
     height: number;
@@ -231,6 +238,7 @@ function App() {
       <>
         <LandingPage 
           onStartConfiguration={handleStartConfiguration}
+          onChooseProductDirectly={handleChooseProductDirectly}
           onSalesLogin={handleShowSalesLogin}
         />
         <SalesLoginModal 
