@@ -3,6 +3,7 @@ import { X, ChevronRight, ChevronLeft, Check, Package } from 'lucide-react';
 import { Product } from '../types';
 import { products } from '../data/products';
 import { getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistanceRange } from '../utils/viewingDistanceRanges';
+import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 
 interface ConfigurationWizardProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   onClose,
   onComplete
 }) => {
+  const { updateDimensions, updateConfig } = useDisplayConfig();
   const [currentStep, setCurrentStep] = useState<Step>('dimensions');
   const [width, setWidth] = useState<string>('');
   const [height, setHeight] = useState<string>('');
@@ -132,6 +134,45 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     }
   };
 
+  // Sync width/height with global context for chatbot recommendations
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!width || !height) return;
+
+    const widthValue = parseFloat(width);
+    const heightValue = parseFloat(height);
+    if (isNaN(widthValue) || isNaN(heightValue)) return;
+
+    const widthMM = convertToMM(widthValue, unit);
+    const heightMM = convertToMM(heightValue, unit);
+    updateDimensions(widthMM, heightMM, unit);
+  }, [width, height, unit, isOpen, updateDimensions]);
+
+  // Sync environment
+  useEffect(() => {
+    if (!isOpen) return;
+    updateConfig({
+      environment: environment ? (environment as 'Indoor' | 'Outdoor') : null
+    });
+  }, [environment, isOpen, updateConfig]);
+
+  // Sync viewing distance selections
+  useEffect(() => {
+    if (!isOpen) return;
+    updateConfig({
+      viewingDistance: viewingDistance || null,
+      viewingDistanceUnit
+    });
+  }, [viewingDistance, viewingDistanceUnit, isOpen, updateConfig]);
+
+  // Sync pixel pitch selection
+  useEffect(() => {
+    if (!isOpen) return;
+    updateConfig({
+      pixelPitch: pixelPitch ?? null
+    });
+  }, [pixelPitch, isOpen, updateConfig]);
+
   const canProceed = () => {
     switch (currentStep) {
       case 'dimensions':
@@ -154,18 +195,20 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   const availablePixelPitches = viewingDistance
     ? getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit)
     : (() => {
-        // Get all unique pixel pitches from products matching the environment
+        // Get all unique pixel pitches from enabled products matching the environment
         const uniquePitches = new Set<number>();
         products.forEach(product => {
-          if (!environment || product.environment?.toLowerCase().trim() === environment.toLowerCase().trim()) {
+          if (product.enabled !== false && (!environment || product.environment?.toLowerCase().trim() === environment.toLowerCase().trim())) {
             uniquePitches.add(product.pixelPitch);
           }
         });
         return Array.from(uniquePitches).sort((a, b) => a - b);
       })();
 
-  // Filter products based on selections
+  // Filter products based on selections (only enabled products)
   const filteredProducts = products.filter(product => {
+    // Only show enabled products
+    if (product.enabled === false) return false;
     // Normalize environment for comparison (case-insensitive)
     const productEnv = product.environment?.toLowerCase().trim();
     const selectedEnv = environment?.toLowerCase().trim();
@@ -408,6 +451,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                     {availablePixelPitches.map((pitch) => {
                       // Count products matching this pitch and environment
                       const matchingProducts = products.filter(p => {
+                        if (p.enabled === false) return false; // Only enabled products
                         const envMatch = !environment || p.environment?.toLowerCase().trim() === environment.toLowerCase().trim();
                         const pitchMatch = Math.abs(p.pixelPitch - pitch) < 0.3;
                         return envMatch && pitchMatch;

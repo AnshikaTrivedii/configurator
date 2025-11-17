@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, CheckCircle, ChevronDown } from 'lucide-react';
+import { X, User, Mail, Phone, CheckCircle, ChevronDown, FileText, MapPin } from 'lucide-react';
 
 interface UserInfo {
   fullName: string;
   email: string;
   phoneNumber: string;
+  projectTitle: string;
+  address: string;
   userType: 'End User' | 'Reseller' | 'Channel';
 }
 
@@ -32,6 +34,8 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
       fullName: '',
       email: '',
       phoneNumber: '',
+      projectTitle: '',
+      address: '',
       userType: 'End User'
     }
   );
@@ -71,6 +75,14 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
       newErrors.phoneNumber = 'Please enter a valid phone number';
     }
 
+    if (!formData.projectTitle.trim()) {
+      newErrors.projectTitle = 'Project title is required';
+    }
+
+    if (!formData.address.trim()) {
+      newErrors.address = 'Address is required';
+    }
+
     if (!formData.userType) {
       newErrors.userType = 'User type is required';
     }
@@ -92,7 +104,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
       await onSubmit(formData);
       // Only reset form if not in edit mode
       if (!isEditMode) {
-        setFormData({ fullName: '', email: '', phoneNumber: '', userType: 'End User' });
+        setFormData({ fullName: '', email: '', phoneNumber: '', projectTitle: '', address: '', userType: 'End User' });
       }
       setErrors({});
     } catch (error) {
@@ -121,10 +133,10 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-auto my-auto max-h-[95vh] flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 rounded-t-xl">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 rounded-t-xl flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="p-2 rounded-lg bg-white/20">
@@ -147,8 +159,9 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
           </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Scrollable Form Content */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Client Name Field */}
           <div>
             <label htmlFor="fullName" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -224,6 +237,56 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
             )}
           </div>
 
+          {/* Project Title Field */}
+          <div>
+            <label htmlFor="projectTitle" className="block text-sm font-semibold text-gray-700 mb-2">
+              Project Title <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FileText className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                id="projectTitle"
+                value={formData.projectTitle}
+                onChange={(e) => handleInputChange('projectTitle', e.target.value)}
+                placeholder="Enter project title"
+                className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                  errors.projectTitle ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
+              />
+            </div>
+            {errors.projectTitle && (
+              <p className="mt-1 text-sm text-red-600">{errors.projectTitle}</p>
+            )}
+          </div>
+
+          {/* Address Field */}
+          <div>
+            <label htmlFor="address" className="block text-sm font-semibold text-gray-700 mb-2">
+              Address <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute top-3 left-0 pl-3 flex items-start pointer-events-none">
+                <MapPin className="h-5 w-5 text-gray-400" />
+              </div>
+              <textarea
+                id="address"
+                value={formData.address}
+                onChange={(e) => handleInputChange('address', e.target.value)}
+                placeholder="Enter address"
+                rows={3}
+                className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none ${
+                  errors.address ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
+              />
+            </div>
+            {errors.address && (
+              <p className="mt-1 text-sm text-red-600">{errors.address}</p>
+            )}
+          </div>
+
           {/* User Type Field */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -263,22 +326,23 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
             )}
           </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? (
-              <div className="flex items-center justify-center space-x-2">
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Processing...</span>
-              </div>
-            ) : (
-              submitButtonText
-            )}
-          </button>
-        </form>
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Processing...</span>
+                </div>
+              ) : (
+                submitButtonText
+              )}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

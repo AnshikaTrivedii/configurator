@@ -9,6 +9,7 @@ export const products: Product[] = [
     id: "orion-p15-flexible-indoor",
     name: "Orion P1.5mm Flexible Series LED display",
     category: "Flexible Series",
+    enabled: false,
     image: "/products/flexible-series/Flexible Series Indoor P1.5.png", // Not provided in PDF
     resolution: {
       width: 213, // Calculated: 320mm ÷ 1.5mm pixel pitch
@@ -51,6 +52,7 @@ export const products: Product[] = [
     id: "orion-p18-flexible-indoor",
     name: "Orion P1.8mm Flexible Series LED display",
     category: "Flexible Series",
+    enabled: false,
     image: "/products/flexible-series/Flexible Series Indoor P1.8.png", // Not provided in PDF
     resolution: {
       width: 171, // Calculated: 320mm ÷ 1.875mm pixel pitch (spec shows 1.875mm)
@@ -93,6 +95,7 @@ export const products: Product[] = [
     id: "orion-p25-flexible-indoor",
     name: "Orion P2.5mm Flexible Series LED display",
     category: "Flexible Series",
+    enabled: false,
     image: "/products/flexible-series/Flexible Series Indoor P2.5.png", // Not provided in PDF
     resolution: {
       width: 128, // Calculated: 320mm ÷ 2.5mm pixel pitch
@@ -135,6 +138,7 @@ export const products: Product[] = [
     id: "orion-p3-flexible-indoor",
     name: "Orion P3mm Flexible Series LED display",
     category: "Flexible Series",
+    enabled: false,
     image: "/products/flexible-series/Flexible Series Indoor P3.png", // Not provided in PDF
     resolution: {
       width: 107, // Calculated: 320mm ÷ 3mm pixel pitch
@@ -177,6 +181,7 @@ export const products: Product[] = [
     id: "orion-p4-flexible-indoor",
     name: "Orion P4mm Flexible Series LED display",
     category: "Flexible Series",
+    enabled: false,
     image: "/products/flexible-series/Flexible Series Indoor P4.png", // Not provided in PDF
     resolution: {
       width: 80, // Calculated: 320mm ÷ 4mm pixel pitch
@@ -215,6 +220,7 @@ export const products: Product[] = [
     id: 'bellatrix-indoor-cob-p0.9',
     name: 'Bellatrix Series Indoor COB P0.9',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor COB P0.9.jpg',
     resolution: { width: 640, height: 360 },
     cabinetDimensions: { width: 600, height: 337.5 },
@@ -238,6 +244,7 @@ export const products: Product[] = [
     id: 'bellatrix-indoor-cob-p1.25',
     name: 'Bellatrix Series Indoor COB P1.25',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor COB P1.25.jpg',
     resolution: { width: 480, height: 270 },
     cabinetDimensions: { width: 600, height: 337.5 },
@@ -261,6 +268,7 @@ export const products: Product[] = [
     id: 'bellatrix-indoor-cob-p1.5',
     name: 'Bellatrix Series Indoor COB P1.5',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor COB P1.5.jpg',
     resolution: { width: 384, height: 216 },
     cabinetDimensions: { width: 600, height: 337.5 },
@@ -285,6 +293,7 @@ export const products: Product[] = [
     id: 'bellatrix-indoor-smd-p1.25',
     name: 'Bellatrix Series Indoor SMD P1.25',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P1.25.jpg',
     resolution: { width: 512, height: 384 },
     cabinetDimensions: { width: 640, height: 480 },
@@ -308,6 +317,7 @@ export const products: Product[] = [
     id: 'bellatrix-indoor-smd-p1.5',
     name: 'Bellatrix Series Indoor SMD P1.5',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P1.5.jpg',
     resolution: { width: 384, height: 216 },
     cabinetDimensions: { width: 640, height: 480 },
@@ -331,6 +341,7 @@ export const products: Product[] = [
     id: 'bellatrix-indoor-smd-p1.8',
     name: 'Bellatrix Series Indoor SMD P1.8',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P1.8.jpg',
     resolution: { width: 344, height: 258 },
     cabinetDimensions: { width: 640, height: 480 },
@@ -354,6 +365,7 @@ export const products: Product[] = [
     id: 'bellatrix-indoor-smd-p2.5',
     name: 'Bellatrix Series Indoor SMD P2.5',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P2.5.jpg',
     resolution: { width: 256, height: 192 },
     cabinetDimensions: { width: 640, height: 480 },
@@ -377,6 +389,7 @@ export const products: Product[] = [
     id: 'bellatrix-outdoor-smd-p2.5',
     name: 'Bellatrix Series Outdoor SMD P2.5',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P2.5.png',
     resolution: { width: 384, height: 384 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -400,6 +413,7 @@ export const products: Product[] = [
     id: 'bellatrix-outdoor-smd-p3',
     name: 'Bellatrix Series Outdoor SMD P3',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P3.png',
     resolution: { width: 256, height: 256 },
     cabinetDimensions: { width: 768, height: 768 },
@@ -423,6 +437,7 @@ export const products: Product[] = [
     id: 'bellatrix-outdoor-smd-p3-lh',
     name: 'Bellatrix Series Outdoor SMD P3 LH',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P3 LH (1).png',
     resolution: { width: 192, height: 192 },
     cabinetDimensions: { width: 576, height: 576 },
@@ -446,6 +461,7 @@ export const products: Product[] = [
     id: 'bellatrix-outdoor-smd-p4',
     name: 'Bellatrix Series Outdoor SMD P4',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P4.png',
     resolution: { width: 240, height: 240 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -469,6 +485,7 @@ export const products: Product[] = [
     id: 'bellatrix-outdoor-smd-p6.6',
     name: 'Bellatrix Series Outdoor SMD P6.6',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P6.6.png',
     resolution: { width: 144, height: 144 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -492,6 +509,7 @@ export const products: Product[] = [
     id: 'bellatrix-outdoor-smd-p10',
     name: 'Bellatrix Series Outdoor SMD P10',
     category: 'Bellatrix Series',
+    enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P10.png',
     resolution: { width: 96, height: 96 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -517,6 +535,7 @@ export const products: Product[] = [
     id: 'orion-p18-digital-standee',
     name: 'Orion P1.8 Indoor Standee Display',
     category: 'Digital Standee Series',
+    enabled: false,
     image: '/products/standee-series/Digital Standee Series SMD P1.8.png',
     resolution: { width: 344, height: 946 }, // 344 dots x 946 dots
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
@@ -555,6 +574,7 @@ export const products: Product[] = [
     id: 'orion-p25-digital-standee',
     name: 'Orion P2.5 Indoor Standee Display',
     category: 'Digital Standee Series',
+    enabled: false,
     image: '/products/standee-series/Digital Standee Series SMD P2.5.png',
     resolution: { width: 256, height: 704 }, // 256 dots x 704 dots
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
@@ -593,6 +613,7 @@ export const products: Product[] = [
     id: 'orion-p4-digital-standee',
     name: 'Orion P4 Indoor Standee Display',
     category: 'Digital Standee Series',
+    enabled: false,
     image: '/products/standee-series/Digital Standee Series SMD P4.png',
     resolution: { width: 160, height: 440 }, // 160 dots x 440 dots
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
@@ -634,6 +655,7 @@ export const products: Product[] = [
     id: 'rigel-p2.5-outdoor',
     name: 'Orion P2.5 Outdoor Rigel Series',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Outdoor P2.5.png',
     resolution: { width: 384, height: 384 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -658,6 +680,7 @@ export const products: Product[] = [
     id: 'rigel-p3-outdoor',
     name: 'Orion P3 Outdoor Rigel Series',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Outdoor P3.png',
     resolution: { width: 256, height: 256 },
     cabinetDimensions: { width: 768, height: 768 },
@@ -682,6 +705,7 @@ export const products: Product[] = [
     id: 'rigel-p4-outdoor',
     name: 'Orion P4 Outdoor Rigel Series',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Outdoor P4.png',
     resolution: { width: 240, height: 240 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -706,6 +730,7 @@ export const products: Product[] = [
     id: 'rigel-p6.6-outdoor',
     name: 'Orion P6.6 Outdoor Rigel Series',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Outdoor P6.6.png',
     resolution: { width: 144, height: 144 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -730,6 +755,7 @@ export const products: Product[] = [
     id: 'rigel-p10-outdoor',
     name: 'Orion P10 Outdoor Rigel Series',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Outdoor P10.png',
     resolution: { width: 96, height: 96 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -754,6 +780,7 @@ export const products: Product[] = [
     id: 'rigel-cob-p0.9',
     name: 'Orion Rigel Indoor COB P0.9',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Indoor P0.9.jpg',
     resolution: { width: 640, height: 360 },
     cabinetDimensions: { width: 600, height: 337.5 },
@@ -779,6 +806,7 @@ export const products: Product[] = [
     id: 'rigel-cob-p1.25',
     name: 'Orion Rigel Indoor COB P1.25',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Indoor P1.25.jpg',
     resolution: { width: 480, height: 270 },
     cabinetDimensions: { width: 600, height: 337.5 },
@@ -803,6 +831,7 @@ export const products: Product[] = [
     id: 'rigel-smd-p1.25',
     name: 'Rigel Indoor SMD P1.25',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Indoor SMD P1.25.jpg',
     resolution: { width: 512, height: 384 }, // Calculated from module dimensions and pixel pitch
     cabinetDimensions: { width: 640, height: 480 },
@@ -827,6 +856,7 @@ export const products: Product[] = [
     id: 'rigel-cob-p1.5',
     name: 'Rigel Indoor COB P1.5',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Indoor P1.5.jpg',
     resolution: { width: 384, height: 216 },
     cabinetDimensions: { width: 600, height: 337.5 },
@@ -851,6 +881,7 @@ export const products: Product[] = [
     id: 'rigel-smd-p1.5',
     name: 'Rigel Indoor SMD P1.5',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Indoor SMD P1.5.jpg',
     resolution: { width: 384, height: 216 }, // Updated to standard resolution
     cabinetDimensions: { width: 640, height: 480 },
@@ -875,6 +906,7 @@ export const products: Product[] = [
     id: 'rigel-smd-p1.8',
     name: 'Rigel Indoor SMD P1.8',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Indoor P1.8.jpg',
     resolution: { width: 344, height: 258 }, // Calculated from module dimensions and pixel pitch
     cabinetDimensions: { width: 640, height: 480 },
@@ -899,6 +931,7 @@ export const products: Product[] = [
     id: 'rigel-smd-p2.5',
     name: 'Rigel Indoor SMD P2.5',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Indoor SMD P2.5.jpg',
     resolution: { width: 256, height: 192 }, // Calculated from module dimensions and pixel pitch
     cabinetDimensions: { width: 640, height: 480 },
@@ -923,6 +956,7 @@ export const products: Product[] = [
     id: 'rigel-p2.5-outdoor',
     name: 'Orion P2.5 Outdoor Rigel Series',
     category: 'Rigel Series',
+    enabled: true,
     image: '/products/rigel-series/Outdoor P2.5.png',
     resolution: { width: 384, height: 384 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -948,6 +982,7 @@ export const products: Product[] = [
     id: 'betel-indoor-smd-p1.25',
     name: 'Betelgeuse Series Indoor SMD P1.25',
     category: 'Betelgeuse Series',
+    enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Indoor SMD P1.25.jpg',
     resolution: { width: 480, height: 270 },
     cabinetDimensions: { width: 600, height: 337.5 },
@@ -987,6 +1022,7 @@ export const products: Product[] = [
     id: 'betel-indoor-smd-p1.5',
     name: 'Betelgeuse Series Indoor SMD P1.5',
     category: 'Betelgeuse Series',
+    enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Indoor SMD P1.5.jpg',
     resolution: { width: 384, height: 216 },
     cabinetDimensions: { width: 600, height: 337.5 },
@@ -1026,6 +1062,7 @@ export const products: Product[] = [
     id: 'betel-indoor-smd-p1.8',
     name: 'Betelgeuse Series Indoor SMD P1.8',
     category: 'Betelgeuse Series',
+    enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Indoor SMD P1.8.jpg',
     resolution: { width: 344, height: 258 },
     cabinetDimensions: { width: 600, height: 337.5 },
@@ -1065,6 +1102,7 @@ export const products: Product[] = [
     id: 'betel-indoor-smd-p2.5',
     name: 'Betelgeuse Series Indoor SMD P2.5',
     category: 'Betelgeuse Series',
+    enabled: true,
      image: '/products/Betel-series/Betelgeuse Series Indoor SMD P2.5.jpg',
     resolution: { width: 256, height: 192 },
     cabinetDimensions: { width: 640, height: 480 },
@@ -1104,6 +1142,7 @@ export const products: Product[] = [
     id: 'betel-outdoor-smd-p2.5',
     name: 'Betelgeuse Series Outdoor SMD P2.5',
     category: 'Betelgeuse Series',
+    enabled: true,
       image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P2.5.jpg',
     resolution: { width: 256, height: 192 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -1143,6 +1182,7 @@ export const products: Product[] = [
     id: 'betel-outdoor-smd-p3',
     name: 'Betelgeuse Series Outdoor SMD P3',
     category: 'Betelgeuse Series',
+    enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P3.jpg',
     resolution: { width: 192, height: 192 },
     cabinetDimensions: { width: 768, height: 768 },
@@ -1182,6 +1222,7 @@ export const products: Product[] = [
     id: 'betel-outdoor-smd-p4',
     name: 'Betelgeuse Series Outdoor SMD P4',
     category: 'Betelgeuse Series',
+    enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P4.jpg',
     resolution: { width: 240, height: 240 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -1221,6 +1262,7 @@ export const products: Product[] = [
     id: 'betel-outdoor-smd-p6.6',
     name: 'Betelgeuse Series Outdoor SMD P6.6',
     category: 'Betelgeuse Series',
+    enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P6.6.jpg',
     resolution: { width: 144, height: 144 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -1260,6 +1302,7 @@ export const products: Product[] = [
     id: 'betel-outdoor-smd-p10',
     name: 'Betelgeuse Series Outdoor SMD P10',
     category: 'Betelgeuse Series',
+    enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P10.jpg',
     resolution: { width: 96, height: 96 },
     cabinetDimensions: { width: 960, height: 960 },
@@ -1299,6 +1342,7 @@ export const products: Product[] = [
     id: 'rental-indoor-p2.6',
     name: 'Rental Series Indoor P2.6',
     category: 'Rental Series',
+    enabled: false,
     image: '/products/rental-series/Rental SMD P2.6 Indoor.png',
     resolution: { width: 192, height: 192 },
     cabinetDimensions: { width: 500, height: 500 },
@@ -1337,6 +1381,7 @@ export const products: Product[] = [
     id: 'rental-indoor-p2.97',
     name: 'Rental Series Indoor P2.97',
     category: 'Rental Series',
+    enabled: false,
     image: '/products/rental-series/Rental SMD P2.97 Indoor.png',
     resolution: { width: 168, height: 168 },
     cabinetDimensions: { width: 500, height: 500 },
@@ -1375,6 +1420,7 @@ export const products: Product[] = [
     id: 'rental-outdoor-p3.8',
     name: 'Rental Series Outdoor P3.8',
     category: 'Rental Series',
+    enabled: false,
     image: '/products/rental-series/Rental SMD P3.8 Outdoor.png',
     resolution: { width: 150, height: 150 },
     cabinetDimensions: { width: 576, height: 576 },
@@ -1413,6 +1459,7 @@ export const products: Product[] = [
     id: 'rental-outdoor-p4.8',
     name: 'Rental Series Outdoor P4.8',
     category: 'Rental Series',
+    enabled: false,
     image: '/products/rental-series/Rental SMD P4.8 Outdoor.png',
     resolution: { width: 120, height: 120 },
     cabinetDimensions: { width: 576, height: 576 },
@@ -1451,6 +1498,7 @@ export const products: Product[] = [
     id: 'jumbo-outdoor-p6',
     name: 'Jumbo Series Outdoor P6',
     category: 'Jumbo Series',
+    enabled: false,
     image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM.png',
     resolution: { width: 352, height: 256 }, // 11 columns x 8 rows x 32 pixels per module
     cabinetDimensions: { width: 2109, height: 1536 }, // Fixed display size: 6.92ft x 5.04ft
@@ -1497,6 +1545,7 @@ export const products: Product[] = [
     id: 'jumbo-outdoor-p4',
     name: 'Jumbo Series Outdoor P4',
     category: 'Jumbo Series',
+    enabled: false,
     image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy.png',
     resolution: { width: 560, height: 360 }, // 7 columns x 9 rows x 80x40 pixels per module
     cabinetDimensions: { width: 2237, height: 1439 }, // Fixed display size: 7.34ft x 4.72ft
@@ -1543,6 +1592,7 @@ export const products: Product[] = [
     id: 'jumbo-outdoor-p3',
     name: 'Jumbo Series Outdoor P3',
     category: 'Jumbo Series',
+    enabled: false,
     image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy 2.png',
     resolution: { width: 704, height: 512 }, // 11 columns x 8 rows x 64 pixels per module
     cabinetDimensions: { width: 2109, height: 1536 }, // Fixed display size: 6.92ft x 5.04ft
@@ -1589,6 +1639,7 @@ export const products: Product[] = [
     id: 'jumbo-indoor-p2.5',
     name: 'Jumbo Series Indoor P2.5',
     category: 'Jumbo Series',
+    enabled: false,
     image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy 3.png',
     resolution: { width: 896, height: 576 }, // 7 columns x 9 rows x 128x64 pixels per module
     cabinetDimensions: { width: 2237, height: 1439 }, // Fixed display size: 7.34ft x 4.72ft
@@ -1637,6 +1688,7 @@ export const products: Product[] = [
     id: 'transparent-front-glass-p3.91',
     name: 'Transparent Adhesive in Front of Glass P3.91',
     category: 'Transparent Series',
+    enabled: false,
     image: '/products/transparent-series/Transparent Series P3.91 Adhesive Front Glass.png',
     resolution: {
       width: 64,
@@ -1675,6 +1727,7 @@ export const products: Product[] = [
     id: 'transparent-front-glass-p6.25',
     name: 'Transparent Adhesive in Front of Glass P6.25',
     category: 'Transparent Series',
+    enabled: false,
     image: '/products/transparent-series/Transparent Series P6.25 Adhesive Front Glass.png',
     resolution: {
       width: 40,
@@ -1715,6 +1768,7 @@ export const products: Product[] = [
     id: 'transparent-behind-glass-p6.5',
     name: 'Transparent Adhesive Behind Glass P6.5',
     category: 'Transparent Series',
+    enabled: false,
     image: '/products/transparent-series/Transparent Series P6.5 Adhesive Behind Glass.png',
     resolution: {
       width: 32,
@@ -1755,6 +1809,7 @@ export const products: Product[] = [
     id: 'transparent-rollable-film-p5',
     name: 'Transparent Rollable Film Behind Glass P5',
     category: 'Transparent Series',
+    enabled: false,
     image: '/products/transparent-series/Transparent Series P5 Rollable Film Behind Glass.png',
     resolution: {
       width: 64,
@@ -1793,6 +1848,7 @@ export const products: Product[] = [
     id: 'transparent-rollable-film-p6.25',
     name: 'Transparent Rollable Film Behind Glass P6.25',
     category: 'Transparent Series',
+    enabled: false,
     image: '/products/transparent-series/Transparent Series P6.25 Rollable Film Behind Glass.png',
     resolution: {
       width: 64,
@@ -1831,6 +1887,7 @@ export const products: Product[] = [
     id: 'transparent-rollable-film-p8',
     name: 'Transparent Rollable Film Behind Glass P8',
     category: 'Transparent Series',
+    enabled: false,
     image: '/products/transparent-series/Transparent Series P8 Rollable Film Behind Glass.png',
     resolution: {
       width: 50,
@@ -1869,6 +1926,7 @@ export const products: Product[] = [
     id: 'transparent-rollable-film-p10',
     name: 'Transparent Rollable Film Behind Glass P10',
     category: 'Transparent Series',
+    enabled: false,
     image: '/products/transparent-series/Transparent Series P10 Rollable Film Behind Glass.png',
     resolution: {
       width: 40,
@@ -1907,6 +1965,7 @@ export const products: Product[] = [
     id: 'transparent-rollable-film-p15',
     name: 'Transparent Rollable Film Behind Glass P15',
     category: 'Transparent Series',
+    enabled: false,
     image: '/products/transparent-series/Transparent Series P15 Rollable Film Behind Glass.png',
     resolution: {
       width: 26,
@@ -1945,6 +2004,7 @@ export const products: Product[] = [
     id: 'transparent-rollable-film-p20',
     name: 'Transparent Rollable Film Behind Glass P20',
     category: 'Transparent Series',
+    enabled: false,
     image: '/products/transparent-series/Transparent Series P20 Rollable Film Behind Glass.png',
     resolution: {
       width: 20,
@@ -1985,6 +2045,7 @@ export const products: Product[] = [
     id: 'transparent-standard-p3.91-7.82-256x128',
     name: 'Standard Transparent Screen P3.91-7.82 (256x128)',
     category: 'Transparent Series',
+    enabled: false,
     image: '/products/transparent-series/Transparent Series P3.91-7.82 Standard (256x128).png',
     resolution: {
       width: 256,
@@ -2023,6 +2084,7 @@ export const products: Product[] = [
     id: 'transparent-standard-p3.91-7.82-256x64',
     name: 'Standard Transparent Screen P3.91-7.82 (256x64)',
     category: 'Transparent Series',
+    enabled: false,
     image: '/products/transparent-series/Transparent Series P3.91-7.82 Standard (256x64).png',
     resolution: {
       width: 256,
@@ -2059,4 +2121,4 @@ export const products: Product[] = [
   },
 ];
 
-export const categories = Array.from(new Set(products.map(p => p.category)));
+export const categories = Array.from(new Set(products.filter(p => p.enabled !== false).map(p => p.category)));

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Check } from 'lucide-react';
 import { Product } from '../types';
 import { getViewingDistanceRange, getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistanceRange } from '../utils/viewingDistanceRanges';
+import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 
 interface ProductWithOptionalSize extends Product {
   sizeInInches?: {
@@ -24,6 +25,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   onSelectProduct,
   selectedProduct
 }) => {
+  const { updateConfig } = useDisplayConfig();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor'>('All');
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
@@ -37,6 +39,10 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   // Pixel pitch filter state
   const [selectedPixelPitch, setSelectedPixelPitch] = useState<string>('All');
 
+  const hasEnvironmentInteraction = useRef(false);
+  const hasViewingDistanceInteraction = useRef(false);
+  const hasPixelPitchInteraction = useRef(false);
+
   // Clear viewing distance and pixel pitch when selected product changes
   useEffect(() => {
     setViewingDistanceValue('');
@@ -47,6 +53,40 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   useEffect(() => {
     setSelectedPixelPitch('All');
   }, [viewingDistanceValue, viewingDistanceUnit]);
+
+  // Sync environment filter to global context when user interacts
+  useEffect(() => {
+    if (!hasEnvironmentInteraction.current) return;
+    if (selectedFilter === 'Indoor') {
+      updateConfig({ environment: 'Indoor' });
+    } else if (selectedFilter === 'Outdoor') {
+      updateConfig({ environment: 'Outdoor' });
+    } else {
+      updateConfig({ environment: null });
+    }
+  }, [selectedFilter, updateConfig]);
+
+  // Sync viewing distance filter
+  useEffect(() => {
+    if (!hasViewingDistanceInteraction.current) return;
+    updateConfig({
+      viewingDistance: viewingDistanceValue || null,
+      viewingDistanceUnit
+    });
+  }, [viewingDistanceValue, viewingDistanceUnit, updateConfig]);
+
+  // Sync pixel pitch filter
+  useEffect(() => {
+    if (!hasPixelPitchInteraction.current) return;
+    if (selectedPixelPitch !== 'All') {
+      const parsed = parseFloat(selectedPixelPitch);
+      updateConfig({
+        pixelPitch: isNaN(parsed) ? null : parsed
+      });
+    } else {
+      updateConfig({ pixelPitch: null });
+    }
+  }, [selectedPixelPitch, updateConfig]);
 
   // Normalize environment for comparison
   const normalizeEnv = (env: string) => env.trim().toLowerCase();
@@ -74,94 +114,85 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const isRentalSeries = (product: Product) =>
     product.category && product.category.toLowerCase().includes('rental');
 
-  // Get recommended pixel pitches based on viewing distance
-  const getRecommendedPixelPitches = (): number[] => {
+  const recommendedPixelPitches = useMemo(() => {
     if (!viewingDistanceValue) return [];
     return getPixelPitchesForViewingDistanceRange(viewingDistanceValue, viewingDistanceUnit);
-  };
+  }, [viewingDistanceValue, viewingDistanceUnit]);
 
-  // Get available pixel pitches for current filters (environment, category, etc.)
-  const getAvailablePixelPitches = (): number[] => {
-    let tempProducts = products;
-    
-    // Apply environment filter
+  const availablePixelPitches = useMemo(() => {
+    let tempProducts = [...products].filter((p) => p.enabled !== false); // Only show enabled products
+
     if (selectedFilter === 'Indoor') {
       tempProducts = tempProducts.filter((p) => normalizeEnv(p.environment) === 'indoor');
     } else if (selectedFilter === 'Outdoor') {
       tempProducts = tempProducts.filter((p) => normalizeEnv(p.environment) === 'outdoor');
     }
-    
-    // Apply indoor type filter
+
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
       tempProducts = tempProducts.filter((p) => getProductType(p) === indoorType);
     }
-    
-    // Apply category filter
+
     tempProducts = tempProducts.filter(
       (p) => selectedCategory === 'All' || p.category === selectedCategory
     );
-    
-    // Get unique pixel pitches
-    const uniquePixelPitches = Array.from(new Set(tempProducts.map(p => p.pixelPitch)))
-      .sort((a, b) => a - b);
-    
-    return uniquePixelPitches;
-  };
 
-  // Filter products based on selected filter
-  let filteredProducts = products;
-  
-  if (selectedFilter === 'Indoor') {
-    filteredProducts = filteredProducts.filter(
-      (p) => normalizeEnv(p.environment) === 'indoor'
-    );
-  } else if (selectedFilter === 'Outdoor') {
-    filteredProducts = filteredProducts.filter(
-      (p) => normalizeEnv(p.environment) === 'outdoor'
-    );
-  }
-  // If selectedFilter is 'All', show all products (no filtering needed)
+    return Array.from(new Set(tempProducts.map(p => p.pixelPitch))).sort((a, b) => a - b);
+  }, [selectedFilter, indoorType, selectedCategory]);
 
-  // Apply indoor type filter only when Indoor is selected
-  if (selectedFilter === 'Indoor' && indoorType !== 'All') {
-    filteredProducts = filteredProducts.filter(
-      (p) => getProductType(p) === indoorType
-    );
-  }
+  const filteredProducts = useMemo(() => {
+    let filtered = [...products].filter((p) => p.enabled !== false); // Only show enabled products
 
-  // Apply category filter
-  filteredProducts = filteredProducts.filter(
-    (p) => selectedCategory === 'All' || p.category === selectedCategory
-  );
-
-  // Apply pixel pitch filter (manual selection takes precedence over viewing distance)
-  if (selectedPixelPitch !== 'All') {
-    const pitchValue = parseFloat(selectedPixelPitch);
-    if (!isNaN(pitchValue)) {
-      filteredProducts = filteredProducts.filter((p) => 
-        Math.abs(p.pixelPitch - pitchValue) < 0.1
-      );
+    if (selectedFilter === 'Indoor') {
+      filtered = filtered.filter((p) => normalizeEnv(p.environment) === 'indoor');
+    } else if (selectedFilter === 'Outdoor') {
+      filtered = filtered.filter((p) => normalizeEnv(p.environment) === 'outdoor');
     }
-  } else if (viewingDistanceValue) {
-    // Apply viewing distance filter only if pixel pitch is not manually selected
-    // Get pixel pitches that match the selected viewing distance range
-    const matchingPixelPitches = getPixelPitchesForViewingDistanceRange(viewingDistanceValue, viewingDistanceUnit);
-    
-    if (matchingPixelPitches.length > 0) {
-      filteredProducts = filteredProducts.filter((p) => {
-        // Check if the product's pixel pitch matches any of the matching pixel pitches
-        return matchingPixelPitches.some(pitch => Math.abs(p.pixelPitch - pitch) < 0.1);
-      });
+
+    if (selectedFilter === 'Indoor' && indoorType !== 'All') {
+      filtered = filtered.filter((p) => getProductType(p) === indoorType);
     }
-  }
 
-  // Deduplicate products by id
-  filteredProducts = filteredProducts.filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+    filtered = filtered.filter(
+      (p) => selectedCategory === 'All' || p.category === selectedCategory
+    );
 
-  // Sort products by pixel pitch in ascending order (lowest to highest)
-  filteredProducts = filteredProducts.sort((a, b) => a.pixelPitch - b.pixelPitch);
+    if (selectedPixelPitch !== 'All') {
+      const pitchValue = parseFloat(selectedPixelPitch);
+      if (!isNaN(pitchValue)) {
+        filtered = filtered.filter((p) => Math.abs(p.pixelPitch - pitchValue) < 0.1);
+      }
+    } else if (viewingDistanceValue) {
+      if (recommendedPixelPitches.length > 0) {
+        filtered = filtered.filter((p) =>
+          recommendedPixelPitches.some(pitch => Math.abs(p.pixelPitch - pitch) < 0.1)
+        );
+      }
+    }
+
+    const unique = filtered.filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+    return unique.sort((a, b) => a.pixelPitch - b.pixelPitch);
+  }, [
+    selectedFilter,
+    indoorType,
+    selectedCategory,
+    selectedPixelPitch,
+    viewingDistanceValue,
+    recommendedPixelPitches
+  ]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setPendingRentalProduct(null);
+      setRentalOption(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const handleProductSelection = (product: ProductWithOptionalSize) => {
+    onSelectProduct(product);
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
@@ -184,7 +215,11 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
             <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
               <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Filter:</span>
               <button
-                onClick={() => { setSelectedFilter('All'); setIndoorType('All'); }}
+                onClick={() => { 
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('All'); 
+                  setIndoorType('All'); 
+                }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'All'
                     ? 'bg-black text-white border-black'
@@ -194,7 +229,11 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 All
               </button>
               <button
-                onClick={() => { setSelectedFilter('Indoor'); setIndoorType('All'); }}
+                onClick={() => { 
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('Indoor'); 
+                  setIndoorType('All'); 
+                }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Indoor'
                     ? 'bg-black text-white border-black'
@@ -204,7 +243,11 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 Indoor
               </button>
               <button
-                onClick={() => { setSelectedFilter('Outdoor'); setIndoorType('All'); }}
+                onClick={() => { 
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('Outdoor'); 
+                  setIndoorType('All'); 
+                }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Outdoor'
                     ? 'bg-black text-white border-black'
@@ -267,6 +310,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                           <select
                             value={viewingDistanceUnit}
                             onChange={(e) => {
+                              hasViewingDistanceInteraction.current = true;
                               setViewingDistanceUnit(e.target.value as 'meters' | 'feet');
                               setViewingDistanceValue(''); // Clear distance when unit changes
                             }}
@@ -279,7 +323,10 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                           {/* Distance Selector */}
                           <select
                             value={viewingDistanceValue}
-                            onChange={(e) => setViewingDistanceValue(e.target.value)}
+                            onChange={(e) => {
+                              hasViewingDistanceInteraction.current = true;
+                              setViewingDistanceValue(e.target.value);
+                            }}
                             className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-48"
                           >
                             <option value="">Select distance...</option>
@@ -293,6 +340,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                           {(viewingDistanceValue || viewingDistanceUnit !== 'meters') && (
                             <button
                               onClick={() => {
+                                hasViewingDistanceInteraction.current = true;
                                 setViewingDistanceValue('');
                                 setViewingDistanceUnit('meters');
                               }}
@@ -315,52 +363,49 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                         <div className="flex items-center gap-2">
                           <select
                             value={selectedPixelPitch}
-                            onChange={(e) => setSelectedPixelPitch(e.target.value)}
+                            onChange={(e) => {
+                              hasPixelPitchInteraction.current = true;
+                              setSelectedPixelPitch(e.target.value);
+                            }}
                             className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-48"
                           >
                             <option value="All">All Pixel Pitches</option>
-                            {(() => {
-                              const recommendedPitches = getRecommendedPixelPitches();
-                              const availablePitches = getAvailablePixelPitches();
-                              
-                              // If viewing distance is selected, show recommended pitches first, then others
-                              if (viewingDistanceValue && recommendedPitches.length > 0) {
-                                return (
-                                  <>
-                                    <optgroup label="Recommended (based on viewing distance)">
-                                      {recommendedPitches
-                                        .filter(pitch => availablePitches.includes(pitch))
-                                        .map(pitch => (
-                                          <option key={pitch} value={pitch.toString()}>
-                                            P{pitch} mm (Recommended)
-                                          </option>
-                                        ))}
-                                    </optgroup>
-                                    <optgroup label="Other Available">
-                                      {availablePitches
-                                        .filter(pitch => !recommendedPitches.includes(pitch))
-                                        .map(pitch => (
-                                          <option key={pitch} value={pitch.toString()}>
-                                            P{pitch} mm
-                                          </option>
-                                        ))}
-                                    </optgroup>
-                                  </>
-                                );
-                              } else {
-                                // Show all available pitches
-                                return availablePitches.map(pitch => (
-                                  <option key={pitch} value={pitch.toString()}>
-                                    P{pitch} mm
-                                  </option>
-                                ));
-                              }
-                            })()}
+                            {viewingDistanceValue && recommendedPixelPitches.length > 0 ? (
+                              <>
+                                <optgroup label="Recommended (based on viewing distance)">
+                                  {recommendedPixelPitches
+                                    .filter(pitch => availablePixelPitches.includes(pitch))
+                                    .map(pitch => (
+                                      <option key={pitch} value={pitch.toString()}>
+                                        P{pitch} mm (Recommended)
+                                      </option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="Other Available">
+                                  {availablePixelPitches
+                                    .filter(pitch => !recommendedPixelPitches.includes(pitch))
+                                    .map(pitch => (
+                                      <option key={pitch} value={pitch.toString()}>
+                                        P{pitch} mm
+                                      </option>
+                                    ))}
+                                </optgroup>
+                              </>
+                            ) : (
+                              availablePixelPitches.map(pitch => (
+                                <option key={pitch} value={pitch.toString()}>
+                                  P{pitch} mm
+                                </option>
+                              ))
+                            )}
                           </select>
                           
                           {selectedPixelPitch !== 'All' && (
                             <button
-                              onClick={() => setSelectedPixelPitch('All')}
+                              onClick={() => {
+                                hasPixelPitchInteraction.current = true;
+                                setSelectedPixelPitch('All');
+                              }}
                               className="px-2 py-1.5 text-xs sm:text-sm text-gray-500 hover:text-gray-700 transition-colors"
                             >
                               Clear
@@ -439,7 +484,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   if (isRentalSeries(product)) {
                     setPendingRentalProduct(product);
                   } else {
-                    onSelectProduct(product);
+                    handleProductSelection(product);
                   }
                 }}
               >
@@ -544,7 +589,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   onClick={() => {
                     if (pendingRentalProduct && rentalOption) {
                       // Optionally, you can pass the rental option as a property or handle it in parent
-                      onSelectProduct({ ...pendingRentalProduct, rentalOption });
+                      handleProductSelection({ ...pendingRentalProduct, rentalOption });
                       setPendingRentalProduct(null);
                       setRentalOption(null);
                     }

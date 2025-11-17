@@ -284,6 +284,8 @@ type QuoteModalProps = {
     fullName: string;
     email: string;
     phoneNumber: string;
+    projectTitle?: string;
+    address?: string;
     userType: 'End User' | 'Reseller';
   };
   title?: string;

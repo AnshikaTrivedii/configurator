@@ -240,6 +240,8 @@ interface UserInfo {
   fullName: string;
   email: string;
   phoneNumber: string;
+  projectTitle?: string;
+  address?: string;
   userType?: 'End User' | 'Reseller' | 'Channel';
 }
 
@@ -405,6 +407,9 @@ export const generateConfigurationHtml = (
   const installationBasePrice = screenAreaSqFt * 500;
   const installationGST = installationBasePrice * 0.18;
   const totalInstallation = installationBasePrice + installationGST;
+  const combinedStructureInstallationBase = structureBasePrice + installationBasePrice;
+  const combinedStructureInstallationGST = structureGST + installationGST;
+  const combinedStructureInstallationTotal = totalStructure + totalInstallation;
   
   // Update grand total to include Structure and Installation
   const grandTotal = totalProduct + totalController + totalStructure + totalInstallation;
@@ -662,7 +667,9 @@ export const generateConfigurationHtml = (
                           <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">CLIENT DETAILS</h4>
                           <p style="margin: 0 0 3px 0; font-weight: bold; color: #333; font-size: 11px; line-height: 1.2;">Name: ${userInfo.fullName}</p>
                           <p style="margin: 0 0 3px 0; color: #666; font-size: 11px; line-height: 1.2;">Email: ${userInfo.email}</p>
-                          <p style="margin: 0; color: #666; font-size: 11px; line-height: 1.2;">Phone: ${userInfo.phoneNumber}</p>
+                          <p style="margin: 0 0 3px 0; color: #666; font-size: 11px; line-height: 1.2;">Phone: ${userInfo.phoneNumber}</p>
+                          ${userInfo.projectTitle ? `<p style="margin: 0 0 3px 0; color: #666; font-size: 11px; line-height: 1.2;">Project Title: ${userInfo.projectTitle}</p>` : ''}
+                          ${userInfo.address ? `<p style="margin: 0; color: #666; font-size: 11px; line-height: 1.2;">Address: ${userInfo.address}</p>` : ''}
                       </div>
                       <div class="quotation-card" style="background: white;">
                           <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">ORION SALES TEAM</h4>
@@ -681,7 +688,7 @@ export const generateConfigurationHtml = (
                     A. PRODUCT DESCRIPTION
                 </h2>
                 
-                <div class="quotation-grid">
+                <div class="quotation-grid" style="grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; align-items: stretch;">
                     <!-- Left Column - Specifications -->
                     <div class="quotation-card" style="display: flex; flex-direction: column;">
                         <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">PRODUCT SPECIFICATIONS</h4>
@@ -815,64 +822,30 @@ export const generateConfigurationHtml = (
                     C. STRUCTURE AND INSTALLATION PRICE
                 </h2>
                 
-                <div class="quotation-grid">
-            <!-- Structure Price Card -->
+                <div class="quotation-grid" style="grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; align-items: stretch;">
             <div class="quotation-card" style="display: flex; flex-direction: column;">
-                <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">STRUCTURE PRICE</h4>
-                        <div style="flex: 1; display: flex; flex-direction: column;">
-                            <div class="quotation-row">
-                                <span class="quotation-label">Area:</span>
-                                <span class="quotation-value">${screenAreaSqFt.toFixed(2)} Ft²</span>
+                    <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">STRUCTURE + INSTALLATION TOTAL</h4>
+                    <div style="flex: 1; display: flex; flex-direction: column;">
+                        <div class="quotation-row">
+                            <span class="quotation-label">Total Area:</span>
+                            <span class="quotation-value">${screenAreaSqFt.toFixed(2)} Ft²</span>
+                        </div>
+                        <div class="quotation-row">
+                            <span class="quotation-label">Combined Base Cost:</span>
+                            <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(combinedStructureInstallationBase)}</span>
+                        </div>
+                        <div class="quotation-row">
+                            <span class="quotation-label">Combined GST (18%):</span>
+                            <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(combinedStructureInstallationGST)}</span>
+                        </div>
+                        <div class="quotation-total-row" style="margin-top: auto;">
+                            <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 4px 2px; border-bottom: none;">
+                                <span style="font-weight: 700; color: #333; font-size: 12px; text-align: left;">TOTAL:</span>
+                                <span style="color: #333; font-weight: 700; font-size: 12px; text-align: right; white-space: nowrap;">₹${formatIndianNumber(combinedStructureInstallationTotal)}</span>
                             </div>
-                            <div class="quotation-row">
-                                <span class="quotation-label">Rate:</span>
-                                <span class="quotation-value">₹2,500 / Ft²</span>
-                            </div>
-                            <div class="quotation-row">
-                                <span class="quotation-label">Base Cost:</span>
-                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(structureBasePrice)}</span>
-                            </div>
-                            <div class="quotation-row">
-                                <span class="quotation-label">GST (18%):</span>
-                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(structureGST)}</span>
-                            </div>
-                    <div class="quotation-total-row" style="margin-top: auto;">
-                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 4px 2px; border-bottom: none;">
-                            <span style="font-weight: 700; color: #333; font-size: 12px; text-align: left;">TOTAL:</span>
-                            <span style="color: #333; font-weight: 700; font-size: 12px; text-align: right; white-space: nowrap;">₹${formatIndianNumber(totalStructure)}</span>
                         </div>
                     </div>
-                        </div>
             </div>
-            
-            <!-- Installation Price Card -->
-            <div class="quotation-card" style="display: flex; flex-direction: column;">
-                <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">INSTALLATION PRICE</h4>
-                        <div style="flex: 1; display: flex; flex-direction: column;">
-                            <div class="quotation-row">
-                                <span class="quotation-label">Area:</span>
-                                <span class="quotation-value">${screenAreaSqFt.toFixed(2)} Ft²</span>
-        </div>
-                            <div class="quotation-row">
-                                <span class="quotation-label">Rate:</span>
-                                <span class="quotation-value">₹500 / Ft²</span>
-        </div>
-                            <div class="quotation-row">
-                                <span class="quotation-label">Base Cost:</span>
-                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(installationBasePrice)}</span>
-        </div>
-                            <div class="quotation-row">
-                                <span class="quotation-label">GST (18%):</span>
-                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(installationGST)}</span>
-        </div>
-                    <div class="quotation-total-row" style="margin-top: auto;">
-                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 4px 2px; border-bottom: none;">
-                            <span style="font-weight: 700; color: #333; font-size: 12px; text-align: left;">TOTAL:</span>
-                            <span style="color: #333; font-weight: 700; font-size: 12px; text-align: right; white-space: nowrap;">₹${formatIndianNumber(totalInstallation)}</span>
-                        </div>
-                    </div>
-                        </div>
-                    </div>
                 </div>
             </div>
             

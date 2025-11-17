@@ -55,7 +55,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   showDashboard: showDashboardProp,
   onDashboardClose
 }) => {
-  const { config: globalConfig, updateDimensions: updateGlobalDimensions } = useDisplayConfig();
+  const { config: globalConfig, updateDimensions: updateGlobalDimensions, updateConfig } = useDisplayConfig();
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(
     initialConfig?.selectedProduct || undefined
   );
@@ -217,7 +217,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [isPdfViewModalOpen, setIsPdfViewModalOpen] = useState(false);
   const [isUserInfoFormOpen, setIsUserInfoFormOpen] = useState(false);
-  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; userType: 'End User' | 'Reseller' | 'Channel' } | undefined>(undefined);
+  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'Channel' } | undefined>(undefined);
   const [pendingAction, setPendingAction] = useState<'quote' | 'pdf' | null>(null);
   const [isMandatoryFormSubmitted, setIsMandatoryFormSubmitted] = useState(false);
   const [quotationId, setQuotationId] = useState<string>('');
@@ -332,12 +332,21 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       updateHeight(totalHeight);
     }
     setActiveTab('preview');
+    const normalizedEnv = product.environment?.toLowerCase();
+    updateConfig({
+      selectedProductName: product.name,
+      pixelPitch: product.pixelPitch,
+      environment: normalizedEnv === 'indoor'
+        ? 'Indoor'
+        : normalizedEnv === 'outdoor'
+        ? 'Outdoor'
+        : globalConfig.environment
+    });
     // Auto-select controller on product select
-    
-    
+    setIsProductSelectorOpen(false);
   };
 
-  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; userType: 'End User' | 'Reseller' | 'Channel' }) => {
+  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'Channel' }) => {
     setUserInfo(userData);
     setIsUserInfoFormOpen(false);
     
@@ -581,7 +590,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProduct?.id, jumboGrid]); // Only depend on product ID - this prevents the effect from running when dimensions change
+  }, [selectedProduct?.id]); // Only depend on product ID - this prevents the effect from running when dimensions change
 
   // Digital Standee Series price mapping by model and user type
   //const digitalStandeePrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {

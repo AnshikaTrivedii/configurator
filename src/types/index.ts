@@ -86,6 +86,8 @@ export interface Product {
   transparency?: number; // Transparency percentage
   scanMode?: string; // Scan mode (e.g., "Static")
   pixelComposition?: string; // Pixel composition (e.g., "SMD2121", "SMD2020", "SMD1313", "SMD1921")
+  // Product availability flag
+  enabled?: boolean; // If false, product is hidden from UI but kept in codebase
 }
 
 export interface AspectRatio {

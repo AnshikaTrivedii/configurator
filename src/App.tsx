@@ -11,7 +11,7 @@ import { useDisplayConfig } from './contexts/DisplayConfigContext';
 type UserRole = 'normal' | 'sales' | 'super' | 'super_admin';
 
 function App() {
-  const { updateDimensions } = useDisplayConfig();
+  const { updateDimensions, updateConfig } = useDisplayConfig();
   const [userRole, setUserRole] = useState<UserRole>('normal');
   const [salesUser, setSalesUser] = useState<SalesUser | null>(null);
   const [showSalesLogin, setShowSalesLogin] = useState(false);
@@ -48,6 +48,10 @@ function App() {
             // If sales/super_admin user, redirect to their respective views immediately
             if (role === 'sales' || role === 'super_admin') {
               setShowLandingPage(false);
+              updateConfig({
+                entryMode: 'direct',
+                directProductMode: true
+              });
               // Super admin users see dashboard, sales users see configurator
               if (role === 'super_admin' || role === 'super') {
                 setShowDashboard(true);
@@ -70,6 +74,10 @@ function App() {
           // If sales/super_admin user, redirect to their respective views immediately
           if (role === 'sales' || role === 'super_admin') {
             setShowLandingPage(false);
+            updateConfig({
+              entryMode: 'direct',
+              directProductMode: true
+            });
             // Super admin users see dashboard, sales users see configurator
             if (role === 'super_admin' || role === 'super') {
               setShowDashboard(true);
@@ -87,7 +95,7 @@ function App() {
     };
 
     checkAuthStatus();
-  }, []);
+  }, [updateConfig]);
 
   const handleSalesLogin = (user: SalesUser) => {
     console.log('🎯 App.tsx - handleSalesLogin - user:', user);
@@ -125,6 +133,10 @@ function App() {
     if (newRole === 'sales' || newRole === 'super_admin') {
       console.log('🎯 App.tsx - Redirecting for role:', newRole);
       setShowLandingPage(false);
+      updateConfig({
+        entryMode: 'direct',
+        directProductMode: true
+      });
       // Super admin users see dashboard, sales users see configurator
       if (newRole === 'super_admin' || newRole === 'super') {
         setShowDashboard(true);
@@ -151,6 +163,10 @@ function App() {
   };
 
   const handleStartConfiguration = () => {
+    updateConfig({
+      entryMode: 'guided',
+      directProductMode: false
+    });
     setShowWizard(true);
   };
 
@@ -159,6 +175,12 @@ function App() {
     setShowLandingPage(false);
     setShowWizard(false);
     setInitialConfig(null); // No initial config for direct product selection
+    updateConfig({
+      entryMode: 'direct',
+      directProductMode: true,
+      viewingDistance: null,
+      pixelPitch: null
+    });
   };
 
   const handleWizardComplete = (config: {
@@ -173,6 +195,15 @@ function App() {
   }) => {
     // Update global state with dimensions from wizard
     updateDimensions(config.width, config.height, config.unit);
+    updateConfig({
+      viewingDistance: config.viewingDistance || null,
+      viewingDistanceUnit: config.viewingDistanceUnit,
+      environment: config.environment,
+      pixelPitch: config.pixelPitch,
+      entryMode: 'guided',
+      directProductMode: false,
+      selectedProductName: config.selectedProduct?.name || null
+    });
     setInitialConfig(config);
     setShowLandingPage(false);
     setShowWizard(false);
