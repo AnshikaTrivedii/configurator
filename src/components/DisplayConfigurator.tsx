@@ -231,6 +231,17 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   // New state for processor/controller and mode
   const [selectedController, setSelectedController] = useState<string>('');
   const [selectedMode, setSelectedMode] = useState<string>('');
+  
+  // Custom pricing state
+  const [customPricing, setCustomPricing] = useState<{
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  }>({
+    enabled: false,
+    structurePrice: null,
+    installationPrice: null
+  });
   const [redundancyEnabled, setRedundancyEnabled] = useState(false);
 
   const cabinetGrid = calculateCabinetGrid(selectedProduct);
@@ -445,7 +456,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         selectedMode,
         userInfo ? { ...userInfo, userType: currentUserType } : { fullName: '', email: '', phoneNumber: '', userType: currentUserType },
         salesUser,
-        quotationId
+        quotationId,
+        customPricing.enabled ? customPricing : undefined
       );
       
       // Create download link
@@ -478,7 +490,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         selectedMode,
         userInfo ? { ...userInfo, userType: currentUserType } : { fullName: '', email: '', phoneNumber: '', userType: currentUserType },
         salesUser,
-        quotationId
+        quotationId,
+        customPricing.enabled ? customPricing : undefined
       );
       
       // Create download link
@@ -1112,6 +1125,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           submitButtonText={userRole === 'sales' && salesUser ? 'Submit Sales Quote' : 'Submit Quote Request'}
           salesUser={salesUser}
           quotationId={quotationId}
+          customPricing={customPricing}
+          onCustomPricingChange={setCustomPricing}
         />
       )}
 
@@ -1128,8 +1143,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             selectedMode,
             userInfo ? { ...userInfo, userType: userInfo.userType || 'End User' } : { fullName: '', email: '', phoneNumber: '', userType: 'End User' },
             salesUser,
-            quotationId
+            quotationId,
+            customPricing.enabled ? customPricing : undefined
           )}
+          customPricing={customPricing.enabled ? customPricing : undefined}
           onDownload={handleDownloadPdf}
           onDownloadDocx={handleDownloadDocx}
           fileName={`${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.pdf`}
@@ -1157,6 +1174,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         submitButtonText={isEditMode ? 'Update & Regenerate' : (pendingAction === 'quote' ? 'Submit Quote Request' : 'View Document')}
         initialData={userInfo}
         isEditMode={isEditMode}
+        salesUser={salesUser}
+        customPricing={customPricing}
+        onCustomPricingChange={setCustomPricing}
       />
 
     </div>

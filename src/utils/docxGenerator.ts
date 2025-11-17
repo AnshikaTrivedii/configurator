@@ -65,7 +65,12 @@ export const generateConfigurationDocx = async (
   mode?: string,
   userInfo?: UserInfo,
   salesUser?: { email: string; name: string; contactNumber: string; location: string } | null,
-  quotationId?: string
+  quotationId?: string,
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  }
 ): Promise<Blob> => {
   try {
     // Generate the HTML content using the same function as PDF export
@@ -77,7 +82,8 @@ export const generateConfigurationDocx = async (
       mode,
       userInfo,
       salesUser,
-      quotationId
+      quotationId,
+      customPricing
     );
     
     // For browser-compatible DOCX export, we convert HTML pages to images
@@ -254,7 +260,12 @@ export const generateConfigurationHtml = (
   _mode?: string,
   userInfo?: UserInfo,
   salesUser?: { email: string; name: string; contactNumber: string; location: string } | null,
-  quotationId?: string
+  quotationId?: string,
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  }
 ): string => {
   // Calculate display area
   const METERS_TO_FEET = 3.2808399;
@@ -398,15 +409,27 @@ export const generateConfigurationHtml = (
   const heightInFeet = heightInMeters * METERS_TO_FEET;
   const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
   
-  // Structure Price: ₹2500 per square foot + 18% GST
-  const structureBasePrice = screenAreaSqFt * 2500;
+  // Structure and Installation pricing - use custom if enabled, otherwise use default calculation
+  let structureBasePrice: number;
+  let installationBasePrice: number;
+  
+  if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
+    // Use custom pricing (base prices without GST)
+    structureBasePrice = customPricing.structurePrice;
+    installationBasePrice = customPricing.installationPrice;
+  } else {
+    // Default calculation: Structure Price: ₹2500 per square foot, Installation Price: ₹500 per square foot
+    structureBasePrice = screenAreaSqFt * 2500;
+    installationBasePrice = screenAreaSqFt * 500;
+  }
+  
+  // Calculate GST on structure and installation (always 18%)
   const structureGST = structureBasePrice * 0.18;
   const totalStructure = structureBasePrice + structureGST;
   
-  // Installation Price: ₹500 per square foot + 18% GST
-  const installationBasePrice = screenAreaSqFt * 500;
   const installationGST = installationBasePrice * 0.18;
   const totalInstallation = installationBasePrice + installationGST;
+  
   const combinedStructureInstallationBase = structureBasePrice + installationBasePrice;
   const combinedStructureInstallationGST = structureGST + installationGST;
   const combinedStructureInstallationTotal = totalStructure + totalInstallation;
@@ -880,7 +903,12 @@ export const generateConfigurationPdf = async (
   mode?: string,
   userInfo?: UserInfo,
   salesUser?: { email: string; name: string; contactNumber: string; location: string } | null,
-  quotationId?: string
+  quotationId?: string,
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  }
 ): Promise<Blob> => {
   const html = generateConfigurationHtml(
     config,
@@ -890,7 +918,8 @@ export const generateConfigurationPdf = async (
     mode,
     userInfo,
     salesUser,
-    quotationId
+    quotationId,
+    customPricing
   );
 
   // Create offscreen container to render HTML
