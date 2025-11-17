@@ -18,6 +18,17 @@ interface UserInfoFormProps {
   submitButtonText: string;
   initialData?: UserInfo; // Add support for pre-filled data
   isEditMode?: boolean; // Add edit mode flag
+  salesUser?: { email: string; name: string; contactNumber: string; location: string } | null;
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  };
+  onCustomPricingChange?: (pricing: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  }) => void;
 }
 
 export const UserInfoForm: React.FC<UserInfoFormProps> = ({
@@ -27,7 +38,10 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   title,
   submitButtonText,
   initialData,
-  isEditMode = false
+  isEditMode = false,
+  salesUser,
+  customPricing: externalCustomPricing,
+  onCustomPricingChange
 }) => {
   const [formData, setFormData] = useState<UserInfo>(
     initialData || {
@@ -42,6 +56,31 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   const [errors, setErrors] = useState<Partial<UserInfo>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUserTypeDropdownOpen, setIsUserTypeDropdownOpen] = useState(false);
+  
+  // Custom pricing state
+  const [internalCustomPricingEnabled, setInternalCustomPricingEnabled] = useState(externalCustomPricing?.enabled || false);
+  const [internalCustomStructurePrice, setInternalCustomStructurePrice] = useState<number | null>(externalCustomPricing?.structurePrice || null);
+  const [internalCustomInstallationPrice, setInternalCustomInstallationPrice] = useState<number | null>(externalCustomPricing?.installationPrice || null);
+  
+  // Use external pricing if provided, otherwise use internal state
+  const customPricingEnabled = externalCustomPricing?.enabled ?? internalCustomPricingEnabled;
+  const customStructurePrice = externalCustomPricing?.structurePrice ?? internalCustomStructurePrice;
+  const customInstallationPrice = externalCustomPricing?.installationPrice ?? internalCustomInstallationPrice;
+  
+  // Update external state when internal state changes
+  const updateCustomPricing = (enabled: boolean, structurePrice: number | null, installationPrice: number | null) => {
+    if (onCustomPricingChange) {
+      onCustomPricingChange({
+        enabled,
+        structurePrice,
+        installationPrice
+      });
+    } else {
+      setInternalCustomPricingEnabled(enabled);
+      setInternalCustomStructurePrice(structurePrice);
+      setInternalCustomInstallationPrice(installationPrice);
+    }
+  };
 
   // Update form data when initialData changes
   useEffect(() => {
@@ -325,6 +364,82 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
               <p className="mt-1 text-sm text-red-600">{errors.userType}</p>
             )}
           </div>
+
+          {/* Custom Pricing Toggle - Only for sales users */}
+          {salesUser && (
+            <div className="pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <label htmlFor="customPricing" className="flex items-center text-sm font-semibold text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="customPricing"
+                    checked={customPricingEnabled}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      updateCustomPricing(
+                        enabled,
+                        enabled ? customStructurePrice : null,
+                        enabled ? customInstallationPrice : null
+                      );
+                    }}
+                    disabled={isSubmitting}
+                    className="w-4 h-4 text-gray-600 border-gray-300 rounded focus:ring-blue-500 mr-3"
+                  />
+                  <span>Do you want to enter custom structure & installation pricing?</span>
+                </label>
+              </div>
+
+              {customPricingEnabled && (
+                <div className="space-y-4 pl-7">
+                  <div>
+                    <label htmlFor="customStructurePrice" className="block text-sm font-semibold text-gray-700 mb-2">
+                      Custom Structure Price (₹)
+                    </label>
+                    <input
+                      type="number"
+                      id="customStructurePrice"
+                      min="0"
+                      step="0.01"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                        customPricingEnabled ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-300'
+                      }`}
+                      placeholder="Enter custom structure price"
+                      value={customStructurePrice ?? ''}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                        const newValue = value && !isNaN(value) ? value : null;
+                        updateCustomPricing(customPricingEnabled, newValue, customInstallationPrice);
+                      }}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="customInstallationPrice" className="block text-sm font-semibold text-gray-700 mb-2">
+                      Custom Installation Price (₹)
+                    </label>
+                    <input
+                      type="number"
+                      id="customInstallationPrice"
+                      min="0"
+                      step="0.01"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                        customPricingEnabled ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-300'
+                      }`}
+                      placeholder="Enter custom installation price"
+                      value={customInstallationPrice ?? ''}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                        const newValue = value && !isNaN(value) ? value : null;
+                        updateCustomPricing(customPricingEnabled, customStructurePrice, newValue);
+                      }}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
             {/* Submit Button */}
             <button

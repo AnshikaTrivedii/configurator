@@ -15,7 +15,12 @@ function calculateCorrectTotalPrice(
   cabinetGrid: { columns: number; rows: number } | null,
   processor: string | null,
   userType: string,
-  config: { width: number; height: number; unit: string }
+  config: { width: number; height: number; unit: string },
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  }
 ): number | null {
   try {
     // Use centralized pricing calculation for 100% consistency
@@ -44,13 +49,24 @@ function calculateCorrectTotalPrice(
     const heightInFeet = heightInMeters * METERS_TO_FEET;
     const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
     
-    // Structure Price: ₹2500 per square foot + 18% GST
-    const structureBasePrice = screenAreaSqFt * 2500;
+    // Structure and Installation pricing - use custom if enabled, otherwise use default calculation
+    let structureBasePrice: number;
+    let installationBasePrice: number;
+    
+    if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
+      // Use custom pricing (base prices without GST)
+      structureBasePrice = customPricing.structurePrice;
+      installationBasePrice = customPricing.installationPrice;
+    } else {
+      // Default calculation: Structure Price: ₹2500 per square foot, Installation Price: ₹500 per square foot
+      structureBasePrice = screenAreaSqFt * 2500;
+      installationBasePrice = screenAreaSqFt * 500;
+    }
+    
+    // Calculate GST on structure and installation (always 18%)
     const structureGST = structureBasePrice * 0.18;
     const totalStructure = structureBasePrice + structureGST;
     
-    // Installation Price: ₹500 per square foot + 18% GST
-    const installationBasePrice = screenAreaSqFt * 500;
     const installationGST = installationBasePrice * 0.18;
     const totalInstallation = installationBasePrice + installationGST;
     
@@ -64,6 +80,7 @@ function calculateCorrectTotalPrice(
       structureTotal: totalStructure,
       installationTotal: totalInstallation,
       finalGrandTotal: grandTotal,
+      customPricing: customPricing?.enabled ? 'Enabled' : 'Disabled',
       note: 'Using centralized pricing function + Structure + Installation'
     });
     
@@ -124,6 +141,11 @@ interface PdfViewModalProps {
   userInfo?: any;
   salesUser?: any;
   quotationId?: string;
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  };
 }
 
 export const PdfViewModal: React.FC<PdfViewModalProps> = ({
@@ -140,7 +162,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   mode,
   userInfo,
   salesUser,
-  quotationId
+  quotationId,
+  customPricing
 }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -162,6 +185,9 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       finalQuotationId = await QuotationIdGenerator.generateQuotationId(salesUser.name);
       console.log('🆔 Generated new quotationId:', finalQuotationId);
     }
+    
+    // Track if save was successful to trigger download
+    let saveSuccessful = false;
 
     // Create comprehensive product details object
     const comprehensiveProductDetails = {
@@ -209,7 +235,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       cabinetGrid,
       processor || null,
       userTypeForCalc,
-      config || { width: 2400, height: 1010, unit: 'mm' }
+      config || { width: 2400, height: 1010, unit: 'mm' },
+      customPricing
     );
 
     // Check if price is available
@@ -296,6 +323,15 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       console.log('✅ Quotation saved to database successfully:', saveResult);
 
       setSaveSuccess(true);
+      saveSuccessful = true;
+      
+      // Automatically download PDF after successful save
+      if (saveSuccessful) {
+        // Small delay to ensure save is complete
+        setTimeout(() => {
+          onDownload();
+        }, 500);
+      }
       
       // Clear success message after 3 seconds
       setTimeout(() => {
@@ -321,6 +357,15 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           console.log('✅ Quotation saved with fallback ID:', fallbackResult);
           
           setSaveSuccess(true);
+          saveSuccessful = true;
+          
+          // Automatically download PDF after successful save
+          if (saveSuccessful) {
+            // Small delay to ensure save is complete
+            setTimeout(() => {
+              onDownload();
+            }, 500);
+          }
           
           // Clear success message after 3 seconds
           setTimeout(() => {
@@ -369,27 +414,25 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              {/* Save button - only show for sales users */}
-              {salesUser && userInfo && (
-                <>
-                  {/* Save button */}
-                  <button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Save className={`w-4 h-4 mr-2 ${isSaving ? 'animate-pulse' : ''}`} />
-                    {isSaving ? 'Saving...' : 'Save'}
-                  </button>
-                </>
+              {/* Combined Save & Download button for sales users */}
+              {salesUser && userInfo ? (
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save className={`w-4 h-4 mr-2 ${isSaving ? 'animate-pulse' : ''}`} />
+                  {isSaving ? 'Saving & Downloading...' : 'Save & Download PDF'}
+                </button>
+              ) : (
+                <button
+                  onClick={onDownload}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download PDF
+                </button>
               )}
-              <button
-                onClick={onDownload}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </button>
               {onDownloadDocx && (
                 <button
                   onClick={onDownloadDocx}

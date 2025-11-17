@@ -35,7 +35,12 @@ function calculateCorrectTotalPrice(
   cabinetGrid: { columns: number; rows: number } | null,
   processor: string | null,
   userType: string,
-  config: { width: number; height: number; unit: string }
+  config: { width: number; height: number; unit: string },
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  }
 ): number {
   const METERS_TO_FEET = 3.2808399;
   
@@ -168,13 +173,24 @@ function calculateCorrectTotalPrice(
   const heightInFeet = heightInMeters * METERS_TO_FEET;
   const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
   
-  // Structure Price: ₹2500 per square foot + 18% GST
-  const structureBasePrice = screenAreaSqFt * 2500;
+  // Structure and Installation pricing - use custom if enabled, otherwise use default calculation
+  let structureBasePrice: number;
+  let installationBasePrice: number;
+  
+  if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
+    // Use custom pricing (base prices without GST)
+    structureBasePrice = customPricing.structurePrice;
+    installationBasePrice = customPricing.installationPrice;
+  } else {
+    // Default calculation: Structure Price: ₹2500 per square foot, Installation Price: ₹500 per square foot
+    structureBasePrice = screenAreaSqFt * 2500;
+    installationBasePrice = screenAreaSqFt * 500;
+  }
+  
+  // Calculate GST on structure and installation (always 18%)
   const structureGST = structureBasePrice * 0.18;
   const totalStructure = structureBasePrice + structureGST;
   
-  // Installation Price: ₹500 per square foot + 18% GST
-  const installationBasePrice = screenAreaSqFt * 500;
   const installationGST = installationBasePrice * 0.18;
   const totalInstallation = installationBasePrice + installationGST;
   
@@ -292,6 +308,16 @@ type QuoteModalProps = {
   submitButtonText?: string;
   salesUser?: SalesUser | null;
   quotationId?: string;
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  };
+  onCustomPricingChange?: (pricing: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  }) => void;
 };
 
 // Function to calculate greatest common divisor
@@ -346,13 +372,40 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   title = 'Get a Quote',
   submitButtonText = 'Submit Quote Request',
   salesUser,
-  quotationId
+  quotationId,
+  customPricing: externalCustomPricing,
+  onCustomPricingChange
 }) => {
   const [message, setMessage] = useState('');
   const [customerName, setCustomerName] = useState(userInfo?.fullName || '');
   const [customerEmail, setCustomerEmail] = useState(userInfo?.email || '');
   const [customerPhone, setCustomerPhone] = useState(userInfo?.phoneNumber || '');
   const [selectedUserType, setSelectedUserType] = useState<'End User' | 'Reseller'>(userInfo?.userType || 'End User');
+  
+  // Custom pricing state - use external if provided, otherwise use internal state
+  const [internalCustomPricingEnabled, setInternalCustomPricingEnabled] = useState(externalCustomPricing?.enabled || false);
+  const [internalCustomStructurePrice, setInternalCustomStructurePrice] = useState<number | null>(externalCustomPricing?.structurePrice || null);
+  const [internalCustomInstallationPrice, setInternalCustomInstallationPrice] = useState<number | null>(externalCustomPricing?.installationPrice || null);
+  
+  // Use external pricing if provided, otherwise use internal state
+  const customPricingEnabled = externalCustomPricing?.enabled ?? internalCustomPricingEnabled;
+  const customStructurePrice = externalCustomPricing?.structurePrice ?? internalCustomStructurePrice;
+  const customInstallationPrice = externalCustomPricing?.installationPrice ?? internalCustomInstallationPrice;
+  
+  // Update external state when internal state changes
+  const updateCustomPricing = (enabled: boolean, structurePrice: number | null, installationPrice: number | null) => {
+    if (onCustomPricingChange) {
+      onCustomPricingChange({
+        enabled,
+        structurePrice,
+        installationPrice
+      });
+    } else {
+      setInternalCustomPricingEnabled(enabled);
+      setInternalCustomStructurePrice(structurePrice);
+      setInternalCustomInstallationPrice(installationPrice);
+    }
+  };
 
   // Update form fields when userInfo changes
   React.useEffect(() => {
@@ -558,14 +611,36 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             generatedAt: new Date().toISOString()
           };
 
-          // CRITICAL: Calculate total price using centralized pricing function
+          // CRITICAL: Calculate total price using calculateCorrectTotalPrice with custom pricing support
           // This ensures 100% consistency between database storage and PDF generation
+          const configForCalc = config || { width: 2400, height: 1010, unit: 'mm' };
+          
+          // Prepare custom pricing object if enabled
+          const customPricingObj = customPricingEnabled && customStructurePrice !== null && customInstallationPrice !== null
+            ? {
+                enabled: true,
+                structurePrice: customStructurePrice,
+                installationPrice: customInstallationPrice
+              }
+            : undefined;
+          
+          // Calculate total price with custom pricing support
+          const correctTotalPrice = calculateCorrectTotalPrice(
+            selectedProduct,
+            cabinetGrid,
+            processor,
+            userType,
+            configForCalc,
+            customPricingObj
+          );
+          
+          // Also get centralized pricing for breakdown (without structure/installation)
           const pricingResult = calculateCentralizedPricing(
             selectedProduct,
             cabinetGrid,
             processor,
             userType,
-            config || { width: 2400, height: 1010, unit: 'mm' } // Fallback config if not provided
+            configForCalc
           );
           
           // Check if price is available
@@ -573,8 +648,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             alert('❌ Price is not available for this product configuration. Please contact sales for pricing information.');
             return;
           }
-          
-          const correctTotalPrice = pricingResult.grandTotal;
 
           console.log('💰 Calculated price for quotation (WITH GST - matches PDF):', {
             quotationId: finalQuotationId,
@@ -600,7 +673,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             userTypeDisplayName: getUserTypeDisplayName(userType),
             totalPrice: correctTotalPrice,  // CRITICAL: Grand Total with GST - matches PDF exactly
             
-            // Store exact pricing breakdown using centralized calculation
+            // Store exact pricing breakdown using centralized calculation + custom pricing
             exactPricingBreakdown: {
               unitPrice: pricingResult.unitPrice,
               quantity: pricingResult.quantity,
@@ -609,7 +682,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               gstAmount: pricingResult.productGST,
               processorPrice: pricingResult.processorPrice,
               processorGst: pricingResult.processorGST,
-              grandTotal: pricingResult.grandTotal
+              grandTotal: correctTotalPrice, // Use correctTotalPrice which includes custom pricing
+              // Custom pricing information
+              customPricing: customPricingObj ? {
+                enabled: true,
+                structurePrice: customStructurePrice,
+                installationPrice: customInstallationPrice
+              } : undefined
             },
             
             // Store exact product specifications as shown
@@ -632,6 +711,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             
             // Store comprehensive product details for backend compatibility
             productDetails: comprehensiveProductDetails,
+            
+            // Custom pricing fields
+            customPricing: customPricingObj ? {
+              enabled: true,
+              structurePrice: customStructurePrice,
+              installationPrice: customInstallationPrice
+            } : undefined,
             
             // Timestamp when quotation was created
             createdAt: new Date().toISOString()
@@ -849,6 +935,82 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                           <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                         </div>
                       </div>
+
+                      {/* Custom Pricing Toggle */}
+                      {salesUser && (
+                        <div className="pt-4 border-t border-gray-200">
+                          <div className="flex items-center justify-between mb-4">
+                            <label htmlFor="customPricing" className="flex items-center text-base font-medium text-gray-700 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                id="customPricing"
+                                checked={customPricingEnabled}
+                                onChange={(e) => {
+                                  const enabled = e.target.checked;
+                                  updateCustomPricing(
+                                    enabled,
+                                    enabled ? customStructurePrice : null,
+                                    enabled ? customInstallationPrice : null
+                                  );
+                                }}
+                                disabled={isSubmitting}
+                                className="w-5 h-5 text-gray-600 border-gray-300 rounded focus:ring-gray-500 mr-3"
+                              />
+                              <span>Do you want to enter custom structure & installation pricing?</span>
+                            </label>
+                          </div>
+
+                          {customPricingEnabled && (
+                            <div className="space-y-4 pl-8">
+                              <div>
+                                <label htmlFor="customStructurePrice" className="block text-sm font-medium text-gray-700 mb-2">
+                                  Custom Structure Price (₹)
+                                </label>
+                                <input
+                                  type="number"
+                                  id="customStructurePrice"
+                                  min="0"
+                                  step="0.01"
+                                  className={`w-full px-4 py-3 border rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all ${
+                                    customPricingEnabled ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-300'
+                                  }`}
+                                  placeholder="Enter custom structure price"
+                                  value={customStructurePrice ?? ''}
+                                  onChange={(e) => {
+                                    const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                                    const newValue = value && !isNaN(value) ? value : null;
+                                    updateCustomPricing(customPricingEnabled, newValue, customInstallationPrice);
+                                  }}
+                                  disabled={isSubmitting}
+                                />
+                              </div>
+
+                              <div>
+                                <label htmlFor="customInstallationPrice" className="block text-sm font-medium text-gray-700 mb-2">
+                                  Custom Installation Price (₹)
+                                </label>
+                                <input
+                                  type="number"
+                                  id="customInstallationPrice"
+                                  min="0"
+                                  step="0.01"
+                                  className={`w-full px-4 py-3 border rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all ${
+                                    customPricingEnabled ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-300'
+                                  }`}
+                                  placeholder="Enter custom installation price"
+                                  value={customInstallationPrice ?? ''}
+                                  onChange={(e) => {
+                                    const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                                    const newValue = value && !isNaN(value) ? value : null;
+                                    updateCustomPricing(customPricingEnabled, customStructurePrice, newValue);
+                                  }}
+                                  disabled={isSubmitting}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
