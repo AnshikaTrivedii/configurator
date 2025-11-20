@@ -58,9 +58,12 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       return;
     }
     
+    // Save current viewport state outside try block for error handling
+    let currentViewport: any = null;
+    
     try {
       // Save current viewport state
-      const currentViewport = instance.getViewport();
+      currentViewport = instance.getViewport();
       
       // Fit view to show entire diagram before export
       instance.fitView({ padding: 0.2, duration: 200 });
@@ -68,37 +71,19 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       // Wait for fitView animation to complete
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Calculate bounds from all nodes using React Flow API
-      const nodes = instance.getNodes();
-      if (nodes.length === 0) {
-        console.error('No nodes found in diagram');
+      // Use scrollWidth and scrollHeight to capture the full diagram
+      const fullWidth = viewportElement.scrollWidth;
+      const fullHeight = viewportElement.scrollHeight;
+      
+      if (fullWidth === 0 || fullHeight === 0) {
+        console.error('Invalid viewport dimensions');
         return;
       }
       
-      // Calculate bounding box from node positions and dimensions
-      let minX = Infinity;
-      let minY = Infinity;
-      let maxX = -Infinity;
-      let maxY = -Infinity;
-      
-      nodes.forEach(node => {
-        const nodeWidth = node.width || 0;
-        const nodeHeight = node.height || 0;
-        minX = Math.min(minX, node.position.x);
-        minY = Math.min(minY, node.position.y);
-        maxX = Math.max(maxX, node.position.x + nodeWidth);
-        maxY = Math.max(maxY, node.position.y + nodeHeight);
-      });
-      
-      // Add padding and calculate full dimensions
-      const padding = 50;
-      const fullWidth = Math.ceil(maxX - minX + padding * 2);
-      const fullHeight = Math.ceil(maxY - minY + padding * 2);
-      
-      // Capture the viewport with transform removed and explicit dimensions
+      // Capture the viewport with transform removed and full dimensions
       const options = {
         pixelRatio: 3,
-        backgroundColor: '#f8fafc',
+        backgroundColor: 'white',
         quality: 1,
         width: fullWidth,
         height: fullHeight,
@@ -147,9 +132,9 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     } catch (error) {
       console.error('Error exporting image:', error);
       // Try to restore viewport even on error
-      if (reactFlowInstanceRef.current) {
+      if (reactFlowInstanceRef.current && currentViewport) {
         try {
-          reactFlowInstanceRef.current.fitView({ padding: 0.1 });
+          reactFlowInstanceRef.current.setViewport(currentViewport);
         } catch (e) {
           // Ignore restore errors
         }
@@ -170,9 +155,12 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       return;
     }
     
+    // Save current viewport state outside try block for error handling
+    let currentViewport: any = null;
+    
     try {
       // Save current viewport state
-      const currentViewport = instance.getViewport();
+      currentViewport = instance.getViewport();
       
       // Fit view to show entire diagram before export
       instance.fitView({ padding: 0.2, duration: 200 });
@@ -180,37 +168,50 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       // Wait for fitView animation to complete
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Calculate bounds from all nodes using React Flow API
+      // Get all nodes to calculate the actual bounding box
       const nodes = instance.getNodes();
       if (nodes.length === 0) {
         console.error('No nodes found in diagram');
         return;
       }
       
-      // Calculate bounding box from node positions and dimensions
+      // Calculate the actual bounding box from all nodes
       let minX = Infinity;
       let minY = Infinity;
       let maxX = -Infinity;
       let maxY = -Infinity;
       
       nodes.forEach(node => {
-        const nodeWidth = node.width || 0;
-        const nodeHeight = node.height || 0;
+        const nodeWidth = node.width || 150;
+        const nodeHeight = node.height || 100;
         minX = Math.min(minX, node.position.x);
         minY = Math.min(minY, node.position.y);
         maxX = Math.max(maxX, node.position.x + nodeWidth);
         maxY = Math.max(maxY, node.position.y + nodeHeight);
       });
       
-      // Add padding and calculate full dimensions
-      const padding = 50;
-      const fullWidth = Math.ceil(maxX - minX + padding * 2);
-      const fullHeight = Math.ceil(maxY - minY + padding * 2);
+      // Add padding around the diagram
+      const padding = 100;
+      const nodeBasedWidth = Math.ceil(maxX - minX + padding * 2);
+      const nodeBasedHeight = Math.ceil(maxY - minY + padding * 2);
       
-      // Capture the viewport with transform removed and explicit dimensions
+      // Also get viewport dimensions as fallback
+      const viewportWidth = viewportElement.scrollWidth || viewportElement.clientWidth;
+      const viewportHeight = viewportElement.scrollHeight || viewportElement.clientHeight;
+      
+      // Use the maximum of both to ensure we capture everything
+      const fullWidth = Math.max(nodeBasedWidth, viewportWidth);
+      const fullHeight = Math.max(nodeBasedHeight, viewportHeight);
+      
+      if (fullWidth === 0 || fullHeight === 0) {
+        console.error('Invalid diagram dimensions');
+        return;
+      }
+      
+      // Capture the viewport with transform removed and full dimensions
       const options = {
         pixelRatio: 3,
-        backgroundColor: '#f8fafc',
+        backgroundColor: 'white',
         quality: 1,
         width: fullWidth,
         height: fullHeight,
@@ -236,39 +237,41 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       // Restore viewport before PDF creation (so user sees normal view)
       instance.setViewport(currentViewport);
       
-      // Create PDF in landscape orientation using points
-      const pdf = new jsPDF('landscape', 'pt', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      // Get image properties
+      // Create PDF in landscape orientation
+      const pdf = new jsPDF('l', 'pt', 'a4');
       const imgProps = pdf.getImageProperties(dataUrl);
-      const imgAspectRatio = imgProps.width / imgProps.height;
-      const pdfAspectRatio = pdfWidth / pdfHeight;
+      const pdfPageWidth = pdf.internal.pageSize.getWidth();
+      const pdfPageHeight = pdf.internal.pageSize.getHeight();
       
-      let finalWidth = pdfWidth;
-      let finalHeight = pdfHeight;
+      // Calculate scaling to fit within page while maintaining aspect ratio
+      const imgAspectRatio = imgProps.width / imgProps.height;
+      const pdfAspectRatio = pdfPageWidth / pdfPageHeight;
+      
+      let finalWidth: number;
+      let finalHeight: number;
       
       if (imgAspectRatio > pdfAspectRatio) {
-        // Image is wider, fit to width
-        finalHeight = pdfWidth / imgAspectRatio;
+        // Image is wider - fit to page width
+        finalWidth = pdfPageWidth;
+        finalHeight = pdfPageWidth / imgAspectRatio;
       } else {
-        // Image is taller, fit to height
-        finalWidth = pdfHeight * imgAspectRatio;
+        // Image is taller - fit to page height
+        finalHeight = pdfPageHeight;
+        finalWidth = pdfPageHeight * imgAspectRatio;
       }
       
-      // Center the image
-      const xOffset = (pdfWidth - finalWidth) / 2;
-      const yOffset = (pdfHeight - finalHeight) / 2;
+      // Center the image on the page
+      const xOffset = (pdfPageWidth - finalWidth) / 2;
+      const yOffset = (pdfPageHeight - finalHeight) / 2;
       
       pdf.addImage(dataUrl, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
       pdf.save('power-wiring-diagram.pdf');
     } catch (error) {
       console.error('Error exporting PDF:', error);
       // Try to restore viewport even on error
-      if (reactFlowInstanceRef.current) {
+      if (reactFlowInstanceRef.current && currentViewport) {
         try {
-          reactFlowInstanceRef.current.fitView({ padding: 0.1 });
+          reactFlowInstanceRef.current.setViewport(currentViewport);
         } catch (e) {
           // Ignore restore errors
         }
@@ -861,22 +864,10 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       {/* Export Toolbar */}
       <div className="absolute right-4 bottom-20 flex flex-col gap-2 z-10">
         <button
-          onClick={() => exportAsImage('png')}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors duration-200 font-medium text-sm"
-        >
-          Export PNG
-        </button>
-        <button
           onClick={() => exportAsImage('jpeg')}
           className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors duration-200 font-medium text-sm"
         >
           Export JPEG
-        </button>
-        <button
-          onClick={() => exportAsImage('svg')}
-          className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors duration-200 font-medium text-sm"
-        >
-          Export SVG
         </button>
         <button
           onClick={exportAsPDF}
