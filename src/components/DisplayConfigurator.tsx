@@ -229,7 +229,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [isPdfViewModalOpen, setIsPdfViewModalOpen] = useState(false);
   const [isUserInfoFormOpen, setIsUserInfoFormOpen] = useState(false);
-  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'Channel' } | undefined>(undefined);
+  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'Channel'; paymentTerms?: string; warranty?: string } | undefined>(undefined);
   const [pendingAction, setPendingAction] = useState<'quote' | 'pdf' | null>(null);
   const [isMandatoryFormSubmitted, setIsMandatoryFormSubmitted] = useState(false);
   const [quotationId, setQuotationId] = useState<string>('');
@@ -370,7 +370,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setIsProductSelectorOpen(false);
   };
 
-  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'Channel' }) => {
+  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'Channel'; paymentTerms?: string; warranty?: string }) => {
     setUserInfo(userData);
     setIsUserInfoFormOpen(false);
     

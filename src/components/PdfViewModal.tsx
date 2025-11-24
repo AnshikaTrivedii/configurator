@@ -408,15 +408,6 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                   Download PDF
                 </button>
               )}
-              {onDownloadDocx && (
-                <button
-                  onClick={onDownloadDocx}
-                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Word
-                </button>
-              )}
               <button
                 className="text-gray-300 hover:text-white p-2"
                 onClick={onClose}

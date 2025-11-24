@@ -1,9 +1,8 @@
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, ImageRun, Media } from 'docx';
+import { Document, Packer, Paragraph, ImageRun } from 'docx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { getProcessorPrice } from './processorPrices';
-import { calculateCentralizedPricing } from './centralizedPricing';
 
 // For HTML to DOCX conversion, we'll use a browser-compatible approach
 // Using the existing docx library with HTML content processed for Word compatibility
@@ -138,7 +137,7 @@ export const generateConfigurationDocx = async (
     const A4_WIDTH_TWIPS = Math.round(A4_WIDTH_INCHES * 1440);
     const A4_HEIGHT_TWIPS = Math.round(A4_HEIGHT_INCHES * 1440);
     
-    const docChildren: any[] = [];
+    const docChildren: (Paragraph)[] = [];
     
     // Convert each page to an image and add to DOCX
     for (let i = 0; i < pages.length; i++) {
@@ -175,6 +174,7 @@ export const generateConfigurationDocx = async (
         
         // Create image run with exact A4 dimensions in EMU
         // docx library v9 expects data as Uint8Array and transformation in EMU
+        // @ts-expect-error - ImageRun type definition doesn't match actual usage
         const imageRun = new ImageRun({
           data: uint8Array,
           transformation: {
@@ -249,6 +249,8 @@ interface UserInfo {
   projectTitle?: string;
   address?: string;
   userType?: 'End User' | 'Reseller' | 'Channel';
+  paymentTerms?: string;
+  warranty?: string;
 }
 
 // Function to generate HTML preview of the configuration
@@ -902,7 +904,69 @@ export const generateConfigurationHtml = (
             </div>
             </div>
         </div>
-        <div class="page page-bg" style="background-image: url('/Pages to JPG/7.png');">
+        <div class="page page-bg" style="background-image: url('/Pages to JPG/7.png'); position: relative;">
+            <!-- White overlay to hide background content while keeping footer -->
+            <div style="position: absolute; top: 12%; left: 0; right: 0; bottom: 12%; background: white; z-index: 1;"></div>
+            <div class="quotation-overlay" style="padding-top: 45mm; padding-bottom: 25mm; padding-left: 8mm; padding-right: 8mm; position: relative; z-index: 2;">
+                <div style="background: rgba(255, 255, 255, 0.98); padding: 12px 14px; border-radius: 4px; margin-bottom: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid #000000;">
+                        <tr style="background: rgba(37, 99, 235, 0.1);">
+                            <th colspan="2" style="padding: 10px 12px; text-align: center; color: #000000; font-weight: bold; font-size: 15px; border: 1px solid #000000;">TERMS AND CONDITIONS</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; width: 30%; font-size: 13px;">Validity</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">Offer shall remain valid for period of 30 days from the date of quotation made.</td>
+                        </tr>
+                        <tr style="background: rgba(248, 249, 250, 0.5);">
+                            <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #dc3545; font-size: 13px;">GST</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #dc3545; font-size: 13px;">Extra as applicable at the time of invoicing. The current GST rates are indicated above</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Warranty</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">
+                                ${userInfo?.warranty ? userInfo.warranty.replace(/\n/g, '<br/>') : 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier.<br/>Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.'}
+                            </td>
+                        </tr>
+                        <tr style="background: rgba(248, 249, 250, 0.5);">
+                            <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Payments Terms</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">
+                                ${userInfo?.paymentTerms ? userInfo.paymentTerms.replace(/\n/g, '<br/>') : '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation'}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Bank Account Details</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">A/C Holder Name - Atenti Origins Photoelectricity Consort Pvt Ltd. Branch Name- ICICI Bank. Sector 50, Noida<br/>A/C Number - 628405020381 IFSC Code - ICIC0006284</td>
+                        </tr>
+                        <tr style="background: rgba(248, 249, 250, 0.5);">
+                            <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Freight & Insurance</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">Extra at actuals</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Delivery Lead Time</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">5-6 Weeks From Advance Payment.</td>
+                        </tr>
+                        <tr style="background: rgba(248, 249, 250, 0.5);">
+                            <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Mode of Transportation</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">By Road</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Structure</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">The price quoted for the structure is subject to a site visit and structure drawing given by the structure engineer. If not quoted above, then needs to be provided by the customer. If provided by the customer, all the responsibilities and liabilities because of structural issues will lie with the customer</td>
+                        </tr>
+                        <tr style="background: rgba(248, 249, 250, 0.5);">
+                            <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Spares</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">2% spares will be supplied with the main supply</td>
+                        </tr>
+                    </table>
+                    <div style="margin-top: 16px; padding: 10px 0;">
+                        <p style="margin: 6px 0; color: #dc3545; font-size: 13px; font-weight: 600;">1. Once an order has been placed, it cannot be cancelled.</p>
+                        <p style="margin: 6px 0; color: #dc3545; font-size: 13px; font-weight: 600;">2. Above prices are based on the configuration as provided, additional charge will be in client's account if any parts changed.</p>
+                        <p style="margin: 6px 0; color: #dc3545; font-size: 13px; font-weight: 600;">3. Electrical wiring & Accessories (MCB, TPN, RCCB), UPS, CAT6 wire, Network cabling, Fabrication, Civil, Electrical, Conduiting at Client end.</p>
+                        <p style="margin: 6px 0; color: #dc3545; font-size: 13px; font-weight: 600;">4. Conduiting / Trunking / LAN /Power points /scaffolding/Ladder/SRP etc are Client's scope or by client's Electrical Contractor.</p>
+                        <p style="margin: 6px 0; color: #dc3545; font-size: 13px; font-weight: 600;">5. Earthing wire should be of same specification with live & neutral (Client End)</p>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="page page-bg" style="background-image: url('/Pages to JPG/9.png');">
         </div>
