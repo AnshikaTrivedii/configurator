@@ -13,13 +13,15 @@
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
+    "docx": "^9.5.1",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-validator": "^7.0.1",
     "html-docx-js": "^0.3.1",
     "html-docx-js-typescript": "^0.1.5",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.0.3"
+    "mongoose": "^8.0.3",
+    "openai": "^6.9.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

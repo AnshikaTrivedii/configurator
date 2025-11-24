@@ -174,6 +174,7 @@ function calculateCorrectTotalPrice(
   const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
   
   // Structure and Installation pricing - use custom if enabled, otherwise use default calculation
+  // IMPORTANT: Structure and Installation are kept SEPARATE - never combined
   let structureBasePrice: number;
   let installationBasePrice: number;
   
@@ -187,7 +188,7 @@ function calculateCorrectTotalPrice(
     installationBasePrice = screenAreaSqFt * 500;
   }
   
-  // Calculate GST on structure and installation (always 18%)
+  // Calculate GST on structure and installation separately (always 18%)
   const structureGST = structureBasePrice * 0.18;
   const totalStructure = structureBasePrice + structureGST;
   
@@ -195,6 +196,7 @@ function calculateCorrectTotalPrice(
   const totalInstallation = installationBasePrice + installationGST;
   
   // GRAND TOTAL (A + B + Structure + Installation) - This matches the PDF exactly
+  // Structure and Installation are added separately - never combined
   const grandTotal = totalProduct + totalProcessor + totalStructure + totalInstallation;
   
   console.log('💰 Price Calculation (WITH GST - matches PDF exactly):', {
@@ -211,17 +213,23 @@ function calculateCorrectTotalPrice(
     gstProcessor,
     totalProcessor,
     grandTotal: Math.round(grandTotal),
-    breakdown: {
-      'Unit Price (per sq.ft)': unitPrice,
-      'Quantity (sq.ft)': quantity,
-      'Product Subtotal': subtotal,
-      'Product GST (18%)': gstProduct,
-      'Product Total (A)': totalProduct,
-      'Processor Price': processorPrice,
-      'Processor GST (18%)': gstProcessor,
-      'Processor Total (B)': totalProcessor,
-      'GRAND TOTAL (A+B) with GST': Math.round(grandTotal)
-    },
+      breakdown: {
+        'Unit Price (per sq.ft)': unitPrice,
+        'Quantity (sq.ft)': quantity,
+        'Product Subtotal': subtotal,
+        'Product GST (18%)': gstProduct,
+        'Product Total (A)': totalProduct,
+        'Processor Price': processorPrice,
+        'Processor GST (18%)': gstProcessor,
+        'Processor Total (B)': totalProcessor,
+        'Structure Cost (Base)': structureBasePrice,
+        'Structure GST (18%)': structureGST,
+        'Structure Total': totalStructure,
+        'Installation Cost (Base)': installationBasePrice,
+        'Installation GST (18%)': installationGST,
+        'Installation Total': totalInstallation,
+        'GRAND TOTAL (A+B+C+D) with GST': Math.round(grandTotal)
+      },
     calculation: {
       'Config Dimensions': `${config.width}×${config.height}mm`,
       'Config in Meters': `${(config.width / 1000).toFixed(2)}×${(config.height / 1000).toFixed(2)}m`,

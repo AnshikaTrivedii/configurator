@@ -22,6 +22,7 @@ import { SalesUser } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { SuperUserDashboard } from './SuperUserDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
+import { useChatbot } from '../contexts/ChatbotContext';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
 // See: https://github.com/wojtekmaj/react-pdf/wiki/Frequently-Asked-Questions#i-am-getting-error-warning-setting-up-fake-worker-failed-cannot-read-property-getdocument-of-undefined
@@ -56,6 +57,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   onDashboardClose
 }) => {
   const { config: globalConfig, updateDimensions: updateGlobalDimensions, updateConfig } = useDisplayConfig();
+  const { setSelectedProduct: setChatbotSelectedProduct, setWorkflowStage } = useChatbot();
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(
     initialConfig?.selectedProduct || undefined
   );
@@ -73,6 +75,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     calculateCabinetGrid,
     setConfig
   } = useDisplayCalculations(selectedProduct);
+
+  // Sync workflow stage
+  useEffect(() => {
+    setWorkflowStage('configurator');
+  }, [setWorkflowStage]);
+
+  // Sync selected product with chatbot
+  useEffect(() => {
+    setChatbotSelectedProduct(selectedProduct || null);
+  }, [selectedProduct, setChatbotSelectedProduct]);
 
   // Initialize dimensions from global context or initialConfig
   useEffect(() => {
@@ -333,6 +345,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
+    setChatbotSelectedProduct(product);
     // If digital standee, set width/height to cabinet size
     if (product.category?.toLowerCase().includes('digital standee')) {
       updateWidth(product.cabinetDimensions.width);
