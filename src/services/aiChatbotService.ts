@@ -1,8 +1,8 @@
 /**
  * AI Chatbot Service
  * 
- * Provides intelligent AI-powered chatbot capabilities using Google Gemini API
- * with fallback to rule-based responses.
+ * Intelligent rule-based recommendation assistant for LED Screen Configurator
+ * with high-accuracy recommendation engine and NLP question answering
  */
 
 import { DisplayConfigState } from '../contexts/DisplayConfigContext';
@@ -39,223 +39,534 @@ const requestCache = new Map<string, { response: string; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const MAX_CONVERSATION_HISTORY = 10; // Keep last 10 messages for context
 
+// ====================================================
+// HIGH-ACCURACY RECOMMENDATION ENGINE
+// ====================================================
+
 /**
- * Generate system prompt with current context
+ * Recommend pixel pitch based on environment
  */
-function generateSystemPrompt(context: ChatbotContext): string {
-  const { config, selectedProduct, workflowStage, currentStep } = context;
+export function recommendPixelPitchByEnvironment(environment: 'Indoor' | 'Outdoor' | null): number[] {
+  if (!environment) return [];
   
-  let prompt = `You are an intelligent AI assistant for an LED Display Configurator application. Your role is to:
-
-1. Guide users step-by-step through the entire LED display configuration workflow
-2. Provide highly accurate recommendations based on user inputs and current system state
-3. Proactively detect errors, misconfigurations, or incorrect user actions and suggest clear solutions
-4. Maintain conversational memory and context awareness
-5. Explain technical issues in simple, user-friendly language
-
-Current System State:
-- Workflow Stage: ${workflowStage || 'unknown'}
-- Current Step: ${currentStep || 'not specified'}
-- Display Dimensions: ${config.width}mm x ${config.height}mm (${config.unit})
-- Environment: ${config.environment || 'not selected'}
-- Viewing Distance: ${config.viewingDistance || 'not specified'} ${config.viewingDistanceUnit}
-- Pixel Pitch: ${config.pixelPitch || 'not selected'}mm
-- Selected Product: ${selectedProduct?.name || 'none'}
-- Entry Mode: ${config.entryMode || 'not specified'}
-
-Workflow Steps:
-1. Landing Page - User chooses between guided wizard or direct product selection
-2. Configuration Wizard (if guided):
-   - Step 1: Enter display dimensions (width, height, unit)
-   - Step 2: Set viewing distance
-   - Step 3: Choose environment (Indoor/Outdoor)
-   - Step 4: Select pixel pitch
-   - Step 5: Choose product
-3. Display Configurator:
-   - Adjust dimensions and aspect ratios
-   - Select products
-   - Configure cabinet grid
-   - View preview
-   - Configure data and power wiring
-   - Generate quote
-4. Quote Generation - Fill user info and generate quotation
-
-Available Products (key examples):
-${products.filter(p => p.enabled !== false).slice(0, 10).map(p => 
-  `- ${p.name}: ${p.pixelPitch}mm pitch, ${p.environment}, ${p.brightness} cd/m² brightness`
-).join('\n')}
-
-Common Issues to Detect:
-- Missing dimensions or invalid aspect ratios
-- Mismatch between viewing distance and pixel pitch
-- Environment/product mismatch (e.g., indoor product for outdoor use)
-- Unrealistic dimensions (too small or too large)
-- Missing product selection when required
-- Incomplete configuration when generating quotes
-
-Guidelines:
-- Be friendly, helpful, and proactive
-- Detect issues before they cause problems
-- Provide step-by-step guidance with SPECIFIC actions the user should take
-- Use simple, clear language for technical explanations
-- Give concrete examples and recommendations based on current state
-- Always suggest the NEXT SPECIFIC ACTION the user should take
-- Maintain context from previous messages
-- Be concise but thorough - don't overwhelm with information
-- If user is on a specific step, focus on that step first
-- Provide actionable buttons/suggestions when possible
-
-Response Style:
-- Start with addressing the user's immediate question
-- Then provide context-specific guidance
-- End with a clear next step or question to help move forward
-- If errors are detected, mention them immediately with solutions
-
-Respond naturally and helpfully. Be specific about what the user should do next based on their current state.`;
-
-  return prompt;
+  if (environment === 'Indoor') {
+    return [0.9, 1.2, 1.5, 2.5];
+  } else { // Outdoor
+    return [3.9, 4.8, 6.6];
+  }
 }
 
 /**
- * Detect errors and misconfigurations in current state
+ * Recommend pixel pitch based on viewing distance
+ * Rules: 0-8 ft → 0.9-1.5mm, 8-20 ft → 1.5-2.5mm, 20+ ft → 3.9-6.6mm
  */
-export function detectErrors(context: ChatbotContext): string[] {
-  const errors: string[] = [];
-  const { config, selectedProduct } = context;
-
-  // Check for missing dimensions
-  if (config.width <= 0 || config.height <= 0) {
-    errors.push('Display dimensions are not set. Please enter valid width and height values.');
+export function recommendPixelPitchByViewingDistance(
+  viewingDistance: string | null,
+  unit: 'meters' | 'feet'
+): number[] {
+  if (!viewingDistance) return [];
+  
+  const distance = parseFloat(viewingDistance);
+  if (isNaN(distance)) return [];
+  
+  // Convert to feet (all rules are in feet)
+  const distanceFt = unit === 'meters' ? distance * 3.28084 : distance;
+  
+  if (distanceFt <= 8) {
+    // Near viewing (0-8 ft) → 0.9-1.5mm
+    return [0.9, 1.2, 1.5];
+  } else if (distanceFt <= 20) {
+    // Medium viewing (8-20 ft) → 1.5-2.5mm
+    return [1.5, 2.5];
+  } else {
+    // Far viewing (20+ ft) → 3.9-6.6mm
+    return [3.9, 4.8, 6.6];
   }
+}
 
-  // Check for unrealistic dimensions
+/**
+ * Recommend pixel pitch based on screen size
+ */
+export function recommendPixelPitchByScreenSize(width: number, height: number, unit: 'mm' | 'cm' | 'm' | 'ft'): number[] {
+  if (width <= 0 || height <= 0) return [];
+  
+  // Convert to feet for size calculation
+  let widthFt: number;
+  if (unit === 'mm') widthFt = width / 304.8;
+  else if (unit === 'cm') widthFt = width / 30.48;
+  else if (unit === 'm') widthFt = width * 3.28084;
+  else widthFt = width;
+  
+  if (widthFt <= 6) {
+    // Small screen (≤ 6ft width)
+    return [0.9, 1.2, 1.5];
+  } else if (widthFt <= 12) {
+    // Medium screen (6-12ft width)
+    return [1.5, 2.5];
+  } else {
+    // Large screen (12ft+ width)
+    return [3.9, 4.8, 6.6];
+  }
+}
+
+/**
+ * Recommend product series based on pixel pitch
+ */
+export function recommendProductSeriesByPixelPitch(pixelPitch: number | null): string[] {
+  if (!pixelPitch) return [];
+  
+  if (pixelPitch >= 0.9 && pixelPitch <= 2.5) {
+    return ['Rigel Series'];
+  } else if (pixelPitch >= 1.9 && pixelPitch <= 3.9) {
+    return ['Betel Series'];
+  } else if (pixelPitch >= 3.9 && pixelPitch <= 6.6) {
+    return ['Bellatrix Series'];
+  }
+  
+  return [];
+}
+
+/**
+ * Get suitable use case for product series
+ */
+export function getUseCaseForProductSeries(series: string): string {
+  const useCases: Record<string, string> = {
+    'Rigel Series': 'Indoor Fine Pitch displays - ideal for close viewing in retail stores, showrooms, and indoor venues',
+    'Betel Series': 'Indoor and Outdoor Mid Pitch displays - suitable for medium viewing distances in malls, lobbies, and outdoor installations',
+    'Bellatrix Series': 'Outdoor Large Pitch displays - perfect for billboards, stadiums, and large outdoor displays with far viewing distances'
+  };
+  
+  return useCases[series] || 'General LED display applications';
+}
+
+/**
+ * Get comprehensive recommendation based on all factors
+ */
+export function getComprehensiveRecommendation(context: ChatbotContext): {
+  pixelPitch: number[];
+  productSeries: string[];
+  reasoning: string;
+} {
+  const { config } = context;
+  const recommendations: number[] = [];
+  const reasoning: string[] = [];
+  
+  // Environment-based recommendation
+  if (config.environment) {
+    const envRec = recommendPixelPitchByEnvironment(config.environment);
+    recommendations.push(...envRec);
+    reasoning.push(`For ${config.environment} environment, recommended pixel pitches are: ${envRec.join('mm, ')}mm`);
+  }
+  
+  // Viewing distance-based recommendation
+  if (config.viewingDistance) {
+    const distRec = recommendPixelPitchByViewingDistance(config.viewingDistance, config.viewingDistanceUnit);
+    if (distRec.length > 0) {
+      recommendations.push(...distRec);
+      reasoning.push(`For viewing distance of ${config.viewingDistance} ${config.viewingDistanceUnit}, recommended pixel pitches are: ${distRec.join('mm, ')}mm`);
+    }
+  }
+  
+  // Screen size-based recommendation
   if (config.width > 0 && config.height > 0) {
-    const areaM2 = (config.width * config.height) / 1_000_000;
-    if (areaM2 < 0.01) {
-      errors.push('Display size is very small. Please verify your dimensions.');
-    }
-    if (areaM2 > 1000) {
-      errors.push('Display size seems very large. Please verify your dimensions.');
+    const sizeRec = recommendPixelPitchByScreenSize(config.width, config.height, config.unit);
+    if (sizeRec.length > 0) {
+      recommendations.push(...sizeRec);
+      reasoning.push(`For your screen size, recommended pixel pitches are: ${sizeRec.join('mm, ')}mm`);
     }
   }
-
-  // Check environment selection
-  if (context.workflowStage === 'wizard' && !config.environment) {
-    errors.push('Environment (Indoor/Outdoor) is not selected. This is required for product recommendations.');
+  
+  // Get unique recommendations
+  const uniqueRec = Array.from(new Set(recommendations)).sort((a, b) => a - b);
+  
+  // Get product series recommendations
+  const productSeries: string[] = [];
+  if (config.pixelPitch) {
+    const series = recommendProductSeriesByPixelPitch(config.pixelPitch);
+    productSeries.push(...series);
+  } else if (uniqueRec.length > 0) {
+    // Recommend series for the first recommended pitch
+    const series = recommendProductSeriesByPixelPitch(uniqueRec[0]);
+    productSeries.push(...series);
   }
+  
+  return {
+    pixelPitch: uniqueRec,
+    productSeries: Array.from(new Set(productSeries)),
+    reasoning: reasoning.join('. ')
+  };
+}
 
-  // Check product-environment mismatch
-  if (selectedProduct && config.environment) {
-    const productEnv = selectedProduct.environment?.toLowerCase();
-    const configEnv = config.environment.toLowerCase();
-    if (productEnv && !productEnv.includes(configEnv) && !configEnv.includes(productEnv)) {
-      errors.push(`The selected product "${selectedProduct.name}" is designed for ${selectedProduct.environment} environment, but you selected ${config.environment}. Please verify your selection.`);
-    }
-  }
+// ====================================================
+// NLP QUESTION ANSWERING - VALUE EXTRACTION
+// ====================================================
 
-  // Check viewing distance and pixel pitch match
-  if (config.viewingDistance && config.pixelPitch && selectedProduct) {
-    const viewingDistanceM = parseFloat(config.viewingDistance);
-    if (!isNaN(viewingDistanceM)) {
-      const minViewingDistance = config.pixelPitch / 1000 * 1000; // Rough estimate
-      if (viewingDistanceM < minViewingDistance) {
-        errors.push(`Viewing distance (${config.viewingDistance}m) may be too close for ${config.pixelPitch}mm pixel pitch. Consider increasing viewing distance or using a finer pixel pitch.`);
-      }
-    }
-  }
-
-  return errors;
+interface ExtractedValues {
+  size?: { width?: number; height?: number; unit?: 'mm' | 'cm' | 'm' | 'ft' };
+  environment?: 'Indoor' | 'Outdoor';
+  distance?: { value: number; unit: 'meters' | 'feet' };
+  pixelPitch?: number;
+  productKeywords?: string[];
 }
 
 /**
- * Call Gemini API to generate AI response
+ * Extract values from user message using NLP (supports Hindi/English mixed)
  */
-async function callGeminiAPI(
-  userMessage: string,
-  context: ChatbotContext
-): Promise<string | null> {
-  if (!GEMINI_API_KEY) {
-    return null; // No API key, fall back to rule-based
+export function extractValuesFromMessage(message: string): ExtractedValues {
+  const lowerMessage = message.toLowerCase();
+  const extracted: ExtractedValues = {};
+  
+  // Extract size (e.g., "10x6 ft", "12ft", "8 meter", "6m x 4m", "10x6 ft hai")
+  const sizePatterns = [
+    /(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*(ft|feet|meter|meters|m|mm|cm|metre|metres)/i,
+    /(\d+(?:\.\d+)?)\s*(ft|feet|meter|meters|m|mm|cm|metre|metres)\s*x\s*(\d+(?:\.\d+)?)/i,
+    /(\d+(?:\.\d+)?)\s*(ft|feet|meter|meters|m|mm|cm|metre|metres)/i,
+    /screen\s+(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*(ft|feet|meter|meters|m|mm|cm)/i,
+  ];
+  
+  for (const pattern of sizePatterns) {
+    const match = message.match(pattern);
+    if (match) {
+      const unitMap: Record<string, 'mm' | 'cm' | 'm' | 'ft'> = {
+        'mm': 'mm', 'cm': 'cm', 'm': 'm', 'meter': 'm', 'meters': 'm', 'metre': 'm', 'metres': 'm',
+        'ft': 'ft', 'feet': 'ft'
+      };
+      
+      const unit = unitMap[match[match.length - 1]?.toLowerCase()] || 'm';
+      
+      if (match.length >= 4 && match[2] && !isNaN(parseFloat(match[2]))) {
+        // Two dimensions
+        extracted.size = {
+          width: parseFloat(match[1]),
+          height: parseFloat(match[2] || match[3]),
+          unit
+        };
+      } else {
+        // Single dimension (assume square or width)
+        extracted.size = {
+          width: parseFloat(match[1]),
+          unit
+        };
+      }
+      break;
+    }
   }
-
-  try {
-    // Prepare conversation history (last few messages)
-    const recentHistory = context.conversationHistory
-      .slice(-MAX_CONVERSATION_HISTORY)
-      .filter(msg => msg.role !== 'system');
-
-    const systemPrompt = generateSystemPrompt(context);
+  
+  // Extract environment (including Hindi context words)
+  if (lowerMessage.match(/\b(indoor|inside|mall|shop|store|office|restaurant|andar|andarooni)\b/)) {
+    extracted.environment = 'Indoor';
+  } else if (lowerMessage.match(/\b(outdoor|outside|outdoor|billboard|stadium|facade|bahar|bahari)\b/)) {
+    extracted.environment = 'Outdoor';
+  }
+  
+  // Extract viewing distance (e.g., "near", "far", "8 feet", "25 ft", "long distance", "door", "dur")
+  if (lowerMessage.match(/\b(near|close|short distance|paas|nazdeek)\b/)) {
+    extracted.distance = { value: 5, unit: 'feet' }; // Default to 5 ft for near
+  } else if (lowerMessage.match(/\b(far|distant|long distance|door|dur|doori)\b/)) {
+    extracted.distance = { value: 25, unit: 'feet' }; // Default to 25 ft for far
+  } else {
+    const distancePatterns = [
+      /(\d+(?:\.\d+)?)\s*(ft|feet|meter|meters|m|metre|metres)\b/i,
+      /(\d+(?:\.\d+)?)\s*(ft|feet|meter|meters|m)\s*(door|distance|dur)/i,
+    ];
     
-    // Build conversation history for Gemini API
-    // Format: array of { role: 'user' | 'model', parts: [{ text: string }] }
-    const conversationParts: any[] = [];
-    
-    // Add system prompt context to the first user message
-    let firstUserMessage = true;
-    
-    for (const msg of recentHistory) {
-      if (msg.role === 'user') {
-        // Include system prompt with the first user message
-        const content = firstUserMessage 
-          ? `${systemPrompt}\n\nUser: ${msg.content}`
-          : msg.content;
-        conversationParts.push({ role: 'user', parts: [{ text: content }] });
-        firstUserMessage = false;
-      } else if (msg.role === 'assistant') {
-        conversationParts.push({ role: 'model', parts: [{ text: msg.content }] });
+    for (const pattern of distancePatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        const value = parseFloat(match[1]);
+        const unit = match[2]?.toLowerCase().includes('ft') || match[2]?.toLowerCase().includes('feet')
+          ? 'feet' : 'meters';
+        extracted.distance = { value, unit };
+        break;
       }
     }
+  }
+  
+  // Extract pixel pitch (e.g., "P2.5", "2.5mm", "pixel pitch 1.5", "1.2mm")
+  const pitchPatterns = [
+    /p(\d+(?:\.\d+)?)/i,
+    /(\d+(?:\.\d+)?)\s*mm\s*(?:pitch|pixel)?/i,
+    /pixel\s*pitch\s*(\d+(?:\.\d+)?)/i,
+    /pitch\s*(\d+(?:\.\d+)?)/i,
+  ];
+  
+  for (const pattern of pitchPatterns) {
+    const match = message.match(pattern);
+    if (match) {
+      extracted.pixelPitch = parseFloat(match[1]);
+      break;
+    }
+  }
+  
+  // Extract product keywords (including Hindi context)
+  const productKeywords: string[] = [];
+  if (lowerMessage.includes('rigel')) productKeywords.push('Rigel');
+  if (lowerMessage.includes('betel')) productKeywords.push('Betel');
+  if (lowerMessage.includes('bellatrix')) productKeywords.push('Bellatrix');
+  if (lowerMessage.includes('flexible')) productKeywords.push('Flexible');
+  if (lowerMessage.includes('rental')) productKeywords.push('Rental');
+  if (lowerMessage.includes('jumbo')) productKeywords.push('Jumbo');
+  if (lowerMessage.includes('standee')) productKeywords.push('Standee');
+  if (lowerMessage.includes('transparent')) productKeywords.push('Transparent');
+  
+  if (productKeywords.length > 0) {
+    extracted.productKeywords = productKeywords;
+  }
+  
+  return extracted;
+}
 
-    // Add current user message
-    const currentUserContent = firstUserMessage
-      ? `${systemPrompt}\n\nUser: ${userMessage}`
-      : userMessage;
-    conversationParts.push({ role: 'user', parts: [{ text: currentUserContent }] });
+// ====================================================
+// AUTO-SUGGESTION GENERATION
+// ====================================================
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: conversationParts,
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Gemini API error:', errorData);
+/**
+ * Generate auto-suggestion message based on config change
+ */
+export function generateAutoSuggestion(
+  changeType: 'dimensions' | 'environment' | 'viewingDistance' | 'pixelPitch' | 'product',
+  context: ChatbotContext
+): string | null {
+  const { config, selectedProduct } = context;
+  
+  switch (changeType) {
+    case 'dimensions': {
+      if (config.width > 0 && config.height > 0) {
+        const rec = recommendPixelPitchByScreenSize(config.width, config.height, config.unit);
+        if (rec.length > 0) {
+          const widthFt = config.unit === 'ft' ? config.width : 
+                         config.unit === 'm' ? config.width * 3.28084 :
+                         config.unit === 'cm' ? config.width / 30.48 : config.width / 304.8;
+          return `Based on your screen size (${widthFt.toFixed(1)}ft width), the ideal pixel pitch range is **${rec.join('mm, ')}mm**. Please select your viewing distance to get more specific recommendations.`;
+        }
+      }
+      return null;
+    }
+    
+    case 'environment': {
+      if (config.environment) {
+        const rec = recommendPixelPitchByEnvironment(config.environment);
+        if (rec.length > 0) {
+          return `For **${config.environment}** environment, I recommend pixel pitches: **${rec.join('mm, ')}mm**. These are optimized for ${config.environment.toLowerCase()} installations.`;
+        }
+      }
+      return null;
+    }
+    
+    case 'viewingDistance': {
+      if (config.viewingDistance) {
+        const rec = recommendPixelPitchByViewingDistance(config.viewingDistance, config.viewingDistanceUnit);
+        if (rec.length > 0) {
+          const distanceText = `${config.viewingDistance} ${config.viewingDistanceUnit}`;
+          return `For viewing distance of **${distanceText}**, the recommended pixel pitch is **${rec.join('mm, ')}mm**. This ensures optimal image quality at this distance.`;
+        }
+      }
+      return null;
+    }
+    
+    case 'pixelPitch': {
+      if (config.pixelPitch) {
+        const series = recommendProductSeriesByPixelPitch(config.pixelPitch);
+        if (series.length > 0) {
+          const useCase = getUseCaseForProductSeries(series[0]);
+          return `The best matching product series for **${config.pixelPitch}mm** pixel pitch is **${series[0]}**. ${useCase}.`;
+        }
+      }
       return null;
     }
 
-    const data = await response.json();
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (generatedText) {
-      return generatedText.trim();
+    case 'product': {
+      if (selectedProduct) {
+        const reasons: string[] = [];
+        if (selectedProduct.environment && config.environment) {
+          if (selectedProduct.environment.toLowerCase() === config.environment.toLowerCase()) {
+            reasons.push(`perfect for ${config.environment.toLowerCase()} environment`);
+          }
+        }
+        if (selectedProduct.pixelPitch && config.pixelPitch) {
+          if (Math.abs(selectedProduct.pixelPitch - config.pixelPitch) < 0.1) {
+            reasons.push(`matches your ${config.pixelPitch}mm pixel pitch requirement`);
+          }
+        }
+        if (selectedProduct.brightness) {
+          reasons.push(`brightness of ${selectedProduct.brightness} cd/m²`);
+        }
+        
+        const reasonText = reasons.length > 0 
+          ? `This product is suitable because: ${reasons.join(', ')}.`
+          : `This product has ${selectedProduct.pixelPitch}mm pixel pitch and is designed for ${selectedProduct.environment || 'general'} use.`;
+        
+        return reasonText;
+      }
+      return null;
     }
-
-    return null;
-  } catch (error) {
-    console.error('Error calling Gemini API:', error);
+    
+    default:
     return null;
   }
 }
 
+// ====================================================
+// RULE-BASED RESPONSE GENERATION
+// ====================================================
+
 /**
- * Generate rule-based fallback response
+ * Generate rule-based response with NLP parsing
  */
 function generateRuleBasedResponse(
   userMessage: string,
   context: ChatbotContext
 ): string {
   const lowerMessage = userMessage.toLowerCase();
+  const extracted = extractValuesFromMessage(userMessage);
+  
+  // Handle questions with extracted values - PRIORITY: Answer specific questions accurately
+  if (extracted.size || extracted.environment || extracted.distance || extracted.pixelPitch) {
+    let response = '';
+    const recommendations: number[] = [];
+    const productSeries: string[] = [];
+    
+    // Size-based recommendation (e.g., "Meri screen 10x6 ft hai, kya pixel pitch hoga?")
+    if (extracted.size && extracted.size.width) {
+      const width = extracted.size.width;
+      const height = extracted.size.height || width; // Assume square if height not provided
+      const unit = extracted.size.unit || 'm';
+      
+      // Convert to mm for calculation
+      let widthMM = width;
+      if (unit === 'cm') widthMM = width * 10;
+      else if (unit === 'm') widthMM = width * 1000;
+      else if (unit === 'ft') widthMM = width * 304.8;
+      
+      const rec = recommendPixelPitchByScreenSize(widthMM, height * (widthMM / width), 'mm');
+      if (rec.length > 0) {
+        recommendations.push(...rec);
+        const sizeText = height ? `${width}${unit === 'ft' ? 'ft' : unit === 'm' ? 'm' : unit} × ${height}${unit === 'ft' ? 'ft' : unit === 'm' ? 'm' : unit}` : `${width}${unit === 'ft' ? 'ft' : unit === 'm' ? 'm' : unit}`;
+        response += `आपकी screen size (${sizeText}) के लिए, मैं recommend करता हूं pixel pitch: **${rec.join('mm, ')}mm**. `;
+      }
+    }
+    
+    // Environment-based recommendation
+    if (extracted.environment) {
+      const rec = recommendPixelPitchByEnvironment(extracted.environment);
+      if (rec.length > 0) {
+        recommendations.push(...rec);
+        response += `**${extracted.environment}** environment के लिए, recommended pixel pitches हैं: **${rec.join('mm, ')}mm**. `;
+      }
+    }
+    
+    // Distance-based recommendation (e.g., "Audience 15 ft door hoga, kya pitch select karein?")
+    if (extracted.distance) {
+      const rec = recommendPixelPitchByViewingDistance(
+        extracted.distance.value.toString(),
+        extracted.distance.unit
+      );
+      if (rec.length > 0) {
+        recommendations.push(...rec);
+        const distanceText = `${extracted.distance.value} ${extracted.distance.unit === 'feet' ? 'ft' : 'm'}`;
+        response += `${distanceText} viewing distance के लिए, मैं recommend करता हूं pixel pitch: **${rec.join('mm, ')}mm**. `;
+      }
+    }
+    
+    // Pixel pitch to product series (e.g., "1.2mm indoor ke liye best model kaun sa hai?")
+    if (extracted.pixelPitch) {
+      const series = recommendProductSeriesByPixelPitch(extracted.pixelPitch);
+      if (series.length > 0) {
+        productSeries.push(...series);
+        const useCase = getUseCaseForProductSeries(series[0]);
+        
+        // Find matching products
+        const matchingProducts = products.filter(p => 
+          p.enabled !== false && 
+          Math.abs(p.pixelPitch - extracted.pixelPitch!) < 0.1 &&
+          (!extracted.environment || p.environment?.toLowerCase() === extracted.environment.toLowerCase())
+        );
+        
+        if (matchingProducts.length > 0) {
+          const productList = matchingProducts.slice(0, 3).map(p => 
+            `- **${p.name}**: ${p.pixelPitch}mm pitch, ${p.environment}`
+          ).join('\n');
+          response += `**${extracted.pixelPitch}mm** pixel pitch के लिए, best product series है **${series[0]}**. ${useCase}.\n\nAvailable products:\n${productList}`;
+        } else {
+          response += `**${extracted.pixelPitch}mm** pixel pitch के लिए, मैं recommend करता हूं **${series[0]}**. ${useCase}.`;
+        }
+      }
+    }
+    
+    // Combined recommendation (e.g., "Outdoor long viewing ke liye kaunsa product?")
+    if (extracted.environment && extracted.distance && !extracted.pixelPitch && !response) {
+      // Get pitch recommendations
+      const envRec = recommendPixelPitchByEnvironment(extracted.environment);
+      const distRec = recommendPixelPitchByViewingDistance(
+        extracted.distance.value.toString(),
+        extracted.distance.unit
+      );
+      
+      // Find intersection (pitches that match both environment and distance)
+      const combinedRec = envRec.filter(p => distRec.includes(p));
+      const finalRec = combinedRec.length > 0 ? combinedRec : [...new Set([...envRec, ...distRec])].sort((a, b) => a - b);
+      
+      if (finalRec.length > 0) {
+        // Get product series for recommended pitches
+        const allSeries: string[] = [];
+        finalRec.forEach(pitch => {
+          const series = recommendProductSeriesByPixelPitch(pitch);
+          allSeries.push(...series);
+        });
+        const uniqueSeries = Array.from(new Set(allSeries));
+        
+        if (uniqueSeries.length > 0) {
+          // Find products matching environment and recommended pitches
+          const matchingProducts = products.filter(p => 
+            p.enabled !== false && 
+            p.environment?.toLowerCase() === extracted.environment!.toLowerCase() &&
+            finalRec.some(pitch => Math.abs(p.pixelPitch - pitch) < 0.1)
+          );
+          
+          if (matchingProducts.length > 0) {
+            const productList = matchingProducts.slice(0, 5).map(p => 
+              `- **${p.name}**: ${p.pixelPitch}mm pitch`
+            ).join('\n');
+            response += `${extracted.environment} environment और ${extracted.distance.value} ${extracted.distance.unit === 'feet' ? 'ft' : 'm'} viewing distance के लिए:\n\n**Recommended Pixel Pitch**: ${finalRec.join('mm, ')}mm\n**Recommended Product Series**: ${uniqueSeries.join(', ')}\n\n**Available Products**:\n${productList}`;
+          } else {
+            response += `${extracted.environment} environment और ${extracted.distance.value} ${extracted.distance.unit === 'feet' ? 'ft' : 'm'} viewing distance के लिए, recommended pixel pitch है: **${finalRec.join('mm, ')}mm**. Product series: **${uniqueSeries.join(', ')}**.`;
+          }
+        } else {
+          response += `${extracted.environment} environment और ${extracted.distance.value} ${extracted.distance.unit === 'feet' ? 'ft' : 'm'} viewing distance के लिए, recommended pixel pitch है: **${finalRec.join('mm, ')}mm**.`;
+        }
+      }
+    }
+    
+    // If we have recommendations but no specific response yet
+    if (!response && recommendations.length > 0) {
+      const uniqueRec = Array.from(new Set(recommendations)).sort((a, b) => a - b);
+      response = `मैं recommend करता हूं pixel pitch: **${uniqueRec.join('mm, ')}mm**.`;
+    }
+    
+    if (response) {
+      return response.trim();
+    }
+  }
+  
+  // Product keyword search
+  if (extracted.productKeywords && extracted.productKeywords.length > 0) {
+    const matchingProducts = products.filter(p => 
+      p.enabled !== false && 
+      extracted.productKeywords!.some(keyword => 
+        p.name.toLowerCase().includes(keyword.toLowerCase()) ||
+        p.category?.toLowerCase().includes(keyword.toLowerCase())
+      )
+    );
+    
+    if (matchingProducts.length > 0) {
+      const productList = matchingProducts.slice(0, 3).map(p => 
+        `- **${p.name}**: ${p.pixelPitch}mm pitch, ${p.environment}, ${p.brightness} cd/m²`
+      ).join('\n');
+      return `Here are products matching **${extracted.productKeywords.join(', ')}**:\n\n${productList}\n\nWould you like more details about any of these?`;
+    }
+  }
+  
+  // Fallback to existing rule-based responses
   const errors = detectErrors(context);
   
   // Error detection responses
@@ -263,7 +574,7 @@ function generateRuleBasedResponse(
     return `I've detected some issues that need attention:\n\n${errors.map((e, i) => `${i + 1}. ${e}`).join('\n')}\n\nLet me know if you'd like help fixing any of these!`;
   }
 
-  // Greeting responses with actionable guidance
+  // Greeting responses
   if (lowerMessage.match(/^(hi|hello|hey|greetings|howdy)/)) {
     const { workflowStage, currentStep, selectedProduct, config } = context;
     
@@ -319,219 +630,88 @@ What would you like to do next?`;
 What would you like to configure today?`;
   }
 
-  // Step guidance
-  if (lowerMessage.includes('step') || lowerMessage.includes('guide') || lowerMessage.includes('how to')) {
-    if (context.workflowStage === 'landing') {
-      return `Here's the workflow:
-
-1. **Landing Page** - Choose your entry method:
-   - "Start Configuration" - Guided wizard (recommended for new users)
-   - "Choose Product Directly" - Skip to product selection
-
-2. **Configuration Wizard** (if guided):
-   - Enter display dimensions (width × height)
-   - Set viewing distance
-   - Choose environment (Indoor/Outdoor)
-   - Select pixel pitch
-   - Choose a product
-
-3. **Display Configurator** - Fine-tune and configure:
-   - Adjust dimensions
-   - Select/modify products
-   - View preview
-   - Configure wiring
-   - Generate quote
-
-4. **Quote Generation** - Fill user details and generate quotation
-
-Where would you like to start?`;
-    }
-    
-    if (context.workflowStage === 'wizard') {
-      return `In the Configuration Wizard, follow these steps:
-
-1. **Dimensions**: Enter your display width and height in your preferred unit (mm, cm, m, or ft)
-2. **Viewing Distance**: Set how far viewers will be from the display
-3. **Environment**: Choose Indoor or Outdoor
-4. **Pixel Pitch**: Select based on viewing distance (closer viewing = finer pitch)
-5. **Product**: Choose from recommended products
-
-Current step: ${context.currentStep || 'unknown'}`;
-    }
-  }
-
-  // Dimension help
-  if (lowerMessage.includes('dimension') || lowerMessage.includes('size') || lowerMessage.includes('width') || lowerMessage.includes('height')) {
-    const { config } = context;
-    return `To set dimensions:
-
-1. Enter width and height values
-2. Select your preferred unit (mm, cm, m, or ft)
-3. The system will automatically calculate the display area
-
-${config.width > 0 && config.height > 0 
-  ? `Current dimensions: ${config.width}mm × ${config.height}mm\nThat's about ${((config.width * config.height) / 1_000_000).toFixed(2)} m²`
-  : 'No dimensions set yet. Enter your desired display size!'}`;
-  }
-
-  // Technical Questions - Data Wiring
-  if (lowerMessage.includes('data wiring') || lowerMessage.includes('data cable') || lowerMessage.includes('data connection')) {
-    return `**Data Wiring** (also called data cabling) is the network connection that carries video signals and control data from the video controller to LED display cabinets.
-
-**Key Points:**
-- **Purpose**: Transmits video content and control signals to display cabinets
-- **Components**: 
-  - Video controller (like VX600, VX1000, 4K PRIME)
-  - Data hubs (connect multiple cabinets)
-  - Data cables (typically network cables like CAT5/CAT6)
-- **Function**: Routes video signals through a network topology (serpentine pattern) connecting all cabinets in sequence
-- **Importance**: Without proper data wiring, cabinets won't receive video content or respond to controller commands
-
-**In Your Configuration:**
-- The "Data Wiring" tab shows the visual diagram of how cabinets are connected
-- Each cabinet receives data from the previous one in a daisy-chain fashion
-- Data hubs group cabinets together for efficient signal distribution
-
-Would you like help configuring the data wiring for your display?`;
-  }
-
-  // Technical Questions - Power Wiring
-  if (lowerMessage.includes('power wiring') || lowerMessage.includes('power cable') || lowerMessage.includes('power connection') || lowerMessage.includes('electrical')) {
-    return `**Power Wiring** is the electrical connection system that provides electricity to LED display cabinets.
-
-**Key Points:**
-- **Purpose**: Supplies electrical power (AC) to all LED display cabinets
-- **Components**:
-  - Main power supply/distribution
-  - Power cables (typically AC cables)
-  - Power connections on each cabinet
-- **Function**: Distributes power in parallel to multiple cabinets, ensuring stable power supply
-- **Requirements**: Must meet power consumption needs and follow electrical safety standards
-- **Safety**: Critical for proper operation - inadequate power can cause display issues or damage
-
-**In Your Configuration:**
-- The "Power Wiring" tab shows the power distribution diagram
-- Each cabinet has specific power requirements (watts)
-- Total power consumption is calculated based on number of cabinets and their specs
-
-**Important**: Always consult with a qualified electrician for actual power installation. The diagram shows the conceptual layout only.
-
-Would you like help understanding power requirements for your display?`;
-  }
-
   // Technical Questions - Pixel Pitch
   if (lowerMessage.includes('pixel pitch') || lowerMessage.includes('what is pixel pitch')) {
-    return `**Pixel Pitch** is the distance between the centers of two adjacent LED pixels, measured in millimeters (mm).
+    const { config } = context;
+    let response = `**Pixel Pitch** is the distance between the centers of two adjacent LED pixels, measured in millimeters (mm).
 
 **Key Points:**
-- **Measurement**: Distance from center of one pixel to center of next pixel (e.g., 1.5mm, 2.5mm, 6.6mm)
-- **Quality Impact**: 
-  - **Smaller pitch** (1.25mm, 1.5mm) = Higher resolution, better image quality for close viewing
-  - **Larger pitch** (6.6mm, 10mm) = Lower resolution, cost-effective for distant viewing
-- **Viewing Distance**: 
-  - Closer viewing (1-5 meters) → Use smaller pitch (1.25mm - 2.5mm)
-  - Medium viewing (5-15 meters) → Use medium pitch (2.5mm - 6.6mm)
-  - Far viewing (15+ meters) → Use larger pitch (6.6mm - 20mm)
+- **Smaller pitch** (0.9mm, 1.2mm, 1.5mm) = Higher resolution, better image quality for close viewing
+- **Larger pitch** (3.9mm, 4.8mm, 6.6mm) = Lower resolution, cost-effective for distant viewing
 
-**Example:**
-- P1.5 = 1.5mm pixel pitch (very detailed, for indoor close viewing)
-- P6.6 = 6.6mm pixel pitch (good for outdoor billboards)
+**Recommendations:**
+- **Indoor**: 0.9mm, 1.2mm, 1.5mm, 2.5mm
+- **Outdoor**: 3.9mm, 4.8mm, 6.6mm
+- **Near viewing (0-8 ft)**: 0.9mm-1.5mm
+- **Medium viewing (8-20 ft)**: 1.5mm-2.5mm
+- **Far viewing (20+ ft)**: 3.9mm-6.6mm`;
 
-**In Your Configuration:**
-- You can select pixel pitch in the wizard or configurator
-- The system recommends pitches based on your viewing distance
+    if (config.environment || config.viewingDistance) {
+      const rec = getComprehensiveRecommendation(context);
+      if (rec.pixelPitch.length > 0) {
+        response += `\n\n**For your configuration**, I recommend: **${rec.pixelPitch.join('mm, ')}mm**. ${rec.reasoning}`;
+      }
+    }
 
-Need help choosing the right pixel pitch for your installation?`;
+    return response;
   }
 
   // Technical Questions - Viewing Distance
   if (lowerMessage.includes('viewing distance') || lowerMessage.includes('what is viewing distance')) {
-    return `**Viewing Distance** is how far viewers will typically be positioned from the LED display, measured in meters or feet.
+    return `**Viewing Distance** is how far viewers will typically be positioned from the LED display.
 
-**Key Points:**
-- **Definition**: The typical distance from which people will view your display
-- **Impact on Configuration**: Determines the optimal pixel pitch needed
-- **Examples**:
-  - **Retail stores**: 3-5 meters (close viewing)
-  - **Shopping malls**: 5-10 meters (medium viewing)
-  - **Stadiums/Billboards**: 20+ meters (distant viewing)
+**Recommendations by Distance:**
+- **Near viewing (0-8 ft / 0-2.4m)**: Use 0.9mm-1.5mm pixel pitch
+- **Medium viewing (8-20 ft / 2.4-6m)**: Use 1.5mm-2.5mm pixel pitch
+- **Far viewing (20+ ft / 6m+)**: Use 3.9mm-6.6mm pixel pitch
 
-**Relationship to Pixel Pitch:**
-- Closer viewing distance → Requires finer pixel pitch (better quality)
-- Farther viewing distance → Can use coarser pixel pitch (more cost-effective)
-
-**How to Determine:**
-- Measure the typical viewing position from your display location
-- Consider the primary audience location
-- Account for closest and farthest viewers
-
-**In Your Configuration:**
-- Enter viewing distance in the wizard (Step 2)
-- The system uses this to recommend appropriate pixel pitches and products
+**Examples:**
+- Retail stores: 3-5 meters → 0.9mm-1.5mm
+- Shopping malls: 5-10 meters → 1.5mm-2.5mm
+- Stadiums/Billboards: 20+ meters → 3.9mm-6.6mm
 
 What's the viewing distance for your installation?`;
   }
 
-  // Technical Questions - Cabinet Grid
-  if (lowerMessage.includes('cabinet') && (lowerMessage.includes('grid') || lowerMessage.includes('layout') || lowerMessage.includes('arrangement'))) {
-    return `**Cabinet Grid** is the arrangement of LED display cabinets in rows and columns to create your complete display.
-
-**Key Points:**
-- **Structure**: Cabinets are arranged in a grid pattern (e.g., 4 columns × 3 rows = 12 cabinets total)
-- **Calculation**: 
-  - System automatically calculates grid based on your dimensions and selected product
-  - Each cabinet has specific dimensions (width × height)
-  - Grid fills your display area optimally
-- **Visualization**: The preview shows how cabinets are arranged
-- **Wiring Impact**: Grid layout determines how data and power wiring is routed
-
-**In Your Configuration:**
-- The system calculates the optimal grid for your dimensions
-- You can see the grid layout in the Preview tab
-- Grid size affects wiring complexity and cabinet count
-
-Would you like to see how your cabinets are arranged?`;
-  }
-
-  // Technical Questions - Controller
-  if (lowerMessage.includes('controller') || lowerMessage.includes('processor') || lowerMessage.includes('video controller')) {
-    return `**Video Controller** (also called processor) is the device that generates and sends video signals to your LED display.
-
-**Key Points:**
-- **Function**: Takes video input and processes it for LED display output
-- **Types Available**:
-  - **VX400 Pro**: For smaller displays (up to 2.6 million pixels)
-  - **VX600/VX600 Pro**: For medium displays (up to 3.9 million pixels)
-  - **VX1000/VX1000 Pro**: For larger displays (up to 6.5 million pixels)
-  - **4K PRIME**: For very large displays (up to 13 million pixels)
-- **Selection**: System automatically recommends controller based on your display size (total pixels)
-- **Ports**: Controllers have multiple output ports for connecting data hubs
-- **Redundancy**: Can configure backup controllers for reliability
-
-**In Your Configuration:**
-- Controller is automatically selected based on your display dimensions
-- You can see controller details in the Data Wiring tab
-- System ensures you have the right capacity for your display size
-
-Want to know which controller is recommended for your display?`;
-  }
-
   // Product selection help
-  if (lowerMessage.includes('product') || lowerMessage.includes('select')) {
-    const { selectedProduct } = context;
-    return `To select a product:
+  if (lowerMessage.includes('product') || lowerMessage.includes('recommend') || lowerMessage.includes('suggest')) {
+    const { config, selectedProduct } = context;
+    
+    if (selectedProduct) {
+      return `You've selected: **${selectedProduct.name}**
+- Pixel Pitch: ${selectedProduct.pixelPitch}mm
+- Environment: ${selectedProduct.environment}
+- Brightness: ${selectedProduct.brightness} cd/m²
+- Category: ${selectedProduct.category}
 
-1. Consider your environment (Indoor/Outdoor)
-2. Match pixel pitch to viewing distance
-3. Review product specifications
+This product is suitable for your configuration!`;
+    }
+    
+    const rec = getComprehensiveRecommendation(context);
+    if (rec.pixelPitch.length > 0 || rec.productSeries.length > 0) {
+      let response = 'Based on your configuration, I recommend:\n\n';
+      if (rec.pixelPitch.length > 0) {
+        response += `**Pixel Pitch**: ${rec.pixelPitch.join('mm, ')}mm\n`;
+      }
+      if (rec.productSeries.length > 0) {
+        response += `**Product Series**: ${rec.productSeries.join(', ')}\n`;
+        rec.productSeries.forEach(series => {
+          response += `- ${series}: ${getUseCaseForProductSeries(series)}\n`;
+        });
+      }
+      return response;
+    }
+    
+    return `To recommend products, I need:
+1. Environment (Indoor/Outdoor)
+2. Viewing distance
+3. Screen size (optional)
 
-${selectedProduct 
-  ? `You've selected: **${selectedProduct.name}**\n- Pixel Pitch: ${selectedProduct.pixelPitch}mm\n- Environment: ${selectedProduct.environment}\n- Brightness: ${selectedProduct.brightness} cd/m²`
-  : 'No product selected yet. Based on your configuration, I can help recommend products!'}`;
+Please provide these details, or use the configuration wizard!`;
   }
 
   // Context-aware default response
-  const { workflowStage, currentStep, config, selectedProduct } = context;
+  const { workflowStage, currentStep, config: configState, selectedProduct: selProduct } = context;
   
   let contextSpecificHelp = '';
   
@@ -542,12 +722,12 @@ ${selectedProduct
       dimensions: `Current Step: Setting Dimensions\n\nWhat I need from you:\n1. Enter your display width (e.g., 5 for 5 meters)\n2. Enter your display height (e.g., 3 for 3 meters)\n3. Choose your unit (m, ft, cm, or mm)\n\nOnce you enter these, click "Next" to continue.`,
       viewingDistance: `Current Step: Viewing Distance\n\nEnter how far viewers will typically be from the display (in meters or feet). This helps recommend the right pixel pitch.\n\nExample: For a retail store, typical viewing distance is 3-5 meters.`,
       environment: `Current Step: Environment Selection\n\nChoose:\n- **Indoor**: For indoor installations (shopping malls, offices, restaurants)\n- **Outdoor**: For outdoor installations (building facades, billboards)\n\nThis affects product recommendations and brightness requirements.`,
-      pixelPitch: `Current Step: Pixel Pitch Selection\n\nPixel pitch determines image quality:\n- **Lower pitch** (1.25mm, 1.5mm) = Better quality, closer viewing\n- **Higher pitch** (6.6mm, 10mm) = Lower cost, farther viewing\n\nBased on your viewing distance, I can help you choose.`,
+      pixelPitch: `Current Step: Pixel Pitch Selection\n\nPixel pitch determines image quality:\n- **Lower pitch** (0.9mm, 1.2mm, 1.5mm) = Better quality, closer viewing\n- **Higher pitch** (3.9mm, 4.8mm, 6.6mm) = Lower cost, farther viewing\n\nBased on your viewing distance, I can help you choose.`,
       product: `Current Step: Product Selection\n\nChoose from products that match:\n- Your viewing distance\n- Your environment (Indoor/Outdoor)\n- Your pixel pitch preference\n\nI can help you compare products if needed!`
     };
     contextSpecificHelp = stepHelp[currentStep || ''] || `You're in the configuration wizard. Current step: ${currentStep || 'unknown'}\n\nTell me what you need help with on this step, or ask me about any specific question.`;
   } else if (workflowStage === 'configurator') {
-    contextSpecificHelp = `You're in the Display Configurator. Here's what you can do:\n\n1. **Adjust dimensions** - Modify width, height, or aspect ratio\n2. **Select/change product** - Choose a different product if needed\n3. **View preview** - See how your display will look\n4. **Configure wiring** - Set up data and power connections\n5. **Generate quote** - Get pricing and quotation\n\n${!selectedProduct ? '⚠️ No product selected yet. I recommend selecting a product first.' : `✅ Product: ${selectedProduct.name}\nYou can now configure wiring and generate a quote.`}`;
+    contextSpecificHelp = `You're in the Display Configurator. Here's what you can do:\n\n1. **Adjust dimensions** - Modify width, height, or aspect ratio\n2. **Select/change product** - Choose a different product if needed\n3. **View preview** - See how your display will look\n4. **Configure wiring** - Set up data and power connections\n5. **Generate quote** - Get pricing and quotation\n\n${!selProduct ? '⚠️ No product selected yet. I recommend selecting a product first.' : `✅ Product: ${selProduct.name}\nYou can now configure wiring and generate a quote.`}`;
   }
   
   // Default helpful response with context
@@ -562,6 +742,125 @@ ${selectedProduct
   response += '\n\nWhat specific help do you need right now?';
   
   return response;
+}
+
+/**
+ * Detect errors and misconfigurations in current state
+ */
+export function detectErrors(context: ChatbotContext): string[] {
+  const errors: string[] = [];
+  const { config, selectedProduct } = context;
+
+  // Check for missing dimensions
+  if (config.width <= 0 || config.height <= 0) {
+    errors.push('Display dimensions are not set. Please enter valid width and height values.');
+  }
+
+  // Check for unrealistic dimensions
+  if (config.width > 0 && config.height > 0) {
+    const areaM2 = (config.width * config.height) / 1_000_000;
+    if (areaM2 < 0.01) {
+      errors.push('Display size is very small. Please verify your dimensions.');
+    }
+    if (areaM2 > 1000) {
+      errors.push('Display size seems very large. Please verify your dimensions.');
+    }
+  }
+
+  // Check environment selection
+  if (context.workflowStage === 'wizard' && !config.environment) {
+    errors.push('Environment (Indoor/Outdoor) is not selected. This is required for product recommendations.');
+  }
+
+  // Check product-environment mismatch
+  if (selectedProduct && config.environment) {
+    const productEnv = selectedProduct.environment?.toLowerCase();
+    const configEnv = config.environment.toLowerCase();
+    if (productEnv && !productEnv.includes(configEnv) && !configEnv.includes(productEnv)) {
+      errors.push(`The selected product "${selectedProduct.name}" is designed for ${selectedProduct.environment} environment, but you selected ${config.environment}. Please verify your selection.`);
+    }
+  }
+
+  // Check viewing distance and pixel pitch match
+  if (config.viewingDistance && config.pixelPitch && selectedProduct) {
+    const viewingDistanceM = parseFloat(config.viewingDistance);
+    if (!isNaN(viewingDistanceM)) {
+      const unitMultiplier = config.viewingDistanceUnit === 'feet' ? 0.3048 : 1;
+      const distanceM = viewingDistanceM * unitMultiplier;
+      const recommendedPitches = recommendPixelPitchByViewingDistance(config.viewingDistance, config.viewingDistanceUnit);
+      
+      if (recommendedPitches.length > 0 && !recommendedPitches.some(p => Math.abs(p - config.pixelPitch!) < 0.1)) {
+        errors.push(`Viewing distance (${config.viewingDistance} ${config.viewingDistanceUnit}) may not match ${config.pixelPitch}mm pixel pitch. Recommended pitches for this distance: ${recommendedPitches.join('mm, ')}mm.`);
+      }
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Call Gemini API to generate AI response (fallback)
+ */
+async function callGeminiAPI(
+  userMessage: string,
+  context: ChatbotContext
+): Promise<string | null> {
+  if (!GEMINI_API_KEY) {
+    return null; // No API key, fall back to rule-based
+  }
+
+  try {
+    const recentHistory = context.conversationHistory
+      .slice(-MAX_CONVERSATION_HISTORY)
+      .filter(msg => msg.role !== 'system');
+
+    const conversationParts: any[] = [];
+    
+    let firstUserMessage = true;
+    
+    for (const msg of recentHistory) {
+      if (msg.role === 'user') {
+        conversationParts.push({ role: 'user', parts: [{ text: msg.content }] });
+        firstUserMessage = false;
+      } else if (msg.role === 'assistant') {
+        conversationParts.push({ role: 'model', parts: [{ text: msg.content }] });
+      }
+    }
+
+    conversationParts.push({ role: 'user', parts: [{ text: userMessage }] });
+
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: conversationParts,
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (generatedText) {
+      return generatedText.trim();
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    return null;
+  }
 }
 
 /**
