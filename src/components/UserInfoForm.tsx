@@ -8,6 +8,8 @@ interface UserInfo {
   projectTitle: string;
   address: string;
   userType: 'End User' | 'Reseller' | 'Channel';
+  paymentTerms?: string;
+  warranty?: string;
 }
 
 interface UserInfoFormProps {
@@ -50,7 +52,9 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
       phoneNumber: '',
       projectTitle: '',
       address: '',
-      userType: 'End User'
+      userType: 'End User',
+      paymentTerms: '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation',
+      warranty: 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier. Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.'
     }
   );
   const [errors, setErrors] = useState<Partial<UserInfo>>({});
@@ -143,7 +147,16 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
       await onSubmit(formData);
       // Only reset form if not in edit mode
       if (!isEditMode) {
-        setFormData({ fullName: '', email: '', phoneNumber: '', projectTitle: '', address: '', userType: 'End User' });
+        setFormData({ 
+          fullName: '', 
+          email: '', 
+          phoneNumber: '', 
+          projectTitle: '', 
+          address: '', 
+          userType: 'End User',
+          paymentTerms: '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation',
+          warranty: 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier. Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.'
+        });
       }
       setErrors({});
     } catch (error) {
@@ -438,6 +451,43 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Terms and Conditions Fields - Only for sales users */}
+          {salesUser && (
+            <div className="pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-700 mb-4">Terms & Conditions</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="paymentTerms" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Payment Terms
+                  </label>
+                  <textarea
+                    id="paymentTerms"
+                    value={formData.paymentTerms || ''}
+                    onChange={(e) => handleInputChange('paymentTerms', e.target.value)}
+                    placeholder="Enter payment terms"
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="warranty" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Warranty
+                  </label>
+                  <textarea
+                    id="warranty"
+                    value={formData.warranty || ''}
+                    onChange={(e) => handleInputChange('warranty', e.target.value)}
+                    placeholder="Enter warranty details"
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                  />
+                </div>
+              </div>
             </div>
           )}
 
