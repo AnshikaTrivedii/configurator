@@ -24,6 +24,14 @@ export interface PricingCalculationResult {
   processorGST: number;
   processorTotal: number;
   
+  // Structure and Installation pricing (separate fields)
+  structureCost: number;
+  structureGST: number;
+  structureTotal: number;
+  installationCost: number;
+  installationGST: number;
+  installationTotal: number;
+  
   // Grand total
   grandTotal: number;
   
@@ -174,6 +182,35 @@ function calculateQuantity(
 }
 
 /**
+ * Calculate Structure Cost based on area and rate
+ * @param area - Screen area in square feet
+ * @param rate - Rate per square foot (default: ₹2500/sqft)
+ * @returns Base structure cost (before GST)
+ */
+export function calculateStructureCost(area: number, rate: number = 2500): number {
+  return Math.round((area * rate) * 100) / 100;
+}
+
+/**
+ * Calculate Installation Cost
+ * @param area - Screen area in square feet (used if type is 'per_sqft')
+ * @param type - 'fixed' for flat amount or 'per_sqft' for per square foot
+ * @param value - Fixed amount or rate per square foot (default: ₹500/sqft)
+ * @returns Base installation cost (before GST)
+ */
+export function calculateInstallationCost(
+  area: number, 
+  type: 'fixed' | 'per_sqft' = 'per_sqft', 
+  value: number = 500
+): number {
+  if (type === 'fixed') {
+    return Math.round(value * 100) / 100;
+  } else {
+    return Math.round((area * value) * 100) / 100;
+  }
+}
+
+/**
  * CENTRALIZED PRICING CALCULATION FUNCTION
  * 
  * This function calculates prices with consistent rounding and is used by:
@@ -188,7 +225,13 @@ export function calculateCentralizedPricing(
   cabinetGrid: { columns: number; rows: number } | null,
   processor: string | null,
   userType: string,
-  config: { width: number; height: number; unit: string }
+  config: { width: number; height: number; unit: string },
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+    installationType?: 'fixed' | 'per_sqft';
+  }
 ): PricingCalculationResult {
   try {
     // Convert userType to match processor pricing format
@@ -220,6 +263,12 @@ export function calculateCentralizedPricing(
         processorPrice: 0,
         processorGST: 0,
         processorTotal: 0,
+        structureCost: 0,
+        structureGST: 0,
+        structureTotal: 0,
+        installationCost: 0,
+        installationGST: 0,
+        installationTotal: 0,
         grandTotal: 0,
         userType: pdfUserType,
         productName: product.name,
@@ -252,8 +301,43 @@ export function calculateCentralizedPricing(
     const processorGST = Math.round((processorPrice * 0.18) * 100) / 100;
     const processorTotal = Math.round((processorPrice + processorGST) * 100) / 100;
     
+    // Calculate screen area in square feet for Structure and Installation pricing
+    const METERS_TO_FEET = 3.2808399;
+    const widthInMeters = config.width / 1000;
+    const heightInMeters = config.height / 1000;
+    const widthInFeet = widthInMeters * METERS_TO_FEET;
+    const heightInFeet = heightInMeters * METERS_TO_FEET;
+    const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
+    
+    // Calculate Structure and Installation costs separately
+    let structureBasePrice: number;
+    let installationBasePrice: number;
+    
+    if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
+      // Use custom pricing (base prices without GST)
+      structureBasePrice = customPricing.structurePrice;
+      // Check if installation is fixed or per sqft
+      if (customPricing.installationType === 'fixed') {
+        installationBasePrice = customPricing.installationPrice;
+      } else {
+        installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', customPricing.installationPrice);
+      }
+    } else {
+      // Default calculation: Structure Price: ₹2500 per square foot, Installation Price: ₹500 per square foot
+      structureBasePrice = calculateStructureCost(screenAreaSqFt, 2500);
+      installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 500);
+    }
+    
+    // Calculate GST on structure and installation (always 18%)
+    const structureGST = Math.round((structureBasePrice * 0.18) * 100) / 100;
+    const structureTotal = Math.round((structureBasePrice + structureGST) * 100) / 100;
+    
+    const installationGST = Math.round((installationBasePrice * 0.18) * 100) / 100;
+    const installationTotal = Math.round((installationBasePrice + installationGST) * 100) / 100;
+    
     // Calculate Grand Total - ROUND TO NEAREST RUPEE
-    const grandTotal = Math.round(productTotal + processorTotal);
+    // Grand Total = Product Total + Processor Total + Structure Total + Installation Total
+    const grandTotal = Math.round(productTotal + processorTotal + structureTotal + installationTotal);
     
     const result: PricingCalculationResult = {
       unitPrice,
@@ -264,6 +348,12 @@ export function calculateCentralizedPricing(
       processorPrice,
       processorGST,
       processorTotal,
+      structureCost: structureBasePrice,
+      structureGST,
+      structureTotal,
+      installationCost: installationBasePrice,
+      installationGST,
+      installationTotal,
       grandTotal,
       userType: pdfUserType,
       productName: product.name,
@@ -287,6 +377,12 @@ export function calculateCentralizedPricing(
       processorPrice,
       processorGST,
       processorTotal,
+      structureCost: structureBasePrice,
+      structureGST,
+      structureTotal,
+      installationCost: installationBasePrice,
+      installationGST,
+      installationTotal,
       grandTotal,
       breakdown: {
         'Unit Price (per sq.ft)': unitPrice,
@@ -297,7 +393,13 @@ export function calculateCentralizedPricing(
         'Processor Price': processorPrice,
         'Processor GST (18%)': processorGST,
         'Processor Total (B)': processorTotal,
-        'GRAND TOTAL (A+B) with GST': grandTotal
+        'Structure Cost (Base)': structureBasePrice,
+        'Structure GST (18%)': structureGST,
+        'Structure Total': structureTotal,
+        'Installation Cost (Base)': installationBasePrice,
+        'Installation GST (18%)': installationGST,
+        'Installation Total': installationTotal,
+        'GRAND TOTAL (A+B+C+D) with GST': grandTotal
       }
     });
     
@@ -315,6 +417,12 @@ export function calculateCentralizedPricing(
       processorPrice: 0,
       processorGST: 0,
       processorTotal: 0,
+      structureCost: 0,
+      structureGST: 0,
+      structureTotal: 0,
+      installationCost: 0,
+      installationGST: 0,
+      installationTotal: 0,
       grandTotal: 6254,
       userType: 'End User',
       productName: product.name,

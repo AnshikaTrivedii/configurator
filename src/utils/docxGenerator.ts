@@ -430,11 +430,7 @@ export const generateConfigurationHtml = (
   const installationGST = installationBasePrice * 0.18;
   const totalInstallation = installationBasePrice + installationGST;
   
-  const combinedStructureInstallationBase = structureBasePrice + installationBasePrice;
-  const combinedStructureInstallationGST = structureGST + installationGST;
-  const combinedStructureInstallationTotal = totalStructure + totalInstallation;
-  
-  // Update grand total to include Structure and Installation
+  // Update grand total to include Structure and Installation (separate, never combined)
   const grandTotal = totalProduct + totalController + totalStructure + totalInstallation;
 
   // Format Indian number with clean formatting
@@ -839,36 +835,62 @@ export const generateConfigurationHtml = (
             </div>
             ` : ''}
             
-            <!-- Structure and Installation Price Section (shown for all products) -->
+            <!-- Structure and Installation Price Section (shown for all products) - SEPARATE ROWS -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
                     C. STRUCTURE AND INSTALLATION PRICE
                 </h2>
                 
-                <div class="quotation-grid" style="grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; align-items: stretch;">
-            <div class="quotation-card" style="display: flex; flex-direction: column;">
-                    <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">STRUCTURE + INSTALLATION TOTAL</h4>
-                    <div style="flex: 1; display: flex; flex-direction: column;">
-                        <div class="quotation-row">
-                            <span class="quotation-label">Total Area:</span>
-                            <span class="quotation-value">${screenAreaSqFt.toFixed(2)} Ft²</span>
-                        </div>
-                        <div class="quotation-row">
-                            <span class="quotation-label">Combined Base Cost:</span>
-                            <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(combinedStructureInstallationBase)}</span>
-                        </div>
-                        <div class="quotation-row">
-                            <span class="quotation-label">Combined GST (18%):</span>
-                            <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(combinedStructureInstallationGST)}</span>
-                        </div>
-                        <div class="quotation-total-row" style="margin-top: auto;">
-                            <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 4px 2px; border-bottom: none;">
-                                <span style="font-weight: 700; color: #333; font-size: 12px; text-align: left;">TOTAL:</span>
-                                <span style="color: #333; font-weight: 700; font-size: 12px; text-align: right; white-space: nowrap;">₹${formatIndianNumber(combinedStructureInstallationTotal)}</span>
+                <div class="quotation-grid" style="grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch;">
+                    <!-- Structure Cost Card -->
+                    <div class="quotation-card" style="display: flex; flex-direction: column;">
+                        <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">STRUCTURE COST</h4>
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            <div class="quotation-row">
+                                <span class="quotation-label">Area:</span>
+                                <span class="quotation-value">${screenAreaSqFt.toFixed(2)} Ft²</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Base Cost:</span>
+                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(structureBasePrice)}</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">GST (18%):</span>
+                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(structureGST)}</span>
                             </div>
                         </div>
                     </div>
-            </div>
+                    
+                    <!-- Installation Cost Card -->
+                    <div class="quotation-card" style="display: flex; flex-direction: column;">
+                        <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">INSTALLATION COST</h4>
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            <div class="quotation-row">
+                                <span class="quotation-label">Area:</span>
+                                <span class="quotation-value">${screenAreaSqFt.toFixed(2)} Ft²</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Base Cost:</span>
+                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(installationBasePrice)}</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">GST (18%):</span>
+                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(installationGST)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Combined Total Row for Structure + Installation (positioned at bottom right, aligned with Installation Cost card) -->
+                <div style="margin-top: 4px; display: flex; justify-content: flex-end;">
+                    <div class="quotation-card" style="display: flex; flex-direction: column; padding: 5px 6px; width: calc(50% - 4px);">
+                        <div class="quotation-total-row" style="padding: 5px 6px; margin-top: 0; min-height: 35px;">
+                            <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; padding: 3px 2px; border-bottom: none;">
+                                <span style="font-weight: 700; color: #333; font-size: 11px; text-align: left;">STRUCTURE + INSTALLATION TOTAL:</span>
+                                <span style="color: #333; font-weight: 700; font-size: 11px; text-align: right; white-space: nowrap;">₹${(totalStructure + totalInstallation).toLocaleString('en-IN')}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -876,7 +898,7 @@ export const generateConfigurationHtml = (
             <div class="quotation-section" style="background: rgba(51, 51, 51, 0.95); color: white; padding: 5px 8px; border-radius: 3px; margin: 3px 0 0 0; text-align: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); width: 100%; min-height: auto;">
                 <h2 style="margin: 0 0 2px 0; font-size: 13px; font-weight: bold; line-height: 1.1;">GRAND TOTAL</h2>
                 <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatIndianNumber(grandTotal)}</p>
-                ${!isJumboSeries ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C)</p>` : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + C)</p>`}
+                ${!isJumboSeries ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Structure + Installation)</p>` : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + C = Product + Structure + Installation)</p>`}
             </div>
             </div>
         </div>
@@ -933,15 +955,19 @@ export const generateConfigurationPdf = async (
   document.body.appendChild(container);
 
   // Wait for images to load to avoid blank canvases
+  // Use Promise.race with timeout to avoid long waits
   const allImages = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
   await Promise.all(
     allImages.map(img =>
       img.complete
         ? Promise.resolve()
-        : new Promise<void>(resolve => {
-            img.onload = () => resolve();
-            img.onerror = () => resolve();
-          })
+        : Promise.race([
+            new Promise<void>(resolve => {
+              img.onload = () => resolve();
+              img.onerror = () => resolve();
+            }),
+            new Promise<void>(resolve => setTimeout(resolve, 2000)) // 2 second timeout per image
+          ])
     )
   );
 
@@ -950,11 +976,14 @@ export const generateConfigurationPdf = async (
   const pageWidthMM = 210;
   const pageHeightMM = 297;
 
+  // Process all pages with minimal delays
   for (let i = 0; i < pages.length; i++) {
     const pageEl = pages[i];
     
-    // Wait a bit for layout to stabilize
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Minimal delay only for first page to ensure initial layout, then process quickly
+    if (i === 0) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
     
     // For page 6 (quotation page), ensure content fits within A4
     if (pageEl.classList.contains('page-bg') && pageEl.querySelector('.quotation-overlay')) {
@@ -993,8 +1022,10 @@ export const generateConfigurationPdf = async (
       }
     }
     
+    // Optimized html2canvas settings for faster processing
+    // Reduced scale from 2 to 1.5 for better performance while maintaining quality
     const canvas = await html2canvas(pageEl, {
-      scale: 2,
+      scale: 1.5, // Reduced from 2 for faster processing
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
@@ -1003,9 +1034,12 @@ export const generateConfigurationPdf = async (
       height: pageEl.offsetHeight,
       width: pageEl.offsetWidth,
       allowTaint: false,
+      removeContainer: false, // Keep container for faster processing
     });
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    // Reduced JPEG quality from 0.95 to 0.85 for faster processing and smaller file size
+    // Quality 0.85 is still excellent for PDFs
+    const imgData = canvas.toDataURL('image/jpeg', 0.85);
     if (i > 0) pdf.addPage();
     
     // Always fit to A4 dimensions exactly (210mm x 297mm)

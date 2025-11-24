@@ -4,14 +4,17 @@ import { SalesLoginModal } from './components/SalesLoginModal';
 import { LandingPage } from './components/LandingPage';
 import { ConfigurationWizard } from './components/ConfigurationWizard';
 import { SalesDashboard } from './components/SalesDashboard';
+import { Chatbot } from './components/Chatbot';
 import { SalesUser, salesAPI } from './api/sales';
 import { Product } from './types';
 import { useDisplayConfig } from './contexts/DisplayConfigContext';
+import { useChatbot } from './contexts/ChatbotContext';
 
 type UserRole = 'normal' | 'sales' | 'super' | 'super_admin';
 
 function App() {
   const { updateDimensions, updateConfig } = useDisplayConfig();
+  const { setWorkflowStage, setUserRole: setChatbotUserRole } = useChatbot();
   const [userRole, setUserRole] = useState<UserRole>('normal');
   const [salesUser, setSalesUser] = useState<SalesUser | null>(null);
   const [showSalesLogin, setShowSalesLogin] = useState(false);
@@ -167,6 +170,7 @@ function App() {
       entryMode: 'guided',
       directProductMode: false
     });
+    setWorkflowStage('wizard');
     setShowWizard(true);
   };
 
@@ -175,6 +179,7 @@ function App() {
     setShowLandingPage(false);
     setShowWizard(false);
     setInitialConfig(null); // No initial config for direct product selection
+    setWorkflowStage('configurator');
     updateConfig({
       entryMode: 'direct',
       directProductMode: true,
@@ -209,6 +214,22 @@ function App() {
     setShowWizard(false);
   };
 
+  // Update chatbot user role when it changes
+  useEffect(() => {
+    setChatbotUserRole(userRole);
+  }, [userRole, setChatbotUserRole]);
+
+  // Update chatbot workflow stage
+  useEffect(() => {
+    if (showLandingPage) {
+      setWorkflowStage('landing');
+    } else if (showWizard) {
+      setWorkflowStage('wizard');
+    } else if (!showLandingPage && !showWizard) {
+      setWorkflowStage('configurator');
+    }
+  }, [showLandingPage, showWizard, setWorkflowStage]);
+
   // Route to correct view based on user role
   // Sales users go directly to the LED Configurator (DisplayConfigurator)
   // Super admin users go to Admin Dashboard (SuperUserDashboard)
@@ -236,6 +257,7 @@ function App() {
               setShowDashboard(false);
             }}
           />
+          <Chatbot />
         </>
       );
     }
@@ -259,6 +281,7 @@ function App() {
             showDashboard={false}
             onDashboardClose={() => {}}
           />
+          <Chatbot />
         </>
       );
     }
@@ -282,6 +305,7 @@ function App() {
           onClose={() => setShowWizard(false)}
           onComplete={handleWizardComplete}
         />
+        <Chatbot />
       </>
     );
   }
@@ -302,6 +326,7 @@ function App() {
         showDashboard={showDashboard}
         onDashboardClose={() => setShowDashboard(false)}
       />
+      <Chatbot />
     </>
   );
 }

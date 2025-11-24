@@ -24,12 +24,14 @@ function calculateCorrectTotalPrice(
 ): number | null {
   try {
     // Use centralized pricing calculation for 100% consistency
+    // Pass customPricing to centralized pricing function which now handles structure and installation separately
     const pricingResult = calculateCentralizedPricing(
       product,
       cabinetGrid,
       processor,
       userType,
-      config
+      config,
+      customPricing
     );
     
     // Check if price is available
@@ -42,46 +44,23 @@ function calculateCorrectTotalPrice(
       return null;
     }
     
-    // Calculate screen area in square feet for Structure and Installation pricing
-    const widthInMeters = config.width / 1000;
-    const heightInMeters = config.height / 1000;
-    const widthInFeet = widthInMeters * METERS_TO_FEET;
-    const heightInFeet = heightInMeters * METERS_TO_FEET;
-    const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
-    
-    // Structure and Installation pricing - use custom if enabled, otherwise use default calculation
-    let structureBasePrice: number;
-    let installationBasePrice: number;
-    
-    if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
-      // Use custom pricing (base prices without GST)
-      structureBasePrice = customPricing.structurePrice;
-      installationBasePrice = customPricing.installationPrice;
-    } else {
-      // Default calculation: Structure Price: ₹2500 per square foot, Installation Price: ₹500 per square foot
-      structureBasePrice = screenAreaSqFt * 2500;
-      installationBasePrice = screenAreaSqFt * 500;
-    }
-    
-    // Calculate GST on structure and installation (always 18%)
-    const structureGST = structureBasePrice * 0.18;
-    const totalStructure = structureBasePrice + structureGST;
-    
-    const installationGST = installationBasePrice * 0.18;
-    const totalInstallation = installationBasePrice + installationGST;
-    
-    // Add Structure and Installation to grand total
-    const grandTotal = pricingResult.grandTotal + totalStructure + totalInstallation;
+    // Structure and Installation are now calculated separately in centralized pricing function
+    // The grand total already includes them separately - never combined
+    const grandTotal = pricingResult.grandTotal;
     
     console.log('💰 PdfViewModal - Using Centralized Calculation:', {
       product: product.name,
       userType: pricingResult.userType,
-      baseGrandTotal: pricingResult.grandTotal,
-      structureTotal: totalStructure,
-      installationTotal: totalInstallation,
+      baseGrandTotal: pricingResult.productTotal + pricingResult.processorTotal,
+      structureCost: pricingResult.structureCost,
+      structureGST: pricingResult.structureGST,
+      structureTotal: pricingResult.structureTotal,
+      installationCost: pricingResult.installationCost,
+      installationGST: pricingResult.installationGST,
+      installationTotal: pricingResult.installationTotal,
       finalGrandTotal: grandTotal,
       customPricing: customPricing?.enabled ? 'Enabled' : 'Disabled',
-      note: 'Using centralized pricing function + Structure + Installation'
+      note: 'Using centralized pricing function with Structure (separate) + Installation (separate)'
     });
     
     return Math.round(grandTotal);
@@ -327,10 +306,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       
       // Automatically download PDF after successful save
       if (saveSuccessful) {
-        // Small delay to ensure save is complete
-        setTimeout(() => {
-          onDownload();
-        }, 500);
+        // Start download immediately - no delay needed
+        onDownload();
       }
       
       // Clear success message after 3 seconds
@@ -361,10 +338,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           
           // Automatically download PDF after successful save
           if (saveSuccessful) {
-            // Small delay to ensure save is complete
-            setTimeout(() => {
-              onDownload();
-            }, 500);
+            // Start download immediately - no delay needed
+            onDownload();
           }
           
           // Clear success message after 3 seconds

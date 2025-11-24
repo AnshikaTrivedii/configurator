@@ -4,6 +4,7 @@ import { Product } from '../types';
 import { products } from '../data/products';
 import { getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistanceRange } from '../utils/viewingDistanceRanges';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
+import { useChatbot } from '../contexts/ChatbotContext';
 
 interface ConfigurationWizardProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   onComplete
 }) => {
   const { updateDimensions, updateConfig } = useDisplayConfig();
+  const { setCurrentStep: setChatbotCurrentStep } = useChatbot();
   const [currentStep, setCurrentStep] = useState<Step>('dimensions');
   const [width, setWidth] = useState<string>('');
   const [height, setHeight] = useState<string>('');
@@ -87,15 +89,26 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 
   const handleNext = () => {
     if (currentStepIndex < steps.length - 1) {
-      setCurrentStep(steps[currentStepIndex + 1].key);
+      const nextStep = steps[currentStepIndex + 1].key;
+      setCurrentStep(nextStep);
+      setChatbotCurrentStep(nextStep);
     }
   };
 
   const handleBack = () => {
     if (currentStepIndex > 0) {
-      setCurrentStep(steps[currentStepIndex - 1].key);
+      const prevStep = steps[currentStepIndex - 1].key;
+      setCurrentStep(prevStep);
+      setChatbotCurrentStep(prevStep);
     }
   };
+
+  // Sync current step with chatbot
+  useEffect(() => {
+    if (isOpen) {
+      setChatbotCurrentStep(currentStep);
+    }
+  }, [currentStep, isOpen, setChatbotCurrentStep]);
 
   const handleComplete = () => {
     if (selectedProduct && width && height) {
