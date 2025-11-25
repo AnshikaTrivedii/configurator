@@ -9,6 +9,7 @@ import { SalesUser, salesAPI } from './api/sales';
 import { Product } from './types';
 import { useDisplayConfig } from './contexts/DisplayConfigContext';
 import { useChatbot } from './contexts/ChatbotContext';
+import { Theater } from 'lucide-react';
 
 type UserRole = 'normal' | 'sales' | 'super' | 'super_admin';
 
@@ -280,6 +281,7 @@ function App() {
             initialConfig={null}
             showDashboard={false}
             onDashboardClose={() => {}}
+           
           />
           <Chatbot />
         </>
