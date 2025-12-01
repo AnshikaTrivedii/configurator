@@ -653,7 +653,7 @@ export const products: Product[] = [
   // Rigel Series Outdoor P2.5
   {
     id: 'rigel-p2.5-outdoor',
-    name: 'Orion P2.5 Outdoor Rigel Series',
+    name: 'Rigel Series Outdoor SMD P2.5',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Outdoor P2.5.png',
@@ -678,7 +678,7 @@ export const products: Product[] = [
   // Rigel Series Outdoor P3
   {
     id: 'rigel-p3-outdoor',
-    name: 'Orion P3 Outdoor Rigel Series',
+    name: 'Rigel Series Outdoor P3',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Outdoor P3.png',
@@ -703,7 +703,7 @@ export const products: Product[] = [
   // Rigel Series Outdoor P4
   {
     id: 'rigel-p4-outdoor',
-    name: 'Orion P4 Outdoor Rigel Series',
+    name: 'Rigel Series Outdoor P4',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Outdoor P4.png',
@@ -728,7 +728,7 @@ export const products: Product[] = [
   // Rigel Series Outdoor P6.6
   {
     id: 'rigel-p6.6-outdoor',
-    name: 'Orion P6.6 Outdoor Rigel Series',
+    name: 'Rigel Series Outdoor P6.6',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Outdoor P6.6.png',
@@ -753,7 +753,7 @@ export const products: Product[] = [
   // Rigel Series Outdoor P10
   {
     id: 'rigel-p10-outdoor',
-    name: 'Orion P10 Outdoor Rigel Series',
+    name: 'Rigel Series Outdoor P10',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Outdoor P10.png',
@@ -778,7 +778,7 @@ export const products: Product[] = [
   // Rigel Series P0.9 (COB)
   {
     id: 'rigel-cob-p0.9',
-    name: 'Orion Rigel Indoor COB P0.9',
+    name: 'Rigel Series Indoor COB P0.9',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Indoor P0.9.jpg',
@@ -804,7 +804,7 @@ export const products: Product[] = [
   // Rigel Series P1.25 (COB)
   {
     id: 'rigel-cob-p1.25',
-    name: 'Orion Rigel Indoor COB P1.25',
+    name: 'Rigel Series Indoor COB P1.25',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Indoor P1.25.jpg',
@@ -829,7 +829,7 @@ export const products: Product[] = [
   // Rigel Series SMD P1.25
   {
     id: 'rigel-smd-p1.25',
-    name: 'Rigel Indoor SMD P1.25',
+    name: 'Rigel Series Indoor SMD P1.25',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Indoor SMD P1.25.jpg',
@@ -854,7 +854,7 @@ export const products: Product[] = [
   // Rigel Series P1.5 (COB)
   {
     id: 'rigel-cob-p1.5',
-    name: 'Rigel Indoor COB P1.5',
+    name: 'Rigel Series Indoor COB P1.5',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Indoor P1.5.jpg',
@@ -879,7 +879,7 @@ export const products: Product[] = [
   // Rigel Series SMD P1.5
   {
     id: 'rigel-smd-p1.5',
-    name: 'Rigel Indoor SMD P1.5',
+    name: 'Rigel Series Indoor SMD P1.5',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Indoor SMD P1.5.jpg',
@@ -904,7 +904,7 @@ export const products: Product[] = [
   // Rigel Series SMD P1.8
   {
     id: 'rigel-smd-p1.8',
-    name: 'Rigel Indoor SMD P1.8',
+    name: 'Rigel Series Indoor SMD P1.8',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Indoor P1.8.jpg',
@@ -929,7 +929,7 @@ export const products: Product[] = [
   // Rigel Series SMD P2.5
   {
     id: 'rigel-smd-p2.5',
-    name: 'Rigel Indoor SMD P2.5',
+    name: 'Rigel Series Indoor SMD P2.5',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Indoor SMD P2.5.jpg',
@@ -954,7 +954,7 @@ export const products: Product[] = [
   // Rigel Series Outdoor P2.5
   {
     id: 'rigel-p2.5-outdoor',
-    name: 'Orion P2.5 Outdoor Rigel Series',
+    name: 'Rigel Series Outdoor SMD P2.5',
     category: 'Rigel Series',
     enabled: true,
     image: '/products/rigel-series/Outdoor P2.5.png',
