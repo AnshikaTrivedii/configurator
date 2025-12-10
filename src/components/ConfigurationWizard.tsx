@@ -30,7 +30,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 }) => {
   const { updateDimensions, updateConfig } = useDisplayConfig();
   const { setCurrentStep: setChatbotCurrentStep } = useChatbot();
-  const [currentStep, setCurrentStep] = useState<Step>('dimensions');
+  const [currentStep, setCurrentStep] = useState<Step>('environment');
   const [width, setWidth] = useState<string>('');
   const [height, setHeight] = useState<string>('');
   const [unit, setUnit] = useState<'mm' | 'cm' | 'm' | 'ft'>('m');
@@ -41,10 +41,10 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const steps: { key: Step; label: string }[] = [
-    { key: 'dimensions', label: 'Dimensions' },
-    { key: 'viewingDistance', label: 'Viewing Distance' },
     { key: 'environment', label: 'Environment' },
+    { key: 'viewingDistance', label: 'Viewing Distance' },
     { key: 'pixelPitch', label: 'Pixel Pitch' },
+    { key: 'dimensions', label: 'Dimensions' },
     { key: 'product', label: 'Product' }
   ];
 
@@ -53,7 +53,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   // Reset wizard when opened
   useEffect(() => {
     if (isOpen) {
-      setCurrentStep('dimensions');
+      setCurrentStep('environment');
       setWidth('');
       setHeight('');
       setUnit('m');
@@ -121,16 +121,55 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       const widthBack = convertFromMM(widthMM, unit);
       const heightBack = convertFromMM(heightMM, unit);
       
-      console.log('🎯 Wizard Complete - Passing dimensions:', {
-        originalWidth: widthValue,
-        originalHeight: heightValue,
-        originalUnit: unit,
-        widthMM,
-        heightMM,
-        widthBack: widthBack.toFixed(4),
-        heightBack: heightBack.toFixed(4),
-        widthMatch: Math.abs(widthValue - widthBack) < 0.0001,
-        heightMatch: Math.abs(heightValue - heightBack) < 0.0001
+      // Validate product matches wizard selections
+      const productEnv = selectedProduct.environment?.toLowerCase().trim();
+      const selectedEnv = environment?.toLowerCase().trim();
+      const envMatch = !environment || productEnv === selectedEnv;
+      
+      const pitchMatch = pixelPitch === null || Math.abs(selectedProduct.pixelPitch - pixelPitch) < 0.3;
+      
+      if (!envMatch) {
+        console.warn('⚠️ Product environment mismatch:', {
+          selected: environment,
+          product: selectedProduct.environment,
+          productName: selectedProduct.name
+        });
+      }
+      
+      if (!pitchMatch) {
+        console.warn('⚠️ Product pixel pitch mismatch:', {
+          selected: pixelPitch,
+          product: selectedProduct.pixelPitch,
+          productName: selectedProduct.name
+        });
+      }
+      
+      console.log('🎯 Wizard Complete - Passing data:', {
+        dimensions: {
+          originalWidth: widthValue,
+          originalHeight: heightValue,
+          originalUnit: unit,
+          widthMM,
+          heightMM,
+          widthBack: widthBack.toFixed(4),
+          heightBack: heightBack.toFixed(4),
+          widthMatch: Math.abs(widthValue - widthBack) < 0.0001,
+          heightMatch: Math.abs(heightValue - heightBack) < 0.0001
+        },
+        filters: {
+          environment,
+          viewingDistance,
+          viewingDistanceUnit,
+          pixelPitch
+        },
+        product: {
+          id: selectedProduct.id,
+          name: selectedProduct.name,
+          environment: selectedProduct.environment,
+          pixelPitch: selectedProduct.pixelPitch,
+          envMatch,
+          pitchMatch
+        }
       });
       
       onComplete({
@@ -203,20 +242,49 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     }
   };
 
-  // Get available pixel pitches based on viewing distance
-  // If no viewing distance, show all unique pixel pitches from products (filtered by environment if selected)
-  const availablePixelPitches = viewingDistance
-    ? getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit)
-    : (() => {
-        // Get all unique pixel pitches from enabled products matching the environment
-        const uniquePitches = new Set<number>();
-        products.forEach(product => {
-          if (product.enabled !== false && (!environment || product.environment?.toLowerCase().trim() === environment.toLowerCase().trim())) {
-            uniquePitches.add(product.pixelPitch);
-          }
+  // Get available pixel pitches based on viewing distance and environment
+  // Priority: viewing distance recommendations, then filter by environment if selected
+  const availablePixelPitches = (() => {
+    let pitches: number[] = [];
+    
+    if (viewingDistance) {
+      // Get pitches recommended for viewing distance
+      pitches = getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit);
+    } else {
+      // If no viewing distance, get all unique pixel pitches from enabled products
+      const uniquePitches = new Set<number>();
+      products.forEach(product => {
+        if (product.enabled !== false) {
+          uniquePitches.add(product.pixelPitch);
+        }
+      });
+      pitches = Array.from(uniquePitches).sort((a, b) => a - b);
+    }
+    
+    // Filter by environment if selected (applies to both viewing distance recommendations and all pitches)
+    if (environment && pitches.length > 0) {
+      const envFilteredPitches = new Set<number>();
+      const normalizedEnv = environment.toLowerCase().trim();
+      
+      pitches.forEach(pitch => {
+        // Check if any product with this pitch matches the environment
+        const hasMatchingProduct = products.some(product => {
+          if (product.enabled === false) return false;
+          const productEnv = product.environment?.toLowerCase().trim();
+          const pitchMatch = Math.abs(product.pixelPitch - pitch) < 0.3;
+          return pitchMatch && productEnv === normalizedEnv;
         });
-        return Array.from(uniquePitches).sort((a, b) => a - b);
-      })();
+        
+        if (hasMatchingProduct) {
+          envFilteredPitches.add(pitch);
+        }
+      });
+      
+      pitches = Array.from(envFilteredPitches).sort((a, b) => a - b);
+    }
+    
+    return pitches;
+  })();
 
   // Filter products based on selections (only enabled products)
   const filteredProducts = products.filter(product => {
@@ -308,61 +376,33 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Step 1: Dimensions */}
-          {currentStep === 'dimensions' && (
+          {/* Step 1: Environment */}
+          {currentStep === 'environment' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Enter Display Dimensions</h3>
-                <p className="text-gray-600">Specify the width and height of your LED display</p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Width</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      value={width}
-                      onChange={(e) => setWidth(e.target.value)}
-                      placeholder="0"
-                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Height</label>
-                  <input
-                    type="number"
-                    value={height}
-                    onChange={(e) => setHeight(e.target.value)}
-                    placeholder="0"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Select Environment</h3>
+                <p className="text-gray-600">Where will the display be installed?</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Unit</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {(['mm', 'cm', 'm', 'ft'] as const).map((u) => (
-                    <button
-                      key={u}
-                      onClick={() => setUnit(u)}
-                      className={`px-4 py-3 rounded-lg font-medium transition-all ${
-                        unit === u
-                          ? 'bg-blue-600 text-white shadow-lg'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {u}
-                    </button>
-                  ))}
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(['Indoor', 'Outdoor'] as const).map((env) => (
+                  <button
+                    key={env}
+                    onClick={() => setEnvironment(env)}
+                    className={`p-6 rounded-xl border-2 transition-all text-left ${
+                      environment === env
+                        ? 'border-blue-600 bg-blue-50 shadow-lg'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-2xl font-bold mb-2">{env}</div>
+                    <div className="text-sm text-gray-600">
+                      {env === 'Indoor'
+                        ? 'For indoor installations with controlled lighting'
+                        : 'For outdoor installations with weather protection'}
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
           )}
@@ -415,47 +455,28 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
             </div>
           )}
 
-          {/* Step 3: Environment */}
-          {currentStep === 'environment' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Select Environment</h3>
-                <p className="text-gray-600">Where will the display be installed?</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(['Indoor', 'Outdoor'] as const).map((env) => (
-                  <button
-                    key={env}
-                    onClick={() => setEnvironment(env)}
-                    className={`p-6 rounded-xl border-2 transition-all text-left ${
-                      environment === env
-                        ? 'border-blue-600 bg-blue-50 shadow-lg'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="text-2xl font-bold mb-2">{env}</div>
-                    <div className="text-sm text-gray-600">
-                      {env === 'Indoor'
-                        ? 'For indoor installations with controlled lighting'
-                        : 'For outdoor installations with weather protection'}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Pixel Pitch */}
+          {/* Step 3: Pixel Pitch */}
           {currentStep === 'pixelPitch' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Select Pixel Pitch</h3>
                 <p className="text-gray-600">
-                  {viewingDistance 
+                  {viewingDistance && environment
+                    ? `Based on your ${environment.toLowerCase()} environment and viewing distance, here are recommended pixel pitches`
+                    : viewingDistance
                     ? 'Based on your viewing distance, here are recommended pixel pitches'
+                    : environment
+                    ? `Based on your ${environment.toLowerCase()} environment, here are available pixel pitches`
                     : 'Select a pixel pitch (optional - you can skip to see all products)'}
                 </p>
+                {/* Warn if previously selected pixel pitch is no longer valid */}
+                {pixelPitch !== null && !availablePixelPitches.some(p => Math.abs(p - pixelPitch) < 0.3) && (
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800">
+                      ⚠️ Your previously selected pixel pitch (P{pixelPitch}mm) may not be available for the current {environment ? `${environment.toLowerCase()} ` : ''}{viewingDistance ? 'viewing distance ' : ''}selection. Please choose a recommended option below or skip to see all products.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {availablePixelPitches.length > 0 ? (
@@ -518,6 +539,65 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Step 4: Dimensions */}
+          {currentStep === 'dimensions' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Enter Display Dimensions</h3>
+                <p className="text-gray-600">Specify the width and height of your LED display</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Width</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={width}
+                      onChange={(e) => setWidth(e.target.value)}
+                      placeholder="0"
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Height</label>
+                  <input
+                    type="number"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
+                    placeholder="0"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Unit</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {(['mm', 'cm', 'm', 'ft'] as const).map((u) => (
+                    <button
+                      key={u}
+                      onClick={() => setUnit(u)}
+                      className={`px-4 py-3 rounded-lg font-medium transition-all ${
+                        unit === u
+                          ? 'bg-blue-600 text-white shadow-lg'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {u}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
