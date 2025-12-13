@@ -320,7 +320,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         : salesUser?.name;
       if (nameForId) {
         finalQuotationId = await QuotationIdGenerator.generateQuotationId(nameForId);
-        console.log('🆔 Generated new quotationId:', finalQuotationId);
+      console.log('🆔 Generated new quotationId:', finalQuotationId);
       } else {
         setSaveError('Unable to generate quotation ID - missing sales person name');
         setIsSaving(false);
@@ -538,7 +538,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         unitPrice: finalPricingResult.unitPrice,
         quantity: finalPricingResult.quantity,
         subtotal: finalPricingResult.productSubtotal,
-        gstRate: 18,
+          gstRate: 18,
         gstAmount: finalPricingResult.productGST,
         processorPrice: finalPricingResult.processorPrice,
         processorGst: finalPricingResult.processorGST,
@@ -643,10 +643,29 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           link.click();
           document.body.removeChild(link);
           window.URL.revokeObjectURL(url);
-        } catch (pdfError) {
-          console.error('Error generating PDF with discount:', pdfError);
+        } catch (pdfError: any) {
+          console.error('❌ Error generating PDF with discount:', pdfError);
+          console.error('❌ PDF Error details:', {
+            message: pdfError?.message,
+            stack: pdfError?.stack,
+            name: pdfError?.name
+          });
+          
+          // Provide user-friendly error message
+          let errorMessage = 'Failed to generate PDF. Please try again.';
+          if (pdfError?.message) {
+            if (pdfError.message.includes('canvas') || pdfError.message.includes('html2canvas')) {
+              errorMessage = 'Failed to render PDF. This may be due to image loading issues. Please check your connection and try again.';
+            } else if (pdfError.message.includes('timeout')) {
+              errorMessage = 'PDF generation timed out. Please try again.';
+            } else {
+              errorMessage = `PDF error: ${pdfError.message}`;
+            }
+          }
+          
+          alert(errorMessage);
           // Fallback to original onDownload if PDF generation fails
-          onDownload();
+        onDownload();
         }
       }
       
@@ -723,10 +742,29 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
               link.click();
               document.body.removeChild(link);
               window.URL.revokeObjectURL(url);
-            } catch (pdfError) {
-              console.error('Error generating PDF with discount:', pdfError);
+            } catch (pdfError: any) {
+              console.error('❌ Error generating PDF with discount (fallback):', pdfError);
+              console.error('❌ PDF Error details:', {
+                message: pdfError?.message,
+                stack: pdfError?.stack,
+                name: pdfError?.name
+              });
+              
+              // Provide user-friendly error message
+              let errorMessage = 'Failed to generate PDF. Please try again.';
+              if (pdfError?.message) {
+                if (pdfError.message.includes('canvas') || pdfError.message.includes('html2canvas')) {
+                  errorMessage = 'Failed to render PDF. This may be due to image loading issues. Please check your connection and try again.';
+                } else if (pdfError.message.includes('timeout')) {
+                  errorMessage = 'PDF generation timed out. Please try again.';
+                } else {
+                  errorMessage = `PDF error: ${pdfError.message}`;
+                }
+              }
+              
+              alert(errorMessage);
               // Fallback to original onDownload if PDF generation fails
-              onDownload();
+            onDownload();
             }
           }
           

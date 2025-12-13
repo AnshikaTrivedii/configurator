@@ -471,9 +471,30 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF file. Please try again.');
+    } catch (error: any) {
+      console.error('❌ Error generating PDF:', error);
+      console.error('❌ Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+        cause: error?.cause
+      });
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to generate PDF file. Please try again.';
+      if (error?.message) {
+        if (error.message.includes('canvas')) {
+          errorMessage = 'Failed to render PDF pages. This may be due to image loading issues. Please check your internet connection and try again.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'PDF generation timed out. The document may be too large. Please try again.';
+        } else if (error.message.includes('CORS')) {
+          errorMessage = 'CORS error: Unable to load images for PDF. Please contact support.';
+        } else {
+          errorMessage = `PDF generation error: ${error.message}`;
+        }
+      }
+      
+      alert(errorMessage);
     }
   };
 
