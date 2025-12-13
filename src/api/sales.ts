@@ -302,6 +302,18 @@ class SalesAPI {
   }
 
   async saveQuotation(quotationData: any): Promise<{ success: boolean; message: string; quotationId: string }> {
+    // PRODUCTION DEBUG: Log the exact payload being sent to backend
+    console.log('📤 API CALL - saveQuotation:', {
+      environment: import.meta.env.MODE,
+      apiBaseUrl: API_BASE_URL,
+      salesUserId: quotationData.salesUserId,
+      salesUserIdType: typeof quotationData.salesUserId,
+      salesUserName: quotationData.salesUserName,
+      quotationId: quotationData.quotationId,
+      payloadKeys: Object.keys(quotationData),
+      timestamp: new Date().toISOString()
+    });
+    
     const response = await fetch(`${API_BASE_URL}/sales/quotation`, {
       method: 'POST',
       headers: this.getAuthHeaders(),

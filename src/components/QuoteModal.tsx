@@ -712,6 +712,21 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         console.log('🆔 Quotation ID:', finalQuotationId);
         
         try {
+          // PRODUCTION DEBUG: Log the exact payload being sent
+          console.log('🚀 QUOTATION SAVE - Payload being sent:', {
+            environment: import.meta.env.MODE,
+            apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
+            quotationId: finalQuotationId,
+            salesUserId: finalSalesUserId,
+            salesUserIdType: typeof finalSalesUserId,
+            salesUserName: finalSalesUserName,
+            isSuperAdmin: isSuperAdmin,
+            selectedSalesPersonId: selectedSalesPersonId,
+            currentUser: salesUser?.name,
+            currentUserId: salesUser?._id,
+            timestamp: new Date().toISOString()
+          });
+          
           // Create comprehensive product details object
           const comprehensiveProductDetails = {
             // Basic product info

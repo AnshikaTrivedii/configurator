@@ -35,7 +35,15 @@ app.get('/health', (req, res) => {
     success: true, 
     message: 'Configurator Backend API is running - UPDATED CODE VERSION',
     timestamp: new Date().toISOString(),
-    version: 'v2.1.0'
+    version: 'v2.1.0',
+    features: {
+      quotationAssignment: 'DEPLOYED',
+      objectIdValidation: 'ENABLED',
+      assignmentVerification: 'ENABLED',
+      enhancedLogging: 'ENABLED'
+    },
+    environment: process.env.NODE_ENV || 'development',
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173'
   });
 });
 
@@ -66,6 +74,12 @@ app.listen(PORT, () => {
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔐 Sales API: http://localhost:${PORT}/api/sales`);
   console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`✅ Quotation Assignment Fix: DEPLOYED (commit f2b06cc)`);
+  console.log(`📝 Backend code includes:`);
+  console.log(`   - ObjectId validation for salesUserId`);
+  console.log(`   - Assignment verification after save`);
+  console.log(`   - Enhanced logging for debugging`);
 });
 
 export default app;
