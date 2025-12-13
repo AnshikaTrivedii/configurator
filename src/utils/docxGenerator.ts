@@ -69,6 +69,20 @@ export const generateConfigurationDocx = async (
     enabled: boolean;
     structurePrice: number | null;
     installationPrice: number | null;
+  },
+  exactPricingBreakdown?: {
+    unitPrice?: number;
+    quantity?: number;
+    subtotal?: number;
+    gstAmount?: number;
+    processorPrice?: number;
+    processorGst?: number;
+    grandTotal?: number;
+    discount?: {
+      discountedProductTotal?: number;
+      discountedProcessorTotal?: number;
+      discountedGrandTotal?: number;
+    };
   }
 ): Promise<Blob> => {
   try {
@@ -82,7 +96,8 @@ export const generateConfigurationDocx = async (
       userInfo,
       salesUser,
       quotationId,
-      customPricing
+      customPricing,
+      exactPricingBreakdown
     );
     
     // For browser-compatible DOCX export, we convert HTML pages to images
@@ -267,6 +282,20 @@ export const generateConfigurationHtml = (
     enabled: boolean;
     structurePrice: number | null;
     installationPrice: number | null;
+  },
+  exactPricingBreakdown?: {
+    unitPrice?: number;
+    quantity?: number;
+    subtotal?: number;
+    gstAmount?: number;
+    processorPrice?: number;
+    processorGst?: number;
+    grandTotal?: number;
+    discount?: {
+      discountedProductTotal?: number;
+      discountedProcessorTotal?: number;
+      discountedGrandTotal?: number;
+    };
   }
 ): string => {
   // Calculate display area
@@ -385,12 +414,19 @@ export const generateConfigurationHtml = (
     quantity = Math.round(rawQuantity * 100) / 100;
   }
   
-  // Ensure quantity is a reasonable number and handle edge cases
-  const safeQuantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
-  const subtotal = unitPrice * safeQuantity;
-  const gstProduct = subtotal * 0.18;
-  const totalProduct = subtotal + gstProduct;
+  // CRITICAL: If exactPricingBreakdown is provided (from saved quotation with discount),
+  // use those values instead of recalculating. This ensures discounted values appear in PDF.
+  let totalProduct: number;
+  let totalController: number;
+  let totalStructure: number;
+  let totalInstallation: number;
+  let grandTotal: number;
   
+  // Calculate safeQuantity, subtotal, gstProduct, controllerPrice, gstController, and screenAreaSqFt for use in HTML template (needed regardless of discount path)
+  // Use let instead of const so we can update these when discount is applied
+  const safeQuantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
+  let subtotal = unitPrice * safeQuantity;
+  let gstProduct = subtotal * 0.18;
   
   // Controller pricing - use SAME LOGIC as quotation calculation
   // Note: Skip controller price for Jumbo Series products as their prices already include controllers
@@ -399,41 +435,115 @@ export const generateConfigurationHtml = (
     // Use centralized processor pricing
     controllerPrice = getProcessorPrice(processor, userInfo?.userType || 'End User');
   }
+  let gstController = controllerPrice * 0.18;
   
-  const gstController = controllerPrice * 0.18;
-  const totalController = controllerPrice + gstController;
-  
-  // Calculate screen area in square feet for Structure and Installation pricing
-  // This should always be based on actual display dimensions, not quantity
+  // Calculate screen area in square feet for Structure and Installation pricing (needed for HTML template)
   const widthInMeters = config.width / 1000;
   const heightInMeters = config.height / 1000;
   const widthInFeet = widthInMeters * METERS_TO_FEET;
   const heightInFeet = heightInMeters * METERS_TO_FEET;
   const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
   
-  // Structure and Installation pricing - use custom if enabled, otherwise use default calculation
+  // Calculate structure and installation base prices (needed for HTML template regardless of discount path)
   let structureBasePrice: number;
   let installationBasePrice: number;
   
   if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
-    // Use custom pricing (base prices without GST)
     structureBasePrice = customPricing.structurePrice;
     installationBasePrice = customPricing.installationPrice;
   } else {
-    // Default calculation: Structure Price: ₹2500 per square foot, Installation Price: ₹500 per square foot
     structureBasePrice = screenAreaSqFt * 2500;
     installationBasePrice = screenAreaSqFt * 500;
   }
   
   // Calculate GST on structure and installation (always 18%)
   const structureGST = structureBasePrice * 0.18;
-  const totalStructure = structureBasePrice + structureGST;
-  
   const installationGST = installationBasePrice * 0.18;
-  const totalInstallation = installationBasePrice + installationGST;
   
-  // Update grand total to include Structure and Installation (separate, never combined)
-  const grandTotal = totalProduct + totalController + totalStructure + totalInstallation;
+  if (exactPricingBreakdown && exactPricingBreakdown.discount) {
+    // Use discounted values from saved quotation
+    // These values already have discount applied silently
+    const discountedProductTotal = exactPricingBreakdown.discount.discountedProductTotal;
+    const discountedProcessorTotal = exactPricingBreakdown.discount.discountedProcessorTotal;
+    const discountedGrandTotal = exactPricingBreakdown.discount.discountedGrandTotal;
+    
+    // CRITICAL: Recalculate base values from discounted totals for display in PDF
+    // When discount is on LED, recalculate subtotal and gstProduct from discounted total
+    if (discountedProductTotal !== undefined) {
+      // Discount was applied to product total (which includes GST)
+      // Reverse calculate: discountedTotal = subtotal + gst, where gst = subtotal * 0.18
+      // So: discountedTotal = subtotal * 1.18
+      // Therefore: subtotal = discountedTotal / 1.18
+      const originalSubtotal = subtotal;
+      const originalGstProduct = gstProduct;
+      
+      subtotal = Math.round((discountedProductTotal / 1.18) * 100) / 100;
+      gstProduct = Math.round((subtotal * 0.18) * 100) / 100;
+      totalProduct = discountedProductTotal;
+      
+      console.log('💰 PDF - Discount on LED applied (recalculated base values):', {
+        originalSubtotal,
+        originalGstProduct,
+        originalTotalProduct: originalSubtotal + originalGstProduct,
+        discountedSubtotal: subtotal,
+        discountedGstProduct: gstProduct,
+        discountedTotalProduct: totalProduct
+      });
+    } else {
+      totalProduct = (exactPricingBreakdown.subtotal || 0) + (exactPricingBreakdown.gstAmount || 0);
+    }
+    
+    // When discount is on controller, recalculate controllerPrice and gstController
+    if (discountedProcessorTotal !== undefined) {
+      const originalControllerPrice = controllerPrice;
+      const originalGstController = gstController;
+      
+      // Discount was applied to processor total (which includes GST)
+      controllerPrice = Math.round((discountedProcessorTotal / 1.18) * 100) / 100;
+      gstController = Math.round((controllerPrice * 0.18) * 100) / 100;
+      totalController = discountedProcessorTotal;
+      
+      console.log('💰 PDF - Discount on Controller applied (recalculated base values):', {
+        originalControllerPrice,
+        originalGstController,
+        originalTotalController: originalControllerPrice + originalGstController,
+        discountedControllerPrice: controllerPrice,
+        discountedGstController: gstController,
+        discountedTotalController: totalController
+      });
+    } else {
+      totalController = (exactPricingBreakdown.processorPrice || 0) + (exactPricingBreakdown.processorGst || 0);
+    }
+    
+    grandTotal = discountedGrandTotal || exactPricingBreakdown.grandTotal || 0;
+    
+    // Calculate structure and installation totals (these are not discounted unless discount is on total)
+    totalStructure = structureBasePrice + structureGST;
+    totalInstallation = installationBasePrice + installationGST;
+    
+    console.log('💰 PDF using discounted values from exactPricingBreakdown:', {
+      subtotal,
+      gstProduct,
+      totalProduct,
+      controllerPrice,
+      gstController,
+      totalController,
+      totalStructure,
+      totalInstallation,
+      grandTotal,
+      note: 'Discount applied silently - all values recalculated for PDF display'
+    });
+  } else {
+    // Calculate prices normally (no discount or exactPricingBreakdown not provided)
+    // safeQuantity, subtotal, gstProduct, controllerPrice, gstController, screenAreaSqFt, structureBasePrice, installationBasePrice, structureGST, and installationGST are already calculated above for use in HTML template
+    totalProduct = subtotal + gstProduct;
+    totalController = controllerPrice + gstController;
+    totalStructure = structureBasePrice + structureGST;
+    totalInstallation = installationBasePrice + installationGST;
+    
+    // Update grand total to include Structure and Installation (separate, never combined)
+    grandTotal = totalProduct + totalController + totalStructure + totalInstallation;
+  }
 
   // Format Indian number with clean formatting
   const formatIndianNumber = (x: number): string => {
@@ -1006,7 +1116,8 @@ export const generateConfigurationPdf = async (
     userInfo,
     salesUser,
     quotationId,
-    customPricing
+    customPricing,
+    exactPricingBreakdown
   );
 
   // Create offscreen container to render HTML

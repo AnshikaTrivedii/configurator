@@ -22,7 +22,6 @@ import { SalesUser } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { SuperUserDashboard } from './SuperUserDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
-import { useChatbot } from '../contexts/ChatbotContext';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
 // See: https://github.com/wojtekmaj/react-pdf/wiki/Frequently-Asked-Questions#i-am-getting-error-warning-setting-up-fake-worker-failed-cannot-read-property-getdocument-of-undefined
@@ -45,6 +44,7 @@ interface DisplayConfiguratorProps {
   } | null;
   showDashboard?: boolean;
   onDashboardClose?: () => void;
+  onDashboardOpen?: () => void;
 }
 
 export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ 
@@ -54,10 +54,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   onSalesLogout,
   initialConfig,
   showDashboard: showDashboardProp,
-  onDashboardClose
+  onDashboardClose,
+  onDashboardOpen
 }) => {
   const { config: globalConfig, updateDimensions: updateGlobalDimensions, updateConfig } = useDisplayConfig();
-  const { setSelectedProduct: setChatbotSelectedProduct, setWorkflowStage } = useChatbot();
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(
     initialConfig?.selectedProduct || undefined
   );
@@ -75,16 +75,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     calculateCabinetGrid,
     setConfig
   } = useDisplayCalculations(selectedProduct);
-
-  // Sync workflow stage
-  useEffect(() => {
-    setWorkflowStage('configurator');
-  }, [setWorkflowStage]);
-
-  // Sync selected product with chatbot
-  useEffect(() => {
-    setChatbotSelectedProduct(selectedProduct || null);
-  }, [selectedProduct, setChatbotSelectedProduct]);
 
   // Initialize dimensions from global context or initialConfig
   useEffect(() => {
@@ -345,7 +335,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
-    setChatbotSelectedProduct(product);
     // If digital standee, set width/height to cabinet size
     if (product.category?.toLowerCase().includes('digital standee')) {
       updateWidth(product.cabinetDimensions.width);
@@ -677,11 +666,17 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => {
-                    if (onDashboardClose === undefined) {
+                    // If parent provides onDashboardOpen callback, use it
+                    // Otherwise, use internal state
+                    if (onDashboardOpen) {
+                      onDashboardOpen();
+                    } else {
                       setShowDashboardInternal(true);
                     }
                   }}
-                  className="px-3 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                  className={`px-3 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
+                    showDashboard ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-700'
+                  }`}
                 >
                   Dashboard
                 </button>
@@ -1055,7 +1050,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   )}
 
                   {/* Sales Users - See View and Download Buttons */}
-                  {userRole === 'sales' && (
+                  {(userRole === 'sales' || userRole === 'super' || userRole === 'super_admin') && (
                     <>
                       {/* Mandatory Form Notice */}
                       {!isMandatoryFormSubmitted && (
@@ -1134,9 +1129,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           processor={selectedController}
           mode={selectedMode}
           userInfo={userInfo && userInfo.userType !== 'Channel' ? userInfo : undefined}
-          title={userRole === 'sales' && salesUser ? 'Sales Quote' : 'Get a Quote'}
-          submitButtonText={userRole === 'sales' && salesUser ? 'Submit Sales Quote' : 'Submit Quote Request'}
+          title={(userRole === 'sales' || userRole === 'super' || userRole === 'super_admin') && salesUser ? 'Sales Quote' : 'Get a Quote'}
+          submitButtonText={(userRole === 'sales' || userRole === 'super' || userRole === 'super_admin') && salesUser ? 'Submit Sales Quote' : 'Submit Quote Request'}
           salesUser={salesUser}
+          userRole={userRole}
           quotationId={quotationId}
           customPricing={customPricing}
           onCustomPricingChange={setCustomPricing}
@@ -1170,6 +1166,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           mode={selectedMode}
           userInfo={userInfo ? { ...userInfo, userType: userInfo.userType || 'End User' } : undefined}
           salesUser={salesUser}
+          userRole={userRole}
           quotationId={quotationId}
         />
       )}

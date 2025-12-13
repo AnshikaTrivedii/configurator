@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Mail, User, Phone, MessageSquare, Package, ChevronDown } from 'lucide-react';
 import { submitQuoteRequest, QuoteRequest } from '../api/quote';
 import { salesAPI } from '../api/sales';
@@ -315,6 +315,7 @@ type QuoteModalProps = {
   title?: string;
   submitButtonText?: string;
   salesUser?: SalesUser | null;
+  userRole?: 'normal' | 'sales' | 'super' | 'super_admin';
   quotationId?: string;
   customPricing?: {
     enabled: boolean;
@@ -380,6 +381,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   title = 'Get a Quote',
   submitButtonText = 'Submit Quote Request',
   salesUser,
+  userRole,
   quotationId,
   customPricing: externalCustomPricing,
   onCustomPricingChange
@@ -388,7 +390,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const [customerName, setCustomerName] = useState(userInfo?.fullName || '');
   const [customerEmail, setCustomerEmail] = useState(userInfo?.email || '');
   const [customerPhone, setCustomerPhone] = useState(userInfo?.phoneNumber || '');
+  const [salesPersons, setSalesPersons] = useState<any[]>([]);
+  const [selectedSalesPersonId, setSelectedSalesPersonId] = useState<string | null>(null);
+  const [loadingSalesPersons, setLoadingSalesPersons] = useState(false);
   const [selectedUserType, setSelectedUserType] = useState<'End User' | 'Reseller'>(userInfo?.userType || 'End User');
+  
+  // Discount state (only for superadmin)
+  const [discountType, setDiscountType] = useState<'led' | 'controller' | 'total' | null>(null);
+  const [discountPercent, setDiscountPercent] = useState<number>(0);
   
   // Custom pricing state - use external if provided, otherwise use internal state
   const [internalCustomPricingEnabled, setInternalCustomPricingEnabled] = useState(externalCustomPricing?.enabled || false);
@@ -424,6 +433,53 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       setSelectedUserType(userInfo.userType);
     }
   }, [userInfo]);
+  
+  // Load sales persons if user is superadmin
+  useEffect(() => {
+    if ((userRole === 'super' || userRole === 'super_admin') && isOpen) {
+      const loadSalesPersons = async () => {
+        try {
+          setLoadingSalesPersons(true);
+          const response = await salesAPI.getSalesPersons();
+          const persons = response.salesPersons || [];
+          setSalesPersons(persons);
+          
+          console.log('📋 Loaded sales persons for dropdown:', {
+            count: persons.length,
+            persons: persons.map(p => ({
+              _id: p._id,
+              _idType: typeof p._id,
+              name: p.name,
+              email: p.email
+            }))
+          });
+          
+          // Default to current user if available
+          if (salesUser?._id) {
+            const currentUserId = salesUser._id.toString();
+            setSelectedSalesPersonId(currentUserId);
+            console.log('✅ Defaulted to current user:', {
+              salesUserId: currentUserId,
+              salesUserName: salesUser.name
+            });
+          } else if (persons.length > 0) {
+            const firstPersonId = persons[0]._id?.toString();
+            setSelectedSalesPersonId(firstPersonId);
+            console.log('✅ Defaulted to first person in list:', {
+              personId: firstPersonId,
+              personName: persons[0].name
+            });
+          }
+        } catch (error) {
+          console.error('Error loading sales persons:', error);
+        } finally {
+          setLoadingSalesPersons(false);
+        }
+      };
+      loadSalesPersons();
+    }
+  }, [userRole, isOpen, salesUser]);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -558,13 +614,98 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       
       // Generate quotationId if missing but salesUser is present
       let finalQuotationId = quotationId;
-      if (salesUser && !quotationId) {
-        console.log('⚠️ QuotationId missing, generating new one...');
-        finalQuotationId = await QuotationIdGenerator.generateQuotationId(salesUser.name);
-        console.log('🆔 Generated new quotationId:', finalQuotationId);
+      const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
+      
+      // For superadmin, require salesUser or selectedSalesPersonId
+      if (isSuperAdmin && !salesUser && !selectedSalesPersonId) {
+        alert('Please select a sales person to assign this quotation to');
+        setIsSubmitting(false);
+        return;
       }
       
-      if (salesUser && finalQuotationId) {
+      if ((salesUser || isSuperAdmin) && !quotationId) {
+        console.log('⚠️ QuotationId missing, generating new one...');
+        // For superadmin, use selected sales person name or current user name
+        const nameForId = isSuperAdmin && selectedSalesPersonId 
+          ? salesPersons.find(p => p._id === selectedSalesPersonId)?.name || salesUser?.name
+          : salesUser?.name;
+        if (nameForId) {
+          finalQuotationId = await QuotationIdGenerator.generateQuotationId(nameForId);
+          console.log('🆔 Generated new quotationId:', finalQuotationId);
+        } else {
+          alert('Unable to generate quotation ID - missing sales person name');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      
+      // CRITICAL: Determine salesUserId and salesUserName for quotation attribution
+      // This determines which user the quotation will be counted under in the dashboard
+      let finalSalesUserId: string | undefined;
+      let finalSalesUserName: string | undefined;
+      
+      if (isSuperAdmin) {
+        // Superadmin can assign to selected sales person or themselves
+        if (selectedSalesPersonId) {
+          console.log('🔍 DEBUG: Looking for selected sales person:', {
+            selectedSalesPersonId,
+            selectedSalesPersonIdType: typeof selectedSalesPersonId,
+            salesPersonsCount: salesPersons.length,
+            salesPersonsIds: salesPersons.map(p => ({ id: p._id, idType: typeof p._id, name: p.name }))
+          });
+          
+          const selectedPerson = salesPersons.find(p => {
+            // Handle both string and ObjectId comparisons
+            const personId = p._id?.toString();
+            const selectedId = selectedSalesPersonId?.toString();
+            return personId === selectedId;
+          });
+          
+          if (selectedPerson) {
+            // Assign to the selected sales person
+            // CRITICAL: Use the _id as-is (could be string or ObjectId, backend will handle conversion)
+            finalSalesUserId = selectedPerson._id;
+            finalSalesUserName = selectedPerson.name;
+            console.log('✅ Superadmin assigning quotation to:', {
+              selectedSalesPersonId: selectedSalesPersonId,
+              finalSalesUserId: finalSalesUserId,
+              finalSalesUserIdType: typeof finalSalesUserId,
+              finalSalesUserIdString: finalSalesUserId?.toString(),
+              finalSalesUserName: finalSalesUserName,
+              email: selectedPerson.email,
+              note: 'This ID will be sent to backend and converted to ObjectId'
+            });
+          } else {
+            // Fallback to current user (should not happen if dropdown works correctly)
+            console.error('❌ Selected person not found in salesPersons list!', {
+              selectedSalesPersonId,
+              availableIds: salesPersons.map(p => p._id),
+              availableNames: salesPersons.map(p => p.name)
+            });
+            finalSalesUserId = salesUser?._id;
+            finalSalesUserName = salesUser?.name;
+            console.log('⚠️ Selected person not found, falling back to superadmin themselves');
+          }
+        } else {
+          // Default to current user (superadmin creating for themselves)
+          finalSalesUserId = salesUser?._id;
+          finalSalesUserName = salesUser?.name;
+          console.log('📊 Superadmin creating quotation for themselves:', {
+            salesUserId: finalSalesUserId,
+            salesUserName: finalSalesUserName
+          });
+        }
+      } else {
+        // Regular sales user - always uses their own ID
+        finalSalesUserId = salesUser?._id;
+        finalSalesUserName = salesUser?.name;
+        console.log('📊 Sales user creating quotation:', {
+          salesUserId: finalSalesUserId,
+          salesUserName: finalSalesUserName
+        });
+      }
+      
+      if ((salesUser || isSuperAdmin) && finalQuotationId && finalSalesUserId && finalSalesUserName) {
         console.log('✅ Conditions met - attempting to save quotation to database...');
         console.log('📋 Sales User:', salesUser.name, salesUser.email);
         console.log('🆔 Quotation ID:', finalQuotationId);
@@ -642,13 +783,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             customPricingObj
           );
           
-          // Also get centralized pricing for breakdown (without structure/installation)
+          // Also get centralized pricing for breakdown (with custom pricing support)
           const pricingResult = calculateCentralizedPricing(
             selectedProduct,
             cabinetGrid,
             processor,
             userType,
-            configForCalc
+            configForCalc,
+            customPricingObj
           );
           
           // Check if price is available
@@ -657,15 +799,44 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             return;
           }
 
+          // Apply discount if superadmin has set one
+          let finalPricingResult = pricingResult;
+          let finalTotalPrice = correctTotalPrice;
+          let discountInfo: DiscountInfo | null = null;
+          
+          const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
+          if (isSuperAdmin && discountType && discountPercent > 0) {
+            discountInfo = {
+              discountType,
+              discountPercent
+            };
+            
+            // Apply discount to pricing result
+            const discountedResult = applyDiscount(pricingResult, discountInfo);
+            finalPricingResult = discountedResult;
+            finalTotalPrice = discountedResult.grandTotal;
+            
+            console.log('💰 DISCOUNT APPLIED TO QUOTATION:', {
+              discountType,
+              discountPercent: `${discountPercent}%`,
+              originalTotal: correctTotalPrice,
+              discountedTotal: finalTotalPrice,
+              discountAmount: discountedResult.discountAmount,
+              savings: `₹${discountedResult.discountAmount.toLocaleString('en-IN')}`
+            });
+          }
+
           console.log('💰 Calculated price for quotation (WITH GST - matches PDF):', {
             quotationId: finalQuotationId,
-            totalPrice: correctTotalPrice,
-            formatted: `₹${correctTotalPrice.toLocaleString('en-IN')}`,
+            totalPrice: finalTotalPrice,
+            originalTotal: correctTotalPrice,
+            formatted: `₹${finalTotalPrice.toLocaleString('en-IN')}`,
             includesGST: true,
             gstRate: '18%',
             userType: getUserTypeDisplayName(userType),
             product: selectedProduct.name,
-            note: 'This price includes 18% GST and matches PDF Grand Total'
+            hasDiscount: !!discountInfo,
+            note: discountInfo ? 'Price includes discount (not shown in PDF)' : 'This price includes 18% GST and matches PDF Grand Total'
           });
 
           // Capture exact quotation data as shown on the page
@@ -679,25 +850,50 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             message: message.trim() || 'No additional message provided',
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
-            totalPrice: correctTotalPrice,  // CRITICAL: Grand Total with GST - matches PDF exactly
+            totalPrice: finalTotalPrice,  // CRITICAL: Grand Total with GST (and discount if applied) - matches PDF exactly
             
-            // Store exact pricing breakdown using centralized calculation + custom pricing
+            // CRITICAL: Include salesUserId and salesUserName for quotation attribution
+            // This determines which user the quotation is counted under in the dashboard
+            // For superadmin: can be assigned user or themselves
+            // For sales users: always their own ID
+            salesUserId: finalSalesUserId,
+            salesUserName: finalSalesUserName,
+            
+            // Store exact pricing breakdown using centralized calculation + custom pricing + discount
             exactPricingBreakdown: {
-              unitPrice: pricingResult.unitPrice,
-              quantity: pricingResult.quantity,
-              subtotal: pricingResult.productSubtotal,
+              unitPrice: finalPricingResult.unitPrice,
+              quantity: finalPricingResult.quantity,
+              subtotal: finalPricingResult.productSubtotal,
               gstRate: 18,
-              gstAmount: pricingResult.productGST,
-              processorPrice: pricingResult.processorPrice,
-              processorGst: pricingResult.processorGST,
-              grandTotal: correctTotalPrice, // Use correctTotalPrice which includes custom pricing
+              gstAmount: finalPricingResult.productGST,
+              processorPrice: finalPricingResult.processorPrice,
+              processorGst: finalPricingResult.processorGST,
+              grandTotal: finalTotalPrice, // Use finalTotalPrice which includes discount if applied
               // Custom pricing information
               customPricing: customPricingObj ? {
                 enabled: true,
                 structurePrice: customStructurePrice,
                 installationPrice: customInstallationPrice
+              } : undefined,
+              // Discount information (stored but never shown in PDF)
+              discount: discountInfo ? {
+                discountType: discountInfo.discountType,
+                discountPercent: discountInfo.discountPercent,
+                // Store original values for reference
+                originalProductTotal: 'originalProductTotal' in finalPricingResult ? finalPricingResult.originalProductTotal : finalPricingResult.productTotal,
+                originalProcessorTotal: 'originalProcessorTotal' in finalPricingResult ? finalPricingResult.originalProcessorTotal : finalPricingResult.processorTotal,
+                originalGrandTotal: 'originalGrandTotal' in finalPricingResult ? finalPricingResult.originalGrandTotal : correctTotalPrice,
+                // Store discounted values (these are what appear in PDF)
+                discountedProductTotal: 'discountedProductTotal' in finalPricingResult ? finalPricingResult.discountedProductTotal : finalPricingResult.productTotal,
+                discountedProcessorTotal: 'discountedProcessorTotal' in finalPricingResult ? finalPricingResult.discountedProcessorTotal : finalPricingResult.processorTotal,
+                discountedGrandTotal: finalTotalPrice,
+                discountAmount: 'discountAmount' in finalPricingResult ? finalPricingResult.discountAmount : 0
               } : undefined
             },
+            
+            // Store discount information in quotationData
+            discountType: discountInfo?.discountType || null,
+            discountPercent: discountInfo?.discountPercent || 0,
             
             // Store exact product specifications as shown
             exactProductSpecs: {
@@ -731,7 +927,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             createdAt: new Date().toISOString()
           };
 
-          console.log('📤 Sending exact quotation data to API:', exactQuotationData);
+          console.log('📤 Sending exact quotation data to API:', {
+            ...exactQuotationData,
+            salesUserId: exactQuotationData.salesUserId,
+            salesUserIdType: typeof exactQuotationData.salesUserId,
+            salesUserIdString: exactQuotationData.salesUserId?.toString(),
+            salesUserName: exactQuotationData.salesUserName
+          });
           
           const saveResult = await salesAPI.saveQuotation(exactQuotationData);
           console.log('✅ Quotation saved to database successfully:', saveResult);
@@ -752,7 +954,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           if (dbError.message && dbError.message.includes('already exists')) {
             console.log('🔄 Duplicate ID detected in QuoteModal, trying with fallback ID...');
             try {
-              const fallbackQuotationId = QuotationIdGenerator.generateFallbackQuotationId(salesUser.name);
+              const fallbackQuotationId = QuotationIdGenerator.generateFallbackQuotationId(
+                isSuperAdmin && selectedSalesPersonId
+                  ? salesPersons.find(p => p._id === selectedSalesPersonId)?.name || salesUser?.name || 'Admin'
+                  : salesUser?.name || 'Admin'
+              );
               console.log('🆔 Generated fallback quotationId:', fallbackQuotationId);
               
               const fallbackQuotationData = {
@@ -780,6 +986,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       } else {
         console.log('❌ Quotation not saved to database - missing salesUser or quotationId');
         console.log('📋 Sales User present:', !!salesUser);
+        console.log('📋 Is Super Admin:', isSuperAdmin);
+        console.log('📋 Selected Sales Person ID:', selectedSalesPersonId);
         console.log('🆔 Quotation ID present:', !!finalQuotationId);
         console.log('🔍 Debug info:');
         console.log('  - salesUser:', salesUser);
@@ -944,8 +1152,153 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                         </div>
                       </div>
 
+                      {/* Sales Person Dropdown for Super Admin */}
+                      {(userRole === 'super' || userRole === 'super_admin') && (
+                        <div>
+                          <label htmlFor="salesPerson" className="block text-base font-medium text-gray-700 mb-3">
+                            Assign to Sales Person <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            {loadingSalesPersons ? (
+                              <div className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm text-base bg-gray-50">
+                                Loading sales persons...
+                              </div>
+                            ) : (
+                              <>
+                                <select
+                                  id="salesPerson"
+                                  className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all appearance-none bg-white"
+                                  value={selectedSalesPersonId || ''}
+                                  onChange={(e) => {
+                                    const newId = e.target.value;
+                                    console.log('🔄 Sales person dropdown changed:', {
+                                      newId,
+                                      newIdType: typeof newId,
+                                      selectedPerson: salesPersons.find(p => {
+                                        const personId = p._id?.toString();
+                                        return personId === newId;
+                                      })
+                                    });
+                                    setSelectedSalesPersonId(newId);
+                                  }}
+                                  disabled={isSubmitting || loadingSalesPersons}
+                                  required
+                                >
+                                  {salesPersons.length === 0 ? (
+                                    <option value="">No sales persons available</option>
+                                  ) : (
+                                    salesPersons.map((person) => {
+                                      // CRITICAL: Convert _id to string for option value
+                                      const personId = person._id?.toString() || person._id;
+                                      return (
+                                        <option key={personId} value={personId}>
+                                          {person.name} ({person.email})
+                                        </option>
+                                      );
+                                    })
+                                  )}
+                                </select>
+                                <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Discount Section for Super Admin */}
+                      {(userRole === 'super' || userRole === 'super_admin') && (
+                        <div className="pt-4 border-t border-gray-200">
+                          <h3 className="text-base font-semibold text-gray-700 mb-3">Discount (Super User Only)</h3>
+                          
+                          {/* Discount Type Radio Buttons */}
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Apply Discount To:
+                            </label>
+                            <div className="space-y-2">
+                              <label className="flex items-center">
+                                <input
+                                  type="radio"
+                                  name="discountType"
+                                  value="led"
+                                  checked={discountType === 'led'}
+                                  onChange={(e) => setDiscountType(e.target.value as 'led')}
+                                  disabled={isSubmitting}
+                                  className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
+                                />
+                                <span className="text-sm text-gray-700">Discount on LED Screen Price</span>
+                              </label>
+                              <label className="flex items-center">
+                                <input
+                                  type="radio"
+                                  name="discountType"
+                                  value="controller"
+                                  checked={discountType === 'controller'}
+                                  onChange={(e) => setDiscountType(e.target.value as 'controller')}
+                                  disabled={isSubmitting}
+                                  className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
+                                />
+                                <span className="text-sm text-gray-700">Discount on Controller Price</span>
+                              </label>
+                              <label className="flex items-center">
+                                <input
+                                  type="radio"
+                                  name="discountType"
+                                  value="total"
+                                  checked={discountType === 'total'}
+                                  onChange={(e) => setDiscountType(e.target.value as 'total')}
+                                  disabled={isSubmitting}
+                                  className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
+                                />
+                                <span className="text-sm text-gray-700">Discount on Total Amount</span>
+                              </label>
+                              <label className="flex items-center">
+                                <input
+                                  type="radio"
+                                  name="discountType"
+                                  value=""
+                                  checked={discountType === null}
+                                  onChange={(e) => setDiscountType(null)}
+                                  disabled={isSubmitting}
+                                  className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
+                                />
+                                <span className="text-sm text-gray-700">No Discount</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Discount Percentage Input */}
+                          {discountType && (
+                            <div>
+                              <label htmlFor="discountPercent" className="block text-sm font-medium text-gray-700 mb-2">
+                                Discount Percentage (%)
+                              </label>
+                              <input
+                                type="number"
+                                id="discountPercent"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={discountPercent}
+                                onChange={(e) => {
+                                  const value = parseFloat(e.target.value) || 0;
+                                  setDiscountPercent(Math.max(0, Math.min(100, value)));
+                                }}
+                                disabled={isSubmitting}
+                                placeholder="Enter discount %"
+                                className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base"
+                              />
+                              <p className="mt-1 text-xs text-gray-500">
+                                Enter a value between 0 and 100
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Custom Pricing Toggle */}
-                      {salesUser && (
+                      {(salesUser || userRole === 'super' || userRole === 'super_admin') && (
                         <div className="pt-4 border-t border-gray-200">
                           <div className="flex items-center justify-between mb-4">
                             <label htmlFor="customPricing" className="flex items-center text-base font-medium text-gray-700 cursor-pointer">

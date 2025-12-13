@@ -1,7 +1,7 @@
 /**
  * Product Filtering Utility
  * 
- * Shared filtering logic used by both ProductSelector and Chatbot
+ * Shared filtering logic used by ProductSelector
  * Ensures consistent product recommendations across the application
  * 
  * IMPORTANT: All functions use data from /src/data/products.ts
@@ -76,7 +76,7 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
     filtered = filtered.filter((p) => p.enabled === true); // Only enabled: true, not false or undefined
   }
   
-  // Exclude rental, flexible, transparent, jumbo products (as per chatbot rules)
+  // Exclude rental, flexible, transparent, jumbo products
   filtered = filtered.filter((p) => {
     const category = (p.category || '').toLowerCase();
     return !category.includes('rental') && 

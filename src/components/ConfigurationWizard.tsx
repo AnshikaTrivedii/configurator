@@ -4,7 +4,6 @@ import { Product } from '../types';
 import { products } from '../data/products';
 import { getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistanceRange } from '../utils/viewingDistanceRanges';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
-import { useChatbot } from '../contexts/ChatbotContext';
 
 interface ConfigurationWizardProps {
   isOpen: boolean;
@@ -29,7 +28,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   onComplete
 }) => {
   const { updateDimensions, updateConfig } = useDisplayConfig();
-  const { setCurrentStep: setChatbotCurrentStep } = useChatbot();
   const [currentStep, setCurrentStep] = useState<Step>('environment');
   const [width, setWidth] = useState<string>('');
   const [height, setHeight] = useState<string>('');
@@ -91,7 +89,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     if (currentStepIndex < steps.length - 1) {
       const nextStep = steps[currentStepIndex + 1].key;
       setCurrentStep(nextStep);
-      setChatbotCurrentStep(nextStep);
     }
   };
 
@@ -99,16 +96,8 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     if (currentStepIndex > 0) {
       const prevStep = steps[currentStepIndex - 1].key;
       setCurrentStep(prevStep);
-      setChatbotCurrentStep(prevStep);
     }
   };
-
-  // Sync current step with chatbot
-  useEffect(() => {
-    if (isOpen) {
-      setChatbotCurrentStep(currentStep);
-    }
-  }, [currentStep, isOpen, setChatbotCurrentStep]);
 
   const handleComplete = () => {
     if (selectedProduct && width && height) {
@@ -146,15 +135,15 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       
       console.log('🎯 Wizard Complete - Passing data:', {
         dimensions: {
-          originalWidth: widthValue,
-          originalHeight: heightValue,
-          originalUnit: unit,
-          widthMM,
-          heightMM,
-          widthBack: widthBack.toFixed(4),
-          heightBack: heightBack.toFixed(4),
-          widthMatch: Math.abs(widthValue - widthBack) < 0.0001,
-          heightMatch: Math.abs(heightValue - heightBack) < 0.0001
+        originalWidth: widthValue,
+        originalHeight: heightValue,
+        originalUnit: unit,
+        widthMM,
+        heightMM,
+        widthBack: widthBack.toFixed(4),
+        heightBack: heightBack.toFixed(4),
+        widthMatch: Math.abs(widthValue - widthBack) < 0.0001,
+        heightMatch: Math.abs(heightValue - heightBack) < 0.0001
         },
         filters: {
           environment,
@@ -186,7 +175,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     }
   };
 
-  // Sync width/height with global context for chatbot recommendations
+  // Sync width/height with global context
   useEffect(() => {
     if (!isOpen) return;
     if (!width || !height) return;
@@ -252,12 +241,12 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       pitches = getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit);
     } else {
       // If no viewing distance, get all unique pixel pitches from enabled products
-      const uniquePitches = new Set<number>();
-      products.forEach(product => {
+        const uniquePitches = new Set<number>();
+        products.forEach(product => {
         if (product.enabled !== false) {
-          uniquePitches.add(product.pixelPitch);
-        }
-      });
+            uniquePitches.add(product.pixelPitch);
+          }
+        });
       pitches = Array.from(uniquePitches).sort((a, b) => a - b);
     }
     
@@ -284,7 +273,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     }
     
     return pitches;
-  })();
+      })();
 
   // Filter products based on selections (only enabled products)
   const filteredProducts = products.filter(product => {
@@ -383,26 +372,26 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Select Environment</h3>
                 <p className="text-gray-600">Where will the display be installed?</p>
               </div>
-
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(['Indoor', 'Outdoor'] as const).map((env) => (
-                  <button
+                    <button
                     key={env}
                     onClick={() => setEnvironment(env)}
                     className={`p-6 rounded-xl border-2 transition-all text-left ${
                       environment === env
                         ? 'border-blue-600 bg-blue-50 shadow-lg'
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
+                      }`}
+                    >
                     <div className="text-2xl font-bold mb-2">{env}</div>
                     <div className="text-sm text-gray-600">
                       {env === 'Indoor'
                         ? 'For indoor installations with controlled lighting'
                         : 'For outdoor installations with weather protection'}
                     </div>
-                  </button>
-                ))}
+                    </button>
+                  ))}
               </div>
             </div>
           )}
