@@ -663,17 +663,18 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           
           if (selectedPerson) {
             // Assign to the selected sales person
-            // CRITICAL: Use the _id as-is (could be string or ObjectId, backend will handle conversion)
-            finalSalesUserId = selectedPerson._id;
+            // CRITICAL: Always convert to string to ensure consistent format
+            // Backend will validate and convert to ObjectId
+            finalSalesUserId = selectedPerson._id?.toString();
             finalSalesUserName = selectedPerson.name;
             console.log('✅ Superadmin assigning quotation to:', {
               selectedSalesPersonId: selectedSalesPersonId,
               finalSalesUserId: finalSalesUserId,
               finalSalesUserIdType: typeof finalSalesUserId,
-              finalSalesUserIdString: finalSalesUserId?.toString(),
+              finalSalesUserIdString: finalSalesUserId,
               finalSalesUserName: finalSalesUserName,
               email: selectedPerson.email,
-              note: 'This ID will be sent to backend and converted to ObjectId'
+              note: 'ID sent as string - backend will convert to ObjectId'
             });
           } else {
             // Fallback to current user (should not happen if dropdown works correctly)
@@ -688,7 +689,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           }
         } else {
           // Default to current user (superadmin creating for themselves)
-          finalSalesUserId = salesUser?._id;
+          finalSalesUserId = salesUser?._id?.toString();
           finalSalesUserName = salesUser?.name;
           console.log('📊 Superadmin creating quotation for themselves:', {
             salesUserId: finalSalesUserId,
@@ -697,7 +698,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         }
       } else {
         // Regular sales user - always uses their own ID
-        finalSalesUserId = salesUser?._id;
+        finalSalesUserId = salesUser?._id?.toString();
         finalSalesUserName = salesUser?.name;
         console.log('📊 Sales user creating quotation:', {
           salesUserId: finalSalesUserId,

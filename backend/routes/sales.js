@@ -754,9 +754,15 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       // Validate that the provided salesUserId exists
       // CRITICAL: Convert string ID to ObjectId if needed
       try {
-        // Convert to ObjectId if it's a string
-        let salesUserIdToFind = providedSalesUserId;
-        if (typeof providedSalesUserId === 'string' && !mongoose.Types.ObjectId.isValid(providedSalesUserId)) {
+        console.log('🔍 Validating provided salesUserId:', {
+          providedSalesUserId,
+          providedSalesUserIdType: typeof providedSalesUserId,
+          isString: typeof providedSalesUserId === 'string',
+          isValidObjectId: mongoose.Types.ObjectId.isValid(providedSalesUserId)
+        });
+        
+        // Validate ObjectId format
+        if (!mongoose.Types.ObjectId.isValid(providedSalesUserId)) {
           console.error('❌ Invalid salesUserId format (not a valid ObjectId):', providedSalesUserId);
           return res.status(400).json({
             success: false,
@@ -765,9 +771,12 @@ router.post('/quotation', authenticateToken, async (req, res) => {
         }
         
         // Convert string to ObjectId for query
-        if (typeof providedSalesUserId === 'string') {
-          salesUserIdToFind = new mongoose.Types.ObjectId(providedSalesUserId);
-        }
+        const salesUserIdToFind = new mongoose.Types.ObjectId(providedSalesUserId);
+        console.log('🔍 Converted to ObjectId for query:', {
+          original: providedSalesUserId,
+          converted: salesUserIdToFind,
+          convertedString: salesUserIdToFind.toString()
+        });
         
         const assignedUser = await SalesUser.findById(salesUserIdToFind);
         if (!assignedUser) {
@@ -785,27 +794,20 @@ router.post('/quotation', authenticateToken, async (req, res) => {
         finalSalesUserId = assignedUser._id; // Use the actual ObjectId from database
         finalSalesUserName = providedSalesUserName || assignedUser.name;
         
-        // Verify the ObjectId is correct
-        if (!(finalSalesUserId instanceof mongoose.Types.ObjectId)) {
-          console.error('❌ CRITICAL: finalSalesUserId is not an ObjectId!', {
-            finalSalesUserId,
-            type: typeof finalSalesUserId,
-            constructor: finalSalesUserId?.constructor?.name
-          });
-          // Convert to ObjectId if it's not already
-          finalSalesUserId = new mongoose.Types.ObjectId(finalSalesUserId);
-        }
-        
         console.log('✅ Superadmin assigning quotation to:', {
           providedSalesUserId: providedSalesUserId,
+          providedSalesUserIdType: typeof providedSalesUserId,
           finalSalesUserId: finalSalesUserId,
-          finalSalesUserIdType: typeof finalSalesUserId,
+          finalSalesUserIdType: finalSalesUserId.constructor.name,
+          finalSalesUserIdString: finalSalesUserId.toString(),
           finalSalesUserName: finalSalesUserName,
           assignedUserEmail: assignedUser.email,
-          assignedUserName: assignedUser.name
+          assignedUserName: assignedUser.name,
+          note: 'Quotation will be counted under assignedUser._id in dashboard'
         });
       } catch (validationError) {
         console.error('❌ Error validating salesUserId:', validationError);
+        console.error('❌ Error message:', validationError.message);
         console.error('❌ Error stack:', validationError.stack);
         return res.status(400).json({
           success: false,
@@ -815,16 +817,22 @@ router.post('/quotation', authenticateToken, async (req, res) => {
     } else if (providedSalesUserId && !isSuperAdmin) {
       // Security: Non-superadmin users cannot assign quotations to others
       console.log('⚠️ salesUserId provided but user is not superadmin - ignoring and using own ID');
+      console.log('⚠️ User role:', req.user.role);
+      console.log('⚠️ Provided salesUserId (ignored):', providedSalesUserId);
     } else if (isSuperAdmin && !providedSalesUserId) {
       // Superadmin creating quotation for themselves (default behavior)
       console.log('✅ Superadmin creating quotation for themselves:', {
         salesUserId: finalSalesUserId,
+        salesUserIdType: finalSalesUserId.constructor.name,
+        salesUserIdString: finalSalesUserId.toString(),
         salesUserName: finalSalesUserName
       });
     } else {
       // Regular sales user - always uses their own ID
       console.log('✅ Sales user creating quotation:', {
         salesUserId: finalSalesUserId,
+        salesUserIdType: finalSalesUserId.constructor.name,
+        salesUserIdString: finalSalesUserId.toString(),
         salesUserName: finalSalesUserName
       });
     }
@@ -834,10 +842,15 @@ router.post('/quotation', authenticateToken, async (req, res) => {
     if (!(finalSalesUserId instanceof mongoose.Types.ObjectId)) {
       console.log('⚠️ Converting finalSalesUserId to ObjectId:', {
         before: finalSalesUserId,
-        beforeType: typeof finalSalesUserId
+        beforeType: typeof finalSalesUserId,
+        beforeConstructor: finalSalesUserId?.constructor?.name
       });
       try {
         finalSalesUserId = new mongoose.Types.ObjectId(finalSalesUserId);
+        console.log('✅ Converted to ObjectId:', {
+          after: finalSalesUserId,
+          afterString: finalSalesUserId.toString()
+        });
       } catch (conversionError) {
         console.error('❌ Failed to convert salesUserId to ObjectId:', conversionError);
         return res.status(400).json({
@@ -915,10 +928,33 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       salesUserIdString: quotation.salesUserId?.toString(),
       salesUserName: quotation.salesUserName,
       createdBy: req.user.name,
+      createdByRole: req.user.role,
       createdById: req.user._id,
       createdByIdString: req.user._id?.toString(),
+      isAssigned: quotation.salesUserId.toString() !== req.user._id.toString(),
       note: 'Dashboard will count this quotation under salesUserId above'
     });
+    
+    // CRITICAL: Verify the saved quotation has correct salesUserId
+    const savedQuotation = await Quotation.findById(quotation._id);
+    if (savedQuotation) {
+      console.log('✅ VERIFICATION: Saved quotation has correct salesUserId:', {
+        quotationId: savedQuotation.quotationId,
+        savedSalesUserId: savedQuotation.salesUserId,
+        savedSalesUserIdType: savedQuotation.salesUserId.constructor.name,
+        savedSalesUserIdString: savedQuotation.salesUserId.toString(),
+        savedSalesUserName: savedQuotation.salesUserName,
+        expectedSalesUserId: finalSalesUserId.toString(),
+        matchesExpected: savedQuotation.salesUserId.toString() === finalSalesUserId.toString()
+      });
+      
+      if (savedQuotation.salesUserId.toString() !== finalSalesUserId.toString()) {
+        console.error('❌ CRITICAL ERROR: Saved salesUserId does not match expected!', {
+          expected: finalSalesUserId.toString(),
+          actual: savedQuotation.salesUserId.toString()
+        });
+      }
+    }
     console.log('📅 Created at:', quotation.createdAt);
     console.log('📊 Product details keys:', Object.keys(quotation.productDetails || {}));
     console.log('📊 Exact pricing breakdown saved:', !!quotation.exactPricingBreakdown);
@@ -1273,22 +1309,46 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
     // Uses salesUserId field to ensure correct attribution
     // This includes quotations assigned to this user by superadmin
     // Convert id to ObjectId for proper matching
-    const userIdForQuery = mongoose.Types.ObjectId.isValid(id)
-      ? new mongoose.Types.ObjectId(id)
-      : id;
+    console.log('🔍 SalesPersonDetails - Query parameters:', {
+      providedId: id,
+      providedIdType: typeof id,
+      isValidObjectId: mongoose.Types.ObjectId.isValid(id)
+    });
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.error('❌ Invalid ObjectId format for salesperson ID:', id);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid salesperson ID format'
+      });
+    }
+    
+    const userIdForQuery = new mongoose.Types.ObjectId(id);
+    
+    console.log('🔍 SalesPersonDetails - Query details:', {
+      providedId: id,
+      userIdForQuery: userIdForQuery,
+      userIdForQueryType: userIdForQuery.constructor.name,
+      userIdForQueryString: userIdForQuery.toString()
+    });
     
     const quotations = await Quotation.find({ salesUserId: userIdForQuery })
       .sort({ createdAt: -1 })
       .lean();
 
-    console.log(`📊 Found ${quotations.length} quotations for salesperson ${id} (salesUserId: ${id})`);
-    console.log(`📊 Attribution: Quotations are counted where salesUserId = ${userIdForQuery}`);
+    console.log(`📊 Found ${quotations.length} quotations for salesperson ${id} (salesUserId: ${userIdForQuery.toString()})`);
+    console.log(`📊 Attribution: Quotations are counted where salesUserId = ${userIdForQuery.toString()}`);
     console.log(`📊 Query details:`, {
       providedId: id,
       providedIdType: typeof id,
-      userIdForQuery: userIdForQuery,
+      userIdForQuery: userIdForQuery.toString(),
       userIdForQueryType: userIdForQuery.constructor.name,
-      quotationCount: quotations.length
+      quotationCount: quotations.length,
+      sampleQuotations: quotations.slice(0, 3).map(q => ({
+        quotationId: q.quotationId,
+        salesUserId: q.salesUserId?.toString(),
+        totalPrice: q.totalPrice
+      }))
     });
 
     // Group quotations by customer
