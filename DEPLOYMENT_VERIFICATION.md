@@ -1,5 +1,8 @@
 # Deployment Verification Guide - Quotation Assignment Fix
 
+## ⚠️ LATEST FIX (Commit: 27c7c0f)
+**CRITICAL OWNERSHIP BUG FIX**: Simplified quotation ownership logic to prevent all quotations from being assigned to super user. See `DEPLOYMENT_CHECKLIST_OWNERSHIP_FIX.md` for detailed deployment steps.
+
 ## Problem
 Quotation assignment works on localhost but NOT in deployed environment. This is a deployment/environment mismatch issue.
 
