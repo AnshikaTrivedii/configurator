@@ -741,116 +741,60 @@ router.post('/quotation', authenticateToken, async (req, res) => {
 
     // CRITICAL: Determine salesUserId and salesUserName for quotation attribution
     // This field determines which user the quotation is counted under in the dashboard
-    // Rule: 
-    //   - If superadmin provides salesUserId, use that (assigns to another user)
-    //   - Otherwise, use req.user._id (assigns to themselves or regular sales user)
-    let finalSalesUserId = req.user._id;
-    let finalSalesUserName = req.user.name;
+    // EXACT LOGIC (DO NOT DEVIATE):
+    //   - If req.body.salesUserId is provided → Super user assigned someone → use that
+    //   - Otherwise → No assignment → owner is the logged-in user
+    let finalSalesUserId;
+    let finalSalesUserName;
     
-    // If superadmin/admin and salesUserId is provided, validate and use it
-    const isSuperAdmin = req.user.role === 'super' || req.user.role === 'super_admin' || req.user.role === 'superadmin' || req.user.role === 'admin';
-    
-    if (isSuperAdmin && providedSalesUserId) {
-      // Validate that the provided salesUserId exists
-      // CRITICAL: Convert string ID to ObjectId if needed
-      try {
-        console.log('🔍 Validating provided salesUserId:', {
-          providedSalesUserId,
-          providedSalesUserIdType: typeof providedSalesUserId,
-          isString: typeof providedSalesUserId === 'string',
-          isValidObjectId: mongoose.Types.ObjectId.isValid(providedSalesUserId)
-        });
-        
-        // Validate ObjectId format
-        if (!mongoose.Types.ObjectId.isValid(providedSalesUserId)) {
-          console.error('❌ Invalid salesUserId format (not a valid ObjectId):', providedSalesUserId);
-          return res.status(400).json({
-            success: false,
-            message: 'Invalid salesUserId format. Must be a valid MongoDB ObjectId.'
-          });
-        }
-        
-        // Convert string to ObjectId for query
-        const salesUserIdToFind = new mongoose.Types.ObjectId(providedSalesUserId);
-        console.log('🔍 Converted to ObjectId for query:', {
-          original: providedSalesUserId,
-          converted: salesUserIdToFind,
-          convertedString: salesUserIdToFind.toString()
-        });
-        
-        const assignedUser = await SalesUser.findById(salesUserIdToFind);
-        if (!assignedUser) {
-          console.error('❌ Provided salesUserId does not exist:', providedSalesUserId);
-          console.error('❌ Converted ObjectId:', salesUserIdToFind);
-          return res.status(400).json({
-            success: false,
-            message: 'Invalid salesUserId. The specified sales user does not exist.'
-          });
-        }
-        
-        // Use the assigned user's ID (as ObjectId) and name
-        // CRITICAL: Store as ObjectId to ensure proper matching in dashboard queries
-        // assignedUser._id is already an ObjectId from the database query
-        finalSalesUserId = assignedUser._id; // Use the actual ObjectId from database
-        finalSalesUserName = providedSalesUserName || assignedUser.name;
-        
-        console.log('✅ Superadmin assigning quotation to:', {
-          providedSalesUserId: providedSalesUserId,
-          providedSalesUserIdType: typeof providedSalesUserId,
-          finalSalesUserId: finalSalesUserId,
-          finalSalesUserIdType: finalSalesUserId.constructor.name,
-          finalSalesUserIdString: finalSalesUserId.toString(),
-          finalSalesUserName: finalSalesUserName,
-          assignedUserEmail: assignedUser.email,
-          assignedUserName: assignedUser.name,
-          note: 'Quotation will be counted under assignedUser._id in dashboard'
-        });
-      } catch (validationError) {
-        console.error('❌ Error validating salesUserId:', validationError);
-        console.error('❌ Error message:', validationError.message);
-        console.error('❌ Error stack:', validationError.stack);
+    if (req.body.salesUserId) {
+      // Super user assigned someone
+      // Validate ObjectId format
+      if (!mongoose.Types.ObjectId.isValid(req.body.salesUserId)) {
+        console.error('❌ Invalid salesUserId format (not a valid ObjectId):', req.body.salesUserId);
         return res.status(400).json({
           success: false,
-          message: 'Invalid salesUserId format: ' + validationError.message
+          message: 'Invalid salesUserId format. Must be a valid MongoDB ObjectId.'
         });
       }
-    } else if (providedSalesUserId && !isSuperAdmin) {
-      // Security: Non-superadmin users cannot assign quotations to others
-      console.log('⚠️ salesUserId provided but user is not superadmin - ignoring and using own ID');
-      console.log('⚠️ User role:', req.user.role);
-      console.log('⚠️ Provided salesUserId (ignored):', providedSalesUserId);
-    } else if (isSuperAdmin && !providedSalesUserId) {
-      // Superadmin creating quotation for themselves (default behavior)
-      console.log('✅ Superadmin creating quotation for themselves:', {
-        salesUserId: finalSalesUserId,
-        salesUserIdType: finalSalesUserId.constructor.name,
-        salesUserIdString: finalSalesUserId.toString(),
-        salesUserName: finalSalesUserName
+      
+      // Convert to ObjectId and validate user exists
+      const salesUserIdToFind = new mongoose.Types.ObjectId(req.body.salesUserId);
+      const assignedUser = await SalesUser.findById(salesUserIdToFind);
+      
+      if (!assignedUser) {
+        console.error('❌ Provided salesUserId does not exist:', req.body.salesUserId);
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid salesUserId. The specified sales user does not exist.'
+        });
+      }
+      
+      // Use the assigned user's ID (as ObjectId) and name
+      finalSalesUserId = assignedUser._id; // Already an ObjectId from database
+      finalSalesUserName = req.body.salesUserName || assignedUser.name;
+      
+      console.log('✅ Super user assigned quotation to:', {
+        assignedUserId: finalSalesUserId.toString(),
+        assignedUserName: finalSalesUserName,
+        assignedUserEmail: assignedUser.email
       });
     } else {
-      // Regular sales user - always uses their own ID
-      console.log('✅ Sales user creating quotation:', {
-        salesUserId: finalSalesUserId,
-        salesUserIdType: finalSalesUserId.constructor.name,
-        salesUserIdString: finalSalesUserId.toString(),
-        salesUserName: finalSalesUserName
+      // No assignment → owner is the logged-in user
+      finalSalesUserId = req.user._id;
+      finalSalesUserName = req.user.name;
+      
+      console.log('✅ No assignment - quotation owned by logged-in user:', {
+        ownerId: finalSalesUserId.toString(),
+        ownerName: finalSalesUserName,
+        ownerRole: req.user.role
       });
     }
     
     // CRITICAL: Ensure finalSalesUserId is an ObjectId before saving
-    // This ensures proper matching in dashboard queries
     if (!(finalSalesUserId instanceof mongoose.Types.ObjectId)) {
-      console.log('⚠️ Converting finalSalesUserId to ObjectId:', {
-        before: finalSalesUserId,
-        beforeType: typeof finalSalesUserId,
-        beforeConstructor: finalSalesUserId?.constructor?.name
-      });
       try {
         finalSalesUserId = new mongoose.Types.ObjectId(finalSalesUserId);
-        console.log('✅ Converted to ObjectId:', {
-          after: finalSalesUserId,
-          afterString: finalSalesUserId.toString()
-        });
       } catch (conversionError) {
         console.error('❌ Failed to convert salesUserId to ObjectId:', conversionError);
         return res.status(400).json({
@@ -860,16 +804,16 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       }
     }
     
+    // Log final assignment BEFORE save
+    console.log('FINAL ASSIGNMENT →', finalSalesUserName, finalSalesUserId.toString());
+    
     console.log('📊 FINAL ATTRIBUTION:', {
       quotationId,
-      finalSalesUserId,
-      finalSalesUserIdType: finalSalesUserId.constructor.name,
-      finalSalesUserIdString: finalSalesUserId.toString(),
+      finalSalesUserId: finalSalesUserId.toString(),
       finalSalesUserName,
       createdBy: req.user.name,
       createdByRole: req.user.role,
-      createdById: req.user._id,
-      createdByIdString: req.user._id?.toString(),
+      createdById: req.user._id.toString(),
       note: 'This quotation will be counted under finalSalesUserId in dashboard'
     });
 
