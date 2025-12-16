@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import compression from 'compression';
 import connectDB from './config/database.js';
 import salesRoutes from './routes/sales.js';
+import productsRoutes from './routes/products.js';
 import { runPartnerCreation } from './scripts/runPartnerCreation.js';
 
 // Load environment variables
@@ -68,6 +69,7 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/sales', salesRoutes);
+app.use('/api/products', productsRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, Package } from 'lucide-react';
 import { Product } from '../types';
 import { products } from '../data/products';
-import { getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistanceRange } from '../utils/viewingDistanceRanges';
+import { getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistanceRange, getPixelPitchForViewingDistanceRange } from '../utils/viewingDistanceRanges';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
+import { normalize, getRecommendedPixelPitchForRange, AVAILABLE_PIXEL_PITCHES } from '../utils/pixelPitchRecommendation';
 
 interface ConfigurationWizardProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   const [environment, setEnvironment] = useState<'Indoor' | 'Outdoor' | ''>('');
   const [pixelPitch, setPixelPitch] = useState<number | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [hasSkippedPixelPitch, setHasSkippedPixelPitch] = useState<boolean>(false);
 
   const steps: { key: Step; label: string }[] = [
     { key: 'environment', label: 'Environment' },
@@ -60,6 +62,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       setEnvironment('');
       setPixelPitch(null);
       setSelectedProduct(null);
+      setHasSkippedPixelPitch(false);
     }
   }, [isOpen]);
 
@@ -232,35 +235,35 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   };
 
   // Get available pixel pitches based on viewing distance and environment
-  // Priority: viewing distance recommendations, then filter by environment if selected
+  // Only show pitches from the available product catalog that match environment
   const availablePixelPitches = (() => {
     let pitches: number[] = [];
     
     if (viewingDistance) {
-      // Get pitches recommended for viewing distance
-      pitches = getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit);
+      // Get recommended pitch for viewing distance (only from available catalog)
+      const recommendedPitch = getRecommendedPixelPitchForRange(viewingDistance, viewingDistanceUnit);
+      if (recommendedPitch !== null) {
+        pitches = [recommendedPitch];
+      }
     } else {
-      // If no viewing distance, get all unique pixel pitches from enabled products
-        const uniquePitches = new Set<number>();
-        products.forEach(product => {
-        if (product.enabled !== false) {
-            uniquePitches.add(product.pixelPitch);
-          }
-        });
-      pitches = Array.from(uniquePitches).sort((a, b) => a - b);
+      // If no viewing distance, get all available pitches from catalog
+      pitches = [...AVAILABLE_PIXEL_PITCHES];
     }
     
-    // Filter by environment if selected (applies to both viewing distance recommendations and all pitches)
+    // Filter by environment if selected - only show pitches that have products in that environment
     if (environment && pitches.length > 0) {
       const envFilteredPitches = new Set<number>();
       const normalizedEnv = environment.toLowerCase().trim();
       
       pitches.forEach(pitch => {
-        // Check if any product with this pitch matches the environment
+        // Check if any enabled product with this pitch matches the environment
         const hasMatchingProduct = products.some(product => {
           if (product.enabled === false) return false;
           const productEnv = product.environment?.toLowerCase().trim();
-          const pitchMatch = Math.abs(product.pixelPitch - pitch) < 0.3;
+          const productPitch = normalize(product.pixelPitch);
+          const targetPitch = normalize(pitch);
+          if (productPitch === null || targetPitch === null) return false;
+          const pitchMatch = Math.abs(productPitch - targetPitch) < 0.1;
           return pitchMatch && productEnv === normalizedEnv;
         });
         
@@ -275,6 +278,16 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     return pitches;
       })();
 
+  // Calculate recommended pixel pitch from viewing distance (for guided mode filtering)
+  const recommendedPixelPitch = (() => {
+    if (viewingDistance && !hasSkippedPixelPitch) {
+      // Get the recommended pixel pitch for this viewing distance (only from available catalog)
+      const recommendedPitch = getRecommendedPixelPitchForRange(viewingDistance, viewingDistanceUnit);
+      return recommendedPitch;
+    }
+    return null;
+  })();
+
   // Filter products based on selections (only enabled products)
   const filteredProducts = products.filter(product => {
     // Only show enabled products
@@ -288,25 +301,29 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       return false;
     }
     
-    // If pixel pitch is explicitly selected, match it (with lenient tolerance)
+    // GUIDED MODE FILTERING LOGIC:
+    // If user explicitly selected a pixel pitch, use it
     if (pixelPitch !== null) {
-      // Use a lenient tolerance for pixel pitch matching (0.3mm tolerance)
-      // This accounts for variations like 1.5 vs 1.5625, 1.8 vs 1.86, etc.
-      const pitchDiff = Math.abs(product.pixelPitch - pixelPitch);
-      if (pitchDiff > 0.3) {
+      const productPitch = normalize(product.pixelPitch);
+      const selectedPitch = normalize(pixelPitch);
+      if (productPitch === null || selectedPitch === null) return false;
+      // Use strict matching with small tolerance (0.1mm) for exact matches
+      if (Math.abs(productPitch - selectedPitch) >= 0.1) {
         return false;
       }
-    } else if (viewingDistance) {
-      // If viewing distance is selected but pixel pitch is not, filter by available pixel pitches
-      const matchingPitches = getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit);
-      if (matchingPitches.length > 0) {
-        // Check if product's pixel pitch matches any of the recommended pitches (with tolerance)
-        const matches = matchingPitches.some(p => Math.abs(product.pixelPitch - p) < 0.3);
-        if (!matches) {
-          return false;
-        }
+    } 
+    // If in guided mode and pixel pitch was not selected but not skipped, use recommended pitch
+    else if (recommendedPixelPitch !== null && !hasSkippedPixelPitch) {
+      const productPitch = normalize(product.pixelPitch);
+      const recommendedPitch = normalize(recommendedPixelPitch);
+      if (productPitch === null || recommendedPitch === null) return false;
+      // Strict filtering: only show products matching the recommended pitch
+      if (Math.abs(productPitch - recommendedPitch) >= 0.1) {
+        return false;
       }
     }
+    // If user clicked "Skip - Show All Products", show all (no pixel pitch filtering)
+    // This is handled by the else condition above (no filtering when hasSkippedPixelPitch is true)
     
     return true;
   });
@@ -473,17 +490,25 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {availablePixelPitches.map((pitch) => {
                       // Count products matching this pitch and environment
+                      // Use strict matching (0.1mm tolerance) to match the filtering logic
                       const matchingProducts = products.filter(p => {
                         if (p.enabled === false) return false; // Only enabled products
                         const envMatch = !environment || p.environment?.toLowerCase().trim() === environment.toLowerCase().trim();
-                        const pitchMatch = Math.abs(p.pixelPitch - pitch) < 0.3;
+                        // Use strict matching with 0.1mm tolerance (same as filtering logic)
+                        const productPitch = normalize(p.pixelPitch);
+                        const targetPitch = normalize(pitch);
+                        if (productPitch === null || targetPitch === null) return false;
+                        const pitchMatch = Math.abs(productPitch - targetPitch) < 0.1;
                         return envMatch && pitchMatch;
                       });
                       
                       return (
                         <button
                           key={pitch}
-                          onClick={() => setPixelPitch(pitch)}
+                          onClick={() => {
+                            setPixelPitch(pitch);
+                            setHasSkippedPixelPitch(false);
+                          }}
                           className={`p-4 rounded-lg border-2 transition-all text-left ${
                             pixelPitch === pitch
                               ? 'border-blue-600 bg-blue-50 shadow-lg'
@@ -502,16 +527,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                       );
                     })}
                   </div>
-                  <button
-                    onClick={() => setPixelPitch(null)}
-                    className={`w-full p-3 rounded-lg border-2 transition-all text-center ${
-                      pixelPitch === null
-                        ? 'border-blue-600 bg-blue-50 text-blue-600 font-medium'
-                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
-                    }`}
-                  >
-                    Skip - Show All Products
-                  </button>
                 </>
               ) : (
                 <div className="text-center py-8">
@@ -520,12 +535,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                       ? 'No pixel pitches available for this viewing distance'
                       : 'Select viewing distance to see recommended pixel pitches'}
                   </div>
-                  <button
-                    onClick={() => setPixelPitch(null)}
-                    className="px-6 py-3 rounded-lg border-2 border-blue-600 text-blue-600 hover:bg-blue-50 transition-colors font-medium"
-                  >
-                    Skip - Show All Products
-                  </button>
                 </div>
               )}
             </div>
@@ -698,7 +707,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                       <button
                         onClick={() => {
                           setPixelPitch(null);
-                          // Re-filter products without pixel pitch
+                          setHasSkippedPixelPitch(true);
                         }}
                         className="px-6 py-3 text-blue-600 border-2 border-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium"
                       >

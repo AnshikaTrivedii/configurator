@@ -452,7 +452,16 @@ export const generateConfigurationHtml = (
     structureBasePrice = customPricing.structurePrice;
     installationBasePrice = customPricing.installationPrice;
   } else {
-    structureBasePrice = screenAreaSqFt * 2500;
+    // Structure Price: Indoor = ₹4000 per cabinet, Outdoor = ₹2500 per sq.ft
+    const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
+    if (normalizedEnv === 'indoor') {
+      // Indoor: ₹4000 per cabinet
+      const numberOfCabinets = cabinetGrid.columns * cabinetGrid.rows;
+      structureBasePrice = numberOfCabinets * 4000;
+    } else {
+      // Outdoor: ₹2500 per sq.ft
+      structureBasePrice = screenAreaSqFt * 2500;
+    }
     installationBasePrice = screenAreaSqFt * 500;
   }
   
@@ -833,7 +842,7 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-value">P${selectedProduct.pixelPitch}</span>
                             </div>
                             <div class="quotation-row">
-                                <span class="quotation-label">Module Dimension:</span>
+                                <span class="quotation-label">Cabinet Dimension:</span>
                                 <span class="quotation-value">${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm</span>
                             </div>
                             <div class="quotation-row">

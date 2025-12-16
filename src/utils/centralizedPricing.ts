@@ -182,13 +182,27 @@ function calculateQuantity(
 }
 
 /**
- * Calculate Structure Cost based on area and rate
- * @param area - Screen area in square feet
- * @param rate - Rate per square foot (default: ₹2500/sqft)
+ * Calculate Structure Cost based on product environment
+ * @param environment - Product environment ('Indoor' or 'Outdoor')
+ * @param cabinetGrid - Cabinet grid with columns and rows
+ * @param area - Screen area in square feet (for outdoor products)
  * @returns Base structure cost (before GST)
  */
-export function calculateStructureCost(area: number, rate: number = 2500): number {
-  return Math.round((area * rate) * 100) / 100;
+export function calculateStructureCost(
+  environment: string | null | undefined,
+  cabinetGrid: { columns: number; rows: number } | null,
+  area: number
+): number {
+  const normalizedEnv = environment?.toLowerCase().trim();
+  
+  if (normalizedEnv === 'indoor') {
+    // Indoor: ₹4000 per cabinet
+    const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+    return Math.round((numberOfCabinets * 4000) * 100) / 100;
+  } else {
+    // Outdoor: ₹2500 per sq.ft
+    return Math.round((area * 2500) * 100) / 100;
+  }
 }
 
 /**
@@ -323,8 +337,10 @@ export function calculateCentralizedPricing(
         installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', customPricing.installationPrice);
       }
     } else {
-      // Default calculation: Structure Price: ₹2500 per square foot, Installation Price: ₹500 per square foot
-      structureBasePrice = calculateStructureCost(screenAreaSqFt, 2500);
+      // Default calculation: 
+      // Structure Price: Indoor = ₹4000 per cabinet, Outdoor = ₹2500 per sq.ft
+      // Installation Price: ₹500 per square foot
+      structureBasePrice = calculateStructureCost(product.environment, cabinetGrid, screenAreaSqFt);
       installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 500);
     }
     

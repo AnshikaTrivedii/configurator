@@ -182,7 +182,16 @@ const generateWordHtml = (data) => {
     structureBasePrice = customPricing.structurePrice;
     installationBasePrice = customPricing.installationPrice;
   } else {
-    structureBasePrice = screenAreaSqFt * 2500;
+    // Structure Price: Indoor = ₹4000 per cabinet, Outdoor = ₹2500 per sq.ft
+    const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
+    if (normalizedEnv === 'indoor') {
+      // Indoor: ₹4000 per cabinet
+      const numberOfCabinets = cabinetGrid.columns * cabinetGrid.rows;
+      structureBasePrice = numberOfCabinets * 4000;
+    } else {
+      // Outdoor: ₹2500 per sq.ft
+      structureBasePrice = screenAreaSqFt * 2500;
+    }
     installationBasePrice = screenAreaSqFt * 500;
   }
   
@@ -389,7 +398,7 @@ const generateWordHtml = (data) => {
               <h4>PRODUCT SPECIFICATIONS</h4>
               <p><strong>Series/Environment:</strong> ${selectedProduct.category}, ${selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1)}</p>
               <p><strong>Pixel Pitch:</strong> P${selectedProduct.pixelPitch}</p>
-              <p><strong>Module Dimension:</strong> ${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm</p>
+              <p><strong>Cabinet Dimension:</strong> ${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm</p>
               <p><strong>Display Size (m):</strong> ${toDisplayUnit(config.width, 'm')} x ${toDisplayUnit(config.height, 'm')}</p>
               <p><strong>Display Size (ft):</strong> ${toDisplayUnit(config.width, 'ft')} x ${toDisplayUnit(config.height, 'ft')}</p>
               <p><strong>Resolution:</strong> ${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}</p>

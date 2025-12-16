@@ -183,8 +183,18 @@ function calculateCorrectTotalPrice(
     structureBasePrice = customPricing.structurePrice;
     installationBasePrice = customPricing.installationPrice;
   } else {
-    // Default calculation: Structure Price: ₹2500 per square foot, Installation Price: ₹500 per square foot
-    structureBasePrice = screenAreaSqFt * 2500;
+    // Default calculation: 
+    // Structure Price: Indoor = ₹4000 per cabinet, Outdoor = ₹2500 per sq.ft
+    // Installation Price: ₹500 per square foot
+    const normalizedEnv = product.environment?.toLowerCase().trim();
+    if (normalizedEnv === 'indoor') {
+      // Indoor: ₹4000 per cabinet
+      const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+      structureBasePrice = numberOfCabinets * 4000;
+    } else {
+      // Outdoor: ₹2500 per sq.ft
+      structureBasePrice = screenAreaSqFt * 2500;
+    }
     installationBasePrice = screenAreaSqFt * 500;
   }
   

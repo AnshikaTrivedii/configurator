@@ -1,6 +1,8 @@
 // Viewing Distance Ranges based on Pixel Pitch
 // Data extracted from the provided spreadsheet
 
+import { getRecommendedPixelPitchForRange } from './pixelPitchRecommendation';
+
 export interface ViewingDistanceRange {
   pixelPitch: number;
   minMeters: number;
@@ -195,48 +197,26 @@ export function getViewingDistanceOptionsByUnit(unit: 'meters' | 'feet'): { valu
 
 /**
  * Get pixel pitches that match a specific viewing distance range and unit
- * Each range maps to its specific pixel pitch (exact match)
+ * Returns only the recommended pixel pitch from available product catalog pitches
  */
 export function getPixelPitchesForViewingDistanceRange(distanceRange: string, unit: 'meters' | 'feet'): number[] {
-  const matchingPixelPitches: number[] = [];
+  const recommendedPitch = getRecommendedPixelPitchForRange(distanceRange, unit);
   
-  // Parse the range (format: "min-max")
-  const [minStr, maxStr] = distanceRange.split('-');
-  const selectedMin = parseFloat(minStr);
-  const selectedMax = parseFloat(maxStr);
-  
-  if (isNaN(selectedMin) || isNaN(selectedMax)) {
-    return matchingPixelPitches;
+  // Return array with the recommended pitch, or empty array if no recommendation
+  if (recommendedPitch !== null) {
+    return [recommendedPitch];
   }
   
-  VIEWING_DISTANCE_RANGES.forEach(range => {
-    let rangeMin: number;
-    let rangeMax: number;
-    
-    if (unit === 'meters') {
-      rangeMin = range.minMeters;
-      rangeMax = range.maxMeters;
-    } else {
-      rangeMin = range.minFeet;
-      rangeMax = range.maxFeet;
-    }
-    
-    // Exact match: the selected range must exactly match this pixel pitch range
-    if (Math.abs(selectedMin - rangeMin) < 0.01 && Math.abs(selectedMax - rangeMax) < 0.01) {
-      matchingPixelPitches.push(range.pixelPitch);
-    }
-  });
-  
-  return matchingPixelPitches;
+  return [];
 }
 
 /**
  * Get the specific pixel pitch for a viewing distance range
- * Returns the pixel pitch that exactly matches the given range
+ * Returns the recommended pixel pitch based on the distance range
+ * Uses the new recommendation logic that only returns pitches from the product catalog
  */
 export function getPixelPitchForViewingDistanceRange(distanceRange: string, unit: 'meters' | 'feet'): number | null {
-  const pixelPitches = getPixelPitchesForViewingDistanceRange(distanceRange, unit);
-  return pixelPitches.length > 0 ? pixelPitches[0] : null;
+  return getRecommendedPixelPitchForRange(distanceRange, unit);
 }
 
 /**
