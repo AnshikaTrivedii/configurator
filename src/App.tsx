@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { DisplayConfigurator } from './components/DisplayConfigurator';
 import { SalesLoginModal } from './components/SalesLoginModal';
 import { LandingPage } from './components/LandingPage';
 import { ConfigurationWizard } from './components/ConfigurationWizard';
-import { SalesDashboard } from './components/SalesDashboard';
 import { SalesUser, salesAPI } from './api/sales';
 import { Product } from './types';
 import { useDisplayConfig } from './contexts/DisplayConfigContext';
-import { Theater } from 'lucide-react';
 import { verifyUserObject } from './utils/clearAuthCache';
 
 type UserRole = 'normal' | 'sales' | 'super' | 'super_admin' | 'partner';
@@ -71,8 +69,7 @@ function App() {
                 directProductMode: true
               });
               // Super admin users see dashboard, sales users see configurator
-              if (role === 'super_admin' || role === 'super') {
-                
+              if (role === 'super_admin') {
                 setShowDashboard(true);
               } else {
                 setShowDashboard(false);
@@ -118,7 +115,7 @@ function App() {
               directProductMode: true
             });
             // Super admin users see dashboard, sales users see configurator
-            if (role === 'super_admin' || role === 'super') {
+            if (role === 'super_admin') {
               setShowDashboard(true);
             } else {
               setShowDashboard(false);
@@ -166,9 +163,8 @@ function App() {
     // This handles cases where backend hasn't been updated or database doesn't have roles
     if (!user.role) {
       console.warn('⚠️ WARNING: User object missing role! Defaulting to "sales"');
-      user.role = 'sales';
-      // Update the stored user as well
-      const updatedUser = { ...user, role: 'sales' };
+      // Update the stored user as well with proper type
+      const updatedUser: SalesUser = { ...user, role: 'sales' as const };
       setSalesUser(updatedUser);
       // Update localStorage
       const token = localStorage.getItem('salesToken');
@@ -176,7 +172,9 @@ function App() {
         salesAPI.setAuthData(token, updatedUser);
       }
     } else {
-      setSalesUser(user);
+      // Ensure role is properly typed
+      const typedUser: SalesUser = { ...user, role: user.role as 'sales' | 'super' | 'super_admin' | 'partner' };
+      setSalesUser(typedUser);
     }
     
     // Map roles: 'super'/'super_admin' → 'super_admin', 'sales'/'partner' → keep as is
@@ -200,7 +198,7 @@ function App() {
         directProductMode: true
       });
       // Super admin users see dashboard, sales users see configurator
-      if (newRole === 'super_admin' || newRole === 'super') {
+      if (newRole === 'super_admin') {
         setShowDashboard(true);
       } else {
         setShowDashboard(false);
