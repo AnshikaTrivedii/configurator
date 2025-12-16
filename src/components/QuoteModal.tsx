@@ -310,12 +310,12 @@ type QuoteModalProps = {
     phoneNumber: string;
     projectTitle?: string;
     address?: string;
-    userType: 'End User' | 'Reseller';
+    userType: 'End User' | 'SI/Channel Partner' | 'Reseller';
   };
   title?: string;
   submitButtonText?: string;
   salesUser?: SalesUser | null;
-  userRole?: 'normal' | 'sales' | 'super' | 'super_admin';
+  userRole?: 'normal' | 'sales' | 'super' | 'super_admin' | 'partner';
   quotationId?: string;
   customPricing?: {
     enabled: boolean;
@@ -393,7 +393,41 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const [salesPersons, setSalesPersons] = useState<any[]>([]);
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState<string | null>(null);
   const [loadingSalesPersons, setLoadingSalesPersons] = useState(false);
-  const [selectedUserType, setSelectedUserType] = useState<'End User' | 'Reseller'>(userInfo?.userType || 'End User');
+  // Support all three customer types
+  type UserTypeDisplay = 'End User' | 'SI/Channel Partner' | 'Reseller';
+  const [selectedUserType, setSelectedUserType] = useState<UserTypeDisplay>(
+    userInfo?.userType === 'Reseller' ? 'Reseller' : 
+    userInfo?.userType === 'SI/Channel Partner' ? 'SI/Channel Partner' : 
+    'End User'
+  );
+  
+  // Get allowed customer types from salesUser (for partners)
+  const allowedCustomerTypes = salesUser?.allowedCustomerTypes || [];
+  const isPartner = userRole === 'partner';
+  
+  // Filter available user types based on permissions
+  const availableUserTypes: UserTypeDisplay[] = React.useMemo(() => {
+    if (isPartner && allowedCustomerTypes.length > 0) {
+      // Partner: only show allowed types
+      const types: UserTypeDisplay[] = [];
+      if (allowedCustomerTypes.includes('endUser')) types.push('End User');
+      if (allowedCustomerTypes.includes('siChannel')) types.push('SI/Channel Partner');
+      if (allowedCustomerTypes.includes('reseller')) types.push('Reseller');
+      return types.length > 0 ? types : ['End User']; // Fallback to End User if empty
+    }
+    // Sales/Super: show all types
+    return ['End User', 'SI/Channel Partner', 'Reseller'];
+  }, [isPartner, allowedCustomerTypes]);
+  
+  // Ensure selectedUserType is valid based on permissions
+  React.useEffect(() => {
+    if (isPartner && allowedCustomerTypes.length > 0) {
+      if (!availableUserTypes.includes(selectedUserType)) {
+        // If current selection is not allowed, switch to first available
+        setSelectedUserType(availableUserTypes[0]);
+      }
+    }
+  }, [isPartner, allowedCustomerTypes, availableUserTypes, selectedUserType]);
   
   // Discount state (only for superadmin)
   const [discountType, setDiscountType] = useState<'led' | 'controller' | 'total' | null>(null);
@@ -486,10 +520,12 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   if (!isOpen) return null;
 
   // Get the current user type from local state with proper mapping
-  const getUserType = (): 'endUser' | 'reseller' => {
+  const getUserType = (): 'endUser' | 'reseller' | 'siChannel' => {
     switch (selectedUserType) {
       case 'Reseller':
         return 'reseller';
+      case 'SI/Channel Partner':
+        return 'siChannel';
       case 'End User':
       default:
         return 'endUser';
@@ -697,19 +733,34 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           });
         }
       } else {
-        // Regular sales user - always uses their own ID
+        // Regular sales user or partner - always uses their own ID
+        // Partners are treated the same as sales users for quotation attribution
         finalSalesUserId = salesUser?._id?.toString();
         finalSalesUserName = salesUser?.name;
-        console.log('📊 Sales user creating quotation:', {
+        console.log('📊 Sales user/Partner creating quotation:', {
           salesUserId: finalSalesUserId,
-          salesUserName: finalSalesUserName
+          salesUserIdType: typeof finalSalesUserId,
+          salesUserName: finalSalesUserName,
+          userRole: userRole,
+          isPartner: userRole === 'partner',
+          note: 'Quotation will be attributed to this user in dashboard'
         });
       }
       
+      // Save quotation for sales users, partners, and superadmins
+      // Partners are treated exactly the same as sales users
       if ((salesUser || isSuperAdmin) && finalQuotationId && finalSalesUserId && finalSalesUserName) {
         console.log('✅ Conditions met - attempting to save quotation to database...');
-        console.log('📋 Sales User:', salesUser.name, salesUser.email);
+        console.log('📋 User:', salesUser?.name || 'Super Admin', salesUser?.email || 'N/A');
+        console.log('👤 User Role:', userRole);
         console.log('🆔 Quotation ID:', finalQuotationId);
+        console.log('👥 Attribution:', {
+          salesUserId: finalSalesUserId,
+          salesUserName: finalSalesUserName,
+          userRole: userRole,
+          isPartner: userRole === 'partner',
+          note: 'Quotation will be saved with same structure as sales user quotations'
+        });
         
         try {
           // PRODUCTION DEBUG: Log the exact payload being sent
@@ -871,7 +922,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             // CRITICAL: Include salesUserId and salesUserName for quotation attribution
             // This determines which user the quotation is counted under in the dashboard
             // For superadmin: can be assigned user or themselves
-            // For sales users: always their own ID
+            // For sales users and partners: always their own ID
+            // Partners are saved with the same structure as sales users
             salesUserId: finalSalesUserId,
             salesUserName: finalSalesUserName,
             
@@ -1154,14 +1206,15 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                             className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all appearance-none bg-white"
                             value={selectedUserType}
                             onChange={(e) => {
-                              const newUserType = e.target.value as 'End User' | 'Reseller';
+                              const newUserType = e.target.value as UserTypeDisplay;
                               setSelectedUserType(newUserType);
                             }}
                             disabled={isSubmitting}
                             required
                           >
-                            <option value="End User">End User</option>
-                            <option value="Reseller">Reseller</option>
+                            {availableUserTypes.map(type => (
+                              <option key={type} value={type}>{type}</option>
+                            ))}
                           </select>
                           <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />

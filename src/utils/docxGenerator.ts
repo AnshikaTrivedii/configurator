@@ -540,8 +540,8 @@ export const generateConfigurationHtml = (
     totalController = controllerPrice + gstController;
     totalStructure = structureBasePrice + structureGST;
     totalInstallation = installationBasePrice + installationGST;
-    
-    // Update grand total to include Structure and Installation (separate, never combined)
+  
+  // Update grand total to include Structure and Installation (separate, never combined)
     grandTotal = totalProduct + totalController + totalStructure + totalInstallation;
   }
 
@@ -1146,10 +1146,10 @@ export const generateConfigurationPdf = async (
   document.body.appendChild(container);
 
   try {
-    // Wait for images to load to avoid blank canvases
-    // Use Promise.race with timeout to avoid long waits
+  // Wait for images to load to avoid blank canvases
+  // Use Promise.race with timeout to avoid long waits
     // Increased timeout for production environments where images may load slower
-    const allImages = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
+  const allImages = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
     console.log(`📸 Found ${allImages.length} images to load for PDF generation`);
     
     const imageLoadPromises = allImages.map((img, index) => {
@@ -1168,7 +1168,7 @@ export const generateConfigurationPdf = async (
             // Still resolve to continue PDF generation even if some images fail
             resolve();
           };
-        }),
+            }),
         new Promise<void>((resolve) => setTimeout(resolve, 5000)) // Increased to 5 seconds for production
       ]);
     });
@@ -1237,19 +1237,19 @@ export const generateConfigurationPdf = async (
     let canvas;
     try {
       canvas = await html2canvas(pageEl, {
-        scale: 1.5, // Reduced from 2 for faster processing
+      scale: 1.5, // Reduced from 2 for faster processing
         useCORS: true, // Allow cross-origin images
-        backgroundColor: '#ffffff',
-        logging: false,
-        windowWidth: pageEl.offsetWidth,
-        windowHeight: pageEl.offsetHeight,
-        height: pageEl.offsetHeight,
-        width: pageEl.offsetWidth,
+      backgroundColor: '#ffffff',
+      logging: false,
+      windowWidth: pageEl.offsetWidth,
+      windowHeight: pageEl.offsetHeight,
+      height: pageEl.offsetHeight,
+      width: pageEl.offsetWidth,
         allowTaint: true, // Allow tainted canvas for production (needed for some images)
-        removeContainer: false, // Keep container for faster processing
+      removeContainer: false, // Keep container for faster processing
         foreignObjectRendering: false, // Disable foreign object rendering for better compatibility
         imageTimeout: 15000, // 15 second timeout for images
-      });
+    });
     } catch (canvasError: any) {
       console.error(`❌ html2canvas error on page ${i + 1}:`, canvasError);
       throw new Error(`Failed to render page ${i + 1} to canvas: ${canvasError?.message || 'Unknown error'}`);
@@ -1265,14 +1265,14 @@ export const generateConfigurationPdf = async (
     pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'FAST');
   }
 
-    const blob = pdf.output('blob');
+  const blob = pdf.output('blob');
     
     // Clean up container
     if (container.parentNode) {
-      document.body.removeChild(container);
+  document.body.removeChild(container);
     }
     
-    return blob;
+  return blob;
   } catch (error) {
     // Clean up container on error
     if (container.parentNode) {

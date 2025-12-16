@@ -8,8 +8,9 @@ import { SalesUser, salesAPI } from './api/sales';
 import { Product } from './types';
 import { useDisplayConfig } from './contexts/DisplayConfigContext';
 import { Theater } from 'lucide-react';
+import { verifyUserObject } from './utils/clearAuthCache';
 
-type UserRole = 'normal' | 'sales' | 'super' | 'super_admin';
+type UserRole = 'normal' | 'sales' | 'super' | 'super_admin' | 'partner';
 
 function App() {
   const { updateDimensions, updateConfig } = useDisplayConfig();
@@ -37,17 +38,33 @@ function App() {
         try {
           // First try to get user from localStorage for instant loading
           const storedUser = salesAPI.getStoredUser();
+          
+          // CRITICAL: Verify stored user has all required fields
+          if (storedUser) {
+            const verification = verifyUserObject(storedUser);
+            if (!verification.valid) {
+              console.error('❌ Stored user missing required fields:', verification.missing);
+              console.warn('⚠️ Clearing cache and forcing fresh login');
+              salesAPI.logout();
+              setSalesUser(null);
+              setUserRole('normal');
+              return; // Exit early, user needs to log in again
+            }
+          }
+          
           if (storedUser) {
             setSalesUser(storedUser);
-            // Map 'super' to 'super_admin' for backward compatibility, or use the role directly
+            // Map roles: 'super'/'super_admin' → 'super_admin', 'sales'/'partner' → keep as is
             const role = storedUser.role === 'super' || storedUser.role === 'super_admin' 
               ? 'super_admin' 
               : storedUser.role === 'sales' 
-              ? 'sales' 
+              ? 'sales'
+              : storedUser.role === 'partner'
+              ? 'partner'
               : 'normal';
             setUserRole(role);
-            // If sales/super_admin user, redirect to their respective views immediately
-            if (role === 'sales' || role === 'super_admin') {
+            // If sales/partner/super_admin user, redirect to their respective views immediately
+            if (role === 'sales' || role === 'partner' || role === 'super_admin') {
               setShowLandingPage(false);
               updateConfig({
                 entryMode: 'direct',
@@ -63,18 +80,38 @@ function App() {
             }
           }
 
-          // Then verify token is still valid in the background
+          // Then verify token is still valid in the background and refresh user data
           const response = await salesAPI.getProfile();
+          
+          // CRITICAL: Verify response includes all required fields
+          const verification = verifyUserObject(response.user);
+          if (!verification.valid) {
+            console.error('❌ Profile response missing required fields:', verification.missing);
+            console.error('❌ Profile response user:', response.user);
+            salesAPI.logout();
+            setSalesUser(null);
+            setUserRole('normal');
+            return;
+          }
+          
+          console.log('✅ Profile response valid, setting user:', {
+            _id: response.user._id,
+            email: response.user.email,
+            role: response.user.role
+          });
+          
           setSalesUser(response.user);
-          // Map 'super' to 'super_admin' for backward compatibility
+          // Map roles: 'super'/'super_admin' → 'super_admin', 'sales'/'partner' → keep as is
           const role = response.user.role === 'super' || response.user.role === 'super_admin' 
             ? 'super_admin' 
             : response.user.role === 'sales' 
-            ? 'sales' 
+            ? 'sales'
+            : response.user.role === 'partner'
+            ? 'partner'
             : 'normal';
           setUserRole(role);
-          // If sales/super_admin user, redirect to their respective views immediately
-          if (role === 'sales' || role === 'super_admin') {
+          // If sales/partner/super_admin user, redirect to their respective views immediately
+          if (role === 'sales' || role === 'partner' || role === 'super_admin') {
             setShowLandingPage(false);
             updateConfig({
               entryMode: 'direct',
@@ -102,7 +139,28 @@ function App() {
   const handleSalesLogin = (user: SalesUser) => {
     console.log('🎯 App.tsx - handleSalesLogin - user:', user);
     console.log('🎯 App.tsx - user.role:', user.role);
+    console.log('🎯 App.tsx - user._id:', user._id);
     console.log('🎯 App.tsx - user object (full):', JSON.stringify(user, null, 2));
+    
+    // CRITICAL: Verify user object has all required fields
+    const verification = verifyUserObject(user);
+    if (!verification.valid) {
+      console.error('❌ CRITICAL: User object missing required fields!', {
+        missing: verification.missing,
+        user: user,
+        userKeys: Object.keys(user),
+        userStringified: JSON.stringify(user, null, 2),
+        note: 'Backend should include all fields in login response. Please check backend/routes/sales.js'
+      });
+      alert(`⚠️ Warning: User data is incomplete (missing: ${verification.missing.join(', ')}). Please contact support or try logging in again.`);
+      return; // Don't proceed with incomplete user data
+    }
+    
+    console.log('✅ User object verified, all required fields present:', {
+      _id: user._id,
+      email: user.email,
+      role: user.role
+    });
     
     // CRITICAL FIX: If user doesn't have a role, default to 'sales'
     // This handles cases where backend hasn't been updated or database doesn't have roles
@@ -121,18 +179,20 @@ function App() {
       setSalesUser(user);
     }
     
-    // Map 'super' to 'super_admin' for backward compatibility
+    // Map roles: 'super'/'super_admin' → 'super_admin', 'sales'/'partner' → keep as is
     const newRole = user.role === 'super' || user.role === 'super_admin' 
       ? 'super_admin' 
       : user.role === 'sales' 
-      ? 'sales' 
+      ? 'sales'
+      : user.role === 'partner'
+      ? 'partner'
       : 'normal';
     console.log('🎯 App.tsx - setting userRole to:', newRole);
     console.log('🎯 App.tsx - user.role after fix:', user.role);
     setUserRole(newRole);
     setShowSalesLogin(false);
-    // If sales/super_admin user, skip landing page and go to their respective views
-    if (newRole === 'sales' || newRole === 'super_admin') {
+    // If sales/partner/super_admin user, skip landing page and go to their respective views
+    if (newRole === 'sales' || newRole === 'partner' || newRole === 'super_admin') {
       console.log('🎯 App.tsx - Redirecting for role:', newRole);
       setShowLandingPage(false);
       updateConfig({
@@ -213,9 +273,9 @@ function App() {
 
 
   // Route to correct view based on user role
-  // Sales users go directly to the LED Configurator (DisplayConfigurator)
+  // Sales/Partner users go directly to the LED Configurator (DisplayConfigurator)
   // Super admin users go to Admin Dashboard (SuperUserDashboard)
-  if ((userRole === 'sales' || userRole === 'super_admin' || userRole === 'super') && !showLandingPage) {
+  if ((userRole === 'sales' || userRole === 'partner' || userRole === 'super_admin' || userRole === 'super') && !showLandingPage) {
     console.log('🎯 App.tsx - User logged in, userRole:', userRole);
     
     // Super admin users go to Admin Dashboard (SuperUserDashboard)
@@ -246,9 +306,9 @@ function App() {
       );
     }
     
-    // Sales users go to LED Configurator (DisplayConfigurator) - NOT a separate dashboard
-    if (userRole === 'sales') {
-      console.log('🎯 App.tsx - Rendering DisplayConfigurator for sales user');
+    // Sales/Partner users go to LED Configurator (DisplayConfigurator) - NOT a separate dashboard
+    if (userRole === 'sales' || userRole === 'partner') {
+      console.log('🎯 App.tsx - Rendering DisplayConfigurator for', userRole === 'partner' ? 'partner' : 'sales', 'user');
       return (
         <>
           <SalesLoginModal 
@@ -257,7 +317,7 @@ function App() {
             onLogin={handleSalesLogin}
           />
           <DisplayConfigurator 
-            userRole="sales"
+            userRole={userRole}
             salesUser={salesUser}
             onShowSalesLogin={handleShowSalesLogin}
             onSalesLogout={handleSalesLogout}
@@ -277,6 +337,7 @@ function App() {
           onStartConfiguration={handleStartConfiguration}
           onChooseProductDirectly={handleChooseProductDirectly}
           onSalesLogin={handleShowSalesLogin}
+          onPartnerLogin={handleShowSalesLogin}
         />
         <SalesLoginModal 
           isOpen={showSalesLogin} 

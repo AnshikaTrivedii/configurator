@@ -121,11 +121,13 @@ export interface ControllerSelection {
 }
 
 export interface SalesUser {
+  _id?: string; // CRITICAL: User ID needed for quotation attribution
   name: string;
   email: string;
   location: string;
   contactNumber: string;
-  role?: 'sales' | 'super';
+  role?: 'sales' | 'super' | 'super_admin' | 'partner';
+  allowedCustomerTypes?: string[]; // For partners: ['endUser', 'reseller', 'siChannel']
 }
 
 export interface SalesUserWithQuotations {

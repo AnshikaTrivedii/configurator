@@ -5,9 +5,10 @@ interface LandingPageProps {
   onStartConfiguration: () => void;
   onChooseProductDirectly: () => void;
   onSalesLogin: () => void;
+  onPartnerLogin: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onStartConfiguration, onChooseProductDirectly, onSalesLogin }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onStartConfiguration, onChooseProductDirectly, onSalesLogin, onPartnerLogin }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100">
       {/* Premium Black Header */}
@@ -239,10 +240,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartConfiguration, 
         </div>
       </div>
 
-      {/* Sales Login Section with Premium Styling */}
+      {/* Sales & Partner Login Section with Premium Styling */}
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20">
         <div className="text-center">
-          <div className="inline-block">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={onSalesLogin}
               className="group relative px-8 py-4 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 text-white text-base sm:text-lg font-semibold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 overflow-hidden border border-slate-600/50"
@@ -255,6 +256,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartConfiguration, 
                 Sales Login
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            </button>
+            <button
+              onClick={onPartnerLogin}
+              className="group relative px-8 py-4 bg-gradient-to-r from-purple-700 via-purple-800 to-purple-900 text-white text-base sm:text-lg font-semibold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 overflow-hidden border border-purple-600/50"
+              style={{
+                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3), 0 0 15px rgba(139, 92, 246, 0.2)'
+              }}
+            >
+              <span className="relative z-10 flex items-center gap-3">
+                <LogIn className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                Partner Login
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </button>
           </div>
         </div>

@@ -28,7 +28,7 @@ import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 interface DisplayConfiguratorProps {
-  userRole: 'normal' | 'sales' | 'super' | 'super_admin';
+  userRole: 'normal' | 'sales' | 'super' | 'super_admin' | 'partner';
   salesUser: SalesUser | null;
   onShowSalesLogin: () => void;
   onSalesLogout: () => void;
@@ -219,7 +219,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [isPdfViewModalOpen, setIsPdfViewModalOpen] = useState(false);
   const [isUserInfoFormOpen, setIsUserInfoFormOpen] = useState(false);
-  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'Channel'; paymentTerms?: string; warranty?: string } | undefined>(undefined);
+  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string } | undefined>(undefined);
   const [pendingAction, setPendingAction] = useState<'quote' | 'pdf' | null>(null);
   const [isMandatoryFormSubmitted, setIsMandatoryFormSubmitted] = useState(false);
   const [quotationId, setQuotationId] = useState<string>('');
@@ -359,13 +359,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setIsProductSelectorOpen(false);
   };
 
-  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'Channel'; paymentTerms?: string; warranty?: string }) => {
+  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string }) => {
     setUserInfo(userData);
     setIsUserInfoFormOpen(false);
     
     // Generate unique quotation ID (only for new submissions, not edits)
     if (!isEditMode) {
-      const username = userRole === 'sales' && salesUser ? salesUser.name : userData.fullName;
+      const username = (userRole === 'sales' || userRole === 'partner') && salesUser ? salesUser.name : userData.fullName;
       try {
         const newQuotationId = await QuotationIdGenerator.generateQuotationId(username);
         setQuotationId(newQuotationId);
@@ -380,8 +380,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       }
     }
     
-    // For sales users, mark the mandatory form as submitted
-    if (userRole === 'sales') {
+    // For sales users and partners, mark the mandatory form as submitted
+    if (userRole === 'sales' || userRole === 'partner') {
       setIsMandatoryFormSubmitted(true);
     }
     
@@ -410,8 +410,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const handleQuoteClick = () => {
-    if (userRole === 'sales' && salesUser) {
-      // For sales users, show the UserInfoForm first (which will lead to QuoteModal)
+    if ((userRole === 'sales' || userRole === 'partner') && salesUser) {
+      // For sales users and partners, show the UserInfoForm first (which will lead to QuoteModal)
       setPendingAction('quote');
       setIsUserInfoFormOpen(true);
     } else {
@@ -421,8 +421,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const handlePdfClick = () => {
-    // For sales users, check if mandatory form is submitted
-    if (userRole === 'sales' && !isMandatoryFormSubmitted) {
+    // For sales users and partners, check if salesUser is available
+    if ((userRole === 'sales' || userRole === 'partner') && !salesUser) {
+      console.error('❌ Cannot open PDF: salesUser is missing for', userRole);
+      alert('Sales user information is missing. Please log in again.');
+      return;
+    }
+
+    // For sales users and partners, check if mandatory form is submitted
+    if ((userRole === 'sales' || userRole === 'partner') && !isMandatoryFormSubmitted) {
       setPendingAction('pdf');
       setIsUserInfoFormOpen(true);
       return;
@@ -439,8 +446,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const handleDownloadPdf = async () => {
     if (!selectedProduct) return;
     
-    // For sales users, check if mandatory form is submitted
-    if (userRole === 'sales' && !isMandatoryFormSubmitted) {
+    // For sales users and partners, check if salesUser is available
+    if ((userRole === 'sales' || userRole === 'partner') && !salesUser) {
+      console.error('❌ Cannot download PDF: salesUser is missing for', userRole);
+      alert('Sales user information is missing. Please log in again.');
+      return;
+    }
+    
+    // For sales users and partners, check if mandatory form is submitted
+    if ((userRole === 'sales' || userRole === 'partner') && !isMandatoryFormSubmitted) {
       setPendingAction('pdf');
       setIsUserInfoFormOpen(true);
       return;
@@ -709,7 +723,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   Logout
                 </button>
               </div>
-            ) : userRole === 'sales' ? (
+            ) : (userRole === 'sales' || userRole === 'partner') ? (
               <div className="flex items-center space-x-2">
                 <span className="text-white text-xs sm:text-sm">{salesUser?.name}</span>
                 <button
@@ -1070,8 +1084,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                     </button>
                   )}
 
-                  {/* Sales Users - See View and Download Buttons */}
-                  {(userRole === 'sales' || userRole === 'super' || userRole === 'super_admin') && (
+                  {/* Sales Users and Partners - See View and Download Buttons */}
+                  {(userRole === 'sales' || userRole === 'partner' || userRole === 'super' || userRole === 'super_admin') && (
                     <>
                       {/* Mandatory Form Notice */}
                       {!isMandatoryFormSubmitted && (
@@ -1149,9 +1163,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           cabinetGrid={cabinetGrid}
           processor={selectedController}
           mode={selectedMode}
-          userInfo={userInfo && userInfo.userType !== 'Channel' ? userInfo : undefined}
-          title={(userRole === 'sales' || userRole === 'super' || userRole === 'super_admin') && salesUser ? 'Sales Quote' : 'Get a Quote'}
-          submitButtonText={(userRole === 'sales' || userRole === 'super' || userRole === 'super_admin') && salesUser ? 'Submit Sales Quote' : 'Submit Quote Request'}
+          userInfo={userInfo && userInfo.userType !== 'SI/Channel Partner' ? userInfo : undefined}
+          title={(userRole === 'sales' || userRole === 'partner' || userRole === 'super' || userRole === 'super_admin') && salesUser ? 'Sales Quote' : 'Get a Quote'}
+          submitButtonText={(userRole === 'sales' || userRole === 'partner' || userRole === 'super' || userRole === 'super_admin') && salesUser ? 'Submit Sales Quote' : 'Submit Quote Request'}
           salesUser={salesUser}
           userRole={userRole}
           quotationId={quotationId}
@@ -1206,6 +1220,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         initialData={userInfo}
         isEditMode={isEditMode}
         salesUser={salesUser}
+        allowedCustomerTypes={salesUser?.allowedCustomerTypes}
         customPricing={customPricing}
         onCustomPricingChange={setCustomPricing}
       />

@@ -7,7 +7,7 @@ interface UserInfo {
   phoneNumber: string;
   projectTitle: string;
   address: string;
-  userType: 'End User' | 'Reseller' | 'Channel';
+  userType: 'End User' | 'Reseller' | 'SI/Channel Partner';
   paymentTerms?: string;
   warranty?: string;
 }
@@ -20,7 +20,8 @@ interface UserInfoFormProps {
   submitButtonText: string;
   initialData?: UserInfo; // Add support for pre-filled data
   isEditMode?: boolean; // Add edit mode flag
-  salesUser?: { email: string; name: string; contactNumber: string; location: string } | null;
+  salesUser?: { email: string; name: string; contactNumber: string; location: string; role?: string; allowedCustomerTypes?: string[] } | null;
+  allowedCustomerTypes?: string[]; // For partners: filter which options to show
   customPricing?: {
     enabled: boolean;
     structurePrice: number | null;
@@ -42,9 +43,30 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   initialData,
   isEditMode = false,
   salesUser,
+  allowedCustomerTypes,
   customPricing: externalCustomPricing,
   onCustomPricingChange
 }) => {
+  // Helper function to get default user type based on permissions
+  const getDefaultUserType = (): 'End User' | 'Reseller' | 'SI/Channel Partner' => {
+    if (initialData?.userType) {
+      return initialData.userType;
+    }
+    // For partners, use first allowed type; otherwise default to 'End User'
+    const partnerAllowedTypes = allowedCustomerTypes || salesUser?.allowedCustomerTypes || [];
+    const isPartner = salesUser?.role === 'partner';
+    if (isPartner && partnerAllowedTypes.length > 0) {
+      const allOptions = [
+        { value: 'End User' as const, internalValue: 'endUser' },
+        { value: 'Reseller' as const, internalValue: 'reseller' },
+        { value: 'SI/Channel Partner' as const, internalValue: 'siChannel' }
+      ];
+      const firstAllowed = allOptions.find(opt => partnerAllowedTypes.includes(opt.internalValue));
+      return firstAllowed?.value || 'End User';
+    }
+    return 'End User';
+  };
+
   const [formData, setFormData] = useState<UserInfo>(
     initialData || {
       fullName: '',
@@ -52,7 +74,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
       phoneNumber: '',
       projectTitle: '',
       address: '',
-      userType: 'End User',
+      userType: getDefaultUserType(),
       paymentTerms: '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation',
       warranty: 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier. Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.'
     }
@@ -93,11 +115,46 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     }
   }, [initialData]);
 
-  const userTypeOptions: Array<{ value: 'End User' | 'Reseller' | 'Channel'; label: string }> = [
-    { value: 'End User', label: 'End User' },
-    { value: 'Reseller', label: 'Reseller' },
-    { value: 'Channel', label: 'Channel' }
+  // All available user type options
+  const allUserTypeOptions: Array<{ value: 'End User' | 'Reseller' | 'SI/Channel Partner'; label: string; internalValue: string }> = [
+    { value: 'End User', label: 'End User', internalValue: 'endUser' },
+    { value: 'Reseller', label: 'Reseller', internalValue: 'reseller' },
+    { value: 'SI/Channel Partner', label: 'SI/Channel Partner', internalValue: 'siChannel' }
   ];
+
+  // Get allowed customer types from props or salesUser
+  const partnerAllowedTypes = allowedCustomerTypes || salesUser?.allowedCustomerTypes || [];
+  const isPartner = salesUser?.role === 'partner';
+  
+  // Filter user type options based on permissions
+  // If partner and has allowedCustomerTypes, filter options
+  // Otherwise, show all options (for sales/super users)
+  const userTypeOptions = React.useMemo(() => {
+    if (isPartner && partnerAllowedTypes.length > 0) {
+      // Partner: only show allowed types
+      return allUserTypeOptions.filter(option => partnerAllowedTypes.includes(option.internalValue));
+    }
+    // Sales/Super: show all types
+    return allUserTypeOptions;
+  }, [isPartner, partnerAllowedTypes]);
+
+  // Ensure selected user type is valid based on permissions
+  React.useEffect(() => {
+    if (isPartner && partnerAllowedTypes.length > 0) {
+      // Map current userType to internal value
+      const currentInternalValue = formData.userType === 'End User' ? 'endUser' :
+                                   formData.userType === 'Reseller' ? 'reseller' :
+                                   formData.userType === 'SI/Channel Partner' ? 'siChannel' : null;
+      
+      // If current selection is not allowed, switch to first available
+      if (currentInternalValue && !partnerAllowedTypes.includes(currentInternalValue)) {
+        const firstAllowedOption = userTypeOptions[0];
+        if (firstAllowedOption) {
+          setFormData(prev => ({ ...prev, userType: firstAllowedOption.value }));
+        }
+      }
+    }
+  }, [isPartner, partnerAllowedTypes, userTypeOptions, formData.userType]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<UserInfo> = {};
@@ -147,13 +204,15 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
       await onSubmit(formData);
       // Only reset form if not in edit mode
       if (!isEditMode) {
+        // Set default user type to first available option (for partners) or 'End User' (for others)
+        const defaultUserType = userTypeOptions.length > 0 ? userTypeOptions[0].value : 'End User';
         setFormData({ 
           fullName: '', 
           email: '', 
           phoneNumber: '', 
           projectTitle: '', 
           address: '', 
-          userType: 'End User',
+          userType: defaultUserType,
           paymentTerms: '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation',
           warranty: 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier. Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.'
         });
@@ -174,7 +233,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     }
   };
 
-  const handleUserTypeSelect = (userType: 'End User' | 'Reseller' | 'Channel') => {
+  const handleUserTypeSelect = (userType: 'End User' | 'Reseller' | 'SI/Channel Partner') => {
     setFormData(prev => ({ ...prev, userType }));
     setIsUserTypeDropdownOpen(false);
     if (errors.userType) {

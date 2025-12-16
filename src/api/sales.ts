@@ -1,11 +1,13 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export interface SalesUser {
+  _id?: string; // CRITICAL: User ID needed for quotation attribution
   email: string;
   name: string;
   location: string;
   contactNumber: string;
-  role?: 'sales' | 'super' | 'super_admin';
+  role?: 'sales' | 'super' | 'super_admin' | 'partner';
+  allowedCustomerTypes?: string[]; // For partners: ['endUser', 'reseller', 'siChannel']
 }
 
 export interface LoginResponse {

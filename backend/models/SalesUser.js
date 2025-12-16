@@ -38,8 +38,15 @@ const salesUserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['sales', 'super', 'super_admin'],
+    enum: ['sales', 'super', 'super_admin', 'partner'],
     default: 'sales'
+  },
+  // Permissions for partners: which customer types they can see
+  // Only used when role is 'partner'
+  allowedCustomerTypes: {
+    type: [String],
+    enum: ['endUser', 'reseller', 'siChannel'],
+    default: []
   }
 }, {
   timestamps: true

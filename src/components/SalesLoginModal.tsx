@@ -49,7 +49,19 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
       console.log('📦 Full response:', JSON.stringify(response, null, 2));
       console.log('📦 Response.user:', JSON.stringify(response.user, null, 2));
       console.log('📦 Response.user.role:', response.user?.role);
+      console.log('📦 Response.user._id:', response.user?._id);
+      console.log('📦 Response.user has _id?:', '_id' in (response.user || {}));
       console.log('📦 Response.user has role?:', 'role' in (response.user || {}));
+      
+      // CRITICAL: Check if _id is present (required for quotation attribution)
+      if (!response.user._id) {
+        console.error('❌ CRITICAL: User object missing _id field!', {
+          user: response.user,
+          userKeys: Object.keys(response.user || {}),
+          note: 'Backend should include _id in login response'
+        });
+        // Don't block login, but log the error
+      }
       
       // Ensure role is set - if backend didn't return it, default to 'sales'
       if (!response.user.role) {
@@ -79,8 +91,23 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
       // Start prefetching data in the background for better performance
       dataPrefetcher.prefetchUserData().catch(console.warn);
       
+      // CRITICAL: Verify user has _id before proceeding
+      if (!response.user._id) {
+        console.error('❌ CRITICAL: Login response missing _id!', {
+          response: response,
+          user: response.user,
+          userKeys: Object.keys(response.user || {}),
+          note: 'Backend should include _id in login response'
+        });
+        setError('Login successful but user ID is missing. Please contact support.');
+        setIsLoading(false);
+        setLoadingStep('');
+        return;
+      }
+      
       // Login successful, proceed normally
       console.log('✅ Login successful, calling onLogin callback with user:', JSON.stringify(response.user, null, 2));
+      console.log('✅ User _id:', response.user._id);
       console.log('✅ User role before callback:', response.user.role);
       onLogin(response.user);
       

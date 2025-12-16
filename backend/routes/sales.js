@@ -260,12 +260,16 @@ router.post('/login', validateLogin, async (req, res) => {
     const { email, password } = req.body;
 
     // Find user by email with optimized query (only select necessary fields)
+    // Include _id in select (it's included by default, but explicit for clarity)
     const user = await SalesUser.findOne({ email: email.toLowerCase() })
-      .select('email name location contactNumber passwordHash mustChangePassword passwordSetAt role')
+      .select('_id email name location contactNumber passwordHash mustChangePassword passwordSetAt role allowedCustomerTypes')
       .lean(); // Use lean() for better performance
     
     console.log('🔐 Database user query result:', {
       email: user?.email,
+      hasId: !!user?._id,
+      idType: user?._id ? typeof user._id : 'undefined',
+      idValue: user?._id ? user._id.toString() : 'N/A',
       hasRole: !!user?.role,
       role: user?.role,
       roleType: typeof user?.role
@@ -295,6 +299,9 @@ router.post('/login', validateLogin, async (req, res) => {
     console.log('🔐 User role from DB:', user.role);
     console.log('🔐 Final userRole (with fallback):', userRole);
     
+    // Get allowed customer types for partners (empty array for non-partners)
+    const allowedCustomerTypes = userRole === 'partner' ? (user.allowedCustomerTypes || []) : [];
+
     // Generate JWT token with extended expiry for better session persistence
     const token = jwt.sign(
       { 
@@ -303,32 +310,78 @@ router.post('/login', validateLogin, async (req, res) => {
         name: user.name,
         location: user.location,
         contactNumber: user.contactNumber,
-        role: userRole // Always include role in token
+        role: userRole, // Always include role in token
+        allowedCustomerTypes: allowedCustomerTypes // Include permissions for partners
       },
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '30d' } // Extended to 30 days for better UX
     );
 
-    // Build user object for response - ALWAYS include role
+    // Build user object for response - ALWAYS include role, permissions, and _id
+    // _id is CRITICAL for saving quotations (used as salesUserId)
+    // When using .lean(), _id is an ObjectId that needs to be converted to string
+    if (!user._id) {
+      console.error('❌ CRITICAL: User document missing _id field!', {
+        userEmail: user.email,
+        userKeys: Object.keys(user)
+      });
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error: User ID missing'
+      });
+    }
+    
     const userResponse = {
+      _id: user._id.toString(), // CRITICAL: Include _id for quotation attribution
       name: user.name,
       location: user.location,
       contactNumber: user.contactNumber,
       email: user.email,
-      role: userRole // CRITICAL: Always include role, default to 'sales' if not set
+      role: userRole, // CRITICAL: Always include role, default to 'sales' if not set
+      allowedCustomerTypes: allowedCustomerTypes // Include permissions for partners
     };
+    
+    console.log('🔐 User response object:', {
+      hasId: !!userResponse._id,
+      idValue: userResponse._id,
+      idType: typeof userResponse._id,
+      role: userResponse.role,
+      allowedCustomerTypes: userResponse.allowedCustomerTypes,
+      allKeys: Object.keys(userResponse)
+    });
     
     console.log('🔐 Sending user response:', JSON.stringify(userResponse, null, 2));
     console.log('🔐 User response role:', userResponse.role);
+    console.log('🔐 User response _id:', userResponse._id);
+    console.log('🔐 User response has _id property:', '_id' in userResponse);
     console.log('🔐 User response has role property:', 'role' in userResponse);
 
+    // CRITICAL: Verify userResponse has _id before sending
+    if (!userResponse._id) {
+      console.error('❌ CRITICAL: userResponse missing _id before sending!', {
+        userResponse: userResponse,
+        userResponseKeys: Object.keys(userResponse),
+        userResponseStringified: JSON.stringify(userResponse)
+      });
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error: User ID missing in response'
+      });
+    }
+    
     // Return user data (excluding password hash)
-    res.json({
+    const responsePayload = {
       success: true,
       token,
       user: userResponse,
       mustChangePassword: user.mustChangePassword
-    });
+    };
+    
+    console.log('🔐 FINAL RESPONSE PAYLOAD:', JSON.stringify(responsePayload, null, 2));
+    console.log('🔐 FINAL RESPONSE user._id:', responsePayload.user._id);
+    console.log('🔐 FINAL RESPONSE user keys:', Object.keys(responsePayload.user));
+    
+    res.json(responsePayload);
 
   } catch (error) {
     console.error('Login error:', error);
@@ -367,31 +420,43 @@ router.post('/set-password', authenticateToken, validateSetPassword, async (req,
     user.setNewPassword(newPassword);
     await user.save();
 
-    // Generate new JWT token
-    const token = generateToken(user);
+    // Refresh user from database to ensure we have all fields (including allowedCustomerTypes)
+    // Note: _id is always included by default in Mongoose queries
+    const updatedUser = await SalesUser.findById(userId).select('_id email name location contactNumber role allowedCustomerTypes');
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found after password update'
+      });
+    }
 
-    // Return updated user data
+    // Get allowed customer types for partners
+    const allowedCustomerTypes = updatedUser.role === 'partner' ? (updatedUser.allowedCustomerTypes || []) : [];
+
+    // Generate new JWT token with updated user data (including permissions)
+    const token = generateToken(updatedUser);
+
+    // Return updated user data with role, permissions, and _id
     const userData = {
-      name: user.name,
-      location: user.location,
-      contactNumber: user.contactNumber,
-      email: user.email
+      _id: updatedUser._id.toString(), // CRITICAL: Include _id for quotation attribution
+      name: updatedUser.name,
+      location: updatedUser.location,
+      contactNumber: updatedUser.contactNumber,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      allowedCustomerTypes: allowedCustomerTypes
     };
 
     res.json({
       success: true,
       token,
-      user: {
-        name: userData.name,
-        location: userData.location,
-        contactNumber: userData.contactNumber,
-        email: userData.email
-      },
+      user: userData,
       mustChangePassword: false
     });
 
   } catch (error) {
     console.error('Set password error:', error);
+    console.error('Set password error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -463,15 +528,36 @@ router.post('/change-password', authenticateToken, validateChangePassword, async
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
     const user = req.user;
+    
+    // CRITICAL: Ensure _id exists and convert to string
+    if (!user._id) {
+      console.error('❌ Profile: req.user missing _id!', {
+        user: user,
+        userKeys: Object.keys(user || {}),
+        note: 'This should not happen - check authenticateToken middleware'
+      });
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error: User ID missing'
+      });
+    }
+    
+    // Get allowed customer types for partners
+    const allowedCustomerTypes = user.role === 'partner' ? (user.allowedCustomerTypes || []) : [];
+
+    // Convert _id to string (handles both ObjectId and string)
+    const userIdString = typeof user._id === 'string' ? user._id : user._id.toString();
 
     res.json({
       success: true,
       user: {
+        _id: userIdString, // CRITICAL: Include _id for quotation attribution
         name: user.name,
         location: user.location,
         contactNumber: user.contactNumber,
         email: user.email,
-        role: user.role
+        role: user.role,
+        allowedCustomerTypes: allowedCustomerTypes // Include permissions for partners
       },
       mustChangePassword: user.mustChangePassword || false
     });
@@ -681,12 +767,13 @@ router.post('/quotation', authenticateToken, async (req, res) => {
     });
     
     // Check if user has permission to create quotations
-    const allowedRoles = ['sales', 'super', 'super_admin', 'superadmin', 'admin'];
+    // Partners are allowed to create quotations just like sales users
+    const allowedRoles = ['sales', 'partner', 'super', 'super_admin', 'superadmin', 'admin'];
     if (!allowedRoles.includes(req.user?.role)) {
       console.error('❌ Access denied - Invalid role:', req.user?.role);
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Sales, Super Admin, or Admin role required to create quotations.'
+        message: 'Access denied. Sales, Partner, Super Admin, or Admin role required to create quotations.'
       });
     }
     
@@ -992,9 +1079,10 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
       locationFilter.location = new RegExp(location, 'i');
     }
 
-    // Get all sales users
+    // Get all sales users and partners (includes both roles)
+    // Partners are included so their quotations appear in the dashboard
     const salesUsers = await SalesUser.find(locationFilter)
-      .select('name email location contactNumber createdAt role')
+      .select('name email location contactNumber createdAt role allowedCustomerTypes')
       .lean();
 
       // CRITICAL: Get quotation counts for each user

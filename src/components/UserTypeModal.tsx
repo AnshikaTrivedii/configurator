@@ -8,16 +8,24 @@ export type UserType = 'endUser' | 'siChannel' | 'reseller';
 interface UserTypeModalProps {
   isOpen: boolean;
   onSelect: (userType: UserType) => void;
+  allowedCustomerTypes?: string[]; // For partners: filter which options to show
 }
 
-const userTypeOptions = [
+const allUserTypeOptions = [
   { value: 'endUser', label: 'End Customer', icon: <User className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-black" /> },
   { value: 'siChannel', label: 'SI / Channel', icon: <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-black" /> },
   { value: 'reseller', label: 'Reseller / Lowest Price to Channel', icon: <Users className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-black" /> },
 ];
 
-const UserTypeModal: React.FC<UserTypeModalProps> = ({ isOpen, onSelect }) => {
+const UserTypeModal: React.FC<UserTypeModalProps> = ({ isOpen, onSelect, allowedCustomerTypes }) => {
   const [selected, setSelected] = useState<UserType | null>(null);
+  
+  // Filter options based on permissions
+  // If allowedCustomerTypes is provided (partner), filter options
+  // If not provided (sales/super), show all options
+  const userTypeOptions = allowedCustomerTypes && allowedCustomerTypes.length > 0
+    ? allUserTypeOptions.filter(option => allowedCustomerTypes.includes(option.value))
+    : allUserTypeOptions;
 
 
   const handleSelect = (value: UserType) => {
@@ -27,7 +35,6 @@ const UserTypeModal: React.FC<UserTypeModalProps> = ({ isOpen, onSelect }) => {
   const handleConfirm = () => {
     if (selected) {
       localStorage.setItem(USER_TYPE_KEY, selected);
-      setConfirmed(true);
       onSelect(selected);
     }
   };
