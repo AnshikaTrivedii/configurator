@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import compression from 'compression';
 import connectDB from './config/database.js';
 import salesRoutes from './routes/sales.js';
+import { runPartnerCreation } from './scripts/runPartnerCreation.js';
 
 // Load environment variables
 dotenv.config();
@@ -13,6 +14,24 @@ const PORT = process.env.PORT || 3001;
 
 // Connect to database
 connectDB();
+
+// Run partner creation script if enabled (non-blocking)
+if (process.env.RUN_PARTNER_SCRIPT === 'true') {
+  console.log('🔧 RUN_PARTNER_SCRIPT=true detected');
+  console.log('📝 Running partner creation script...');
+  
+  // Run asynchronously without blocking server startup
+  runPartnerCreation()
+    .then(() => {
+      console.log('✅ Partner script completed successfully');
+    })
+    .catch((error) => {
+      console.error('❌ Partner script failed:', error.message);
+      // Don't exit - server should continue running
+    });
+} else {
+  console.log('ℹ️  Partner creation script skipped (RUN_PARTNER_SCRIPT not set to "true")');
+}
 
 // Middleware
 app.use(compression()); // Enable gzip compression for better performance
