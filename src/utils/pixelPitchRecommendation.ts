@@ -5,10 +5,9 @@
  * pitches that exist in the actual product catalog.
  */
 
-// Available pixel pitches in the product catalog
-export const AVAILABLE_PIXEL_PITCHES = [
-  0.9375, 1.25, 1.5, 1.5625, 1.86, 2.5, 3, 4, 6.6, 10
-];
+// Available pixel pitches in the product catalog that are allowed for guided mode
+// Only these pixel pitches should be considered for recommendations.
+export const AVAILABLE_PIXEL_PITCHES = [0.9, 1.25, 1.5, 1.8, 2.5, 3, 4, 6.6, 10];
 
 /**
  * Normalize pixel pitch string to number

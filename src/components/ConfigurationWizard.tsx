@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, Package } from 'lucide-react';
 import { Product } from '../types';
 import { products } from '../data/products';
-import { getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistanceRange, getPixelPitchForViewingDistanceRange } from '../utils/viewingDistanceRanges';
+import { getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistanceRange } from '../utils/viewingDistanceRanges';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
-import { normalize, getRecommendedPixelPitchForRange, AVAILABLE_PIXEL_PITCHES } from '../utils/pixelPitchRecommendation';
+import { normalize, getAvailablePixelPitches } from '../utils/pixelPitchRecommendation';
 
 interface ConfigurationWizardProps {
   isOpen: boolean;
@@ -235,19 +235,16 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   };
 
   // Get available pixel pitches based on viewing distance and environment
-  // Only show pitches from the available product catalog that match environment
+  // Only show pitches from the allowed catalog that match environment
   const availablePixelPitches = (() => {
     let pitches: number[] = [];
     
     if (viewingDistance) {
-      // Get recommended pitch for viewing distance (only from available catalog)
-      const recommendedPitch = getRecommendedPixelPitchForRange(viewingDistance, viewingDistanceUnit);
-      if (recommendedPitch !== null) {
-        pitches = [recommendedPitch];
-      }
+      // Get all recommended pitches for this viewing distance (can be multiple)
+      pitches = getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit);
     } else {
-      // If no viewing distance, get all available pitches from catalog
-      pitches = [...AVAILABLE_PIXEL_PITCHES];
+      // If no viewing distance, show all allowed pixel pitches
+      pitches = getAvailablePixelPitches();
     }
     
     // Filter by environment if selected - only show pitches that have products in that environment
@@ -278,14 +275,12 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     return pitches;
       })();
 
-  // Calculate recommended pixel pitch from viewing distance (for guided mode filtering)
-  const recommendedPixelPitch = (() => {
+  // Calculate recommended pixel pitches from viewing distance (for guided mode filtering)
+  const recommendedPixelPitches: number[] = (() => {
     if (viewingDistance && !hasSkippedPixelPitch) {
-      // Get the recommended pixel pitch for this viewing distance (only from available catalog)
-      const recommendedPitch = getRecommendedPixelPitchForRange(viewingDistance, viewingDistanceUnit);
-      return recommendedPitch;
+      return getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit);
     }
-    return null;
+    return [];
   })();
 
   // Filter products based on selections (only enabled products)
@@ -312,15 +307,18 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
         return false;
       }
     } 
-    // If in guided mode and pixel pitch was not selected but not skipped, use recommended pitch
-    else if (recommendedPixelPitch !== null && !hasSkippedPixelPitch) {
+    // If in guided mode and pixel pitch was not selected but not skipped, use recommended pitches
+    else if (recommendedPixelPitches.length > 0 && !hasSkippedPixelPitch) {
       const productPitch = normalize(product.pixelPitch);
-      const recommendedPitch = normalize(recommendedPixelPitch);
-      if (productPitch === null || recommendedPitch === null) return false;
-      // Strict filtering: only show products matching the recommended pitch
-      if (Math.abs(productPitch - recommendedPitch) >= 0.1) {
-        return false;
-      }
+      if (productPitch === null) return false;
+
+      const matchesRecommended = recommendedPixelPitches.some(p => {
+        const target = normalize(p);
+        if (target === null) return false;
+        return Math.abs(productPitch - target) < 0.1;
+      });
+
+      if (!matchesRecommended) return false;
     }
     // If user clicked "Skip - Show All Products", show all (no pixel pitch filtering)
     // This is handled by the else condition above (no filtering when hasSkippedPixelPitch is true)
