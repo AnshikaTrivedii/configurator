@@ -60,21 +60,33 @@ const toDisplayUnit = (mm, unit) => {
   return meters.toFixed(2);
 };
 
+// Normalize user type coming from UI/legacy flows to the values expected by pricing helpers
+const normalizeLegacyUserType = (userType) => {
+  if (userType === 'SI/Channel Partner' || userType === 'Channel') {
+    return 'Channel';
+  }
+  if (userType === 'Reseller') {
+    return 'Reseller';
+  }
+  return 'End User';
+};
+
 // Get product unit price
 const getProductPriceForWord = (product, userType = 'End User') => {
+  const normalizedUserType = normalizeLegacyUserType(userType);
   if (product.category?.toLowerCase().includes('rental') && product.prices) {
-    if (userType === 'Reseller') {
+    if (normalizedUserType === 'Reseller') {
       return product.prices.cabinet.reseller;
-    } else if (userType === 'Channel') {
+    } else if (normalizedUserType === 'Channel') {
       return product.prices.cabinet.siChannel;
     } else {
       return product.prices.cabinet.endCustomer;
     }
   }
   
-  if (userType === 'Reseller' && typeof product.resellerPrice === 'number') {
+  if (normalizedUserType === 'Reseller' && typeof product.resellerPrice === 'number') {
     return product.resellerPrice;
-  } else if (userType === 'Channel' && typeof product.siChannelPrice === 'number') {
+  } else if (normalizedUserType === 'Channel' && typeof product.siChannelPrice === 'number') {
     return product.siChannelPrice;
   } else if (typeof product.price === 'number') {
     return product.price;

@@ -61,20 +61,9 @@ const getViewingDistanceCategory = (distance: string | null, unit: 'meters' | 'f
   return 'far';
 };
 
-// Get recommended pixel pitch based on viewing distance (accurate ranges)
-const getRecommendedPixelPitchByDistance = (distanceCategory: 'near' | 'medium' | 'far' | null): number[] => {
-  if (!distanceCategory) return [];
-  
-  switch (distanceCategory) {
-    case 'near':
-      return [0.9, 1.25, 1.5, 1.8, 2.5]; // Fine pitch for close viewing (≤ 2.5mm)
-    case 'medium':
-      return [2.5, 3, 3.9]; // Medium pitch (2.5-3.9mm)
-    case 'far':
-      return [4.8, 6.25, 6.6, 8, 10]; // Coarse pitch for far viewing (≥ 4.8mm)
-    default:
-      return [];
-  }
+// Get recommended pixel pitches based on numeric viewing distance using table rules
+const getRecommendedPixelPitchesByDistance = (distance: number, unit: 'meters' | 'feet'): number[] => {
+  return getPixelPitchesForViewingDistance(distance, unit);
 };
 
 // Get recommended pixel pitch based on environment (using actual product data)
@@ -210,20 +199,27 @@ export const generateProactiveRecommendation = (config: DisplayConfig): Proactiv
     };
   }
 
-  // Step 2: If viewing distance is set, recommend pixel pitch
+  // Step 2: If viewing distance is set, recommend pixel pitch strictly from table
   if (hasViewingDistance && !hasPixelPitch) {
-    const distanceCategory = getViewingDistanceCategory(config.viewingDistance, config.viewingDistanceUnit);
-    if (distanceCategory) {
-      const distPitches = getRecommendedPixelPitchByDistance(distanceCategory);
+    const numericDistance = parseFloat(config.viewingDistance || '0');
+    if (!isNaN(numericDistance) && numericDistance > 0) {
+      const distPitches = getRecommendedPixelPitchesByDistance(numericDistance, config.viewingDistanceUnit);
       const distProducts = getMatchingProducts(distPitches, config.environment || undefined);
-      
-      const distanceText = distanceCategory === 'near' ? 'close (≤ 3m)' :
-                          distanceCategory === 'medium' ? 'medium (3-10m)' : 'far (≥ 10m)';
-      const pitchText = distanceCategory === 'near' ? 'P1.25 to P2.5' :
-                       distanceCategory === 'medium' ? 'P2.5 to P3.9' : 'P4.8 to P6.6';
-      
+
+      const distanceText =
+        config.viewingDistanceUnit === 'meters'
+          ? `${config.viewingDistance}m viewing distance`
+          : `${config.viewingDistance}ft viewing distance`;
+
+      const pitchText = distPitches.length
+        ? distPitches.map(p => `P${p}`).join(', ')
+        : 'no suitable pixel pitch available for this distance';
+
       return {
-        message: `For ${distanceText} viewing distance, ideal pixel pitch range is ${pitchText}.`,
+        message:
+          distPitches.length > 0
+            ? `For ${distanceText}, the suitable pixel pitches are ${pitchText}.`
+            : `For ${distanceText}, no suitable pixel pitch is available in the current product range.`,
         type: 'recommendation',
         nextStep: 'pixelPitch',
         suggestedPixelPitches: distPitches.slice(0, 3),

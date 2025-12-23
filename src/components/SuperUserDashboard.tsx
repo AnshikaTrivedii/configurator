@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Users, FileText, MapPin, Download, RefreshCw } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { SalesPersonDetailsModal } from './SalesPersonDetailsModal';
+
+const DASHBOARD_REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
 interface SalesPerson {
   _id: string;
@@ -53,20 +55,26 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState<string | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const isFetchingRef = useRef(false);
 
   useEffect(() => {
     fetchDashboardData();
     
-    // Auto-refresh every 30 seconds to show new quotations
+    // Auto-refresh every 30 minutes to show new data
     const interval = setInterval(() => {
-      console.log('🔄 Auto-refreshing dashboard data...');
+      console.log('🔄 Auto-refreshing dashboard data (30-minute interval)...');
       fetchDashboardData();
-    }, 30000); // 30 seconds
+    }, DASHBOARD_REFRESH_INTERVAL_MS);
     
     return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardData = async (forceRefresh = false) => {
+    if (isFetching()) {
+      console.log('⏭️ Dashboard fetch already in progress, skipping new request');
+      return;
+    }
+    isFetchingRef.current = true;
     try {
       setLoading(true);
       setError(null);
@@ -98,8 +106,11 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
       setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   };
+
+  const isFetching = () => isFetchingRef.current;
 
   const filteredSalesPersons = salesPersons.filter(person => {
     const matchesLocation = !filters.location || person.location.toLowerCase().includes(filters.location.toLowerCase());
@@ -186,7 +197,7 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
               <p className="text-gray-600 mt-1">Manage and monitor sales team performance</p>
               {lastRefreshTime && (
                 <p className="text-xs text-gray-500 mt-1">
-                  Last updated: {lastRefreshTime.toLocaleTimeString()} (Auto-refresh every 30s)
+                  Last updated: {lastRefreshTime.toLocaleTimeString()} (Auto-refresh every 30 minutes)
                 </p>
               )}
             </div>

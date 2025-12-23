@@ -324,14 +324,28 @@ export const generateConfigurationHtml = (
   // Calculate total pixels
   void cabinetGrid; void selectedProduct;
 
+  // Normalize user type coming from UI/legacy flows to the values expected by pricing helpers
+  const normalizeLegacyUserType = (
+    userType: 'End User' | 'Reseller' | 'Channel' | 'SI/Channel Partner' | undefined
+  ): 'End User' | 'Reseller' | 'Channel' => {
+    if (userType === 'SI/Channel Partner' || userType === 'Channel') {
+      return 'Channel';
+    }
+    if (userType === 'Reseller') {
+      return 'Reseller';
+    }
+    return 'End User';
+  };
+
   // Calculate pricing based on actual product data for HTML
-  const getProductPriceForHtml = (product: Product, userType: 'End User' | 'Reseller' | 'Channel' = 'End User'): number => {
+  const getProductPriceForHtml = (product: Product, userType: 'End User' | 'Reseller' | 'Channel' | 'SI/Channel Partner' = 'End User'): number => {
+    const normalizedUserType = normalizeLegacyUserType(userType);
     // Handle different product types
     if (product.category?.toLowerCase().includes('rental') && product.prices) {
       // For rental products, use cabinet pricing based on user type
-      if (userType === 'Reseller') {
+      if (normalizedUserType === 'Reseller') {
         return product.prices.cabinet.reseller;
-      } else if (userType === 'Channel') {
+      } else if (normalizedUserType === 'Channel') {
         return product.prices.cabinet.siChannel;
       } else {
         return product.prices.cabinet.endCustomer;
@@ -339,9 +353,9 @@ export const generateConfigurationHtml = (
     }
     
     // For regular products, use the appropriate price field based on user type
-    if (userType === 'Reseller' && typeof product.resellerPrice === 'number') {
+    if (normalizedUserType === 'Reseller' && typeof product.resellerPrice === 'number') {
       return product.resellerPrice;
-    } else if (userType === 'Channel' && typeof product.siChannelPrice === 'number') {
+    } else if (normalizedUserType === 'Channel' && typeof product.siChannelPrice === 'number') {
       return product.siChannelPrice;
     } else if (typeof product.price === 'number') {
       return product.price;

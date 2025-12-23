@@ -463,6 +463,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     try {
       // Get the current user type from the QuoteModal if it's open, otherwise use userInfo
       const currentUserType = userInfo?.userType || 'End User';
+
+      // Map display label to legacy pricing userType expected by docxGenerator/html helpers
+      const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
+        currentUserType === 'SI/Channel Partner'
+          ? 'Channel'
+          : currentUserType;
       
       const blob = await generateConfigurationPdf(
         config,
@@ -470,7 +476,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         fixedCabinetGrid,
         selectedController,
         selectedMode,
-        userInfo ? { ...userInfo, userType: currentUserType } : { fullName: '', email: '', phoneNumber: '', userType: currentUserType },
+        userInfo
+          ? { ...userInfo, userType: legacyUserTypeForPricing }
+          : { fullName: '', email: '', phoneNumber: '', userType: legacyUserTypeForPricing },
         salesUser,
         quotationId,
         customPricing.enabled ? customPricing : undefined
@@ -1185,7 +1193,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             fixedCabinetGrid,
             selectedController,
             selectedMode,
-            userInfo ? { ...userInfo, userType: userInfo.userType || 'End User' } : { fullName: '', email: '', phoneNumber: '', userType: 'End User' },
+            // For HTML/PDF generation, map UI label to legacy pricing userType
+            userInfo
+              ? {
+                  ...userInfo,
+                  userType:
+                    userInfo.userType === 'SI/Channel Partner'
+                      ? 'Channel'
+                      : userInfo.userType || 'End User',
+                }
+              : { fullName: '', email: '', phoneNumber: '', userType: 'End User' },
             salesUser,
             quotationId,
             customPricing.enabled ? customPricing : undefined
@@ -1199,6 +1216,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           cabinetGrid={fixedCabinetGrid}
           processor={selectedController}
           mode={selectedMode}
+          // For PdfViewModal logic, keep the display label so getUserType() can map to siChannel
           userInfo={userInfo ? { ...userInfo, userType: userInfo.userType || 'End User' } : undefined}
           salesUser={salesUser}
           userRole={userRole}

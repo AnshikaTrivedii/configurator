@@ -323,13 +323,20 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     };
 
     // Regenerate HTML with discounted values
+    // Map UI label to legacy pricing userType expected by docxGenerator/html helpers
+    const uiUserType: string | undefined = userInfo?.userType;
+    const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
+      uiUserType === 'SI/Channel Partner'
+        ? 'Channel'
+        : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
+
     const discountedHtml = generateConfigurationHtml(
       config,
       selectedProduct,
       cabinetGrid,
       processor,
       mode,
-      userInfo,
+      userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
       salesUser,
       quotationId,
       customPricing,
@@ -518,13 +525,20 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           } : undefined
         };
 
+        // Map UI user type label to legacy pricing userType expected by docxGenerator/html helpers
+        const uiUserType: string | undefined = userInfo?.userType;
+        const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
+          uiUserType === 'SI/Channel Partner'
+            ? 'Channel'
+            : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
+
         pdfBlob = await generateConfigurationPdf(
           config || { width: 2400, height: 1010, unit: 'mm' },
           selectedProduct,
           cabinetGrid,
           processor,
           mode,
-          userInfo,
+          userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
           salesUser,
           quotationId,
           customPricing,
@@ -904,13 +918,20 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           };
 
           console.log('📄 Generating PDF...');
+          // Map UI user type label to legacy pricing userType expected by docxGenerator/html helpers
+          const uiUserType: string | undefined = userInfo?.userType;
+          const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
+            uiUserType === 'SI/Channel Partner'
+              ? 'Channel'
+              : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
+
           const blob = await generateConfigurationPdf(
             config || { width: 2400, height: 1010, unit: 'mm' },
             selectedProduct,
             cabinetGrid,
             processor,
             mode,
-            userInfo,
+            userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
             salesUser,
             quotationId,
             customPricing,
@@ -1262,13 +1283,20 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                       console.log('📝 Generating PDF blob...');
                       
                       // Generate PDF
+                      // Map UI user type label to legacy pricing userType expected by docxGenerator/html helpers
+                      const uiUserType: string | undefined = userInfo?.userType;
+                      const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
+                        uiUserType === 'SI/Channel Partner'
+                          ? 'Channel'
+                          : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
+
                       const pdfBlob = await generateConfigurationPdf(
                         config || { width: 2400, height: 1010, unit: 'mm' },
                         selectedProduct,
                         cabinetGrid,
                         processor,
                         mode,
-                        userInfo,
+                        userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
                         salesUser,
                         quotationId,
                         customPricing,

@@ -220,7 +220,7 @@ export const products: Product[] = [
     id: 'bellatrix-indoor-cob-p0.9',
     name: 'Bellatrix Series Indoor COB P0.9',
     category: 'Bellatrix Series',
-    enabled: true,
+    enabled: false,
     image: '/products/bellatrix-series/Bellatrix Series Indoor COB P0.9.jpg',
     resolution: { width: 640, height: 360 },
     cabinetDimensions: { width: 600, height: 337.5 },
@@ -244,7 +244,7 @@ export const products: Product[] = [
     id: 'bellatrix-indoor-cob-p1.25',
     name: 'Bellatrix Series Indoor COB P1.25',
     category: 'Bellatrix Series',
-    enabled: true,
+    enabled: false,
     image: '/products/bellatrix-series/Bellatrix Series Indoor COB P1.25.jpg',
     resolution: { width: 480, height: 270 },
     cabinetDimensions: { width: 600, height: 337.5 },
@@ -977,12 +977,12 @@ export const products: Product[] = [
     resellerPrice: 13090,
   },
   
-  // Betel Series Indoor SMD P1.25
+  // Betel Series Indoor SMD P1.25 (DISABLED)
   {
     id: 'betel-indoor-smd-p1.25',
     name: 'Betelgeuse Series Indoor SMD P1.25',
     category: 'Betelgeuse Series',
-    enabled: true,
+    enabled: false,
     image: '/products/Betel-series/Betelgeuse Series Indoor SMD P1.25.jpg',
     resolution: { width: 480, height: 270 },
     cabinetDimensions: { width: 600, height: 337.5 },
@@ -1017,12 +1017,12 @@ export const products: Product[] = [
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
   },
-  // Betel Series Indoor SMD P1.5
+  // Betel Series Indoor SMD P1.5 (DISABLED)
   {
     id: 'betel-indoor-smd-p1.5',
     name: 'Betelgeuse Series Indoor SMD P1.5',
     category: 'Betelgeuse Series',
-    enabled: true,
+    enabled: false,
     image: '/products/Betel-series/Betelgeuse Series Indoor SMD P1.5.jpg',
     resolution: { width: 384, height: 216 },
     cabinetDimensions: { width: 600, height: 337.5 },

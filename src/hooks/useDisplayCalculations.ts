@@ -119,14 +119,25 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
   const calculateCabinetGrid = (selectedProduct: Product | undefined): CabinetGrid => {
     const cabinet = selectedProduct?.cabinetDimensions || defaultCabinet;
 
-    const columns = Math.ceil(config.width / cabinet.width);
-    const rows = Math.ceil(config.height / cabinet.height);
+    // IMPORTANT RULE:
+    // Screen size must NOT exceed the requested size.
+    // - We calculate how many whole cabinets fit within the requested width/height
+    // - Use Math.floor so totalWidth/totalHeight are <= requested dimensions
+    // - Always enforce at least 1 cabinet in each direction (physical minimum)
+    let columns = Math.floor(config.width / cabinet.width);
+    let rows = Math.floor(config.height / cabinet.height);
+
+    if (!Number.isFinite(columns) || columns <= 0) columns = 1;
+    if (!Number.isFinite(rows) || rows <= 0) rows = 1;
+
+    const totalWidth = columns * cabinet.width;
+    const totalHeight = rows * cabinet.height;
 
     return {
       columns,
       rows,
-      totalWidth: columns * cabinet.width,
-      totalHeight: rows * cabinet.height
+      totalWidth,
+      totalHeight
     };
   };
 
