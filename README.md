@@ -1,3 +1,27 @@
+#Deployment
+
+## How to Deploy
+
+To Development
+
+1.Create/Switch to the develop branch: git checkout -b develop
+
+2.Make your changes.
+
+3.Push: git push origin develop
+
+4.The action "Deploy to Development" will run.
+
+To Production
+
+1.Switch to main: git checkout main
+
+2.Merge development changes: git merge develop
+
+3.Push: git push origin main
+
+The action "Deploy to Production" will run.
+
 # API Endpoints Documentation
 
 ## Environment Setup

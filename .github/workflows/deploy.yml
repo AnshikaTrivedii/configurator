@@ -1,0 +1,48 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  deploy-production:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Deploy to Production
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST_PROD }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY_PROD }}
+          script: |
+            cd configurator
+            git pull origin main
+            echo "MONGODB_URI=${{ secrets.MONGODB_URI_PROD }}" > .env
+            sudo docker compose --env-file .env up -d --build
+            sudo docker image prune -f
+
+  deploy-development:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Deploy to Development
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST_DEV }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY_DEV }}
+          script: |
+            cd configurator
+            git pull origin develop
+            echo "MONGODB_URI=${{ secrets.MONGODB_URI_DEV }}" > .env
+            sudo docker compose --env-file .env up -d --build
+            sudo docker image prune -f
