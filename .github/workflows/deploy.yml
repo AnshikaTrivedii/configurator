@@ -22,7 +22,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY_PROD }}
           script: |
             cd configurator
-            git pull origin main
+            git fetch origin
+            git reset --hard origin/main
             # Create .env file with all backend environment variables
             cat > backend/.env << EOF
             PORT=3001
@@ -54,7 +55,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY_DEV }}
           script: |
             cd configurator
-            git pull origin develop
+            git fetch origin
+            git reset --hard origin/develop
             # Create .env file with all backend environment variables
             cat > backend/.env << EOF
             PORT=3001
