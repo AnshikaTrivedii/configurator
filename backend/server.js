@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import compression from 'compression';
+import mongoose from 'mongoose';
 import connectDB from './config/database.js';
 import salesRoutes from './routes/sales.js';
 import productsRoutes from './routes/products.js';
@@ -16,20 +17,34 @@ const PORT = process.env.PORT || 3001;
 // Connect to database
 connectDB();
 
-// Run partner creation script if enabled (non-blocking)
+// Run partner creation script if enabled (wait for database connection first)
 if (process.env.RUN_PARTNER_SCRIPT === 'true') {
   console.log('🔧 RUN_PARTNER_SCRIPT=true detected');
-  console.log('📝 Running partner creation script...');
   
-  // Run asynchronously without blocking server startup
-  runPartnerCreation()
-    .then(() => {
+  const runPartnerScript = async () => {
+    console.log('📝 Running partner creation script...');
+    try {
+      await runPartnerCreation();
       console.log('✅ Partner script completed successfully');
-    })
-    .catch((error) => {
+    } catch (error) {
       console.error('❌ Partner script failed:', error.message);
+      console.error('❌ Full error:', error);
       // Don't exit - server should continue running
+    }
+  };
+  
+  // Check if database is already connected
+  if (mongoose.connection.readyState === 1) {
+    // Already connected, run immediately
+    runPartnerScript();
+  } else {
+    // Wait for database connection
+    console.log('📝 Waiting for database connection before running partner creation script...');
+    mongoose.connection.once('connected', () => {
+      console.log('✅ Database connected');
+      runPartnerScript();
     });
+  }
 } else {
   console.log('ℹ️  Partner creation script skipped (RUN_PARTNER_SCRIPT not set to "true")');
 }

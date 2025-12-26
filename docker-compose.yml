@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 services:
   frontend:
@@ -11,10 +11,13 @@ services:
 
   backend:
     build: ./backend
+    env_file:
+      - ./backend/.env
     environment:
-      - PORT=3001
+      - PORT=${PORT:-3001}
       - MONGODB_URI=${MONGODB_URI}
-      - JWT_SECRET=change-this-secret-in-production
-      - FRONTEND_URL=http://localhost
-      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - NODE_ENV=${NODE_ENV:-production}
+      - RUN_PARTNER_SCRIPT=${RUN_PARTNER_SCRIPT:-false}
     restart: always

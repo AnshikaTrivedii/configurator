@@ -23,8 +23,20 @@ jobs:
           script: |
             cd configurator
             git pull origin main
-            echo "MONGODB_URI=${{ secrets.MONGODB_URI_PROD }}" > .env
-            sudo docker compose --env-file .env up -d --build
+            # Create .env file with all backend environment variables
+            cat > backend/.env << EOF
+            PORT=3001
+            MONGODB_URI=${{ secrets.MONGODB_URI_PROD }}
+            JWT_SECRET=${{ secrets.JWT_SECRET_PROD }}
+            FRONTEND_URL=${{ secrets.FRONTEND_URL_PROD }}
+            NODE_ENV=production
+            RUN_PARTNER_SCRIPT=${{ secrets.RUN_PARTNER_SCRIPT_PROD }}
+            EOF
+            # Create frontend .env file if VITE_API_URL is needed
+            cat > .env << EOF
+            VITE_API_URL=${{ secrets.VITE_API_URL_PROD }}
+            EOF
+            sudo docker compose --env-file backend/.env up -d --build
             sudo docker image prune -f
 
   deploy-development:
@@ -43,6 +55,18 @@ jobs:
           script: |
             cd configurator
             git pull origin develop
-            echo "MONGODB_URI=${{ secrets.MONGODB_URI_DEV }}" > .env
-            sudo docker compose --env-file .env up -d --build
+            # Create .env file with all backend environment variables
+            cat > backend/.env << EOF
+            PORT=3001
+            MONGODB_URI=${{ secrets.MONGODB_URI_DEV }}
+            JWT_SECRET=${{ secrets.JWT_SECRET_DEV }}
+            FRONTEND_URL=${{ secrets.FRONTEND_URL_DEV }}
+            NODE_ENV=development
+            RUN_PARTNER_SCRIPT=${{ secrets.RUN_PARTNER_SCRIPT_DEV }}
+            EOF
+            # Create frontend .env file if VITE_API_URL is needed
+            cat > .env << EOF
+            VITE_API_URL=${{ secrets.VITE_API_URL_DEV }}
+            EOF
+            sudo docker compose --env-file backend/.env up -d --build
             sudo docker image prune -f
