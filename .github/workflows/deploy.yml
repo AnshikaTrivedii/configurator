@@ -32,6 +32,9 @@ jobs:
             FRONTEND_URL=${{ secrets.FRONTEND_URL_PROD }}
             NODE_ENV=production
             RUN_PARTNER_SCRIPT=${{ secrets.RUN_PARTNER_SCRIPT_PROD }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY_PROD }}
+            TO_EMAIL=${{ secrets.TO_EMAIL_PROD }}
+            DEFAULT_FROM_EMAIL=${{ secrets.DEFAULT_FROM_EMAIL_PROD }}
             EOF
             # Create frontend .env file if VITE_API_URL is needed
             cat > .env << EOF
@@ -65,6 +68,9 @@ jobs:
             FRONTEND_URL=${{ secrets.FRONTEND_URL_DEV }}
             NODE_ENV=development
             RUN_PARTNER_SCRIPT=${{ secrets.RUN_PARTNER_SCRIPT_DEV }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY_DEV }}
+            TO_EMAIL=${{ secrets.TO_EMAIL_DEV }}
+            DEFAULT_FROM_EMAIL=${{ secrets.DEFAULT_FROM_EMAIL_DEV }}
             EOF
             # Create frontend .env file if VITE_API_URL is needed
             cat > .env << EOF

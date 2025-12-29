@@ -13,11 +13,4 @@ services:
     build: ./backend
     env_file:
       - ./backend/.env
-    environment:
-      - PORT=${PORT:-3001}
-      - MONGODB_URI=${MONGODB_URI}
-      - JWT_SECRET=${JWT_SECRET}
-      - FRONTEND_URL=${FRONTEND_URL}
-      - NODE_ENV=${NODE_ENV:-production}
-      - RUN_PARTNER_SCRIPT=${RUN_PARTNER_SCRIPT:-false}
     restart: always

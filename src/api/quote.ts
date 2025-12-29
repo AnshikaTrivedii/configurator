@@ -66,10 +66,15 @@ export interface QuoteRequest {
   totalPrice?: number;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 export const submitQuoteRequest = async (quoteData: QuoteRequest): Promise<{ success: boolean; message?: string }> => {
-    console.log('Submitting quote request:', quoteData);
+  console.log('Submitting quote request:', quoteData);
+  console.log('API Base URL:', API_BASE_URL);
+  console.log('Full Email URL:', `${API_BASE_URL}/email/quote-request`);
+  
   try {
-    const response = await fetch('https://cms-backend-9r1u.onrender.com/api/email/quota', {
+    const response = await fetch(`${API_BASE_URL}/email/quote-request`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
