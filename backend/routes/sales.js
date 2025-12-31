@@ -301,7 +301,7 @@ router.post('/login', validateLogin, async (req, res) => {
     
     // Get allowed customer types for partners (empty array for non-partners)
     const allowedCustomerTypes = userRole === 'partner' ? (user.allowedCustomerTypes || []) : [];
-
+    
     // Generate JWT token with extended expiry for better session persistence
     const token = jwt.sign(
       { 
@@ -368,7 +368,7 @@ router.post('/login', validateLogin, async (req, res) => {
         message: 'Internal server error: User ID missing in response'
       });
     }
-    
+
     // Return user data (excluding password hash)
     const responsePayload = {
       success: true,

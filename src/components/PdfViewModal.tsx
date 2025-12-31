@@ -1485,7 +1485,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                   <div className="ml-3">
                     <p className="text-sm text-green-800">Quotation saved successfully! It will appear in the Super User Dashboard.</p>
                   </div>
-                </div>
+                  </div>
                 </div>
               </div>
             )}

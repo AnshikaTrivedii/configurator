@@ -56,7 +56,7 @@ function App() {
             const role = storedUser.role === 'super' || storedUser.role === 'super_admin' 
               ? 'super_admin' 
               : storedUser.role === 'sales' 
-              ? 'sales'
+              ? 'sales' 
               : storedUser.role === 'partner'
               ? 'partner'
               : 'normal';
@@ -102,7 +102,7 @@ function App() {
           const role = response.user.role === 'super' || response.user.role === 'super_admin' 
             ? 'super_admin' 
             : response.user.role === 'sales' 
-            ? 'sales'
+            ? 'sales' 
             : response.user.role === 'partner'
             ? 'partner'
             : 'normal';
@@ -181,7 +181,7 @@ function App() {
     const newRole = user.role === 'super' || user.role === 'super_admin' 
       ? 'super_admin' 
       : user.role === 'sales' 
-      ? 'sales'
+      ? 'sales' 
       : user.role === 'partner'
       ? 'partner'
       : 'normal';
