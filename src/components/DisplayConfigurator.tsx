@@ -21,6 +21,7 @@ import { PdfViewModal } from './PdfViewModal';
 import { SalesUser } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { SuperUserDashboard } from './SuperUserDashboard';
+import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
@@ -657,7 +658,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     //'P4':   { endUser: 95600, siChannel: 86700, reseller: 81300 },
   //};
 
-  // If dashboard is open, render only the admin dashboard (for super_admin users only)
+  // If dashboard is open, render the appropriate dashboard based on user role
   if (showDashboard && (userRole === 'super' || userRole === 'super_admin')) {
     return (
       <SuperUserDashboard 
@@ -668,6 +669,27 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             setShowDashboardInternal(false);
           }
         }} 
+        loggedInUser={salesUser ? {
+          role: salesUser.role,
+          name: salesUser.name,
+          email: salesUser.email
+        } : undefined}
+      />
+    );
+  }
+
+  // If dashboard is open, render the sales dashboard (for sales and partner users)
+  if (showDashboard && (userRole === 'sales' || userRole === 'partner')) {
+    return (
+      <SalesDashboard 
+        onBack={() => {
+          if (onDashboardClose) {
+            onDashboardClose();
+          } else {
+            setShowDashboardInternal(false);
+          }
+        }} 
+        onLogout={onSalesLogout}
         loggedInUser={salesUser ? {
           role: salesUser.role,
           name: salesUser.name,
@@ -733,6 +755,22 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               </div>
             ) : (userRole === 'sales' || userRole === 'partner') ? (
               <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    // If parent provides onDashboardOpen callback, use it
+                    // Otherwise, use internal state
+                    if (onDashboardOpen) {
+                      onDashboardOpen();
+                    } else {
+                      setShowDashboardInternal(true);
+                    }
+                  }}
+                  className={`px-3 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
+                    showDashboard ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-700'
+                  }`}
+                >
+                  My Dashboard
+                </button>
                 <span className="text-white text-xs sm:text-sm">{salesUser?.name}</span>
                 <button
                   onClick={onSalesLogout}

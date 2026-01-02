@@ -304,7 +304,7 @@ function App() {
       );
     }
     
-    // Sales/Partner users go to LED Configurator (DisplayConfigurator) - NOT a separate dashboard
+    // Sales/Partner users go to LED Configurator (DisplayConfigurator) with dashboard access
     if (userRole === 'sales' || userRole === 'partner') {
       console.log('🎯 App.tsx - Rendering DisplayConfigurator for', userRole === 'partner' ? 'partner' : 'sales', 'user');
       return (
@@ -320,8 +320,13 @@ function App() {
             onShowSalesLogin={handleShowSalesLogin}
             onSalesLogout={handleSalesLogout}
             initialConfig={null}
-            showDashboard={false}
-            onDashboardClose={() => {}}
+            showDashboard={showDashboard}
+            onDashboardClose={() => {
+              setShowDashboard(false);
+            }}
+            onDashboardOpen={() => {
+              setShowDashboard(true);
+            }}
           />
         </>
       );
