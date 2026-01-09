@@ -700,6 +700,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       // Basic product info
       productId: selectedProduct.id,
       productName: selectedProduct.name,
+      // Store config for accurate PDF regeneration
+      config: config || { width: 2400, height: 1010, unit: 'mm' },
       category: selectedProduct.category,
       
       // Display specifications
@@ -802,6 +804,43 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       note: discountInfo ? 'Price includes discount (not shown in PDF)' : 'This price includes 18% GST and matches PDF Grand Total'
     });
 
+    // Generate the exact HTML that's being displayed (with discount if applicable)
+    // This is the HTML that should be saved as pdfPage6HTML
+    let finalHtmlContent = htmlContent;
+    if (isSuperAdmin && discountType && discountPercent > 0) {
+      // Use the discounted HTML that's actually displayed
+      const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
+        userInfo?.userType === 'SI/Channel Partner'
+          ? 'Channel'
+          : (userInfo?.userType === 'Reseller' ? 'Reseller' : 'End User');
+      
+      finalHtmlContent = generateConfigurationHtml(
+        config || { width: 2400, height: 1010, unit: 'mm' },
+        selectedProduct,
+        cabinetGrid,
+        processor,
+        mode,
+        userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
+        salesUser,
+        finalQuotationId,
+        customPricing,
+        {
+          unitPrice: finalPricingResult.unitPrice,
+          quantity: finalPricingResult.quantity,
+          subtotal: finalPricingResult.productSubtotal,
+          gstAmount: finalPricingResult.productGST,
+          processorPrice: finalPricingResult.processorPrice,
+          processorGst: finalPricingResult.processorGST,
+          grandTotal: finalTotalPrice,
+          discount: discountInfo ? {
+            discountedProductTotal: finalPricingResult.discountedProductTotal,
+            discountedProcessorTotal: finalPricingResult.discountedProcessorTotal,
+            discountedGrandTotal: finalTotalPrice
+          } : undefined
+        }
+      );
+    }
+
     // Capture exact quotation data as shown on the page
     const exactQuotationData = {
       // Basic quotation info
@@ -814,6 +853,9 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       userType: userTypeForCalc,
       userTypeDisplayName: getUserTypeDisplayName(userTypeForCalc),
       totalPrice: finalTotalPrice,  // CRITICAL: Grand Total with GST (and discount if applied) - matches PDF exactly
+      
+      // CRITICAL: Save the exact HTML that's displayed in the PDF
+      pdfPage6HTML: finalHtmlContent,
       
       // CRITICAL: Include salesUserId and salesUserName for quotation attribution
       // This determines which user the quotation is counted under in the dashboard
@@ -873,6 +915,9 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       
       // Store comprehensive product details for backend compatibility
       productDetails: comprehensiveProductDetails,
+      
+      // Store config in quotationData for accurate PDF regeneration
+      config: config || { width: 2400, height: 1010, unit: 'mm' },
       
       // Timestamp when quotation was created
       createdAt: new Date().toISOString()

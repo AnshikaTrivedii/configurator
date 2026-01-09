@@ -21,6 +21,7 @@ import { PdfViewModal } from './PdfViewModal';
 import { SalesUser } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { SuperUserDashboard } from './SuperUserDashboard';
+import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 
 // Configure the PDF worker from a CDN to avoid local path issues.
@@ -45,6 +46,9 @@ interface DisplayConfiguratorProps {
   showDashboard?: boolean;
   onDashboardClose?: () => void;
   onDashboardOpen?: () => void;
+  showSalesDashboard?: boolean;
+  onSalesDashboardOpen?: () => void;
+  onSalesDashboardClose?: () => void;
 }
 
 export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ 
@@ -55,7 +59,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   initialConfig,
   showDashboard: showDashboardProp,
   onDashboardClose,
-  onDashboardOpen
+  onDashboardOpen,
+  showSalesDashboard: showSalesDashboardProp,
+  onSalesDashboardOpen,
+  onSalesDashboardClose
 }) => {
   const { config: globalConfig, updateDimensions: updateGlobalDimensions, updateConfig } = useDisplayConfig();
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(
@@ -677,6 +684,25 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     );
   }
 
+  // If sales dashboard is open, render only the sales dashboard (for sales users only)
+  if (showSalesDashboardProp && userRole === 'sales') {
+    return (
+      <SalesDashboard 
+        onBack={() => {
+          if (onSalesDashboardClose) {
+            onSalesDashboardClose();
+          }
+        }} 
+        onLogout={onSalesLogout}
+        loggedInUser={salesUser ? {
+          role: salesUser.role,
+          name: salesUser.name,
+          email: salesUser.email
+        } : undefined}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       {/* Header */}
@@ -733,6 +759,20 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               </div>
             ) : (userRole === 'sales' || userRole === 'partner') ? (
               <div className="flex items-center space-x-2">
+                {userRole === 'sales' && (
+                  <button
+                    onClick={() => {
+                      if (onSalesDashboardOpen) {
+                        onSalesDashboardOpen();
+                      }
+                    }}
+                    className={`px-3 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
+                      showSalesDashboardProp ? 'bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
+                  >
+                    My Dashboard
+                  </button>
+                )}
                 <span className="text-white text-xs sm:text-sm">{salesUser?.name}</span>
                 <button
                   onClick={onSalesLogout}

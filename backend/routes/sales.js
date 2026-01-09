@@ -791,6 +791,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       // New exact quotation data fields
       exactPricingBreakdown,
       exactProductSpecs,
+      pdfPage6HTML,
       createdAt,
       // Allow superadmin to specify salesUserId and salesUserName
       // CRITICAL: These fields determine quotation attribution in dashboard
@@ -921,10 +922,13 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       // Store exact quotation data as shown on the page
       exactPricingBreakdown: exactPricingBreakdown || null,
       exactProductSpecs: exactProductSpecs || null,
+      // Store the exact PDF HTML that was displayed when quotation was created
+      pdfPage6HTML: pdfPage6HTML || null,
       // Store the exact data as JSON for perfect reproduction
       quotationData: {
         exactPricingBreakdown,
         exactProductSpecs,
+        config: productDetails?.config || null,
         createdAt: createdAt || new Date().toISOString(),
         savedAt: new Date().toISOString()
       }
@@ -1281,7 +1285,11 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
         message: quotation.message,
         userType: quotation.userType,
         userTypeDisplayName: quotation.userTypeDisplayName,
-        createdAt: quotation.createdAt
+        createdAt: quotation.createdAt,
+        pdfPage6HTML: quotation.pdfPage6HTML || null,
+        exactPricingBreakdown: quotation.exactPricingBreakdown || null,
+        exactProductSpecs: quotation.exactProductSpecs || null,
+        quotationData: quotation.quotationData || null
       });
     });
 

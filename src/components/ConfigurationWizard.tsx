@@ -241,7 +241,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     
     if (viewingDistance) {
       // Get all recommended pitches for this viewing distance (can be multiple)
-      pitches = getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit);
+      pitches = getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit, environment as 'Indoor' | 'Outdoor' | null);
     } else {
       // If no viewing distance, show all allowed pixel pitches
       pitches = getAvailablePixelPitches();
@@ -278,7 +278,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   // Calculate recommended pixel pitches from viewing distance (for guided mode filtering)
   const recommendedPixelPitches: number[] = (() => {
     if (viewingDistance && !hasSkippedPixelPitch) {
-      return getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit);
+      return getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit, environment as 'Indoor' | 'Outdoor' | null);
     }
     return [];
   })();
@@ -449,7 +449,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select viewing distance...</option>
-                  {getViewingDistanceOptionsByUnit(viewingDistanceUnit).map((option) => (
+                  {getViewingDistanceOptionsByUnit(viewingDistanceUnit, environment as 'Indoor' | 'Outdoor' | null).map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>

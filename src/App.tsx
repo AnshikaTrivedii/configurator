@@ -3,6 +3,7 @@ import { DisplayConfigurator } from './components/DisplayConfigurator';
 import { SalesLoginModal } from './components/SalesLoginModal';
 import { LandingPage } from './components/LandingPage';
 import { ConfigurationWizard } from './components/ConfigurationWizard';
+import { SalesDashboard } from './components/SalesDashboard';
 import { SalesUser, salesAPI } from './api/sales';
 import { Product } from './types';
 import { useDisplayConfig } from './contexts/DisplayConfigContext';
@@ -18,6 +19,7 @@ function App() {
   const [showLandingPage, setShowLandingPage] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showSalesDashboard, setShowSalesDashboard] = useState(false);
   const [initialConfig, setInitialConfig] = useState<{
     width: number;
     height: number;
@@ -215,6 +217,8 @@ function App() {
   const handleSalesLogout = () => {
     setSalesUser(null);
     setUserRole('normal');
+    setShowSalesDashboard(false);
+    setShowDashboard(false);
     salesAPI.logout();
   };
 
@@ -304,9 +308,32 @@ function App() {
       );
     }
     
-    // Sales/Partner users go to LED Configurator (DisplayConfigurator) - NOT a separate dashboard
+    // Sales/Partner users go to LED Configurator (DisplayConfigurator) or Sales Dashboard
     if (userRole === 'sales' || userRole === 'partner') {
       console.log('🎯 App.tsx - Rendering DisplayConfigurator for', userRole === 'partner' ? 'partner' : 'sales', 'user');
+      
+      // Show Sales Dashboard if requested (only for sales role, not partners)
+      if (showSalesDashboard && userRole === 'sales') {
+        return (
+          <>
+            <SalesLoginModal 
+              isOpen={showSalesLogin} 
+              onClose={() => setShowSalesLogin(false)}
+              onLogin={handleSalesLogin}
+            />
+            <SalesDashboard 
+              onBack={() => setShowSalesDashboard(false)}
+              onLogout={handleSalesLogout}
+              loggedInUser={salesUser ? {
+                role: salesUser.role,
+                name: salesUser.name,
+                email: salesUser.email
+              } : undefined}
+            />
+          </>
+        );
+      }
+      
       return (
         <>
           <SalesLoginModal 
@@ -322,6 +349,9 @@ function App() {
             initialConfig={null}
             showDashboard={false}
             onDashboardClose={() => {}}
+            showSalesDashboard={showSalesDashboard}
+            onSalesDashboardOpen={() => setShowSalesDashboard(true)}
+            onSalesDashboardClose={() => setShowSalesDashboard(false)}
           />
         </>
       );
