@@ -84,14 +84,17 @@ class SalesAPI {
         throw new Error('Failed to connect to server. Please check if the backend is running on port 3001.');
       }
 
+      // Read response as text first so we can use it for both JSON parsing and error messages
+      const responseText = await response.text();
+      console.log('📄 Response text:', responseText);
+
       let data;
       try {
-        data = await response.json();
+        data = JSON.parse(responseText);
         console.log('📦 Response data:', data);
       } catch (jsonError) {
         console.error('❌ JSON parse error:', jsonError);
-        const text = await response.text();
-        console.error('📄 Response text:', text);
+        console.error('📄 Response text that failed to parse:', responseText);
         throw new Error(`Invalid response from server (${response.status}). Please check if the backend is running and accessible.`);
       }
 
