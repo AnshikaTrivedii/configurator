@@ -105,6 +105,22 @@ class SalesAPI {
           throw new Error(data.message || 'Invalid email or password. Please check your credentials.');
         } else if (response.status === 401) {
           throw new Error(data.message || 'Authentication failed. Please check your credentials.');
+        } else if (response.status === 502) {
+          // 502 Bad Gateway - backend is unreachable
+          console.error('❌ 502 Bad Gateway - Backend server is unreachable');
+          console.error('❌ API URL being used:', API_BASE_URL);
+          console.error('❌ VITE_API_URL env var:', import.meta.env.VITE_API_URL);
+          throw new Error(
+            `Backend server is unreachable (502 Bad Gateway).\n\n` +
+            `This usually means:\n` +
+            `1. Backend server is down or not running\n` +
+            `2. Backend URL is incorrect: ${API_BASE_URL}\n` +
+            `3. Network/firewall is blocking the connection\n\n` +
+            `Please check:\n` +
+            `- Backend server status\n` +
+            `- VITE_API_URL environment variable in Netlify dashboard\n` +
+            `- Backend server logs for errors`
+          );
         } else if (response.status === 500) {
           throw new Error(data.message || 'Server error. Please try again later.');
         } else if (response.status === 404) {

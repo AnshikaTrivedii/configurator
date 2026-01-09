@@ -107,10 +107,11 @@ app.use((error, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, 'localhost', () => {
+// Listen on 0.0.0.0 to accept connections from other Docker containers
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔐 Sales API: http://localhost:${PORT}/api/sales`);
+  console.log(`📊 Health check: http://0.0.0.0:${PORT}/health`);
+  console.log(`🔐 Sales API: http://0.0.0.0:${PORT}/api/sales`);
   console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`✅ Quotation Assignment Fix: DEPLOYED (commit f2b06cc)`);
