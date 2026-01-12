@@ -23,6 +23,8 @@ interface Quotation {
   userTypeDisplayName: string;
   createdAt: string;
   pdfPage6HTML?: string | null;
+  pdfS3Key?: string | null;
+  pdfS3Url?: string | null;
   exactPricingBreakdown?: any;
   exactProductSpecs?: any;
   quotationData?: any;
@@ -127,7 +129,23 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     try {
       setSelectedQuotation(quotation);
       
-      // If PDF HTML is stored, use it directly
+      // Priority 1: Check if PDF is stored in S3
+      if (quotation.pdfS3Key || quotation.pdfS3Url) {
+        try {
+          // Get fresh presigned URL (expires in 1 hour)
+          const pdfUrlResponse = await salesAPI.getQuotationPdfUrl(quotation.quotationId);
+          
+          // Open PDF in new tab
+          window.open(pdfUrlResponse.pdfS3Url, '_blank');
+          return;
+        } catch (s3Error) {
+          console.error('Error fetching PDF from S3:', s3Error);
+          // Fallback to HTML view if S3 fails
+          console.log('Falling back to HTML view...');
+        }
+      }
+      
+      // Priority 2: If PDF HTML is stored, use it directly
       if (quotation.pdfPage6HTML) {
         setPdfHtmlContent(quotation.pdfPage6HTML);
         setIsPdfModalOpen(true);

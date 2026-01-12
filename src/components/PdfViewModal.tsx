@@ -933,96 +933,111 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         salesUserName: exactQuotationData.salesUserName
       });
 
+      // Generate PDF first (before saving quotation)
+      console.log('📄 Generating PDF for upload to S3...');
+      
+      let pdfBlob: Blob;
+      try {
+        const { generateConfigurationPdf } = await import('../utils/docxGenerator');
+        
+        // Create exactPricingBreakdown with discounted values for PDF generation
+        const exactPricingBreakdownForPdf = {
+          unitPrice: finalPricingResult.unitPrice,
+          quantity: finalPricingResult.quantity,
+          subtotal: finalPricingResult.productSubtotal,
+          gstAmount: finalPricingResult.productGST,
+          processorPrice: finalPricingResult.processorPrice,
+          processorGst: finalPricingResult.processorGST,
+          grandTotal: finalTotalPrice,
+          discount: discountInfo ? {
+            discountedProductTotal: finalPricingResult.discountedProductTotal,
+            discountedProcessorTotal: finalPricingResult.discountedProcessorTotal,
+            discountedGrandTotal: finalTotalPrice
+          } : undefined
+        };
+
+        // Map UI user type label to legacy pricing userType expected by docxGenerator/html helpers
+        const uiUserType: string | undefined = userInfo?.userType;
+        const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
+          uiUserType === 'SI/Channel Partner'
+            ? 'Channel'
+            : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
+
+        pdfBlob = await generateConfigurationPdf(
+          config || { width: 2400, height: 1010, unit: 'mm' },
+          selectedProduct,
+          cabinetGrid,
+          processor,
+          mode,
+          userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
+          salesUser,
+          quotationId,
+          customPricing,
+          exactPricingBreakdownForPdf
+        );
+
+        console.log('✅ PDF generated successfully', {
+          blobSize: pdfBlob.size,
+          blobType: pdfBlob.type
+        });
+      } catch (pdfError: any) {
+        console.error('❌ Error generating PDF:', pdfError);
+        console.error('❌ PDF Error details:', {
+          message: pdfError?.message,
+          stack: pdfError?.stack,
+          name: pdfError?.name
+        });
+        
+        // Provide user-friendly error message
+        let errorMessage = 'Failed to generate PDF. Please try again.';
+        if (pdfError?.message) {
+          if (pdfError.message.includes('canvas') || pdfError.message.includes('html2canvas')) {
+            errorMessage = 'Failed to render PDF. This may be due to image loading issues. Please check your connection and try again.';
+          } else if (pdfError.message.includes('timeout')) {
+            errorMessage = 'PDF generation timed out. Please try again.';
+          } else {
+            errorMessage = `PDF error: ${pdfError.message}`;
+          }
+        }
+        
+        alert(errorMessage);
+        // Fallback to original onDownload if PDF generation fails
+        console.log('🔄 Falling back to original onDownload handler...');
+        onDownload();
+        return;
+      }
+
+      // Convert PDF blob to base64 for sending to backend
+      const pdfBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64String = (reader.result as string).split(',')[1];
+          resolve(base64String);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(pdfBlob);
+      });
+
+      // Add PDF base64 to quotation data
+      exactQuotationData.pdfBase64 = pdfBase64;
+
+      // Save quotation with PDF data
       const saveResult = await salesAPI.saveQuotation(exactQuotationData);
       console.log('✅ Quotation saved to database successfully:', saveResult);
 
       setSaveSuccess(true);
       saveSuccessful = true;
       
+      // Store blob and URL for manual download
+      setGeneratedPdfBlob(pdfBlob);
+      const url = window.URL.createObjectURL(pdfBlob);
+      setPdfDownloadUrl(url);
+      
       // Automatically download PDF after successful save
       if (saveSuccessful) {
         console.log('✅ Quotation saved, starting PDF download...');
-        // Generate PDF with discount applied
-        try {
-          const { generateConfigurationPdf } = await import('../utils/docxGenerator');
-          
-          // Create exactPricingBreakdown with discounted values for PDF generation
-          const exactPricingBreakdownForPdf = {
-            unitPrice: finalPricingResult.unitPrice,
-            quantity: finalPricingResult.quantity,
-            subtotal: finalPricingResult.productSubtotal,
-            gstAmount: finalPricingResult.productGST,
-            processorPrice: finalPricingResult.processorPrice,
-            processorGst: finalPricingResult.processorGST,
-            grandTotal: finalTotalPrice,
-            discount: discountInfo ? {
-              discountedProductTotal: finalPricingResult.discountedProductTotal,
-              discountedProcessorTotal: finalPricingResult.discountedProcessorTotal,
-              discountedGrandTotal: finalTotalPrice
-            } : undefined
-          };
-
-          console.log('📄 Generating PDF...');
-          // Map UI user type label to legacy pricing userType expected by docxGenerator/html helpers
-          const uiUserType: string | undefined = userInfo?.userType;
-          const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
-            uiUserType === 'SI/Channel Partner'
-              ? 'Channel'
-              : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
-
-          const blob = await generateConfigurationPdf(
-            config || { width: 2400, height: 1010, unit: 'mm' },
-            selectedProduct,
-            cabinetGrid,
-            processor,
-            mode,
-            userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
-            salesUser,
-            quotationId,
-            customPricing,
-            exactPricingBreakdownForPdf
-          );
-
-          console.log('✅ PDF generated, creating download link...', {
-            blobSize: blob.size,
-            blobType: blob.type,
-            fileName: fileName
-          });
-
-          console.log('✅ PDF generated successfully');
-          
-          // Store blob and URL for manual download
-          setGeneratedPdfBlob(blob);
-          const url = window.URL.createObjectURL(blob);
-          setPdfDownloadUrl(url);
-          
-          // Use helper function to trigger download
-          triggerPdfDownload(blob, fileName, setGeneratedPdfBlob, setPdfDownloadUrl);
-        } catch (pdfError: any) {
-          console.error('❌ Error generating PDF:', pdfError);
-          console.error('❌ PDF Error details:', {
-            message: pdfError?.message,
-            stack: pdfError?.stack,
-            name: pdfError?.name
-          });
-          
-          // Provide user-friendly error message
-          let errorMessage = 'Failed to generate PDF. Please try again.';
-          if (pdfError?.message) {
-            if (pdfError.message.includes('canvas') || pdfError.message.includes('html2canvas')) {
-              errorMessage = 'Failed to render PDF. This may be due to image loading issues. Please check your connection and try again.';
-            } else if (pdfError.message.includes('timeout')) {
-              errorMessage = 'PDF generation timed out. Please try again.';
-            } else {
-              errorMessage = `PDF error: ${pdfError.message}`;
-            }
-          }
-          
-          alert(errorMessage);
-          // Fallback to original onDownload if PDF generation fails
-          console.log('🔄 Falling back to original onDownload handler...');
-        onDownload();
-        }
+        // Use helper function to trigger download
+        triggerPdfDownload(pdfBlob, fileName, setGeneratedPdfBlob, setPdfDownloadUrl);
       }
       
       // Clear success message after 3 seconds

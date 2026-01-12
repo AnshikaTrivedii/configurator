@@ -410,6 +410,75 @@ class SalesAPI {
 
     return data;
   }
+
+  /**
+   * Convert PDF Blob to base64 string
+   */
+  private async blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = (reader.result as string).split(',')[1]; // Remove data:application/pdf;base64, prefix
+        resolve(base64String);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  /**
+   * Upload PDF to S3 for an existing quotation
+   */
+  async uploadQuotationPdf(quotationId: string, pdfBlob: Blob): Promise<{ 
+    success: boolean; 
+    pdfS3Key: string; 
+    pdfS3Url: string;
+    message: string;
+  }> {
+    try {
+      // Convert blob to base64
+      const pdfBase64 = await this.blobToBase64(pdfBlob);
+
+      const response = await fetch(`${API_BASE_URL}/sales/quotation/${quotationId}/upload-pdf`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ pdfBase64 })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to upload PDF to S3');
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('Error uploading PDF to S3:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get presigned URL for PDF from S3
+   */
+  async getQuotationPdfUrl(quotationId: string): Promise<{ 
+    success: boolean; 
+    pdfS3Url: string; 
+    pdfS3Key: string;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/sales/quotation/${quotationId}/pdf-url`, {
+      method: 'GET',
+      headers: this.getAuthHeaders()
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to get PDF URL');
+    }
+
+    return data;
+  }
 }
 
 export const salesAPI = new SalesAPI();
