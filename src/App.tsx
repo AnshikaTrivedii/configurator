@@ -308,11 +308,7 @@ function App() {
       );
     }
     
-<<<<<<< HEAD
-    // Sales/Partner users go to LED Configurator (DisplayConfigurator) with dashboard access
-=======
     // Sales/Partner users go to LED Configurator (DisplayConfigurator) or Sales Dashboard
->>>>>>> new-feature-s3
     if (userRole === 'sales' || userRole === 'partner') {
       console.log('🎯 App.tsx - Rendering DisplayConfigurator for', userRole === 'partner' ? 'partner' : 'sales', 'user');
       
@@ -351,21 +347,11 @@ function App() {
             onShowSalesLogin={handleShowSalesLogin}
             onSalesLogout={handleSalesLogout}
             initialConfig={null}
-<<<<<<< HEAD
-            showDashboard={showDashboard}
-            onDashboardClose={() => {
-              setShowDashboard(false);
-            }}
-            onDashboardOpen={() => {
-              setShowDashboard(true);
-            }}
-=======
             showDashboard={false}
             onDashboardClose={() => {}}
             showSalesDashboard={showSalesDashboard}
             onSalesDashboardOpen={() => setShowSalesDashboard(true)}
             onSalesDashboardClose={() => setShowSalesDashboard(false)}
->>>>>>> new-feature-s3
           />
         </>
       );

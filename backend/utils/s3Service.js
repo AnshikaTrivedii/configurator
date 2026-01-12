@@ -6,14 +6,14 @@ dotenv.config();
 
 // Initialize S3 client
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.ORION_S3_REGION || process.env.S3_REGION || 'us-east-1',
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    accessKeyId: process.env.ORION_S3_ACCESS_KEY || process.env.S3_ACCESS_KEY,
+    secretAccessKey: process.env.ORION_S3_SECRET_KEY || process.env.S3_SECRET_KEY
   }
 });
 
-const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
+const BUCKET_NAME = process.env.ORION_S3_BUCKET_NAME || process.env.S3_BUCKET_NAME;
 const PDF_FOLDER = 'quotations/pdfs'; // Folder structure in S3
 
 /**
@@ -25,7 +25,7 @@ const PDF_FOLDER = 'quotations/pdfs'; // Folder structure in S3
  */
 export const uploadPdfToS3 = async (pdfBuffer, quotationId, salesUserId) => {
   if (!BUCKET_NAME) {
-    throw new Error('AWS_S3_BUCKET_NAME environment variable is not set');
+    throw new Error('ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set');
   }
 
   // Create S3 key: quotations/pdfs/{salesUserId}/{quotationId}.pdf
@@ -62,7 +62,7 @@ export const uploadPdfToS3 = async (pdfBuffer, quotationId, salesUserId) => {
  */
 export const getPdfPresignedUrl = async (s3Key, expiresIn = 3600) => {
   if (!BUCKET_NAME) {
-    throw new Error('AWS_S3_BUCKET_NAME environment variable is not set');
+    throw new Error('ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set');
   }
 
   const command = new GetObjectCommand({
@@ -86,7 +86,7 @@ export const getPdfPresignedUrl = async (s3Key, expiresIn = 3600) => {
  */
 export const deletePdfFromS3 = async (s3Key) => {
   if (!BUCKET_NAME) {
-    throw new Error('AWS_S3_BUCKET_NAME environment variable is not set');
+    throw new Error('ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set');
   }
 
   const command = new DeleteObjectCommand({
@@ -110,9 +110,9 @@ export const deletePdfFromS3 = async (s3Key) => {
  */
 export const getPdfPublicUrl = (s3Key) => {
   if (!BUCKET_NAME) {
-    throw new Error('AWS_S3_BUCKET_NAME environment variable is not set');
+    throw new Error('ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set');
   }
 
-  const region = process.env.AWS_REGION || 'us-east-1';
+  const region = process.env.ORION_S3_REGION || process.env.S3_REGION || 'us-east-1';
   return `https://${BUCKET_NAME}.s3.${region}.amazonaws.com/${s3Key}`;
 };

@@ -66,15 +66,22 @@ Dashboards fetch presigned URLs to display PDFs
 Add these to your `.env` file in the backend:
 
 ```env
-# AWS S3 Configuration
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=your_access_key_id_here
-AWS_SECRET_ACCESS_KEY=your_secret_access_key_here
-AWS_S3_BUCKET_NAME=orion-led-quotations
+# AWS S3 Configuration (using ORION_ prefix to avoid Netlify conflicts)
+ORION_S3_REGION=us-east-1
+ORION_S3_ACCESS_KEY=your_access_key_id_here
+ORION_S3_SECRET_KEY=your_secret_access_key_here
+ORION_S3_BUCKET_NAME=orion-led-quotations
 ```
+
+**Alternative names (also supported):**
+- `S3_REGION` (instead of `ORION_S3_REGION`)
+- `S3_ACCESS_KEY` (instead of `ORION_S3_ACCESS_KEY`)
+- `S3_SECRET_KEY` (instead of `ORION_S3_SECRET_KEY`)
+- `S3_BUCKET_NAME` (instead of `ORION_S3_BUCKET_NAME`)
 
 **For Production (Railway/Netlify/etc.):**
 - Add these as environment variables in your hosting platform
+- Use `ORION_` prefix to avoid conflicts with Netlify's reserved AWS variable names
 - Never commit `.env` files to git
 
 ### 3. Install Dependencies
@@ -278,9 +285,10 @@ orion-led-quotations/
 
 ### Common Issues
 
-1. **"AWS_S3_BUCKET_NAME environment variable is not set"**
+1. **"ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set"**
    - Check `.env` file
    - Verify environment variables in production
+   - Make sure you're using `ORION_S3_*` or `S3_*` prefix (not `AWS_*` which may conflict with Netlify)
 
 2. **"Access Denied" errors**
    - Check IAM user permissions
@@ -304,10 +312,10 @@ Enable AWS SDK logging:
 import { S3Client } from '@aws-sdk/client-s3';
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
+  region: process.env.ORION_S3_REGION || process.env.S3_REGION || 'us-east-1',
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    accessKeyId: process.env.ORION_S3_ACCESS_KEY || process.env.S3_ACCESS_KEY,
+    secretAccessKey: process.env.ORION_S3_SECRET_KEY || process.env.S3_SECRET_KEY
   },
   logger: console // Enable logging
 });

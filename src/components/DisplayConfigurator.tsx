@@ -684,17 +684,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     );
   }
 
-<<<<<<< HEAD
-  // If dashboard is open, render the sales dashboard (for sales and partner users)
-  if (showDashboard && (userRole === 'sales' || userRole === 'partner')) {
-    return (
-      <SalesDashboard 
-        onBack={() => {
-          if (onDashboardClose) {
-            onDashboardClose();
-          } else {
-            setShowDashboardInternal(false);
-=======
   // If sales dashboard is open, render only the sales dashboard (for sales users only)
   if (showSalesDashboardProp && userRole === 'sales') {
     return (
@@ -702,7 +691,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         onBack={() => {
           if (onSalesDashboardClose) {
             onSalesDashboardClose();
->>>>>>> new-feature-s3
           }
         }} 
         onLogout={onSalesLogout}
@@ -771,24 +759,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               </div>
             ) : (userRole === 'sales' || userRole === 'partner') ? (
               <div className="flex items-center space-x-2">
-<<<<<<< HEAD
-                <button
-                  onClick={() => {
-                    // If parent provides onDashboardOpen callback, use it
-                    // Otherwise, use internal state
-                    if (onDashboardOpen) {
-                      onDashboardOpen();
-                    } else {
-                      setShowDashboardInternal(true);
-                    }
-                  }}
-                  className={`px-3 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
-                    showDashboard ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-700'
-                  }`}
-                >
-                  My Dashboard
-                </button>
-=======
                 {userRole === 'sales' && (
                   <button
                     onClick={() => {
@@ -803,7 +773,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                     My Dashboard
                   </button>
                 )}
->>>>>>> new-feature-s3
                 <span className="text-white text-xs sm:text-sm">{salesUser?.name}</span>
                 <button
                   onClick={onSalesLogout}

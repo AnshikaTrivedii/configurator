@@ -104,11 +104,13 @@ npm install
 
 3. **Add Environment Variables:**
    ```env
-   AWS_REGION=us-east-1
-   AWS_ACCESS_KEY_ID=your_access_key_id
-   AWS_SECRET_ACCESS_KEY=your_secret_access_key
-   AWS_S3_BUCKET_NAME=orion-led-quotations
+   ORION_S3_REGION=us-east-1
+   ORION_S3_ACCESS_KEY=your_access_key_id
+   ORION_S3_SECRET_KEY=your_secret_access_key
+   ORION_S3_BUCKET_NAME=orion-led-quotations
    ```
+   
+   **Note:** Using `ORION_` prefix to avoid conflicts with Netlify's reserved AWS variable names. Alternative names (`S3_REGION`, `S3_ACCESS_KEY`, etc.) are also supported.
 
 ### 3. Test the Implementation
 
