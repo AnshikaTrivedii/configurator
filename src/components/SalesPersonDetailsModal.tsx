@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, Clock, MessageSquare, RefreshCw } from 'lucide-react';
+import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, Clock, MessageSquare, RefreshCw, Eye } from 'lucide-react';
 import { salesAPI } from '../api/sales';
+import { PdfViewModal } from './PdfViewModal';
+import { generateConfigurationHtml } from '../utils/docxGenerator';
 
 // NOTE: We display prices directly from the database (quotation.totalPrice)
 // This ensures the dashboard shows the exact same price as the PDF
@@ -23,6 +25,8 @@ interface Quotation {
   totalPrice: number;
   message: string;
   createdAt: string;
+  pdfS3Key?: string | null;
+  pdfS3Url?: string | null;
   // Exact quotation data as shown on the page
   exactPricingBreakdown?: {
     unitPrice: number;
@@ -189,6 +193,99 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
     if (productDetails.weightPerCabinet) details.push(`Weight: ${productDetails.weightPerCabinet}kg`);
     
     return details.length > 0 ? details.join(', ') : 'N/A';
+  };
+
+  const handleViewPdf = async (quotation: Quotation) => {
+    try {
+      setSelectedQuotation(quotation);
+      
+      // Priority 1: Check if PDF is stored in S3
+      if (quotation.pdfS3Key || quotation.pdfS3Url) {
+        try {
+          // Get fresh presigned URL (expires in 1 hour)
+          const pdfUrlResponse = await salesAPI.getQuotationPdfUrl(quotation.quotationId);
+          
+          // Open PDF in new tab
+          window.open(pdfUrlResponse.pdfS3Url, '_blank');
+          return;
+        } catch (s3Error) {
+          console.error('Error fetching PDF from S3:', s3Error);
+          // Fallback to HTML view if S3 fails
+          console.log('Falling back to HTML view...');
+        }
+      }
+      
+      // Priority 2: If PDF HTML is stored, use it directly
+      if (quotation.productDetails?.pdfPage6HTML) {
+        setPdfHtmlContent(quotation.productDetails.pdfPage6HTML);
+        setIsPdfModalOpen(true);
+        return;
+      }
+
+      // Priority 3: Regenerate from stored data
+      if (quotation.exactPricingBreakdown && quotation.exactProductSpecs) {
+        const productDetails = quotation.productDetails;
+        const exactSpecs = quotation.exactProductSpecs;
+        const product = productDetails?.product || productDetails;
+        
+        let config = quotation.quotationData?.config;
+        if (!config && exactSpecs.displaySize) {
+          config = {
+            width: (exactSpecs.displaySize.width * 1000) || 0,
+            height: (exactSpecs.displaySize.height * 1000) || 0,
+            unit: 'mm'
+          };
+        }
+        
+        const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
+        const processor = exactSpecs.processor || productDetails?.processor || null;
+        const mode = exactSpecs.mode || productDetails?.mode || undefined;
+        
+        const customer = customers.find(c => 
+          c.quotations.some(q => q.quotationId === quotation.quotationId)
+        );
+        
+        let userTypeForHtml = 'End User';
+        if (quotation.userType === 'siChannel') {
+          userTypeForHtml = 'SI/Channel Partner';
+        } else if (quotation.userType === 'reseller') {
+          userTypeForHtml = 'Reseller';
+        }
+        
+        const userInfo = {
+          userType: userTypeForHtml,
+          fullName: customer?.customerName || '',
+          email: customer?.customerEmail || '',
+          phoneNumber: customer?.customerPhone || ''
+        };
+        
+        const htmlContent = generateConfigurationHtml(
+          config,
+          product,
+          cabinetGrid,
+          processor,
+          mode,
+          userInfo,
+          salesPerson ? {
+            email: salesPerson.email,
+            name: salesPerson.name,
+            contactNumber: salesPerson.contactNumber,
+            location: salesPerson.location
+          } : null,
+          quotation.quotationId,
+          undefined,
+          quotation.exactPricingBreakdown
+        );
+        
+        setPdfHtmlContent(htmlContent);
+        setIsPdfModalOpen(true);
+      } else {
+        alert('PDF data not available for this quotation.');
+      }
+    } catch (error) {
+      console.error('Error viewing PDF:', error);
+      alert('Failed to load PDF. Please try again.');
+    }
   };
 
   if (!isOpen) return null;
@@ -654,6 +751,50 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           ) : null}
         </div>
       </div>
+
+      {/* PDF View Modal */}
+      {selectedQuotation && (
+        <PdfViewModal
+          isOpen={isPdfModalOpen}
+          onClose={() => {
+            setIsPdfModalOpen(false);
+            setSelectedQuotation(null);
+            setPdfHtmlContent('');
+          }}
+          htmlContent={pdfHtmlContent}
+          onDownload={() => {
+            // Download handled by opening S3 URL or regenerating
+            if (selectedQuotation.pdfS3Key) {
+              salesAPI.getQuotationPdfUrl(selectedQuotation.quotationId)
+                .then(response => {
+                  const link = document.createElement('a');
+                  link.href = response.pdfS3Url;
+                  link.download = `${selectedQuotation.quotationId}.pdf`;
+                  link.click();
+                });
+            }
+          }}
+          fileName={`${selectedQuotation.quotationId}.pdf`}
+          selectedProduct={selectedQuotation.productDetails?.product || selectedQuotation.productDetails}
+          config={selectedQuotation.quotationData?.config}
+          cabinetGrid={selectedQuotation.productDetails?.cabinetGrid || selectedQuotation.quotationData?.cabinetGrid}
+          processor={selectedQuotation.productDetails?.processor || selectedQuotation.quotationData?.processor || null}
+          userInfo={{
+            userType: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.userTypeDisplayName || 'End User',
+            customerName: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerName || '',
+            customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerEmail || '',
+            customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerPhone || ''
+          }}
+          salesUser={salesPerson ? {
+            _id: salesPerson._id,
+            name: salesPerson.name,
+            email: salesPerson.email,
+            role: salesPerson.role
+          } : null}
+          userRole="super"
+          quotationId={selectedQuotation.quotationId}
+        />
+      )}
     </div>
   );
 };

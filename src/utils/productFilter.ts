@@ -108,7 +108,7 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
   // Filter by viewing distance
   if (viewingDistance) {
     // Viewing distance is a range (e.g., "3-6")
-    const recommendedPixelPitches = getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit);
+    const recommendedPixelPitches = getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit, environment);
     if (recommendedPixelPitches.length > 0) {
       filtered = filtered.filter((p) =>
         recommendedPixelPitches.some(pitch => Math.abs(p.pixelPitch - pitch) < 0.1)
@@ -116,7 +116,7 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
     }
   } else if (viewingDistanceValue !== null) {
     // Viewing distance is a single value
-    const recommendedPixelPitches = getPixelPitchesForViewingDistance(viewingDistanceValue, viewingDistanceUnit);
+    const recommendedPixelPitches = getPixelPitchesForViewingDistance(viewingDistanceValue, viewingDistanceUnit, environment);
     if (recommendedPixelPitches.length > 0) {
       filtered = filtered.filter((p) =>
         recommendedPixelPitches.some(pitch => Math.abs(p.pixelPitch - pitch) < 0.1)
@@ -289,8 +289,9 @@ export function getRecommendedPixelPitchesForViewingDistance(
  */
 export function getRecommendedPixelPitchesForViewingDistanceRange(
   range: string,
-  unit: 'meters' | 'feet'
+  unit: 'meters' | 'feet',
+  environment?: 'Indoor' | 'Outdoor' | null
 ): number[] {
-  return getPixelPitchesForViewingDistanceRange(range, unit);
+  return getPixelPitchesForViewingDistanceRange(range, unit, environment);
 }
 

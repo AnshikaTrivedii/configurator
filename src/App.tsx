@@ -3,6 +3,7 @@ import { DisplayConfigurator } from './components/DisplayConfigurator';
 import { SalesLoginModal } from './components/SalesLoginModal';
 import { LandingPage } from './components/LandingPage';
 import { ConfigurationWizard } from './components/ConfigurationWizard';
+import { SalesDashboard } from './components/SalesDashboard';
 import { SalesUser, salesAPI } from './api/sales';
 import { Product } from './types';
 import { useDisplayConfig } from './contexts/DisplayConfigContext';
@@ -18,6 +19,7 @@ function App() {
   const [showLandingPage, setShowLandingPage] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showSalesDashboard, setShowSalesDashboard] = useState(false);
   const [initialConfig, setInitialConfig] = useState<{
     width: number;
     height: number;
@@ -56,7 +58,7 @@ function App() {
             const role = storedUser.role === 'super' || storedUser.role === 'super_admin' 
               ? 'super_admin' 
               : storedUser.role === 'sales' 
-              ? 'sales'
+              ? 'sales' 
               : storedUser.role === 'partner'
               ? 'partner'
               : 'normal';
@@ -102,7 +104,7 @@ function App() {
           const role = response.user.role === 'super' || response.user.role === 'super_admin' 
             ? 'super_admin' 
             : response.user.role === 'sales' 
-            ? 'sales'
+            ? 'sales' 
             : response.user.role === 'partner'
             ? 'partner'
             : 'normal';
@@ -181,7 +183,7 @@ function App() {
     const newRole = user.role === 'super' || user.role === 'super_admin' 
       ? 'super_admin' 
       : user.role === 'sales' 
-      ? 'sales'
+      ? 'sales' 
       : user.role === 'partner'
       ? 'partner'
       : 'normal';
@@ -215,6 +217,8 @@ function App() {
   const handleSalesLogout = () => {
     setSalesUser(null);
     setUserRole('normal');
+    setShowSalesDashboard(false);
+    setShowDashboard(false);
     salesAPI.logout();
   };
 
@@ -304,9 +308,36 @@ function App() {
       );
     }
     
+<<<<<<< HEAD
     // Sales/Partner users go to LED Configurator (DisplayConfigurator) with dashboard access
+=======
+    // Sales/Partner users go to LED Configurator (DisplayConfigurator) or Sales Dashboard
+>>>>>>> new-feature-s3
     if (userRole === 'sales' || userRole === 'partner') {
       console.log('🎯 App.tsx - Rendering DisplayConfigurator for', userRole === 'partner' ? 'partner' : 'sales', 'user');
+      
+      // Show Sales Dashboard if requested (only for sales role, not partners)
+      if (showSalesDashboard && userRole === 'sales') {
+        return (
+          <>
+            <SalesLoginModal 
+              isOpen={showSalesLogin} 
+              onClose={() => setShowSalesLogin(false)}
+              onLogin={handleSalesLogin}
+            />
+            <SalesDashboard 
+              onBack={() => setShowSalesDashboard(false)}
+              onLogout={handleSalesLogout}
+              loggedInUser={salesUser ? {
+                role: salesUser.role,
+                name: salesUser.name,
+                email: salesUser.email
+              } : undefined}
+            />
+          </>
+        );
+      }
+      
       return (
         <>
           <SalesLoginModal 
@@ -320,6 +351,7 @@ function App() {
             onShowSalesLogin={handleShowSalesLogin}
             onSalesLogout={handleSalesLogout}
             initialConfig={null}
+<<<<<<< HEAD
             showDashboard={showDashboard}
             onDashboardClose={() => {
               setShowDashboard(false);
@@ -327,6 +359,13 @@ function App() {
             onDashboardOpen={() => {
               setShowDashboard(true);
             }}
+=======
+            showDashboard={false}
+            onDashboardClose={() => {}}
+            showSalesDashboard={showSalesDashboard}
+            onSalesDashboardOpen={() => setShowSalesDashboard(true)}
+            onSalesDashboardClose={() => setShowSalesDashboard(false)}
+>>>>>>> new-feature-s3
           />
         </>
       );

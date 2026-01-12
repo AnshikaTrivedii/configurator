@@ -57,6 +57,16 @@ const quotationSchema = new mongoose.Schema({
     type: String,
     required: false
   },
+  // S3 storage for PDF files
+  pdfS3Key: {
+    type: String,
+    required: false,
+    index: true
+  },
+  pdfS3Url: {
+    type: String,
+    required: false
+  },
   // Store exact quotation data as shown on the page
   exactPricingBreakdown: {
     type: mongoose.Schema.Types.Mixed,

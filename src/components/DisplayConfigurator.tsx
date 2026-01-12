@@ -46,6 +46,9 @@ interface DisplayConfiguratorProps {
   showDashboard?: boolean;
   onDashboardClose?: () => void;
   onDashboardOpen?: () => void;
+  showSalesDashboard?: boolean;
+  onSalesDashboardOpen?: () => void;
+  onSalesDashboardClose?: () => void;
 }
 
 export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ 
@@ -56,7 +59,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   initialConfig,
   showDashboard: showDashboardProp,
   onDashboardClose,
-  onDashboardOpen
+  onDashboardOpen,
+  showSalesDashboard: showSalesDashboardProp,
+  onSalesDashboardOpen,
+  onSalesDashboardClose
 }) => {
   const { config: globalConfig, updateDimensions: updateGlobalDimensions, updateConfig } = useDisplayConfig();
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(
@@ -678,6 +684,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     );
   }
 
+<<<<<<< HEAD
   // If dashboard is open, render the sales dashboard (for sales and partner users)
   if (showDashboard && (userRole === 'sales' || userRole === 'partner')) {
     return (
@@ -687,6 +694,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             onDashboardClose();
           } else {
             setShowDashboardInternal(false);
+=======
+  // If sales dashboard is open, render only the sales dashboard (for sales users only)
+  if (showSalesDashboardProp && userRole === 'sales') {
+    return (
+      <SalesDashboard 
+        onBack={() => {
+          if (onSalesDashboardClose) {
+            onSalesDashboardClose();
+>>>>>>> new-feature-s3
           }
         }} 
         onLogout={onSalesLogout}
@@ -755,6 +771,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               </div>
             ) : (userRole === 'sales' || userRole === 'partner') ? (
               <div className="flex items-center space-x-2">
+<<<<<<< HEAD
                 <button
                   onClick={() => {
                     // If parent provides onDashboardOpen callback, use it
@@ -771,6 +788,22 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                 >
                   My Dashboard
                 </button>
+=======
+                {userRole === 'sales' && (
+                  <button
+                    onClick={() => {
+                      if (onSalesDashboardOpen) {
+                        onSalesDashboardOpen();
+                      }
+                    }}
+                    className={`px-3 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
+                      showSalesDashboardProp ? 'bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
+                  >
+                    My Dashboard
+                  </button>
+                )}
+>>>>>>> new-feature-s3
                 <span className="text-white text-xs sm:text-sm">{salesUser?.name}</span>
                 <button
                   onClick={onSalesLogout}

@@ -23,7 +23,10 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.0.3",
     "openai": "^6.9.1",
-    "resend": "^4.8.0"
+    "resend": "^4.8.0",
+    "@aws-sdk/client-s3": "^3.490.0",
+    "@aws-sdk/s3-request-presigner": "^3.490.0",
+    "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

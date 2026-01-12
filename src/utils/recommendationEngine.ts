@@ -62,8 +62,8 @@ const getViewingDistanceCategory = (distance: string | null, unit: 'meters' | 'f
 };
 
 // Get recommended pixel pitches based on numeric viewing distance using table rules
-const getRecommendedPixelPitchesByDistance = (distance: number, unit: 'meters' | 'feet'): number[] => {
-  return getPixelPitchesForViewingDistance(distance, unit);
+const getRecommendedPixelPitchesByDistance = (distance: number, unit: 'meters' | 'feet', environment?: 'Indoor' | 'Outdoor' | null): number[] => {
+  return getPixelPitchesForViewingDistance(distance, unit, environment);
 };
 
 // Get recommended pixel pitch based on environment (using actual product data)
@@ -203,7 +203,7 @@ export const generateProactiveRecommendation = (config: DisplayConfig): Proactiv
   if (hasViewingDistance && !hasPixelPitch) {
     const numericDistance = parseFloat(config.viewingDistance || '0');
     if (!isNaN(numericDistance) && numericDistance > 0) {
-      const distPitches = getRecommendedPixelPitchesByDistance(numericDistance, config.viewingDistanceUnit);
+      const distPitches = getRecommendedPixelPitchesByDistance(numericDistance, config.viewingDistanceUnit, config.environment || null);
       const distProducts = getMatchingProducts(distPitches, config.environment || undefined);
 
       const distanceText =

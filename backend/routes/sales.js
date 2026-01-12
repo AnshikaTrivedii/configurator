@@ -7,6 +7,7 @@ import SalesUser from '../models/SalesUser.js';
 import Quotation from '../models/Quotation.js';
 import { authenticateToken, generateToken } from '../middleware/auth.js';
 import { validateLogin, validateSetPassword, validateChangePassword } from '../middleware/validation.js';
+import { uploadPdfToS3, getPdfPresignedUrl } from '../utils/s3Service.js';
 
 // NOTE: This function is NOT used for displaying prices in the dashboard.
 // The dashboard displays the stored totalPrice directly from the database,
@@ -301,7 +302,7 @@ router.post('/login', validateLogin, async (req, res) => {
     
     // Get allowed customer types for partners (empty array for non-partners)
     const allowedCustomerTypes = userRole === 'partner' ? (user.allowedCustomerTypes || []) : [];
-
+    
     // Generate JWT token with extended expiry for better session persistence
     const token = jwt.sign(
       { 
@@ -368,7 +369,7 @@ router.post('/login', validateLogin, async (req, res) => {
         message: 'Internal server error: User ID missing in response'
       });
     }
-    
+
     // Return user data (excluding password hash)
     const responsePayload = {
       success: true,
@@ -791,7 +792,10 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       // New exact quotation data fields
       exactPricingBreakdown,
       exactProductSpecs,
+      pdfPage6HTML,
       createdAt,
+      // PDF data (base64 encoded)
+      pdfBase64,
       // Allow superadmin to specify salesUserId and salesUserName
       // CRITICAL: These fields determine quotation attribution in dashboard
       salesUserId: providedSalesUserId,
@@ -904,6 +908,34 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       note: 'This quotation will be counted under finalSalesUserId in dashboard'
     });
 
+    // Upload PDF to S3 if provided
+    let pdfS3Key = null;
+    let pdfS3Url = null;
+    
+    if (pdfBase64) {
+      try {
+        // Convert base64 to buffer
+        const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+        
+        // Upload to S3
+        pdfS3Key = await uploadPdfToS3(pdfBuffer, quotationId, finalSalesUserId.toString());
+        
+        // Generate presigned URL (valid for 1 hour, can be regenerated when needed)
+        pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
+        
+        console.log('✅ PDF uploaded to S3:', {
+          quotationId,
+          s3Key: pdfS3Key,
+          url: pdfS3Url.substring(0, 50) + '...'
+        });
+      } catch (s3Error) {
+        console.error('❌ Error uploading PDF to S3:', s3Error);
+        // Don't fail the quotation save if S3 upload fails
+        // PDF can be uploaded later via separate endpoint
+        console.warn('⚠️ Continuing with quotation save without S3 PDF');
+      }
+    }
+
     // Create new quotation with exact data as shown on the page
     const quotation = new Quotation({
       quotationId,
@@ -921,10 +953,16 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       // Store exact quotation data as shown on the page
       exactPricingBreakdown: exactPricingBreakdown || null,
       exactProductSpecs: exactProductSpecs || null,
+      // Store the exact PDF HTML that was displayed when quotation was created
+      pdfPage6HTML: pdfPage6HTML || null,
+      // S3 PDF storage
+      pdfS3Key: pdfS3Key || null,
+      pdfS3Url: pdfS3Url || null,
       // Store the exact data as JSON for perfect reproduction
       quotationData: {
         exactPricingBreakdown,
         exactProductSpecs,
+        config: productDetails?.config || null,
         createdAt: createdAt || new Date().toISOString(),
         savedAt: new Date().toISOString()
       }
@@ -1042,6 +1080,125 @@ router.post('/quotation', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// POST /api/sales/quotation/:quotationId/upload-pdf (Upload PDF to S3 for existing quotation)
+router.post('/quotation/:quotationId/upload-pdf', authenticateToken, async (req, res) => {
+  try {
+    const { quotationId } = req.params;
+    const { pdfBase64 } = req.body;
+
+    if (!pdfBase64) {
+      return res.status(400).json({
+        success: false,
+        message: 'PDF data (pdfBase64) is required'
+      });
+    }
+
+    // Find the quotation
+    const quotation = await Quotation.findOne({ quotationId });
+    if (!quotation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+
+    // Check permissions - only the owner or super admin can upload PDF
+    const isOwner = quotation.salesUserId.toString() === req.user._id.toString();
+    const isSuperAdmin = ['super', 'super_admin', 'superadmin', 'admin'].includes(req.user.role);
+    
+    if (!isOwner && !isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only quotation owner or super admin can upload PDF.'
+      });
+    }
+
+    // Convert base64 to buffer
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+
+    // Upload to S3
+    const pdfS3Key = await uploadPdfToS3(
+      pdfBuffer,
+      quotationId,
+      quotation.salesUserId.toString()
+    );
+
+    // Generate presigned URL
+    const pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
+
+    // Update quotation with S3 info
+    quotation.pdfS3Key = pdfS3Key;
+    quotation.pdfS3Url = pdfS3Url;
+    await quotation.save();
+
+    console.log('✅ PDF uploaded to S3 for quotation:', quotationId);
+
+    res.json({
+      success: true,
+      message: 'PDF uploaded to S3 successfully',
+      pdfS3Key,
+      pdfS3Url
+    });
+  } catch (error) {
+    console.error('❌ Error uploading PDF to S3:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload PDF to S3',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// GET /api/sales/quotation/:quotationId/pdf-url (Get presigned URL for PDF)
+router.get('/quotation/:quotationId/pdf-url', authenticateToken, async (req, res) => {
+  try {
+    const { quotationId } = req.params;
+
+    // Find the quotation
+    const quotation = await Quotation.findOne({ quotationId });
+    if (!quotation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+
+    // Check permissions
+    const isOwner = quotation.salesUserId.toString() === req.user._id.toString();
+    const isSuperAdmin = ['super', 'super_admin', 'superadmin', 'admin'].includes(req.user.role);
+    
+    if (!isOwner && !isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only quotation owner or super admin can access PDF.'
+      });
+    }
+
+    if (!quotation.pdfS3Key) {
+      return res.status(404).json({
+        success: false,
+        message: 'PDF not found in S3. The quotation may not have a PDF uploaded yet.'
+      });
+    }
+
+    // Generate new presigned URL (expires in 1 hour)
+    const pdfS3Url = await getPdfPresignedUrl(quotation.pdfS3Key, 3600);
+
+    res.json({
+      success: true,
+      pdfS3Url,
+      pdfS3Key: quotation.pdfS3Key
+    });
+  } catch (error) {
+    console.error('❌ Error generating PDF URL:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate PDF URL',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
@@ -1281,7 +1438,13 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
         message: quotation.message,
         userType: quotation.userType,
         userTypeDisplayName: quotation.userTypeDisplayName,
-        createdAt: quotation.createdAt
+        createdAt: quotation.createdAt,
+        pdfPage6HTML: quotation.pdfPage6HTML || null,
+        pdfS3Key: quotation.pdfS3Key || null,
+        pdfS3Url: quotation.pdfS3Url || null,
+        exactPricingBreakdown: quotation.exactPricingBreakdown || null,
+        exactProductSpecs: quotation.exactProductSpecs || null,
+        quotationData: quotation.quotationData || null
       });
     });
 
@@ -1413,7 +1576,12 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
         message: quotation.message,
         userType: quotation.userType,
         userTypeDisplayName: quotation.userTypeDisplayName,
-        createdAt: quotation.createdAt
+        createdAt: quotation.createdAt,
+        pdfS3Key: quotation.pdfS3Key || null,
+        pdfS3Url: quotation.pdfS3Url || null,
+        exactPricingBreakdown: quotation.exactPricingBreakdown || null,
+        exactProductSpecs: quotation.exactProductSpecs || null,
+        quotationData: quotation.quotationData || null
       });
     });
 

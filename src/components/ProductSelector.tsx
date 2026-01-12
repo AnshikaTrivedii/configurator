@@ -116,8 +116,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
   const recommendedPixelPitches = useMemo(() => {
     if (!viewingDistanceValue) return [];
-    return getPixelPitchesForViewingDistanceRange(viewingDistanceValue, viewingDistanceUnit);
-  }, [viewingDistanceValue, viewingDistanceUnit]);
+    const env = selectedFilter === 'Indoor' || selectedFilter === 'Outdoor' ? selectedFilter : null;
+    return getPixelPitchesForViewingDistanceRange(viewingDistanceValue, viewingDistanceUnit, env);
+  }, [viewingDistanceValue, viewingDistanceUnit, selectedFilter]);
 
   const availablePixelPitches = useMemo(() => {
     let tempProducts = [...products].filter((p) => p.enabled !== false); // Only show enabled products
@@ -330,7 +331,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                             className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-48"
                           >
                             <option value="">Select distance...</option>
-                            {getViewingDistanceOptionsByUnit(viewingDistanceUnit).map((option) => (
+                            {getViewingDistanceOptionsByUnit(viewingDistanceUnit, selectedFilter === 'Indoor' || selectedFilter === 'Outdoor' ? selectedFilter : null).map((option) => (
                               <option key={option.value} value={option.value}>
                                 {option.label}
                               </option>
@@ -373,17 +374,15 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                             {viewingDistanceValue && recommendedPixelPitches.length > 0 ? (
                               <>
                                 <optgroup label="Recommended (based on viewing distance)">
-                                  {recommendedPixelPitches
-                                    .filter(pitch => availablePixelPitches.includes(pitch))
-                                    .map(pitch => (
-                                      <option key={pitch} value={pitch.toString()}>
-                                        P{pitch} mm (Recommended)
-                                      </option>
-                                    ))}
+                                  {recommendedPixelPitches.map(pitch => (
+                                    <option key={pitch} value={pitch.toString()}>
+                                      P{pitch} mm (Recommended)
+                                    </option>
+                                  ))}
                                 </optgroup>
                                 <optgroup label="Other Available">
                                   {availablePixelPitches
-                                    .filter(pitch => !recommendedPixelPitches.includes(pitch))
+                                    .filter(pitch => !recommendedPixelPitches.some(rec => Math.abs(rec - pitch) < 0.1))
                                     .map(pitch => (
                                       <option key={pitch} value={pitch.toString()}>
                                         P{pitch} mm
@@ -520,10 +519,11 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                       <p className="text-gray-500">Pixel Pitch</p>
                       <p className="font-medium text-gray-800">{product.pixelPitch} mm</p>
                       {(() => {
-                        const range = getViewingDistanceRange(product.pixelPitch);
+                        const env = product.environment === 'Indoor' || product.environment === 'Outdoor' ? product.environment : null;
+                        const range = getViewingDistanceRange(product.pixelPitch, env);
                         return range ? (
                           <p className="text-xs text-gray-500 mt-1">
-                            Viewing: {range.minMeters}-{range.maxMeters}m ({range.minFeet}-{range.maxFeet}ft)
+                            Viewing: {range.maxMeters >= 999 ? `${range.minMeters}m+` : `${range.minMeters}-${range.maxMeters}m`} ({range.maxFeet >= 3278 ? `${range.minFeet}ft+` : `${range.minFeet}-${range.maxFeet}ft`})
                           </p>
                         ) : null;
                       })()}

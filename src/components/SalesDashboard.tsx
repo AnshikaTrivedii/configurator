@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, FileText, DollarSign, Package, Calendar, RefreshCw, LogOut, MessageSquare } from 'lucide-react';
+import { X, User, Mail, Phone, FileText, Package, Calendar, RefreshCw, LogOut, MessageSquare, ArrowLeft, Eye } from 'lucide-react';
 import { salesAPI } from '../api/sales';
+import { PdfViewModal } from './PdfViewModal';
+import { generateConfigurationHtml } from '../utils/docxGenerator';
 
 interface SalesPerson {
   _id: string;
@@ -20,6 +22,12 @@ interface Quotation {
   userType: string;
   userTypeDisplayName: string;
   createdAt: string;
+  pdfPage6HTML?: string | null;
+  pdfS3Key?: string | null;
+  pdfS3Url?: string | null;
+  exactPricingBreakdown?: any;
+  exactProductSpecs?: any;
+  quotationData?: any;
 }
 
 interface Customer {
@@ -50,6 +58,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [pdfHtmlContent, setPdfHtmlContent] = useState<string>('');
 
   useEffect(() => {
     console.log('🎯 SalesDashboard mounted, fetching data...');
@@ -114,6 +125,148 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     });
   };
 
+  const handleViewPdf = async (quotation: Quotation) => {
+    try {
+      setSelectedQuotation(quotation);
+      
+      // Priority 1: Check if PDF is stored in S3
+      if (quotation.pdfS3Key || quotation.pdfS3Url) {
+        try {
+          // Get fresh presigned URL (expires in 1 hour)
+          const pdfUrlResponse = await salesAPI.getQuotationPdfUrl(quotation.quotationId);
+          
+          // Open PDF in new tab
+          window.open(pdfUrlResponse.pdfS3Url, '_blank');
+          return;
+        } catch (s3Error) {
+          console.error('Error fetching PDF from S3:', s3Error);
+          // Fallback to HTML view if S3 fails
+          console.log('Falling back to HTML view...');
+        }
+      }
+      
+      // Priority 2: If PDF HTML is stored, use it directly
+      if (quotation.pdfPage6HTML) {
+        setPdfHtmlContent(quotation.pdfPage6HTML);
+        setIsPdfModalOpen(true);
+        return;
+      }
+
+      // Otherwise, try to regenerate PDF from stored data
+      // CRITICAL: Use exactPricingBreakdown and exactProductSpecs to ensure exact match
+      if (quotation.exactPricingBreakdown && quotation.exactProductSpecs) {
+        const productDetails = quotation.productDetails;
+        const exactSpecs = quotation.exactProductSpecs;
+        
+        // Extract necessary data for PDF generation - use stored specs first
+        const product = productDetails?.product || productDetails;
+        
+        // Use stored config from quotationData if available, otherwise extract from productDetails
+        let config = quotation.quotationData?.config;
+        if (!config && exactSpecs.displaySize) {
+          // Convert display size from meters to mm
+          config = {
+            width: (exactSpecs.displaySize.width * 1000) || 0,
+            height: (exactSpecs.displaySize.height * 1000) || 0,
+            unit: 'mm'
+          };
+        } else if (!config) {
+          // Fallback to productDetails
+          config = {
+            width: productDetails?.width || productDetails?.displaySize?.width || 0,
+            height: productDetails?.height || productDetails?.displaySize?.height || 0,
+            unit: productDetails?.unit || 'mm'
+          };
+        }
+        
+        // Use stored specs for cabinetGrid and processor
+        const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
+        const processor = exactSpecs.processor || productDetails?.processor || null;
+        const mode = exactSpecs.mode || productDetails?.mode || undefined;
+        
+        // Find customer info for userInfo
+        const customer = customers.find(c => 
+          c.quotations.some(q => q.quotationId === quotation.quotationId)
+        );
+        
+        // Map userType to the format expected by generateConfigurationHtml
+        let userTypeForHtml = 'End User';
+        if (quotation.userType === 'siChannel') {
+          userTypeForHtml = 'SI/Channel Partner';
+        } else if (quotation.userType === 'reseller') {
+          userTypeForHtml = 'Reseller';
+        }
+        
+        const userInfo = {
+          userType: userTypeForHtml,
+          fullName: customer?.customerName || '',
+          email: customer?.customerEmail || '',
+          phoneNumber: customer?.customerPhone || ''
+        };
+        
+        // Generate HTML content using EXACT stored pricing breakdown
+        // This ensures prices match exactly what was saved
+        const htmlContent = generateConfigurationHtml(
+          config,
+          product,
+          cabinetGrid,
+          processor,
+          mode,
+          userInfo,
+          salesPerson ? {
+            email: salesPerson.email,
+            name: salesPerson.name,
+            contactNumber: salesPerson.contactNumber,
+            location: salesPerson.location
+          } : null,
+          quotation.quotationId,
+          undefined, // customPricing
+          quotation.exactPricingBreakdown // CRITICAL: Use exact pricing breakdown
+        );
+        
+        setPdfHtmlContent(htmlContent);
+        setIsPdfModalOpen(true);
+      } else {
+        alert('PDF data not available for this quotation. The quotation may have been created before PDF storage was implemented. Please contact support.');
+      }
+    } catch (error) {
+      console.error('Error viewing PDF:', error);
+      alert('Failed to load PDF. Please try again or contact support.');
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!selectedQuotation || !pdfHtmlContent) return;
+    
+    try {
+      // Import html2pdf dynamically
+      const html2pdf = (await import('html2pdf.js')).default;
+      
+      // Create a temporary container for the HTML
+      const element = document.createElement('div');
+      element.innerHTML = pdfHtmlContent;
+      element.style.position = 'absolute';
+      element.style.left = '-9999px';
+      document.body.appendChild(element);
+      
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `${selectedQuotation.quotationId}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      
+      await html2pdf().set(opt).from(element).save();
+      
+      // Cleanup
+      document.body.removeChild(element);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -161,6 +314,14 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             </div>
             <div className="flex items-center gap-2">
               <button
+                onClick={onBack}
+                className="px-3 py-2 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+                title="Back to Configurator"
+              >
+                <ArrowLeft size={16} />
+                Back
+              </button>
+              <button
                 onClick={() => fetchDashboardData(true)}
                 className="px-3 py-2 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
                 title="Refresh"
@@ -182,7 +343,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -200,16 +361,6 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                 <p className="text-2xl font-bold text-gray-900">{totalCustomers}</p>
               </div>
               <User className="text-green-600" size={32} />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</p>
-              </div>
-              <DollarSign className="text-purple-600" size={32} />
             </div>
           </div>
 
@@ -287,10 +438,18 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                               </span>
                             </div>
                           </div>
-                          <div className="text-right ml-4">
+                          <div className="text-right ml-4 flex flex-col items-end gap-2">
                             <p className="text-lg font-bold text-gray-900">
                               {formatCurrency(quotation.totalPrice)}
                             </p>
+                            <button
+                              onClick={() => handleViewPdf(quotation)}
+                              className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
+                              title="View PDF"
+                            >
+                              <Eye size={14} />
+                              View PDF
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -302,6 +461,43 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           )}
         </div>
       </div>
+
+      {/* PDF View Modal */}
+      {selectedQuotation && (
+        <PdfViewModal
+          isOpen={isPdfModalOpen}
+          onClose={() => {
+            setIsPdfModalOpen(false);
+            setSelectedQuotation(null);
+            setPdfHtmlContent('');
+          }}
+          htmlContent={pdfHtmlContent}
+          onDownload={handleDownloadPdf}
+          fileName={`${selectedQuotation.quotationId}.pdf`}
+          selectedProduct={selectedQuotation.productDetails?.product || selectedQuotation.productDetails}
+          config={selectedQuotation.quotationData?.config || {
+            width: selectedQuotation.productDetails?.width || 0,
+            height: selectedQuotation.productDetails?.height || 0,
+            unit: selectedQuotation.productDetails?.unit || 'mm'
+          }}
+          cabinetGrid={selectedQuotation.productDetails?.cabinetGrid || selectedQuotation.quotationData?.cabinetGrid}
+          processor={selectedQuotation.productDetails?.processor || selectedQuotation.quotationData?.processor || null}
+          userInfo={{
+            userType: selectedQuotation.userTypeDisplayName,
+            customerName: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerName || '',
+            customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerEmail || '',
+            customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerPhone || ''
+          }}
+          salesUser={salesPerson ? {
+            _id: salesPerson._id,
+            name: salesPerson.name,
+            email: salesPerson.email,
+            role: salesPerson.role
+          } : null}
+          userRole="sales"
+          quotationId={selectedQuotation.quotationId}
+        />
+      )}
     </div>
   );
 };
