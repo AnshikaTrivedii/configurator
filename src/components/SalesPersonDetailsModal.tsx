@@ -85,6 +85,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [pdfHtmlContent, setPdfHtmlContent] = useState<string>('');
 
   useEffect(() => {
     if (isOpen && salesPersonId) {
