@@ -16,6 +16,24 @@ const s3Client = new S3Client({
 const BUCKET_NAME = process.env.ORION_S3_BUCKET_NAME || process.env.S3_BUCKET_NAME;
 const PDF_FOLDER = 'quotations/pdfs'; // Folder structure in S3
 
+// Path structure options:
+// Option 1: By user only (simplest)
+//   quotations/pdfs/{salesUserId}/{quotationId}.pdf
+// Option 2: By user and date (organized by date)
+//   quotations/pdfs/{salesUserId}/{year}/{month}/{quotationId}.pdf
+// Option 3: Flat structure (all in one folder per user)
+//   quotations/pdfs/{salesUserId}/{quotationId}.pdf (current)
+
+/**
+ * Sanitize quotation ID for use in S3 path (replace slashes with dashes)
+ * @param {string} quotationId - Quotation ID that may contain slashes
+ * @returns {string} Sanitized quotation ID safe for S3 paths
+ */
+const sanitizeQuotationId = (quotationId) => {
+  // Replace slashes and other problematic characters with dashes
+  return quotationId.replace(/\//g, '-').replace(/[^a-zA-Z0-9\-_]/g, '-');
+};
+
 /**
  * Upload PDF to S3
  * @param {Buffer} pdfBuffer - PDF file as buffer
@@ -28,8 +46,12 @@ export const uploadPdfToS3 = async (pdfBuffer, quotationId, salesUserId) => {
     throw new Error('ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set');
   }
 
-  // Create S3 key: quotations/pdfs/{salesUserId}/{quotationId}.pdf
-  const s3Key = `${PDF_FOLDER}/${salesUserId}/${quotationId}.pdf`;
+  // Sanitize quotation ID to avoid deep folder structures
+  const sanitizedQuotationId = sanitizeQuotationId(quotationId);
+  
+  // Create S3 key: quotations/pdfs/{salesUserId}/{sanitizedQuotationId}.pdf
+  // This keeps it simple: quotations/pdfs/{userId}/{quotationId}.pdf
+  const s3Key = `${PDF_FOLDER}/${salesUserId}/${sanitizedQuotationId}.pdf`;
 
   const command = new PutObjectCommand({
     Bucket: BUCKET_NAME,
