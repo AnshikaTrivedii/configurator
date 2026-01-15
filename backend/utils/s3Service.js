@@ -4,16 +4,28 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Initialize S3 client
-const s3Client = new S3Client({
-  region: process.env.ORION_S3_REGION || process.env.S3_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.ORION_S3_ACCESS_KEY || process.env.S3_ACCESS_KEY,
-    secretAccessKey: process.env.ORION_S3_SECRET_KEY || process.env.S3_SECRET_KEY
-  }
+// Get S3 configuration
+const region = process.env.ORION_S3_REGION || process.env.S3_REGION || 'us-east-1';
+const accessKeyId = process.env.ORION_S3_ACCESS_KEY || process.env.S3_ACCESS_KEY;
+const secretAccessKey = process.env.ORION_S3_SECRET_KEY || process.env.S3_SECRET_KEY;
+const BUCKET_NAME = process.env.ORION_S3_BUCKET_NAME || process.env.S3_BUCKET_NAME;
+
+// Log S3 configuration status (without exposing secrets)
+console.log('🔧 S3 Configuration Check:', {
+  region: region,
+  bucketName: BUCKET_NAME ? '✅ SET' : '❌ NOT SET',
+  accessKeyId: accessKeyId ? '✅ SET' : '❌ NOT SET',
+  secretAccessKey: secretAccessKey ? '✅ SET' : '❌ NOT SET'
 });
 
-const BUCKET_NAME = process.env.ORION_S3_BUCKET_NAME || process.env.S3_BUCKET_NAME;
+// Initialize S3 client
+const s3Client = new S3Client({
+  region: region,
+  credentials: accessKeyId && secretAccessKey ? {
+    accessKeyId: accessKeyId,
+    secretAccessKey: secretAccessKey
+  } : undefined
+});
 const PDF_FOLDER = 'quotations/pdfs'; // Folder structure in S3
 
 // Path structure options:
@@ -30,8 +42,31 @@ const PDF_FOLDER = 'quotations/pdfs'; // Folder structure in S3
  * @returns {string} Sanitized quotation ID safe for S3 paths
  */
 const sanitizeQuotationId = (quotationId) => {
-  // Replace slashes and other problematic characters with dashes
-  return quotationId.replace(/\//g, '-').replace(/[^a-zA-Z0-9\-_]/g, '-');
+  if (!quotationId) {
+    throw new Error('Quotation ID is required for S3 upload');
+  }
+  
+  // Replace slashes with dashes (main issue)
+  // Keep alphanumeric, dashes, underscores, and dots
+  // Only replace slashes and other problematic characters
+  let sanitized = quotationId.replace(/\//g, '-');
+  
+  // Remove or replace any remaining problematic characters but keep the structure
+  // Don't be too aggressive - just handle slashes and spaces
+  sanitized = sanitized.replace(/\s+/g, '-'); // Replace spaces with dashes
+  
+  // Remove any double dashes that might have been created
+  sanitized = sanitized.replace(/-+/g, '-');
+  
+  // Remove leading/trailing dashes
+  sanitized = sanitized.replace(/^-+|-+$/g, '');
+  
+  console.log('🔧 Sanitized quotation ID:', {
+    original: quotationId,
+    sanitized: sanitized
+  });
+  
+  return sanitized;
 };
 
 /**
@@ -42,8 +77,35 @@ const sanitizeQuotationId = (quotationId) => {
  * @returns {Promise<string>} S3 object key
  */
 export const uploadPdfToS3 = async (pdfBuffer, quotationId, salesUserId) => {
+  console.log('📤 Starting S3 upload...', {
+    quotationId,
+    salesUserId,
+    bufferSize: pdfBuffer.length,
+    bucketName: BUCKET_NAME ? 'SET' : 'NOT SET'
+  });
+
   if (!BUCKET_NAME) {
-    throw new Error('ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set');
+    const error = 'ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set';
+    console.error('❌', error);
+    throw new Error(error);
+  }
+
+  if (!quotationId) {
+    const error = 'Quotation ID is required for S3 upload';
+    console.error('❌', error);
+    throw new Error(error);
+  }
+
+  if (!salesUserId) {
+    const error = 'Sales User ID is required for S3 upload';
+    console.error('❌', error);
+    throw new Error(error);
+  }
+
+  if (!pdfBuffer || pdfBuffer.length === 0) {
+    const error = 'PDF buffer is empty or invalid';
+    console.error('❌', error);
+    throw new Error(error);
   }
 
   // Sanitize quotation ID to avoid deep folder structures
@@ -52,6 +114,15 @@ export const uploadPdfToS3 = async (pdfBuffer, quotationId, salesUserId) => {
   // Create S3 key: quotations/pdfs/{salesUserId}/{sanitizedQuotationId}.pdf
   // This keeps it simple: quotations/pdfs/{userId}/{quotationId}.pdf
   const s3Key = `${PDF_FOLDER}/${salesUserId}/${sanitizedQuotationId}.pdf`;
+
+  console.log('📋 S3 Upload Details:', {
+    bucket: BUCKET_NAME,
+    s3Key: s3Key,
+    originalQuotationId: quotationId,
+    sanitizedQuotationId: sanitizedQuotationId,
+    salesUserId: salesUserId,
+    pdfSize: pdfBuffer.length
+  });
 
   const command = new PutObjectCommand({
     Bucket: BUCKET_NAME,
@@ -67,11 +138,21 @@ export const uploadPdfToS3 = async (pdfBuffer, quotationId, salesUserId) => {
   });
 
   try {
+    console.log('🔄 Sending upload command to S3...');
     await s3Client.send(command);
-    console.log(`✅ PDF uploaded to S3: ${s3Key}`);
+    console.log(`✅ PDF uploaded to S3 successfully: ${s3Key}`);
     return s3Key;
   } catch (error) {
     console.error('❌ Error uploading PDF to S3:', error);
+    console.error('❌ Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.Code || error.code,
+      requestId: error.$metadata?.requestId,
+      httpStatusCode: error.$metadata?.httpStatusCode,
+      bucket: BUCKET_NAME,
+      s3Key: s3Key
+    });
     throw new Error(`Failed to upload PDF to S3: ${error.message}`);
   }
 };

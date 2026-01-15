@@ -914,26 +914,47 @@ router.post('/quotation', authenticateToken, async (req, res) => {
     
     if (pdfBase64) {
       try {
+        console.log('📤 Processing PDF upload to S3...', {
+          quotationId,
+          salesUserId: finalSalesUserId.toString(),
+          pdfBase64Length: pdfBase64.length
+        });
+        
         // Convert base64 to buffer
         const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+        console.log('📦 PDF buffer created:', {
+          bufferSize: pdfBuffer.length,
+          isValid: pdfBuffer.length > 0
+        });
         
         // Upload to S3
         pdfS3Key = await uploadPdfToS3(pdfBuffer, quotationId, finalSalesUserId.toString());
+        console.log('✅ PDF uploaded to S3, key:', pdfS3Key);
         
         // Generate presigned URL (valid for 1 hour, can be regenerated when needed)
         pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
         
-        console.log('✅ PDF uploaded to S3:', {
+        console.log('✅ PDF uploaded to S3 successfully:', {
           quotationId,
           s3Key: pdfS3Key,
-          url: pdfS3Url.substring(0, 50) + '...'
+          urlPreview: pdfS3Url.substring(0, 50) + '...'
         });
       } catch (s3Error) {
         console.error('❌ Error uploading PDF to S3:', s3Error);
+        console.error('❌ S3 Error details:', {
+          message: s3Error.message,
+          stack: s3Error.stack,
+          name: s3Error.name
+        });
         // Don't fail the quotation save if S3 upload fails
         // PDF can be uploaded later via separate endpoint
         console.warn('⚠️ Continuing with quotation save without S3 PDF');
+        // Set to null explicitly
+        pdfS3Key = null;
+        pdfS3Url = null;
       }
+    } else {
+      console.log('ℹ️ No PDF data provided (pdfBase64 is empty or missing)');
     }
 
     // Create new quotation with exact data as shown on the page
