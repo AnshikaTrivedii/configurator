@@ -1,7 +1,11 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
 import SalesUser from '../models/SalesUser.js';
 import connectDB from '../config/database.js';
+
+// Load environment variables
+dotenv.config();
 
 // Sales team data with correct phone numbers
 const SALES_TEAM_DATA = [
@@ -23,7 +27,7 @@ const DEFAULT_PASSWORD = 'Orion@123';
 const seedSalesUsers = async () => {
   try {
     console.log('Starting sales users seeding...');
-    
+
     let createdCount = 0;
     let skippedCount = 0;
 
@@ -31,7 +35,7 @@ const seedSalesUsers = async () => {
       try {
         // Check if user already exists
         const existingUser = await SalesUser.findOne({ email: userData.email });
-        
+
         if (existingUser) {
           // Update existing user if role is missing or incorrect
           let updated = false;
@@ -41,7 +45,7 @@ const seedSalesUsers = async () => {
             console.log(`Updated user ${userData.email} - set role to 'sales'`);
             updated = true;
           }
-          
+
           if (!updated) {
             console.log(`User ${userData.email} already exists with correct role, skipping...`);
           }
@@ -51,7 +55,7 @@ const seedSalesUsers = async () => {
 
         // Create new user with default password
         const passwordHash = bcrypt.hashSync(DEFAULT_PASSWORD, 12);
-        
+
         const newUser = new SalesUser({
           email: userData.email,
           name: userData.name,
@@ -66,7 +70,7 @@ const seedSalesUsers = async () => {
         await newUser.save();
         console.log(`Created user: ${userData.email} with role: sales`);
         createdCount++;
-        
+
       } catch (error) {
         console.error(`Error creating/updating user ${userData.email}:`, error.message);
       }
@@ -76,7 +80,7 @@ const seedSalesUsers = async () => {
     console.log(`- Created: ${createdCount} users`);
     console.log(`- Skipped: ${skippedCount} existing users`);
     console.log(`- Default password for new users: ${DEFAULT_PASSWORD}`);
-    
+
   } catch (error) {
     console.error('Seeding error:', error);
   }
@@ -86,15 +90,15 @@ const main = async () => {
   try {
     // Connect to database
     await connectDB();
-    
+
     // Run seeding
     await seedSalesUsers();
-    
+
     // Close connection
     await mongoose.connection.close();
     console.log('Database connection closed.');
     process.exit(0);
-    
+
   } catch (error) {
     console.error('Main seeding error:', error);
     process.exit(1);
