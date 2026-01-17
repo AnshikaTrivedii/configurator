@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, Clock, MessageSquare, RefreshCw, Eye } from 'lucide-react';
+import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, Clock, MessageSquare, RefreshCw } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { PdfViewModal } from './PdfViewModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
@@ -27,6 +27,8 @@ interface Quotation {
   createdAt: string;
   pdfS3Key?: string | null;
   pdfS3Url?: string | null;
+  userType?: string;
+  userTypeDisplayName?: string;
   // Exact quotation data as shown on the page
   exactPricingBreakdown?: {
     unitPrice: number;
@@ -76,8 +78,7 @@ interface SalesPersonDetailsModalProps {
 export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = ({
   isOpen,
   onClose,
-  salesPersonId,
-  loggedInUser
+  salesPersonId
 }) => {
   const [salesPerson, setSalesPerson] = useState<SalesPerson | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -99,40 +100,40 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
   const fetchSalesPersonDetails = async () => {
     if (!salesPersonId) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log('🔄 Fetching sales person details for ID:', salesPersonId);
       // Add cache-busting parameter to ensure fresh data
       const response = await salesAPI.getSalesPersonDetails(salesPersonId + '?t=' + Date.now());
-      
+
       console.log('📊 Sales person details response:', response);
       console.log('👥 Customers found:', response.customers?.length || 0);
-      
+
       // CRITICAL: Verify each quotation has unique ID and price
       console.log('\n═══════════════════════════════════════════════════════════════');
       console.log('🔍 QUOTATION UNIQUENESS VERIFICATION (Frontend)');
       console.log('═══════════════════════════════════════════════════════════════');
-      
-      const allQuotationIds = [];
-      const allQuotationPrices = [];
-      
+
+      const allQuotationIds: string[] = [];
+      const allQuotationPrices: number[] = [];
+
       response.customers?.forEach((customer, custIndex) => {
         console.log(`\n📋 Customer ${custIndex + 1}: ${customer.customerName} (${customer.customerEmail})`);
         console.log(`   Quotations: ${customer.quotations?.length || 0}`);
-        
-        customer.quotations?.forEach((quotation, qIndex) => {
+
+        customer.quotations?.forEach((quotation: Quotation, qIndex: number) => {
           allQuotationIds.push(quotation.quotationId);
           allQuotationPrices.push(quotation.totalPrice);
-          
+
           console.log(`   ${qIndex + 1}. ID: ${quotation.quotationId}`);
           console.log(`      Price: ₹${quotation.totalPrice?.toLocaleString('en-IN') || 'N/A'}`);
           console.log(`      Product: ${quotation.productName}`);
         });
       });
-      
+
       // Check for duplicates
       const uniqueIds = [...new Set(allQuotationIds)];
       if (allQuotationIds.length === uniqueIds.length) {
@@ -142,12 +143,12 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         const duplicates = allQuotationIds.filter((id, index) => allQuotationIds.indexOf(id) !== index);
         console.error('Duplicate IDs:', [...new Set(duplicates)]);
       }
-      
+
       const uniquePrices = [...new Set(allQuotationPrices)];
       console.log(`Prices: ${allQuotationPrices.length} total, ${uniquePrices.length} unique`);
-      
+
       console.log('═══════════════════════════════════════════════════════════════\n');
-      
+
       setSalesPerson(response.salesPerson);
       setCustomers(response.customers);
       setTotalQuotations(response.totalQuotations);
@@ -161,53 +162,18 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
   };
 
 
-  const formatProductDetails = (productDetails: any) => {
-    if (!productDetails) return 'N/A';
-    
-    const details = [];
-    
-    // Basic product info
-    if (productDetails.productName) details.push(`Product: ${productDetails.productName}`);
-    if (productDetails.pixelPitch) details.push(`Pixel Pitch: ${productDetails.pixelPitch}mm`);
-    if (productDetails.category) details.push(`Category: ${productDetails.category}`);
-    
-    // Display specifications
-    if (productDetails.resolution) {
-      details.push(`Resolution: ${productDetails.resolution.width}×${productDetails.resolution.height}px`);
-    }
-    if (productDetails.displaySize) {
-      details.push(`Display Size: ${productDetails.displaySize.width}×${productDetails.displaySize.height}m`);
-    }
-    if (productDetails.aspectRatio) details.push(`Aspect Ratio: ${productDetails.aspectRatio}`);
-    
-    // Cabinet configuration
-    if (productDetails.cabinetGrid) {
-      details.push(`Cabinet Grid: ${productDetails.cabinetGrid.columns}×${productDetails.cabinetGrid.rows}`);
-    }
-    if (productDetails.processor) details.push(`Processor: ${productDetails.processor}`);
-    if (productDetails.mode) details.push(`Mode: ${productDetails.mode}`);
-    
-    // Technical specs
-    if (productDetails.brightness) details.push(`Brightness: ${productDetails.brightness}cd/m²`);
-    if (productDetails.refreshRate) details.push(`Refresh Rate: ${productDetails.refreshRate}Hz`);
-    if (productDetails.environment) details.push(`Environment: ${productDetails.environment}`);
-    if (productDetails.maxPowerConsumption) details.push(`Max Power: ${productDetails.maxPowerConsumption}W`);
-    if (productDetails.avgPowerConsumption) details.push(`Avg Power: ${productDetails.avgPowerConsumption}W`);
-    if (productDetails.weightPerCabinet) details.push(`Weight: ${productDetails.weightPerCabinet}kg`);
-    
-    return details.length > 0 ? details.join(', ') : 'N/A';
-  };
+
 
   const handleViewPdf = async (quotation: Quotation) => {
     try {
       setSelectedQuotation(quotation);
-      
+
       // Priority 1: Check if PDF is stored in S3
       if (quotation.pdfS3Key || quotation.pdfS3Url) {
         try {
           // Get fresh presigned URL (expires in 1 hour)
           const pdfUrlResponse = await salesAPI.getQuotationPdfUrl(quotation.quotationId);
-          
+
           // Open PDF in new tab
           window.open(pdfUrlResponse.pdfS3Url, '_blank');
           return;
@@ -217,7 +183,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           console.log('Falling back to HTML view...');
         }
       }
-      
+
       // Priority 2: If PDF HTML is stored, use it directly
       if (quotation.productDetails?.pdfPage6HTML) {
         setPdfHtmlContent(quotation.productDetails.pdfPage6HTML);
@@ -230,7 +196,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         const productDetails = quotation.productDetails;
         const exactSpecs = quotation.exactProductSpecs;
         const product = productDetails?.product || productDetails;
-        
+
         let config = quotation.quotationData?.config;
         if (!config && exactSpecs.displaySize) {
           config = {
@@ -239,29 +205,29 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
             unit: 'mm'
           };
         }
-        
+
         const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
         const processor = exactSpecs.processor || productDetails?.processor || null;
         const mode = exactSpecs.mode || productDetails?.mode || undefined;
-        
-        const customer = customers.find(c => 
+
+        const customer = customers.find(c =>
           c.quotations.some(q => q.quotationId === quotation.quotationId)
         );
-        
+
         let userTypeForHtml = 'End User';
         if (quotation.userType === 'siChannel') {
           userTypeForHtml = 'SI/Channel Partner';
         } else if (quotation.userType === 'reseller') {
           userTypeForHtml = 'Reseller';
         }
-        
+
         const userInfo = {
-          userType: userTypeForHtml,
+          userType: userTypeForHtml as any,
           fullName: customer?.customerName || '',
           email: customer?.customerEmail || '',
           phoneNumber: customer?.customerPhone || ''
         };
-        
+
         const htmlContent = generateConfigurationHtml(
           config,
           product,
@@ -279,7 +245,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           undefined,
           quotation.exactPricingBreakdown
         );
-        
+
         setPdfHtmlContent(htmlContent);
         setIsPdfModalOpen(true);
       } else {
@@ -395,7 +361,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Clients & Quotations ({totalCustomers} clients, {totalQuotations} quotations)
                 </h3>
-                
+
                 {customers.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
@@ -438,7 +404,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                 productName: quotation.productName,
                                 customerEmail: customer.customerEmail
                               });
-                              
+
                               return (
                                 <div key={quotation.quotationId} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
                                   {/* Header with Product */}
@@ -450,296 +416,304 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                         <p className="text-sm text-gray-600">Quotation ID: {quotation.quotationId}</p>
                                       </div>
                                     </div>
-                                </div>
-                                
-                                {/* Product Specifications Grid */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
-                                  {/* Basic Product Info */}
-                                  <div className="bg-white rounded-lg p-4 border border-gray-100">
-                                    <h6 className="font-semibold text-gray-900 mb-3 flex items-center">
-                                      <Package className="w-4 h-4 mr-2 text-blue-600" />
-                                      Product Specifications
-                                    </h6>
-                                    <div className="space-y-2 text-sm">
-                                      {quotation.productDetails?.pixelPitch && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Pixel Pitch:</span>
-                                          <span className="font-medium">{quotation.productDetails.pixelPitch}mm</span>
-                                        </div>
-                                      )}
-                                      {quotation.productDetails?.category && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Category:</span>
-                                          <span className="font-medium">{quotation.productDetails.category}</span>
-                                        </div>
-                                      )}
-                                      {quotation.productDetails?.resolution && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Resolution:</span>
-                                          <span className="font-medium">
-                                            {quotation.productDetails.resolution.width}×{quotation.productDetails.resolution.height}px
-                                          </span>
-                                        </div>
-                                      )}
-                                      {quotation.productDetails?.displaySize && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Display Size:</span>
-                                          <span className="font-medium">
-                                            {quotation.productDetails.displaySize.width}×{quotation.productDetails.displaySize.height}m
-                                          </span>
-                                        </div>
-                                      )}
-                                      {quotation.productDetails?.aspectRatio && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Aspect Ratio:</span>
-                                          <span className="font-medium">{quotation.productDetails.aspectRatio}</span>
-                                        </div>
-                                      )}
-                                    </div>
+                                    <button
+                                      onClick={() => handleViewPdf(quotation)}
+                                      className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors"
+                                      title="View/Download PDF"
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                      <span>View PDF</span>
+                                    </button>
                                   </div>
 
-                                  {/* Technical Specifications */}
-                                  <div className="bg-white rounded-lg p-4 border border-gray-100">
-                                    <h6 className="font-semibold text-gray-900 mb-3 flex items-center">
-                                      <Clock className="w-4 h-4 mr-2 text-green-600" />
-                                      Technical Specs
-                                    </h6>
-                                    <div className="space-y-2 text-sm">
-                                      {quotation.productDetails?.brightness && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Brightness:</span>
-                                          <span className="font-medium">{quotation.productDetails.brightness}cd/m²</span>
-                                        </div>
-                                      )}
-                                      {quotation.productDetails?.refreshRate && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Refresh Rate:</span>
-                                          <span className="font-medium">{quotation.productDetails.refreshRate}Hz</span>
-                                        </div>
-                                      )}
-                                      {quotation.productDetails?.environment && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Environment:</span>
-                                          <span className="font-medium capitalize">{quotation.productDetails.environment}</span>
-                                        </div>
-                                      )}
-                                      {quotation.productDetails?.maxPowerConsumption && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Max Power:</span>
-                                          <span className="font-medium">{quotation.productDetails.maxPowerConsumption}W</span>
-                                        </div>
-                                      )}
-                                      {quotation.productDetails?.avgPowerConsumption && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Avg Power:</span>
-                                          <span className="font-medium">{quotation.productDetails.avgPowerConsumption}W</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Configuration and Pricing */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
-                                  {/* Configuration */}
-                                  <div className="bg-white rounded-lg p-4 border border-gray-100">
-                                    <h6 className="font-semibold text-gray-900 mb-3 flex items-center">
-                                      <FileText className="w-4 h-4 mr-2 text-purple-600" />
-                                      Configuration
-                                    </h6>
-                                    <div className="space-y-2 text-sm">
-                                      {quotation.productDetails?.cabinetGrid && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Cabinet Grid:</span>
-                                          <span className="font-medium">
-                                            {quotation.productDetails.cabinetGrid.columns}×{quotation.productDetails.cabinetGrid.rows}
-                                          </span>
-                                        </div>
-                                      )}
-                                      {quotation.productDetails?.processor && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Processor:</span>
-                                          <span className="font-medium">{quotation.productDetails.processor}</span>
-                                        </div>
-                                      )}
-                                      {quotation.productDetails?.mode && (
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-600">Mode:</span>
-                                          <span className="font-medium">{quotation.productDetails.mode}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* Pricing and Timeline */}
-                                  <div className="bg-white rounded-lg p-4 border border-gray-100">
-                                    <h6 className="font-semibold text-gray-900 mb-3 flex items-center">
-                                      <DollarSign className="w-4 h-4 mr-2 text-green-600" />
-                                      Pricing & Timeline
-                                    </h6>
-                                    <div className="space-y-2 text-sm">
-                                      <div className="flex justify-between">
-                                        <span className="text-gray-600">User Type:</span>
-                                        <span className="font-medium">{customer.userTypeDisplayName}</span>
-                                      </div>
-                                      <div className="flex justify-between">
-                                        <span className="text-gray-600">Total Price:</span>
-                                        <div className="text-right">
-                                          {(() => {
-                                            // CRITICAL: Use the exact stored price from the database
-                                            // This price was calculated using the same logic as the PDF when saved
-                                            // Do NOT recalculate - always display the stored value to match PDF
-                                            const actualPrice = quotation.totalPrice || 0;
-                                            const userTypeDisplayName = quotation.userTypeDisplayName || 'End User';
-                                            
-                                            // Log for verification
-                                            console.log(`💰 Displaying price for ${quotation.quotationId}:`, {
-                                              storedPrice: actualPrice,
-                                              formatted: actualPrice.toLocaleString('en-IN'),
-                                              userType: userTypeDisplayName,
-                                              source: 'database (matches PDF)'
-                                            });
-                                            
-                                            return (
-                                              <div>
-                                                <span className="font-semibold text-green-600 text-lg">
-                                                  ₹{actualPrice.toLocaleString('en-IN')}
-                                                </span>
-                                                <div className="text-xs text-blue-600">
-                                                  {userTypeDisplayName} Pricing
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                  (Incl. 18% GST - From DB)
-                                                </div>
-                                              </div>
-                                            );
-                                          })()}
-                                        </div>
-                                      </div>
-                                      
-                                      {/* Display exact pricing breakdown if available */}
-                                      {quotation.exactPricingBreakdown && (
-                                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                                          <div className="text-sm font-medium text-gray-700 mb-2">
-                                            📊 Exact Pricing Breakdown (As Shown on Page):
+                                  {/* Product Specifications Grid */}
+                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
+                                    {/* Basic Product Info */}
+                                    <div className="bg-white rounded-lg p-4 border border-gray-100">
+                                      <h6 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                        <Package className="w-4 h-4 mr-2 text-blue-600" />
+                                        Product Specifications
+                                      </h6>
+                                      <div className="space-y-2 text-sm">
+                                        {quotation.productDetails?.pixelPitch && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Pixel Pitch:</span>
+                                            <span className="font-medium">{quotation.productDetails.pixelPitch}mm</span>
                                           </div>
-                                          <div className="space-y-1 text-xs">
-                                            <div className="flex justify-between">
-                                              <span>Unit Price:</span>
-                                              <span>₹{quotation.exactPricingBreakdown.unitPrice?.toLocaleString('en-IN')}</span>
+                                        )}
+                                        {quotation.productDetails?.category && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Category:</span>
+                                            <span className="font-medium">{quotation.productDetails.category}</span>
+                                          </div>
+                                        )}
+                                        {quotation.productDetails?.resolution && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Resolution:</span>
+                                            <span className="font-medium">
+                                              {quotation.productDetails.resolution.width}×{quotation.productDetails.resolution.height}px
+                                            </span>
+                                          </div>
+                                        )}
+                                        {quotation.productDetails?.displaySize && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Display Size:</span>
+                                            <span className="font-medium">
+                                              {quotation.productDetails.displaySize.width}×{quotation.productDetails.displaySize.height}m
+                                            </span>
+                                          </div>
+                                        )}
+                                        {quotation.productDetails?.aspectRatio && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Aspect Ratio:</span>
+                                            <span className="font-medium">{quotation.productDetails.aspectRatio}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Technical Specifications */}
+                                    <div className="bg-white rounded-lg p-4 border border-gray-100">
+                                      <h6 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                        <Clock className="w-4 h-4 mr-2 text-green-600" />
+                                        Technical Specs
+                                      </h6>
+                                      <div className="space-y-2 text-sm">
+                                        {quotation.productDetails?.brightness && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Brightness:</span>
+                                            <span className="font-medium">{quotation.productDetails.brightness}cd/m²</span>
+                                          </div>
+                                        )}
+                                        {quotation.productDetails?.refreshRate && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Refresh Rate:</span>
+                                            <span className="font-medium">{quotation.productDetails.refreshRate}Hz</span>
+                                          </div>
+                                        )}
+                                        {quotation.productDetails?.environment && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Environment:</span>
+                                            <span className="font-medium capitalize">{quotation.productDetails.environment}</span>
+                                          </div>
+                                        )}
+                                        {quotation.productDetails?.maxPowerConsumption && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Max Power:</span>
+                                            <span className="font-medium">{quotation.productDetails.maxPowerConsumption}W</span>
+                                          </div>
+                                        )}
+                                        {quotation.productDetails?.avgPowerConsumption && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Avg Power:</span>
+                                            <span className="font-medium">{quotation.productDetails.avgPowerConsumption}W</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Configuration and Pricing */}
+                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
+                                    {/* Configuration */}
+                                    <div className="bg-white rounded-lg p-4 border border-gray-100">
+                                      <h6 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                        <FileText className="w-4 h-4 mr-2 text-purple-600" />
+                                        Configuration
+                                      </h6>
+                                      <div className="space-y-2 text-sm">
+                                        {quotation.productDetails?.cabinetGrid && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Cabinet Grid:</span>
+                                            <span className="font-medium">
+                                              {quotation.productDetails.cabinetGrid.columns}×{quotation.productDetails.cabinetGrid.rows}
+                                            </span>
+                                          </div>
+                                        )}
+                                        {quotation.productDetails?.processor && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Processor:</span>
+                                            <span className="font-medium">{quotation.productDetails.processor}</span>
+                                          </div>
+                                        )}
+                                        {quotation.productDetails?.mode && (
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Mode:</span>
+                                            <span className="font-medium">{quotation.productDetails.mode}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Pricing and Timeline */}
+                                    <div className="bg-white rounded-lg p-4 border border-gray-100">
+                                      <h6 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                        <DollarSign className="w-4 h-4 mr-2 text-green-600" />
+                                        Pricing & Timeline
+                                      </h6>
+                                      <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between">
+                                          <span className="text-gray-600">User Type:</span>
+                                          <span className="font-medium">{customer.userTypeDisplayName}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span className="text-gray-600">Total Price:</span>
+                                          <div className="text-right">
+                                            {(() => {
+                                              // CRITICAL: Use the exact stored price from the database
+                                              // This price was calculated using the same logic as the PDF when saved
+                                              // Do NOT recalculate - always display the stored value to match PDF
+                                              const actualPrice = quotation.totalPrice || 0;
+                                              const userTypeDisplayName = quotation.userTypeDisplayName || 'End User';
+
+                                              // Log for verification
+                                              console.log(`💰 Displaying price for ${quotation.quotationId}:`, {
+                                                storedPrice: actualPrice,
+                                                formatted: actualPrice.toLocaleString('en-IN'),
+                                                userType: userTypeDisplayName,
+                                                source: 'database (matches PDF)'
+                                              });
+
+                                              return (
+                                                <div>
+                                                  <span className="font-semibold text-green-600 text-lg">
+                                                    ₹{actualPrice.toLocaleString('en-IN')}
+                                                  </span>
+                                                  <div className="text-xs text-blue-600">
+                                                    {userTypeDisplayName} Pricing
+                                                  </div>
+                                                  <div className="text-xs text-gray-500">
+                                                    (Incl. 18% GST - From DB)
+                                                  </div>
+                                                </div>
+                                              );
+                                            })()}
+                                          </div>
+                                        </div>
+
+                                        {/* Display exact pricing breakdown if available */}
+                                        {quotation.exactPricingBreakdown && (
+                                          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                                            <div className="text-sm font-medium text-gray-700 mb-2">
+                                              📊 Exact Pricing Breakdown (As Shown on Page):
                                             </div>
-                                            <div className="flex justify-between">
-                                              <span>Quantity:</span>
-                                              <span>{quotation.exactPricingBreakdown.quantity}</span>
+                                            <div className="space-y-1 text-xs">
+                                              <div className="flex justify-between">
+                                                <span>Unit Price:</span>
+                                                <span>₹{quotation.exactPricingBreakdown.unitPrice?.toLocaleString('en-IN')}</span>
+                                              </div>
+                                              <div className="flex justify-between">
+                                                <span>Quantity:</span>
+                                                <span>{quotation.exactPricingBreakdown.quantity}</span>
+                                              </div>
+                                              <div className="flex justify-between">
+                                                <span>Subtotal:</span>
+                                                <span>₹{quotation.exactPricingBreakdown.subtotal?.toLocaleString('en-IN')}</span>
+                                              </div>
+                                              <div className="flex justify-between">
+                                                <span>GST ({quotation.exactPricingBreakdown.gstRate}%):</span>
+                                                <span>₹{quotation.exactPricingBreakdown.gstAmount?.toLocaleString('en-IN')}</span>
+                                              </div>
+                                              {quotation.exactPricingBreakdown.processorPrice > 0 && (
+                                                <>
+                                                  <div className="flex justify-between">
+                                                    <span>Processor:</span>
+                                                    <span>₹{quotation.exactPricingBreakdown.processorPrice?.toLocaleString('en-IN')}</span>
+                                                  </div>
+                                                  <div className="flex justify-between">
+                                                    <span>Processor GST:</span>
+                                                    <span>₹{quotation.exactPricingBreakdown.processorGst?.toLocaleString('en-IN')}</span>
+                                                  </div>
+                                                </>
+                                              )}
+                                              <div className="flex justify-between font-semibold border-t pt-1">
+                                                <span>Grand Total:</span>
+                                                <span className="text-green-600">₹{quotation.exactPricingBreakdown.grandTotal?.toLocaleString('en-IN')}</span>
+                                              </div>
                                             </div>
-                                            <div className="flex justify-between">
-                                              <span>Subtotal:</span>
-                                              <span>₹{quotation.exactPricingBreakdown.subtotal?.toLocaleString('en-IN')}</span>
+                                          </div>
+                                        )}
+
+                                        {/* Display exact product specs if available */}
+                                        {quotation.exactProductSpecs && (
+                                          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                                            <div className="text-sm font-medium text-gray-700 mb-2">
+                                              📋 Exact Product Specs (As Shown on Page):
                                             </div>
-                                            <div className="flex justify-between">
-                                              <span>GST ({quotation.exactPricingBreakdown.gstRate}%):</span>
-                                              <span>₹{quotation.exactPricingBreakdown.gstAmount?.toLocaleString('en-IN')}</span>
-                                            </div>
-                                            {quotation.exactPricingBreakdown.processorPrice > 0 && (
-                                              <>
+                                            <div className="space-y-1 text-xs">
+                                              <div className="flex justify-between">
+                                                <span>Product:</span>
+                                                <span>{quotation.exactProductSpecs.productName}</span>
+                                              </div>
+                                              <div className="flex justify-between">
+                                                <span>Category:</span>
+                                                <span>{quotation.exactProductSpecs.category}</span>
+                                              </div>
+                                              <div className="flex justify-between">
+                                                <span>Pixel Pitch:</span>
+                                                <span>P{quotation.exactProductSpecs.pixelPitch}</span>
+                                              </div>
+                                              {quotation.exactProductSpecs.displaySize && (
+                                                <div className="flex justify-between">
+                                                  <span>Display Size:</span>
+                                                  <span>{quotation.exactProductSpecs.displaySize.width}m × {quotation.exactProductSpecs.displaySize.height}m</span>
+                                                </div>
+                                              )}
+                                              {quotation.exactProductSpecs.aspectRatio && (
+                                                <div className="flex justify-between">
+                                                  <span>Aspect Ratio:</span>
+                                                  <span>{quotation.exactProductSpecs.aspectRatio}</span>
+                                                </div>
+                                              )}
+                                              {quotation.exactProductSpecs.processor && (
                                                 <div className="flex justify-between">
                                                   <span>Processor:</span>
-                                                  <span>₹{quotation.exactPricingBreakdown.processorPrice?.toLocaleString('en-IN')}</span>
+                                                  <span>{quotation.exactProductSpecs.processor}</span>
                                                 </div>
+                                              )}
+                                              {quotation.exactProductSpecs.cabinetGrid && (
                                                 <div className="flex justify-between">
-                                                  <span>Processor GST:</span>
-                                                  <span>₹{quotation.exactPricingBreakdown.processorGst?.toLocaleString('en-IN')}</span>
+                                                  <span>Cabinet Grid:</span>
+                                                  <span>{quotation.exactProductSpecs.cabinetGrid.columns}×{quotation.exactProductSpecs.cabinetGrid.rows}</span>
                                                 </div>
-                                              </>
-                                            )}
-                                            <div className="flex justify-between font-semibold border-t pt-1">
-                                              <span>Grand Total:</span>
-                                              <span className="text-green-600">₹{quotation.exactPricingBreakdown.grandTotal?.toLocaleString('en-IN')}</span>
+                                              )}
                                             </div>
                                           </div>
+                                        )}
+                                        <div className="flex justify-between">
+                                          <span className="text-gray-600">Created:</span>
+                                          <span className="font-medium">
+                                            {new Date(quotation.createdAt).toLocaleDateString('en-IN', {
+                                              year: 'numeric',
+                                              month: '2-digit',
+                                              day: '2-digit'
+                                            })}
+                                          </span>
                                         </div>
-                                      )}
-                                      
-                                      {/* Display exact product specs if available */}
-                                      {quotation.exactProductSpecs && (
-                                        <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                                          <div className="text-sm font-medium text-gray-700 mb-2">
-                                            📋 Exact Product Specs (As Shown on Page):
-                                          </div>
-                                          <div className="space-y-1 text-xs">
-                                            <div className="flex justify-between">
-                                              <span>Product:</span>
-                                              <span>{quotation.exactProductSpecs.productName}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span>Category:</span>
-                                              <span>{quotation.exactProductSpecs.category}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span>Pixel Pitch:</span>
-                                              <span>P{quotation.exactProductSpecs.pixelPitch}</span>
-                                            </div>
-                                            {quotation.exactProductSpecs.displaySize && (
-                                              <div className="flex justify-between">
-                                                <span>Display Size:</span>
-                                                <span>{quotation.exactProductSpecs.displaySize.width}m × {quotation.exactProductSpecs.displaySize.height}m</span>
-                                              </div>
-                                            )}
-                                            {quotation.exactProductSpecs.aspectRatio && (
-                                              <div className="flex justify-between">
-                                                <span>Aspect Ratio:</span>
-                                                <span>{quotation.exactProductSpecs.aspectRatio}</span>
-                                              </div>
-                                            )}
-                                            {quotation.exactProductSpecs.processor && (
-                                              <div className="flex justify-between">
-                                                <span>Processor:</span>
-                                                <span>{quotation.exactProductSpecs.processor}</span>
-                                              </div>
-                                            )}
-                                            {quotation.exactProductSpecs.cabinetGrid && (
-                                              <div className="flex justify-between">
-                                                <span>Cabinet Grid:</span>
-                                                <span>{quotation.exactProductSpecs.cabinetGrid.columns}×{quotation.exactProductSpecs.cabinetGrid.rows}</span>
-                                              </div>
-                                            )}
-                                          </div>
+                                        <div className="flex justify-between">
+                                          <span className="text-gray-600">Time:</span>
+                                          <span className="font-medium">
+                                            {new Date(quotation.createdAt).toLocaleTimeString('en-IN', {
+                                              hour: '2-digit',
+                                              minute: '2-digit',
+                                              hour12: true
+                                            })}
+                                          </span>
                                         </div>
-                                      )}
-                                      <div className="flex justify-between">
-                                        <span className="text-gray-600">Created:</span>
-                                        <span className="font-medium">
-                                          {new Date(quotation.createdAt).toLocaleDateString('en-IN', {
-                                            year: 'numeric',
-                                            month: '2-digit',
-                                            day: '2-digit'
-                                          })}
-                                        </span>
-                                      </div>
-                                      <div className="flex justify-between">
-                                        <span className="text-gray-600">Time:</span>
-                                        <span className="font-medium">
-                                          {new Date(quotation.createdAt).toLocaleTimeString('en-IN', {
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                            hour12: true
-                                          })}
-                                        </span>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
-                                
-                                {/* Message */}
-                                {quotation.message && (
-                                  <div className="bg-white rounded-lg p-4 border border-gray-100">
-                                    <h6 className="font-semibold text-gray-900 mb-2 flex items-center">
-                                      <MessageSquare className="w-4 h-4 mr-2 text-orange-600" />
-                                      Additional Message
-                                    </h6>
-                                    <p className="text-gray-700 text-sm">{quotation.message}</p>
-                                  </div>
-                                )}
+
+                                  {/* Message */}
+                                  {quotation.message && (
+                                    <div className="bg-white rounded-lg p-4 border border-gray-100">
+                                      <h6 className="font-semibold text-gray-900 mb-2 flex items-center">
+                                        <MessageSquare className="w-4 h-4 mr-2 text-orange-600" />
+                                        Additional Message
+                                      </h6>
+                                      <p className="text-gray-700 text-sm">{quotation.message}</p>
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
