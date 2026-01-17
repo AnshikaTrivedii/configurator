@@ -4,28 +4,51 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Get S3 configuration
-const region = process.env.ORION_S3_REGION || process.env.S3_REGION || 'us-east-1';
-const accessKeyId = process.env.ORION_S3_ACCESS_KEY || process.env.S3_ACCESS_KEY;
-const secretAccessKey = process.env.ORION_S3_SECRET_KEY || process.env.S3_SECRET_KEY;
-const BUCKET_NAME = process.env.ORION_S3_BUCKET_NAME || process.env.S3_BUCKET_NAME;
 
-// Log S3 configuration status (without exposing secrets)
-console.log('🔧 S3 Configuration Check:', {
-  region: region,
-  bucketName: BUCKET_NAME ? '✅ SET' : '❌ NOT SET',
-  accessKeyId: accessKeyId ? '✅ SET' : '❌ NOT SET',
-  secretAccessKey: secretAccessKey ? '✅ SET' : '❌ NOT SET'
-});
+// Lazy initialization variables
+let s3Client = null;
+let BUCKET_NAME = null;
+let region = null;
 
-// Initialize S3 client
-const s3Client = new S3Client({
-  region: region,
-  credentials: accessKeyId && secretAccessKey ? {
-    accessKeyId: accessKeyId,
-    secretAccessKey: secretAccessKey
-  } : undefined
-});
+/**
+ * Initialize (or get existing) S3 Client and configuration
+ * @returns {Object} object containing s3Client and BUCKET_NAME
+ */
+const getS3Context = () => {
+  // If already initialized, return existing context
+  if (s3Client && BUCKET_NAME) {
+    return { s3Client, BUCKET_NAME };
+  }
+
+  // Get S3 configuration
+  region = process.env.ORION_S3_REGION || process.env.S3_REGION || 'us-east-1';
+  const accessKeyId = process.env.ORION_S3_ACCESS_KEY || process.env.S3_ACCESS_KEY;
+  const secretAccessKey = process.env.ORION_S3_SECRET_KEY || process.env.S3_SECRET_KEY;
+  BUCKET_NAME = process.env.ORION_S3_BUCKET_NAME || process.env.S3_BUCKET_NAME;
+
+  // Log only once during initialization
+  console.log('🔧 S3 Configuration Check:', {
+    region: region,
+    bucketName: BUCKET_NAME ? '✅ SET' : '❌ NOT SET',
+    accessKeyId: accessKeyId ? '✅ SET' : '❌ NOT SET',
+    secretAccessKey: secretAccessKey ? '✅ SET' : '❌ NOT SET'
+  });
+
+  if (!accessKeyId || !secretAccessKey) {
+    console.warn('⚠️ AWS Credentials missing. S3 operations will fail.');
+  }
+
+  s3Client = new S3Client({
+    region: region,
+    credentials: accessKeyId && secretAccessKey ? {
+      accessKeyId: accessKeyId,
+      secretAccessKey: secretAccessKey
+    } : undefined
+  });
+
+  return { s3Client, BUCKET_NAME };
+};
+
 const PDF_FOLDER = 'quotations/pdfs'; // Folder structure in S3
 
 // Path structure options:
@@ -45,27 +68,27 @@ const sanitizeQuotationId = (quotationId) => {
   if (!quotationId) {
     throw new Error('Quotation ID is required for S3 upload');
   }
-  
+
   // Replace slashes with dashes (main issue)
   // Keep alphanumeric, dashes, underscores, and dots
   // Only replace slashes and other problematic characters
   let sanitized = quotationId.replace(/\//g, '-');
-  
+
   // Remove or replace any remaining problematic characters but keep the structure
   // Don't be too aggressive - just handle slashes and spaces
   sanitized = sanitized.replace(/\s+/g, '-'); // Replace spaces with dashes
-  
+
   // Remove any double dashes that might have been created
   sanitized = sanitized.replace(/-+/g, '-');
-  
+
   // Remove leading/trailing dashes
   sanitized = sanitized.replace(/^-+|-+$/g, '');
-  
+
   console.log('🔧 Sanitized quotation ID:', {
     original: quotationId,
     sanitized: sanitized
   });
-  
+
   return sanitized;
 };
 
@@ -77,6 +100,9 @@ const sanitizeQuotationId = (quotationId) => {
  * @returns {Promise<string>} S3 object key
  */
 export const uploadPdfToS3 = async (pdfBuffer, quotationId, salesUserId) => {
+  // Initialize context on first use
+  const { s3Client, BUCKET_NAME } = getS3Context();
+
   console.log('📤 Starting S3 upload...', {
     quotationId,
     salesUserId,
@@ -110,7 +136,7 @@ export const uploadPdfToS3 = async (pdfBuffer, quotationId, salesUserId) => {
 
   // Sanitize quotation ID to avoid deep folder structures
   const sanitizedQuotationId = sanitizeQuotationId(quotationId);
-  
+
   // Create S3 key: quotations/pdfs/{salesUserId}/{sanitizedQuotationId}.pdf
   // This keeps it simple: quotations/pdfs/{userId}/{quotationId}.pdf
   const s3Key = `${PDF_FOLDER}/${salesUserId}/${sanitizedQuotationId}.pdf`;
@@ -164,6 +190,8 @@ export const uploadPdfToS3 = async (pdfBuffer, quotationId, salesUserId) => {
  * @returns {Promise<string>} Presigned URL
  */
 export const getPdfPresignedUrl = async (s3Key, expiresIn = 3600) => {
+  const { s3Client, BUCKET_NAME } = getS3Context();
+
   if (!BUCKET_NAME) {
     throw new Error('ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set');
   }
@@ -188,6 +216,8 @@ export const getPdfPresignedUrl = async (s3Key, expiresIn = 3600) => {
  * @returns {Promise<void>}
  */
 export const deletePdfFromS3 = async (s3Key) => {
+  const { s3Client, BUCKET_NAME } = getS3Context();
+
   if (!BUCKET_NAME) {
     throw new Error('ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set');
   }
@@ -212,6 +242,8 @@ export const deletePdfFromS3 = async (s3Key) => {
  * @returns {string} Public URL
  */
 export const getPdfPublicUrl = (s3Key) => {
+  const { BUCKET_NAME } = getS3Context();
+
   if (!BUCKET_NAME) {
     throw new Error('ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set');
   }
