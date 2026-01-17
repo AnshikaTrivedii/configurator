@@ -499,6 +499,24 @@ class SalesAPI {
 
     return data;
   }
+
+  // Delete quotation (super admin only)
+  async deleteQuotation(quotationId: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/sales/quotation/${encodeURIComponent(quotationId)}`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders()
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('❌ Delete failed with status:', response.status);
+      console.error('❌ Delete error data:', data);
+      throw new Error(data.message || 'Failed to delete quotation');
+    }
+
+    return data;
+  }
   /**
    * Register a new user (admin only)
    */

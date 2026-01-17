@@ -4,8 +4,7 @@ import { salesAPI } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 // import { getProcessorPrice } from '../utils/processorPrices';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
-import { applyDiscount, DiscountInfo } from '../utils/discountCalculator';
-import { generateConfigurationHtml } from '../utils/docxGenerator';
+// Imports removed unused
 
 // Conversion constant
 // Conversion constant removed unused
@@ -171,7 +170,7 @@ interface PdfViewModalProps {
     structurePrice: number | null;
     installationPrice: number | null;
   };
-  onUpdate?: () => void; // Callback when quotation is updated
+  // onUpdate?: () => void; // Callback removed
 }
 
 export const PdfViewModal: React.FC<PdfViewModalProps> = ({
@@ -191,22 +190,19 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   userRole,
   quotationId,
   customPricing,
-  onUpdate
+  // onUpdate removed unused
 }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [updateSuccess, setUpdateSuccess] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [salesPersons, setSalesPersons] = useState<any[]>([]);
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState<string | null>(null);
   const [loadingSalesPersons, setLoadingSalesPersons] = useState(false);
   const [generatedPdfBlob, setGeneratedPdfBlob] = useState<Blob | null>(null);
   const [pdfDownloadUrl, setPdfDownloadUrl] = useState<string | null>(null);
 
-  // Discount state (only for superadmin)
-  const [discountType, setDiscountType] = useState<'led' | 'controller' | 'total' | null>(null);
-  const [discountPercent, setDiscountPercent] = useState<number>(0);
+  // Discount state removed
+
 
   // Debug: Log salesUser when component mounts or changes
   useEffect(() => {
@@ -264,88 +260,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     }
   };
 
-  // Regenerate HTML with discount applied when discount changes
+  // Regenerate HTML (no discount application in PdfViewModal)
   const htmlContentWithDiscount = useMemo(() => {
-    if (!selectedProduct || !config || !userInfo) {
-      return htmlContent; // Fallback to original HTML if data not available
-    }
-
-    const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
-
-    // If no discount, use original HTML
-    if (!isSuperAdmin || !discountType || discountPercent <= 0) {
-      return htmlContent;
-    }
-
-    // Calculate pricing with discount
-    const userTypeForCalc = getUserType();
-    const pricingResult = calculateCentralizedPricing(
-      selectedProduct,
-      cabinetGrid,
-      processor || null,
-      userTypeForCalc,
-      config,
-      customPricing
-    );
-
-    if (!pricingResult.isAvailable) {
-      return htmlContent; // Fallback if price not available
-    }
-
-    // Apply discount
-    const discountInfo: DiscountInfo = {
-      discountType,
-      discountPercent
-    };
-    const discountedResult = applyDiscount(pricingResult, discountInfo);
-
-    // Create exactPricingBreakdown with discounted values
-    const exactPricingBreakdown = {
-      unitPrice: discountedResult.unitPrice,
-      quantity: discountedResult.quantity,
-      subtotal: discountedResult.productSubtotal,
-      gstAmount: discountedResult.productGST,
-      processorPrice: discountedResult.processorPrice,
-      processorGst: discountedResult.processorGST,
-      grandTotal: discountedResult.grandTotal,
-      discount: {
-        discountedProductTotal: discountedResult.discountedProductTotal,
-        discountedProcessorTotal: discountedResult.discountedProcessorTotal,
-        discountedGrandTotal: discountedResult.grandTotal
-      }
-    };
-
-    // Regenerate HTML with discounted values
-    // Map UI label to legacy pricing userType expected by docxGenerator/html helpers
-    const uiUserType: string | undefined = userInfo?.userType;
-    const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
-      uiUserType === 'SI/Channel Partner'
-        ? 'Channel'
-        : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
-
-    const discountedHtml = generateConfigurationHtml(
-      config,
-      selectedProduct,
-      cabinetGrid,
-      processor,
-      mode,
-      userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
-      salesUser,
-      quotationId,
-      customPricing,
-      exactPricingBreakdown
-    );
-
-    console.log('🔄 Regenerated HTML with discount:', {
-      discountType,
-      discountPercent: `${discountPercent}%`,
-      originalGrandTotal: pricingResult.grandTotal,
-      discountedGrandTotal: discountedResult.grandTotal,
-      discountAmount: discountedResult.discountAmount
-    });
-
-    return discountedHtml;
-  }, [htmlContent, selectedProduct, config, cabinetGrid, processor, mode, userInfo, salesUser, quotationId, customPricing, discountType, discountPercent, userRole]);
+    return htmlContent;
+  }, [htmlContent]);
 
   // Load sales persons if user is superadmin
   useEffect(() => {
@@ -494,13 +412,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
         // Apply discount if applicable
         let finalPricingResult = pricingResult as any;
-        if (isSuperAdmin && discountType && discountPercent > 0) {
-          const discountInfo: DiscountInfo = {
-            discountType,
-            discountPercent
-          };
-          finalPricingResult = applyDiscount(pricingResult, discountInfo);
-        }
+        // Discount logic removed for PdfViewModal
+
 
         // Create exactPricingBreakdown for PDF generation
         const exactPricingBreakdownForPdf = {
@@ -510,12 +423,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           gstAmount: finalPricingResult.productGST,
           processorPrice: finalPricingResult.processorPrice,
           processorGst: finalPricingResult.processorGST,
-          grandTotal: finalPricingResult.grandTotal,
-          discount: (isSuperAdmin && discountType && discountPercent > 0) ? {
-            discountedProductTotal: finalPricingResult.discountedProductTotal,
-            discountedProcessorTotal: finalPricingResult.discountedProcessorTotal,
-            discountedGrandTotal: finalPricingResult.grandTotal
-          } : undefined
+          grandTotal: finalPricingResult.grandTotal
         };
 
         // Map UI user type label to legacy pricing userType expected by docxGenerator/html helpers
@@ -756,33 +664,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       customPricing
     );
 
-    // Apply discount if superadmin has set one
-    let finalPricingResult = pricingResult as any;
+    // Simplified: No new discount checks here. Use calculated price.
+    let finalPricingResult = pricingResult;
     let finalTotalPrice = correctTotalPrice;
-    let discountInfo: DiscountInfo | null = null;
 
-    // isSuperAdmin is already declared at the top of handleSave function
-    if (isSuperAdmin && discountType && discountPercent > 0) {
-      discountInfo = {
-        discountType,
-        discountPercent
-      };
-
-      // Apply discount to pricing result
-      const discountedResult = applyDiscount(pricingResult, discountInfo);
-      finalPricingResult = discountedResult;
-      finalTotalPrice = discountedResult.grandTotal;
-
-      console.log('💰 DISCOUNT APPLIED TO QUOTATION:', {
-        discountType,
-        discountPercent: `${discountPercent}%`,
-        originalTotal: correctTotalPrice,
-        discountedTotal: finalTotalPrice,
-        discountAmount: discountedResult.discountAmount,
-        savings: `₹${discountedResult.discountAmount.toLocaleString('en-IN')}`
-      });
-    }
-
+    // We do NOT apply new discounts in this modal anymore.
+    // If the quotation already had a discount (passed via props?), we might need to respect it,
+    // but the calculateCorrectTotalPrice and calculateCentralizedPricing functions calculate base price.
+    // The previous implementation was adding a NEW discount based on state that is now removed.
 
     console.log('💰 Calculated price for quotation (WITH GST - matches PDF):', {
       quotationId: finalQuotationId,
@@ -793,46 +682,11 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       gstRate: '18%',
       userType: getUserTypeDisplayName(userTypeForCalc),
       product: selectedProduct.name,
-      hasDiscount: !!discountInfo,
-      note: discountInfo ? 'Price includes discount (not shown in PDF)' : 'This price includes 18% GST and matches PDF Grand Total'
+      note: 'This price includes 18% GST and matches PDF Grand Total'
     });
 
-    // Generate the exact HTML that's being displayed (with discount if applicable)
-    // This is the HTML that should be saved as pdfPage6HTML
-    let finalHtmlContent = htmlContent;
-    if (isSuperAdmin && discountType && discountPercent > 0) {
-      // Use the discounted HTML that's actually displayed
-      const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
-        userInfo?.userType === 'SI/Channel Partner'
-          ? 'Channel'
-          : (userInfo?.userType === 'Reseller' ? 'Reseller' : 'End User');
-
-      finalHtmlContent = generateConfigurationHtml(
-        config || { width: 2400, height: 1010, unit: 'mm' },
-        selectedProduct,
-        cabinetGrid,
-        processor,
-        mode,
-        userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
-        salesUser,
-        finalQuotationId,
-        customPricing,
-        {
-          unitPrice: finalPricingResult.unitPrice,
-          quantity: finalPricingResult.quantity,
-          subtotal: finalPricingResult.productSubtotal,
-          gstAmount: finalPricingResult.productGST,
-          processorPrice: finalPricingResult.processorPrice,
-          processorGst: finalPricingResult.processorGST,
-          grandTotal: finalTotalPrice,
-          discount: discountInfo ? {
-            discountedProductTotal: finalPricingResult.discountedProductTotal,
-            discountedProcessorTotal: finalPricingResult.discountedProcessorTotal,
-            discountedGrandTotal: finalTotalPrice
-          } : undefined
-        }
-      );
-    }
+    // Generate HTML
+    const finalHtmlContent = htmlContent;
 
     // Capture exact quotation data as shown on the page
     const exactQuotationData = {
@@ -862,10 +716,11 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       salesUserName: finalSalesUserName,
 
       // Store discount information in quotationData
-      discountType: discountInfo?.discountType || null,
-      discountPercent: discountInfo?.discountPercent || 0,
+      // Store discount information in quotationData -- Discount removed from here
+      discountType: null,
+      discountPercent: 0,
 
-      // Store exact pricing breakdown using centralized calculation + discount
+      // Store exact pricing breakdown using centralized calculation
       exactPricingBreakdown: {
         unitPrice: finalPricingResult.unitPrice,
         quantity: finalPricingResult.quantity,
@@ -874,21 +729,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         gstAmount: finalPricingResult.productGST,
         processorPrice: finalPricingResult.processorPrice,
         processorGst: finalPricingResult.processorGST,
-        grandTotal: finalTotalPrice,
-        // Discount information (stored but never shown in PDF)
-        discount: discountInfo ? {
-          discountType: discountInfo.discountType,
-          discountPercent: discountInfo.discountPercent,
-          // Store original values for reference
-          originalProductTotal: 'originalProductTotal' in finalPricingResult ? finalPricingResult.originalProductTotal : finalPricingResult.productTotal,
-          originalProcessorTotal: 'originalProcessorTotal' in finalPricingResult ? finalPricingResult.originalProcessorTotal : finalPricingResult.processorTotal,
-          originalGrandTotal: 'originalGrandTotal' in finalPricingResult ? finalPricingResult.originalGrandTotal : correctTotalPrice,
-          // Store discounted values (these are what appear in PDF)
-          discountedProductTotal: 'discountedProductTotal' in finalPricingResult ? finalPricingResult.discountedProductTotal : finalPricingResult.productTotal,
-          discountedProcessorTotal: 'discountedProcessorTotal' in finalPricingResult ? finalPricingResult.discountedProcessorTotal : finalPricingResult.processorTotal,
-          discountedGrandTotal: finalTotalPrice,
-          discountAmount: 'discountAmount' in finalPricingResult ? finalPricingResult.discountAmount : 0
-        } : undefined
+        grandTotal: finalTotalPrice
       },
 
       // Store exact product specifications as shown
@@ -944,12 +785,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           gstAmount: finalPricingResult.productGST,
           processorPrice: finalPricingResult.processorPrice,
           processorGst: finalPricingResult.processorGST,
-          grandTotal: finalTotalPrice,
-          discount: discountInfo ? {
-            discountedProductTotal: finalPricingResult.discountedProductTotal,
-            discountedProcessorTotal: finalPricingResult.discountedProcessorTotal,
-            discountedGrandTotal: finalTotalPrice
-          } : undefined
+          grandTotal: finalTotalPrice
         };
 
         // Map UI user type label to legacy pricing userType expected by docxGenerator/html helpers
@@ -1084,12 +920,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                 gstAmount: finalPricingResult.productGST,
                 processorPrice: finalPricingResult.processorPrice,
                 processorGst: finalPricingResult.processorGST,
-                grandTotal: finalTotalPrice,
-                discount: discountInfo ? {
-                  discountedProductTotal: finalPricingResult.discountedProductTotal,
-                  discountedProcessorTotal: finalPricingResult.discountedProcessorTotal,
-                  discountedGrandTotal: finalTotalPrice
-                } : undefined
+                grandTotal: finalTotalPrice
               };
 
               const blob = await generateConfigurationPdf(
@@ -1157,150 +988,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     }
   };
 
-  // Handle updating existing quotation with discount
-  const handleUpdate = async () => {
-    // Only super admin can update discounts
-    if (userRole !== 'super' && userRole !== 'super_admin') return;
 
-    // Prevent multiple clicks
-    if (isUpdating) return;
-
-    // Require discount type and valid percent
-    if (!discountType || discountPercent <= 0) {
-      alert('Please select a discount type and enter a valid percentage > 0');
-      return;
-    }
-
-    if (!quotationId) {
-      alert('Cannot update: Missing quotation ID');
-      return;
-    }
-
-    if (!selectedProduct || !config || !userInfo) {
-      alert('Missing required data for update');
-      return;
-    }
-
-    try {
-      setIsUpdating(true);
-      console.log('🔄 UPADTE: Applying discount and updating quotation...', {
-        quotationId,
-        discountType,
-        discountPercent
-      });
-
-      // 1. Generate new PDF with discount
-      const { generateConfigurationPdf } = await import('../utils/docxGenerator');
-
-      // Calculate pricing for PDF
-      const userTypeForCalc = getUserType();
-      const pricingResult = calculateCentralizedPricing(
-        selectedProduct,
-        cabinetGrid,
-        processor || null,
-        userTypeForCalc,
-        config || { width: 2400, height: 1010, unit: 'mm' },
-        customPricing
-      );
-
-      // Apply discount
-      const discountInfo: DiscountInfo = {
-        discountType,
-        discountPercent
-      };
-      const finalPricingResult = applyDiscount(pricingResult, discountInfo);
-
-      // Create exactPricingBreakdown for PDF generation and saving
-      const exactPricingBreakdown = {
-        unitPrice: finalPricingResult.unitPrice,
-        quantity: finalPricingResult.quantity,
-        subtotal: finalPricingResult.productSubtotal,
-        gstAmount: finalPricingResult.productGST,
-        processorPrice: finalPricingResult.processorPrice,
-        processorGst: finalPricingResult.processorGST,
-        grandTotal: finalPricingResult.grandTotal,
-        discount: {
-          discountedProductTotal: finalPricingResult.discountedProductTotal,
-          discountedProcessorTotal: finalPricingResult.discountedProcessorTotal,
-          discountedGrandTotal: finalPricingResult.discountedGrandTotal // Explicitly use discountedGrandTotal
-        }
-      };
-
-      // Map UI user type label to legacy pricing userType
-      const uiUserType: string | undefined = userInfo?.userType;
-      const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
-        uiUserType === 'SI/Channel Partner'
-          ? 'Channel'
-          : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
-
-      // Generate PDF Blob
-      const pdfBlob = await generateConfigurationPdf(
-        config || { width: 2400, height: 1010, unit: 'mm' },
-        selectedProduct,
-        cabinetGrid,
-        processor,
-        mode,
-        userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
-        salesUser,
-        quotationId,
-        customPricing,
-        exactPricingBreakdown
-      );
-
-      // Convert PDF to base64
-      const pdfBase64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64String = (reader.result as string).split(',')[1];
-          resolve(base64String);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(pdfBlob);
-      });
-
-      // 2. Prepare update payload
-      const updateData = {
-        totalPrice: finalPricingResult.grandTotal,
-        exactPricingBreakdown: exactPricingBreakdown,
-        // Also update PDF HTML if needed, though usually we regen from data
-        // pdfPage6HTML: generatedHtml, // Optional
-        pdfBase64: pdfBase64,
-        quotationData: {
-          updatedAt: new Date().toISOString(),
-          discountApplied: true,
-          discountInfo: {
-            type: discountType,
-            percent: discountPercent,
-            amount: finalPricingResult.discountAmount
-          }
-        }
-      };
-
-      // 3. Call update API
-      const result = await salesAPI.updateQuotation(quotationId, updateData);
-      console.log('✅ Update success:', result);
-
-      if (onUpdate) {
-        onUpdate();
-      }
-
-      setUpdateSuccess(true);
-
-      // Update local blob for download button usage
-      setGeneratedPdfBlob(pdfBlob);
-      const url = window.URL.createObjectURL(pdfBlob);
-      setPdfDownloadUrl(url);
-
-      // Auto-hide success message
-      setTimeout(() => setUpdateSuccess(false), 3000);
-
-    } catch (error: any) {
-      console.error('❌ Update failed:', error);
-      alert(`Failed to update quotation: ${error.message}`);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -1360,59 +1048,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                 </div>
               )}
 
-              {/* Discount Section for Super Admin */}
-              {(userRole === 'super' || userRole === 'super_admin') && (
-                <div className="flex items-center space-x-4 bg-white/10 p-2 rounded border border-white/20">
-                  <div className="flex flex-col space-y-1">
-                    <label className="text-xs text-white/80">Discount Type:</label>
-                    <select
-                      value={discountType || ''}
-                      onChange={(e) => setDiscountType(e.target.value as 'led' | 'controller' | 'total' | null || null)}
-                      disabled={isSaving}
-                      className="px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                    >
-                      <option value="">No Discount</option>
-                      <option value="led">LED Screen Price</option>
-                      <option value="controller">Controller Price</option>
-                      <option value="total">Total Amount</option>
-                    </select>
-                  </div>
-                  {discountType && (
-                    <div className="flex flex-col space-y-1">
-                      <label className="text-xs text-white/80">Discount %:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={discountPercent}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value) || 0;
-                          setDiscountPercent(Math.max(0, Math.min(100, value)));
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            if (discountPercent > 0) {
-                              handleUpdate();
-                            }
-                          }
-                        }}
-                        disabled={isSaving || isUpdating}
-                        placeholder="0-100"
-                        className="w-20 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                        title="Press Enter to apply discount and update PDF"
-                      />
-                    </div>
-                  )}
-                  {updateSuccess && (
-                    <span className="text-xs text-green-400 font-medium animate-pulse ml-2 flex items-center">
-                      <Save size={12} className="mr-1" />
-                      Updated!
-                    </span>
-                  )}
-                </div>
-              )}
+              {/* Discount Section removed as it's now inline in SalesPersonDetailsModal */}
 
               {/* Combined Save & Download button for sales users and superadmin */}
               {((salesUser || (userRole === 'super' || userRole === 'super_admin')) && userInfo) ? (
@@ -1471,14 +1107,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                       );
 
                       // Apply discount if applicable
+                      // Discount logic removed from PdfViewModal as it's now handled inline
                       let finalPricingResult = pricingResult as any;
-                      if (isSuperAdmin && discountType && discountPercent > 0) {
-                        const discountInfo: DiscountInfo = {
-                          discountType,
-                          discountPercent
-                        };
-                        finalPricingResult = applyDiscount(pricingResult, discountInfo);
-                      }
 
                       // Create exactPricingBreakdown for PDF generation
                       const exactPricingBreakdownForPdf = {
@@ -1488,12 +1118,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                         gstAmount: finalPricingResult.productGST,
                         processorPrice: finalPricingResult.processorPrice,
                         processorGst: finalPricingResult.processorGST,
-                        grandTotal: finalPricingResult.grandTotal,
-                        discount: (isSuperAdmin && discountType && discountPercent > 0) ? {
-                          discountedProductTotal: finalPricingResult.discountedProductTotal,
-                          discountedProcessorTotal: finalPricingResult.discountedProcessorTotal,
-                          discountedGrandTotal: finalPricingResult.grandTotal
-                        } : undefined
+                        grandTotal: finalPricingResult.grandTotal
                       };
 
                       console.log('📝 Generating PDF blob...');
@@ -1590,75 +1215,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                 </button>
               ) : (
                 <button
-                  onClick={async () => {
-                    // Generate PDF with discount applied if applicable
-                    if (selectedProduct && config && userInfo) {
-                      const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
-                      if (isSuperAdmin && discountType && discountPercent > 0) {
-                        // Calculate pricing with discount
-                        const userTypeForCalc = getUserType();
-                        const pricingResult = calculateCentralizedPricing(
-                          selectedProduct,
-                          cabinetGrid,
-                          processor || null,
-                          userTypeForCalc,
-                          config,
-                          customPricing
-                        );
-
-                        if (pricingResult.isAvailable) {
-                          const discountInfo: DiscountInfo = {
-                            discountType,
-                            discountPercent
-                          };
-                          const discountedResult = applyDiscount(pricingResult, discountInfo);
-
-                          const exactPricingBreakdown = {
-                            unitPrice: discountedResult.unitPrice,
-                            quantity: discountedResult.quantity,
-                            subtotal: discountedResult.productSubtotal,
-                            gstAmount: discountedResult.productGST,
-                            processorPrice: discountedResult.processorPrice,
-                            processorGst: discountedResult.processorGST,
-                            grandTotal: discountedResult.grandTotal,
-                            discount: {
-                              discountedProductTotal: discountedResult.discountedProductTotal,
-                              discountedProcessorTotal: discountedResult.discountedProcessorTotal,
-                              discountedGrandTotal: discountedResult.grandTotal
-                            }
-                          };
-
-                          // Generate PDF with discount
-                          const { generateConfigurationPdf } = await import('../utils/docxGenerator');
-                          const blob = await generateConfigurationPdf(
-                            config,
-                            selectedProduct,
-                            cabinetGrid,
-                            processor,
-                            mode,
-                            userInfo,
-                            salesUser,
-                            quotationId,
-                            customPricing,
-                            exactPricingBreakdown
-                          );
-
-                          console.log('✅ PDF generated successfully (direct download)');
-
-                          // Store blob and URL for manual download
-                          setGeneratedPdfBlob(blob);
-                          const url = window.URL.createObjectURL(blob);
-                          setPdfDownloadUrl(url);
-
-                          // Use helper function to trigger download
-                          triggerPdfDownload(blob, fileName, setGeneratedPdfBlob, setPdfDownloadUrl);
-                          return;
-                        }
-                      }
-                    }
-                    // Fallback to original onDownload if no discount or data not available
-                    onDownload();
-                  }}
+                  onClick={() => onDownload()}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
                 >
                   <Download className="w-4 h-4 mr-2" />
@@ -1718,6 +1275,6 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           />
         </div>
       </div>
-    </div>
+    </div >
   );
 };

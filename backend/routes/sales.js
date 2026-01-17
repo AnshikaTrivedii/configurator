@@ -1306,6 +1306,59 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
   }
 });
 
+// DELETE /api/sales/quotation/:quotationId (Delete a quotation)
+router.delete('/quotation/:quotationId', authenticateToken, async (req, res) => {
+  console.log('🗑️ ===== QUOTATION DELETE REQUEST =====');
+  try {
+    const { quotationId } = req.params;
+    console.log('🗑️ Deleting quotation:', quotationId);
+
+    // Find the quotation
+    const quotation = await Quotation.findOne({ quotationId });
+
+    if (!quotation) {
+      console.log('❌ Quotation not found for deletion:', quotationId);
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+
+    // Check permissions - only super admin can delete (as per user request)
+    // We can also allow owner, but user specifically asked for "super admin to delete"
+    const isSuperAdmin = ['super', 'super_admin', 'superadmin', 'admin'].includes(req.user.role);
+
+    if (!isSuperAdmin) {
+      console.log('❌ Permission denied for delete (not super admin):', {
+        user: req.user.email,
+        role: req.user.role
+      });
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only super admin can delete quotations.'
+      });
+    }
+
+    // Delete the quotation
+    await Quotation.deleteOne({ quotationId });
+
+    console.log('✅ Quotation deleted successfully:', quotationId);
+
+    res.json({
+      success: true,
+      message: 'Quotation deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error deleting quotation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete quotation',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // POST /api/sales/quotation/:quotationId/upload-pdf (Upload PDF to S3 for existing quotation)
 router.post('/quotation/:quotationId/upload-pdf', authenticateToken, async (req, res) => {
   try {

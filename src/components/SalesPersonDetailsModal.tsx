@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, Clock, MessageSquare, RefreshCw } from 'lucide-react';
+import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, Clock, MessageSquare, RefreshCw, Percent, Trash2 } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { PdfViewModal } from './PdfViewModal';
 import { generateConfigurationHtml, generateConfigurationPdf } from '../utils/docxGenerator';
@@ -496,6 +496,27 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
     }
   };
 
+  const handleDeleteQuotation = async (quotationId: string) => {
+    // Permission check (extra safety, though UI should hide it)
+    if (loggedInUser?.role !== 'super' && loggedInUser?.role !== 'super_admin') {
+      alert('Only super admins can delete quotations.');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this quotation? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await salesAPI.deleteQuotation(quotationId);
+      // Refresh list
+      fetchSalesPersonDetails();
+    } catch (error: any) {
+      console.error('❌ Delete failed:', error);
+      alert(`Failed to delete quotation: ${error.message}`);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -655,14 +676,28 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                         <p className="text-sm text-gray-600">Quotation ID: {quotation.quotationId}</p>
                                       </div>
                                     </div>
-                                    <button
-                                      onClick={() => handleViewPdf(quotation)}
-                                      className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors"
-                                      title="View/Download PDF"
-                                    >
-                                      <FileText className="w-4 h-4" />
-                                      <span>View PDF</span>
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => handleViewPdf(quotation)}
+                                        className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors"
+                                        title="View/Download PDF"
+                                      >
+                                        <FileText className="w-4 h-4" />
+                                        <span>View PDF</span>
+                                      </button>
+
+                                      {/* Delete Button - Super Admin Only */}
+                                      {(loggedInUser?.role === 'super' || loggedInUser?.role === 'super_admin') && (
+                                        <button
+                                          onClick={() => handleDeleteQuotation(quotation.quotationId)}
+                                          className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-red-200 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
+                                          title="Delete Quotation"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                          <span>Delete</span>
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
 
                                   {/* Product Specifications Grid */}
@@ -960,9 +995,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                       setDiscountPercent(0);
                                                     }
                                                   }}
-                                                  className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center"
+                                                  className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 rounded-md border border-indigo-200 transition-all shadow-sm text-xs font-semibold"
                                                 >
-                                                  <DollarSign className="w-3 h-3 mr-1" />
+                                                  <Percent className="w-3.5 h-3.5" />
                                                   {quotation.quotationData?.discountApplied ? 'Edit Discount' : 'Add Discount'}
                                                 </button>
                                               )}
@@ -1117,10 +1152,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           } : null}
           userRole="super"
           quotationId={selectedQuotation.quotationId}
-          onUpdate={() => {
-            console.log('🔄 Quotation updated, refreshing list...');
-            fetchSalesPersonDetails();
-          }}
         />
       )}
     </div>
