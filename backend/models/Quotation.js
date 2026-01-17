@@ -53,6 +53,11 @@ const quotationSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  originalTotalPrice: {
+    type: Number,
+    required: false,
+    default: 0
+  },
   pdfPage6HTML: {
     type: String,
     required: false

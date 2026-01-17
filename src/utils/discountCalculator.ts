@@ -22,12 +22,12 @@ export interface DiscountedPricingResult extends PricingCalculationResult {
   originalProductTotal: number;
   originalProcessorTotal: number;
   originalGrandTotal: number;
-  
+
   // Discounted values (after discount)
   discountedProductTotal: number;
   discountedProcessorTotal: number;
   discountedGrandTotal: number;
-  
+
   // Discount metadata
   discountInfo: DiscountInfo;
   discountAmount: number; // Total discount amount applied
@@ -60,7 +60,7 @@ export function applyDiscount(
   }
 
   const { discountType, discountPercent } = discountInfo;
-  
+
   // Validate discount percentage
   if (discountPercent < 0 || discountPercent > 100) {
     console.warn('Invalid discount percentage:', discountPercent);
@@ -77,10 +77,10 @@ export function applyDiscount(
     };
   }
 
-  // Store original values
-  const originalProductTotal = pricingResult.productTotal;
-  const originalProcessorTotal = pricingResult.processorTotal;
-  const originalGrandTotal = pricingResult.grandTotal;
+  // Store original values (use existing originals if available to avoid compounding discounts)
+  const originalProductTotal = (pricingResult as any).originalProductTotal || pricingResult.productTotal;
+  const originalProcessorTotal = (pricingResult as any).originalProcessorTotal || pricingResult.processorTotal;
+  const originalGrandTotal = (pricingResult as any).originalGrandTotal || pricingResult.grandTotal;
 
   let discountedProductTotal = originalProductTotal;
   let discountedProcessorTotal = originalProcessorTotal;
@@ -95,9 +95,9 @@ export function applyDiscount(
       discountedProductTotal = Math.round((originalProductTotal - discountAmount) * 100) / 100;
       // Recalculate grand total with discounted product total
       discountedGrandTotal = Math.round(
-        discountedProductTotal + 
-        originalProcessorTotal + 
-        pricingResult.structureTotal + 
+        discountedProductTotal +
+        originalProcessorTotal +
+        pricingResult.structureTotal +
         pricingResult.installationTotal
       );
       break;
@@ -108,9 +108,9 @@ export function applyDiscount(
       discountedProcessorTotal = Math.round((originalProcessorTotal - discountAmount) * 100) / 100;
       // Recalculate grand total with discounted processor total
       discountedGrandTotal = Math.round(
-        originalProductTotal + 
-        discountedProcessorTotal + 
-        pricingResult.structureTotal + 
+        originalProductTotal +
+        discountedProcessorTotal +
+        pricingResult.structureTotal +
         pricingResult.installationTotal
       );
       break;

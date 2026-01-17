@@ -1254,6 +1254,7 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
     // Update fields
     // We only update specific allowed fields to ensure data integrity
     if (updateData.totalPrice !== undefined) quotation.totalPrice = updateData.totalPrice;
+    if (updateData.originalTotalPrice !== undefined) quotation.originalTotalPrice = updateData.originalTotalPrice;
     if (updateData.exactPricingBreakdown !== undefined) quotation.exactPricingBreakdown = updateData.exactPricingBreakdown;
     if (updateData.exactProductSpecs !== undefined) quotation.exactProductSpecs = updateData.exactProductSpecs;
     if (updateData.quotationData !== undefined) {

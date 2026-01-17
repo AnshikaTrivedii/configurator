@@ -26,6 +26,7 @@ interface Quotation {
   productName: string;
   productDetails: any;
   totalPrice: number;
+  originalTotalPrice?: number;
   message: string;
   createdAt: string;
   pdfS3Key?: string | null;
@@ -361,10 +362,53 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
             grandTotal: eb.grandTotal || 0,
 
+            // Restoration of original values for preventing compounded discounts
+            originalProductTotal: undefined,
+            originalProcessorTotal: undefined,
+            originalGrandTotal: undefined,
+
             userType: quotation.userTypeDisplayName || 'End User',
             productName: quotation.productName || 'Unknown Product',
             isAvailable: true
           };
+
+          // If discount was already applied, we need to restore original values to prevent compounding
+          // Priority: 1. Use stored originalTotalPrice if available (New Schema)
+          // Priority: 2. Restore from discount amount (Backwards Compatibility)
+          if (quotation.originalTotalPrice && quotation.originalTotalPrice > 0) {
+            console.log('✅ Using stored originalTotalPrice:', quotation.originalTotalPrice);
+            (finalPricingResult as any).originalGrandTotal = quotation.originalTotalPrice;
+            // We should also try to restore product total if possible, but grandTotal is most critical for 'total' discounts
+            // For 'led' and 'controller' discounts, we might need to restore their specific totals if originalTotalPrice is present but components aren't
+            // But usually if originalTotalPrice is present, we are in a "good state"
+          } else if (quotation.quotationData?.discountApplied && quotation.quotationData.discountInfo) {
+            const di = quotation.quotationData.discountInfo;
+            const amount = di.amount || 0;
+            const type = di.type;
+
+            console.log('🔄 Restoring original price from existing discount:', { type, amount });
+
+            // Restore Grand Total (Always grandTotal + amount)
+            const restoredGrandTotal = (finalPricingResult.grandTotal || 0) + amount;
+            (finalPricingResult as any).originalGrandTotal = restoredGrandTotal;
+
+            // Restore other totals based on type
+            if (type === 'led') {
+              // Discount was on product (LED) price
+              // finalPricingResult.productTotal is the discounted one
+              (finalPricingResult as any).originalProductTotal = (finalPricingResult.productTotal || 0) + amount;
+            } else if (type === 'controller') {
+              // Discount was on processor (Controller) price
+              (finalPricingResult as any).originalProcessorTotal = (finalPricingResult.processorTotal || 0) + amount;
+            } else if (type === 'total') {
+              // Discount was on Grand Total only, product totals should be intact
+              // But we should verify if productTotal in `eb` is original.
+              // Logic in applyDiscount case 'total' leaves productTotal/processorTotal UNCHANGED (lines 122-123).
+              // So finalPricingResult.productTotal IS original.
+              (finalPricingResult as any).originalProductTotal = finalPricingResult.productTotal;
+              (finalPricingResult as any).originalProcessorTotal = finalPricingResult.processorTotal;
+            }
+          }
         }
       }
 
@@ -464,6 +508,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       // 3. Update Quotation
       const updateData = {
         totalPrice: discountedPricing.grandTotal,
+        originalTotalPrice: discountedPricing.originalGrandTotal,
         exactPricingBreakdown: newExactPricingBreakdown,
         pdfBase64: pdfBase64,
         quotationData: {
