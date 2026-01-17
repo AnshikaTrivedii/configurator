@@ -33,7 +33,7 @@ function getProductPriceForPdf(productDetails, userType = 'End User') {
         return productDetails.prices.cabinet.endCustomer;
       }
     }
-    
+
     // For regular products, use the appropriate price field based on user type
     if (userType === 'Reseller' && typeof productDetails.resellerPrice === 'number') {
       return productDetails.resellerPrice;
@@ -46,10 +46,10 @@ function getProductPriceForPdf(productDetails, userType = 'End User') {
       const parsedPrice = parseFloat(productDetails.price);
       return isNaN(parsedPrice) ? getDefaultProductPrice(productDetails) : parsedPrice;
     }
-    
+
     // Fallback to default pricing based on product ID
     return getDefaultProductPrice(productDetails);
-    
+
   } catch (error) {
     console.error('Error getting product price:', error);
     return getDefaultProductPrice(productDetails); // Fallback price
@@ -60,7 +60,7 @@ function getProductPriceForPdf(productDetails, userType = 'End User') {
 function getDefaultProductPrice(productDetails) {
   try {
     const productId = productDetails.productId || '';
-    
+
     // Product pricing mapping based on product ID (from products.ts)
     const productPricing = {
       'bellatrix-indoor-cob-p1.25': {
@@ -149,7 +149,7 @@ function getDefaultProductPrice(productDetails) {
         siChannelPrice: 72000
       }
     };
-    
+
     const pricing = productPricing[productId];
     if (pricing) {
       // Return the appropriate price based on user type
@@ -162,10 +162,10 @@ function getDefaultProductPrice(productDetails) {
         return pricing.price || 5300;
       }
     }
-    
+
     // If no specific pricing found, return default
     return 5300;
-    
+
   } catch (error) {
     console.error('Error getting default product price:', error);
     return 5300;
@@ -246,7 +246,7 @@ function getProcessorPrice(processorName, userType = 'End User') {
     } else {
       return processor.endUser;
     }
-    
+
   } catch (error) {
     console.error('Error getting processor price:', error);
     return 0;
@@ -254,6 +254,85 @@ function getProcessorPrice(processorName, userType = 'End User') {
 }
 
 const router = express.Router();
+
+// POST /api/sales/register (register new sales/partner user - admin only)
+router.post('/register', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is a super_admin or super user
+    if (req.user.role !== 'super' && req.user.role !== 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Super Admin role required.'
+      });
+    }
+
+    const {
+      email,
+      password,
+      name,
+      location,
+      contactNumber,
+      role = 'sales',
+      allowedCustomerTypes = []
+    } = req.body;
+
+    // Validate required fields
+    if (!email || !password || !name || !location || !contactNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await SalesUser.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+
+    // Hash password
+    const passwordHash = bcrypt.hashSync(password, 12);
+
+    // Create new user
+    const newUser = new SalesUser({
+      email: email.toLowerCase(),
+      name,
+      location,
+      contactNumber,
+      passwordHash,
+      role,
+      allowedCustomerTypes: role === 'partner' ? allowedCustomerTypes : [],
+      mustChangePassword: true,
+      passwordSetAt: null
+    });
+
+    await newUser.save();
+
+    console.log(`✅ Admin ${req.user.email} registered new user: ${email} (${role})`);
+
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
 
 // POST /api/sales/login
 router.post('/login', validateLogin, async (req, res) => {
@@ -265,7 +344,7 @@ router.post('/login', validateLogin, async (req, res) => {
     const user = await SalesUser.findOne({ email: email.toLowerCase() })
       .select('_id email name location contactNumber passwordHash mustChangePassword passwordSetAt role allowedCustomerTypes')
       .lean(); // Use lean() for better performance
-    
+
     console.log('🔐 Database user query result:', {
       email: user?.email,
       hasId: !!user?._id,
@@ -275,7 +354,7 @@ router.post('/login', validateLogin, async (req, res) => {
       role: user?.role,
       roleType: typeof user?.role
     });
-    
+
     if (!user) {
       return res.status(400).json({
         success: false,
@@ -295,18 +374,18 @@ router.post('/login', validateLogin, async (req, res) => {
     // Ensure role is set (default to 'sales' if not set)
     // This handles cases where users were created before role field was added
     const userRole = user.role || 'sales';
-    
+
     console.log('🔐 User login - email:', user.email);
     console.log('🔐 User role from DB:', user.role);
     console.log('🔐 Final userRole (with fallback):', userRole);
-    
+
     // Get allowed customer types for partners (empty array for non-partners)
     const allowedCustomerTypes = userRole === 'partner' ? (user.allowedCustomerTypes || []) : [];
-    
+
     // Generate JWT token with extended expiry for better session persistence
     const token = jwt.sign(
-      { 
-        id: user._id, 
+      {
+        id: user._id,
         email: user.email,
         name: user.name,
         location: user.location,
@@ -331,7 +410,7 @@ router.post('/login', validateLogin, async (req, res) => {
         message: 'Internal server error: User ID missing'
       });
     }
-    
+
     const userResponse = {
       _id: user._id.toString(), // CRITICAL: Include _id for quotation attribution
       name: user.name,
@@ -341,7 +420,7 @@ router.post('/login', validateLogin, async (req, res) => {
       role: userRole, // CRITICAL: Always include role, default to 'sales' if not set
       allowedCustomerTypes: allowedCustomerTypes // Include permissions for partners
     };
-    
+
     console.log('🔐 User response object:', {
       hasId: !!userResponse._id,
       idValue: userResponse._id,
@@ -350,7 +429,7 @@ router.post('/login', validateLogin, async (req, res) => {
       allowedCustomerTypes: userResponse.allowedCustomerTypes,
       allKeys: Object.keys(userResponse)
     });
-    
+
     console.log('🔐 Sending user response:', JSON.stringify(userResponse, null, 2));
     console.log('🔐 User response role:', userResponse.role);
     console.log('🔐 User response _id:', userResponse._id);
@@ -377,11 +456,11 @@ router.post('/login', validateLogin, async (req, res) => {
       user: userResponse,
       mustChangePassword: user.mustChangePassword
     };
-    
+
     console.log('🔐 FINAL RESPONSE PAYLOAD:', JSON.stringify(responsePayload, null, 2));
     console.log('🔐 FINAL RESPONSE user._id:', responsePayload.user._id);
     console.log('🔐 FINAL RESPONSE user keys:', Object.keys(responsePayload.user));
-    
+
     res.json(responsePayload);
 
   } catch (error) {
@@ -529,7 +608,7 @@ router.post('/change-password', authenticateToken, validateChangePassword, async
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
     const user = req.user;
-    
+
     // CRITICAL: Ensure _id exists and convert to string
     if (!user._id) {
       console.error('❌ Profile: req.user missing _id!', {
@@ -542,7 +621,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
         message: 'Internal server error: User ID missing'
       });
     }
-    
+
     // Get allowed customer types for partners
     const allowedCustomerTypes = user.role === 'partner' ? (user.allowedCustomerTypes || []) : [];
 
@@ -576,7 +655,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
 router.post('/reset-password', async (req, res) => {
   try {
     const { email, secretKey } = req.body;
-    
+
     // Simple secret key check (remove this endpoint after use)
     if (secretKey !== 'reset123') {
       return res.status(401).json({
@@ -629,26 +708,26 @@ router.get('/test-routes', (req, res) => {
 router.get('/test-db', async (req, res) => {
   try {
     console.log('🔍 Testing database connection from server...');
-    
+
     const mongoose = await import('mongoose');
     const { default: Quotation } = await import('../models/Quotation.js');
-    
+
     // Test database connection
     const connectionState = mongoose.default.connection.readyState;
     const dbName = mongoose.default.connection.db.databaseName;
     const host = mongoose.default.connection.host;
     const port = mongoose.default.connection.port;
-    
+
     console.log('📊 Database connection details:');
     console.log('   State:', connectionState);
     console.log('   Database:', dbName);
     console.log('   Host:', host);
     console.log('   Port:', port);
-    
+
     // Test query
     const count = await Quotation.countDocuments();
     console.log('📊 Total quotations in database:', count);
-    
+
     // Test creating a quotation
     const testQuotation = new Quotation({
       quotationId: 'DB-TEST-' + Date.now(),
@@ -664,19 +743,19 @@ router.get('/test-db', async (req, res) => {
       userTypeDisplayName: 'DB Test User',
       totalPrice: 999999
     });
-    
+
     console.log('💾 Attempting to save test quotation...');
     await testQuotation.save();
     console.log('✅ Test quotation saved successfully:', testQuotation.quotationId);
-    
+
     // Verify it was saved
     const savedQuotation = await Quotation.findById(testQuotation._id);
     console.log('🔍 Verification - Quotation found:', !!savedQuotation);
-    
+
     // Clean up
     await Quotation.deleteOne({ _id: testQuotation._id });
     console.log('🧹 Test quotation cleaned up');
-    
+
     res.json({
       success: true,
       message: 'Database test successful',
@@ -688,7 +767,7 @@ router.get('/test-db', async (req, res) => {
       testQuotationId: testQuotation.quotationId,
       verificationPassed: !!savedQuotation
     });
-    
+
   } catch (error) {
     console.error('❌ Database test failed:', error.message);
     res.status(500).json({
@@ -704,9 +783,9 @@ router.post('/test-quotation', async (req, res) => {
   try {
     console.log('🧪 SIMPLE TEST: Received quotation request');
     console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
-    
+
     const { default: Quotation } = await import('../models/Quotation.js');
-    
+
     const quotation = new Quotation({
       quotationId: req.body.quotationId || 'SIMPLE-TEST-' + Date.now(),
       salesUserId: new mongoose.Types.ObjectId(),
@@ -721,19 +800,19 @@ router.post('/test-quotation', async (req, res) => {
       userTypeDisplayName: req.body.userTypeDisplayName || 'Simple Test User',
       totalPrice: req.body.totalPrice || 100000
     });
-    
+
     console.log('💾 SIMPLE TEST: Attempting to save quotation...');
     await quotation.save();
-    
+
     console.log('✅ SIMPLE TEST: Quotation saved successfully:', quotation.quotationId);
-    
+
     res.json({
       success: true,
       message: 'Simple test quotation saved successfully',
       quotationId: quotation.quotationId,
       totalPrice: quotation.totalPrice
     });
-    
+
   } catch (error) {
     console.error('❌ SIMPLE TEST: Save error:', error.message);
     res.status(500).json({
@@ -752,7 +831,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
   console.log('⏰ Request timestamp:', new Date().toISOString());
   console.log('🌐 Request IP:', req.ip || req.connection.remoteAddress);
   console.log('🔑 Authorization header present:', !!req.headers.authorization);
-  
+
   try {
     console.log('🔄 Received quotation save request');
     console.log('👤 User:', req.user?.name, req.user?.email);
@@ -766,7 +845,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       providedSalesUserIdString: req.body.salesUserId?.toString(),
       providedSalesUserName: req.body.salesUserName
     });
-    
+
     // Check if user has permission to create quotations
     // Partners are allowed to create quotations just like sales users
     const allowedRoles = ['sales', 'partner', 'super', 'super_admin', 'superadmin', 'admin'];
@@ -777,7 +856,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
         message: 'Access denied. Sales, Partner, Super Admin, or Admin role required to create quotations.'
       });
     }
-    
+
     const {
       quotationId,
       customerName,
@@ -837,7 +916,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
     //   - Otherwise → No assignment → owner is the logged-in user
     let finalSalesUserId;
     let finalSalesUserName;
-    
+
     if (req.body.salesUserId) {
       // Super user assigned someone
       // Validate ObjectId format
@@ -848,11 +927,11 @@ router.post('/quotation', authenticateToken, async (req, res) => {
           message: 'Invalid salesUserId format. Must be a valid MongoDB ObjectId.'
         });
       }
-      
+
       // Convert to ObjectId and validate user exists
       const salesUserIdToFind = new mongoose.Types.ObjectId(req.body.salesUserId);
       const assignedUser = await SalesUser.findById(salesUserIdToFind);
-      
+
       if (!assignedUser) {
         console.error('❌ Provided salesUserId does not exist:', req.body.salesUserId);
         return res.status(400).json({
@@ -860,11 +939,11 @@ router.post('/quotation', authenticateToken, async (req, res) => {
           message: 'Invalid salesUserId. The specified sales user does not exist.'
         });
       }
-      
+
       // Use the assigned user's ID (as ObjectId) and name
       finalSalesUserId = assignedUser._id; // Already an ObjectId from database
       finalSalesUserName = req.body.salesUserName || assignedUser.name;
-      
+
       console.log('✅ Super user assigned quotation to:', {
         assignedUserId: finalSalesUserId.toString(),
         assignedUserName: finalSalesUserName,
@@ -874,14 +953,14 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       // No assignment → owner is the logged-in user
       finalSalesUserId = req.user._id;
       finalSalesUserName = req.user.name;
-      
+
       console.log('✅ No assignment - quotation owned by logged-in user:', {
         ownerId: finalSalesUserId.toString(),
         ownerName: finalSalesUserName,
         ownerRole: req.user.role
       });
     }
-    
+
     // CRITICAL: Ensure finalSalesUserId is an ObjectId before saving
     if (!(finalSalesUserId instanceof mongoose.Types.ObjectId)) {
       try {
@@ -894,10 +973,10 @@ router.post('/quotation', authenticateToken, async (req, res) => {
         });
       }
     }
-    
+
     // Log final assignment BEFORE save
     console.log('FINAL ASSIGNMENT →', finalSalesUserName, finalSalesUserId.toString());
-    
+
     console.log('📊 FINAL ATTRIBUTION:', {
       quotationId,
       finalSalesUserId: finalSalesUserId.toString(),
@@ -911,7 +990,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
     // Upload PDF to S3 if provided
     let pdfS3Key = null;
     let pdfS3Url = null;
-    
+
     if (pdfBase64) {
       try {
         console.log('📤 Processing PDF upload to S3...', {
@@ -919,21 +998,21 @@ router.post('/quotation', authenticateToken, async (req, res) => {
           salesUserId: finalSalesUserId.toString(),
           pdfBase64Length: pdfBase64.length
         });
-        
+
         // Convert base64 to buffer
         const pdfBuffer = Buffer.from(pdfBase64, 'base64');
         console.log('📦 PDF buffer created:', {
           bufferSize: pdfBuffer.length,
           isValid: pdfBuffer.length > 0
         });
-        
+
         // Upload to S3
         pdfS3Key = await uploadPdfToS3(pdfBuffer, quotationId, finalSalesUserId.toString());
         console.log('✅ PDF uploaded to S3, key:', pdfS3Key);
-        
+
         // Generate presigned URL (valid for 1 hour, can be regenerated when needed)
         pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
-        
+
         console.log('✅ PDF uploaded to S3 successfully:', {
           quotationId,
           s3Key: pdfS3Key,
@@ -992,14 +1071,14 @@ router.post('/quotation', authenticateToken, async (req, res) => {
     console.log('💾 Attempting to save quotation to database...');
     console.log('📋 Quotation object before save:', JSON.stringify(quotation, null, 2));
     console.log('🔍 Database connection state:', mongoose.connection.readyState);
-    
+
     // Write to file to verify code execution
     fs.writeFileSync('quotation-save-debug.txt', `QUOTATION SAVE ATTEMPT - ${new Date().toISOString()}\nQuotation ID: ${quotation.quotationId}\n`);
-    
+
     try {
       const saveResult = await quotation.save();
       console.log('📊 Save result:', saveResult);
-      
+
       // Write success to file
       fs.writeFileSync('quotation-save-debug.txt', `SUCCESS: Quotation saved with ID ${quotation.quotationId}\n`, { flag: 'a' });
     } catch (saveError) {
@@ -1007,7 +1086,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       fs.writeFileSync('quotation-save-debug.txt', `ERROR: ${saveError.message}\n`, { flag: 'a' });
       throw saveError;
     }
-    
+
     console.log('✅ DATABASE SAVE SUCCESSFUL!');
     console.log('🆔 Saved quotation ID:', quotation.quotationId);
     console.log('🆔 MongoDB document ID:', quotation._id);
@@ -1024,7 +1103,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       isAssigned: quotation.salesUserId.toString() !== req.user._id.toString(),
       note: 'Dashboard will count this quotation under salesUserId above'
     });
-    
+
     // CRITICAL: Verify the saved quotation has correct salesUserId
     const savedQuotation = await Quotation.findById(quotation._id);
     if (savedQuotation) {
@@ -1037,7 +1116,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
         expectedSalesUserId: finalSalesUserId.toString(),
         matchesExpected: savedQuotation.salesUserId.toString() === finalSalesUserId.toString()
       });
-      
+
       if (savedQuotation.salesUserId.toString() !== finalSalesUserId.toString()) {
         console.error('❌ CRITICAL ERROR: Saved salesUserId does not match expected!', {
           expected: finalSalesUserId.toString(),
@@ -1062,14 +1141,14 @@ router.post('/quotation', authenticateToken, async (req, res) => {
         createdAt: quotation.createdAt
       }
     };
-    
+
     console.log('📤 Sending success response:', JSON.stringify(response, null, 2));
-    
+
     const endTime = Date.now();
     const duration = endTime - startTime;
     console.log('⏱️ Request processing time:', duration + 'ms');
     console.log('🏁 ===== QUOTATION SAVE REQUEST COMPLETE =====');
-    
+
     res.json(response);
 
   } catch (error) {
@@ -1084,7 +1163,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       name: req.user?.name,
       email: req.user?.email
     });
-    
+
     // Handle specific MongoDB errors
     if (error.code === 11000) {
       return res.status(400).json({
@@ -1092,12 +1171,12 @@ router.post('/quotation', authenticateToken, async (req, res) => {
         message: 'Quotation ID already exists'
       });
     }
-    
+
     const endTime = Date.now();
     const duration = endTime - startTime;
     console.log('⏱️ Request processing time (error):', duration + 'ms');
     console.log('🏁 ===== QUOTATION SAVE REQUEST FAILED =====');
-    
+
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -1131,7 +1210,7 @@ router.post('/quotation/:quotationId/upload-pdf', authenticateToken, async (req,
     // Check permissions - only the owner or super admin can upload PDF
     const isOwner = quotation.salesUserId.toString() === req.user._id.toString();
     const isSuperAdmin = ['super', 'super_admin', 'superadmin', 'admin'].includes(req.user.role);
-    
+
     if (!isOwner && !isSuperAdmin) {
       return res.status(403).json({
         success: false,
@@ -1192,7 +1271,7 @@ router.get('/quotation/:quotationId/pdf-url', authenticateToken, async (req, res
     // Check permissions
     const isOwner = quotation.salesUserId.toString() === req.user._id.toString();
     const isSuperAdmin = ['super', 'super_admin', 'superadmin', 'admin'].includes(req.user.role);
-    
+
     if (!isOwner && !isSuperAdmin) {
       return res.status(403).json({
         success: false,
@@ -1263,17 +1342,17 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
       .select('name email location contactNumber createdAt role allowedCustomerTypes')
       .lean();
 
-      // CRITICAL: Get quotation counts for each user
-      // Uses salesUserId field in quotations to determine attribution
-      // This ensures quotations assigned by superadmin to other users are counted correctly
+    // CRITICAL: Get quotation counts for each user
+    // Uses salesUserId field in quotations to determine attribution
+    // This ensures quotations assigned by superadmin to other users are counted correctly
     const usersWithQuotationCounts = await Promise.all(
       salesUsers.map(async (user) => {
         // CRITICAL: Convert user._id to ObjectId for proper comparison
         // user._id from .lean() might be a string, but quotation.salesUserId is ObjectId
-        const userIdForQuery = user._id instanceof mongoose.Types.ObjectId 
-          ? user._id 
+        const userIdForQuery = user._id instanceof mongoose.Types.ObjectId
+          ? user._id
           : new mongoose.Types.ObjectId(user._id.toString());
-        
+
         // Count quotations where salesUserId matches this user
         // This is the authoritative field for quotation attribution
         const quotationCount = await Quotation.countDocuments({
@@ -1310,7 +1389,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
             dateFilter,
             note: 'Checking quotations where salesUserId matches this user'
           });
-          
+
           // Also check raw quotations for debugging
           const debugQuotations = await Quotation.find({ salesUserId: userIdForQuery }).select('quotationId salesUserId totalPrice createdAt').lean();
           console.log('🔍 DEBUG - Quotations found for Rajneesh:', {
@@ -1347,32 +1426,32 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     const validPerformers = usersWithQuotationCounts.filter(user => user.quotationCount > 0);
     const maxQuotationCount = validPerformers.length > 0 ? validPerformers[0].quotationCount : 0;
     const topPerformers = validPerformers.filter(user => user.quotationCount === maxQuotationCount);
-    
+
     // Add additional statistics
     const totalRevenue = await Quotation.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           ...dateFilter
-        } 
+        }
       },
       { $group: { _id: null, total: { $sum: '$totalPrice' } } }
     ]);
-    
+
     const quotationsByMonth = await Quotation.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           ...dateFilter
-        } 
+        }
       },
-      { 
-        $group: { 
-          _id: { 
-            year: { $year: '$createdAt' }, 
-            month: { $month: '$createdAt' } 
-          }, 
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
           count: { $sum: 1 },
           revenue: { $sum: '$totalPrice' }
-        } 
+        }
       },
       { $sort: { '_id.year': -1, '_id.month': -1 } },
       { $limit: 12 }
@@ -1432,12 +1511,12 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
 
     // Group quotations by customer
     const customerMap = new Map();
-    
+
     let totalRevenue = 0;
-    
+
     quotations.forEach(quotation => {
       const customerKey = `${quotation.customerEmail}-${quotation.customerName}`;
-      
+
       if (!customerMap.has(customerKey)) {
         customerMap.set(customerKey, {
           customerName: quotation.customerName,
@@ -1448,9 +1527,9 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
           quotations: []
         });
       }
-      
+
       totalRevenue += quotation.totalPrice || 0;
-      
+
       customerMap.get(customerKey).quotations.push({
         quotationId: quotation.quotationId,
         productName: quotation.productName,
@@ -1530,7 +1609,7 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
       providedIdType: typeof id,
       isValidObjectId: mongoose.Types.ObjectId.isValid(id)
     });
-    
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
       console.error('❌ Invalid ObjectId format for salesperson ID:', id);
       return res.status(400).json({
@@ -1538,16 +1617,16 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
         message: 'Invalid salesperson ID format'
       });
     }
-    
+
     const userIdForQuery = new mongoose.Types.ObjectId(id);
-    
+
     console.log('🔍 SalesPersonDetails - Query details:', {
       providedId: id,
       userIdForQuery: userIdForQuery,
       userIdForQueryType: userIdForQuery.constructor.name,
       userIdForQueryString: userIdForQuery.toString()
     });
-    
+
     const quotations = await Quotation.find({ salesUserId: userIdForQuery })
       .sort({ createdAt: -1 })
       .lean();
@@ -1569,10 +1648,10 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
 
     // Group quotations by customer
     const customerMap = new Map();
-    
+
     quotations.forEach(quotation => {
       const customerKey = `${quotation.customerEmail}-${quotation.customerName}`;
-      
+
       if (!customerMap.has(customerKey)) {
         customerMap.set(customerKey, {
           customerName: quotation.customerName,
@@ -1583,12 +1662,12 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
           quotations: []
         });
       }
-      
+
       // CRITICAL: Use the stored price directly from the database
       // This price INCLUDES 18% GST and matches the PDF Grand Total exactly
       // Do NOT recalculate - always use the stored value to match the PDF
       console.log(`💰 Quotation ${quotation.quotationId}: Stored price = ₹${quotation.totalPrice?.toLocaleString('en-IN') || 'N/A'} (incl. GST)`);
-      
+
       customerMap.get(customerKey).quotations.push({
         quotationId: quotation.quotationId,
         productName: quotation.productName,
@@ -1636,25 +1715,25 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
 // Generate globally unique quotation ID with atomic serial number generation
 router.post('/generate-quotation-id', async (req, res) => {
   const session = await mongoose.startSession();
-  
+
   try {
     await session.withTransaction(async () => {
       console.log('🔍 Generating globally unique quotation ID...');
       const { firstName, year, month, day } = req.body;
-      
+
       if (!firstName || !year || !month || !day) {
         throw new Error('Missing required fields: firstName, year, month, day');
       }
-      
+
       console.log('📊 Generating ID for user:', firstName, 'on date:', `${day}/${month}/${year}`);
-      
+
       // Step 1: Get the highest serial number ever used in ANY quotation ID
       const latestQuotation = await Quotation.findOne({
         quotationId: { $regex: /^ORION\/\d{4}\/\d{2}\/\d{2}\/[A-Z]+\/\d{3}$/ }
       }).sort({ quotationId: -1 }).session(session);
-      
+
       let nextSerial = 1; // Default to 001 if no quotations exist
-      
+
       if (latestQuotation && latestQuotation.quotationId) {
         // Extract the serial number from the latest quotation ID
         const parts = latestQuotation.quotationId.split('/');
@@ -1666,23 +1745,23 @@ router.post('/generate-quotation-id', async (req, res) => {
       } else {
         console.log('ℹ️ No existing quotations found, starting with serial 001');
       }
-      
+
       // Step 2: Generate the new quotation ID
       const serial = nextSerial.toString().padStart(3, '0');
       const quotationId = `ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/${serial}`;
-      
+
       // Step 3: Safety check - verify the new ID doesn't already exist
       const existingQuotation = await Quotation.findOne({ quotationId }).session(session);
       if (existingQuotation) {
         // If ID exists, find the next available serial number
         console.log('⚠️ Generated ID already exists, finding next available...');
-        
+
         // Get all quotations with the same prefix (ORION/YYYY/MM/DD/FIRSTNAME/)
         const prefix = `ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/`;
         const existingQuotations = await Quotation.find({
           quotationId: { $regex: new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\d{3}$`) }
         }).sort({ quotationId: -1 }).session(session);
-        
+
         let maxSerial = 0;
         existingQuotations.forEach(q => {
           const parts = q.quotationId.split('/');
@@ -1691,13 +1770,13 @@ router.post('/generate-quotation-id', async (req, res) => {
             maxSerial = Math.max(maxSerial, serialNum);
           }
         });
-        
+
         nextSerial = maxSerial + 1;
         const newSerial = nextSerial.toString().padStart(3, '0');
         const newQuotationId = `ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/${newSerial}`;
-        
+
         console.log('✅ Generated new unique ID:', newQuotationId);
-        
+
         res.json({
           success: true,
           quotationId: newQuotationId,
@@ -1707,7 +1786,7 @@ router.post('/generate-quotation-id', async (req, res) => {
         });
       } else {
         console.log('✅ Generated unique ID:', quotationId);
-        
+
         res.json({
           success: true,
           quotationId,
@@ -1717,13 +1796,13 @@ router.post('/generate-quotation-id', async (req, res) => {
         });
       }
     });
-    
+
   } catch (error) {
     console.error('❌ Error generating quotation ID:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: 'Failed to generate quotation ID',
-      details: error.message 
+      details: error.message
     });
   } finally {
     await session.endSession();
@@ -1735,24 +1814,24 @@ router.post('/check-latest-quotation-id', async (req, res) => {
   try {
     console.log('🔍 Checking latest quotation ID...');
     const { firstName, year, month, day } = req.body;
-    
+
     if (!firstName || !year || !month || !day) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Missing required fields: firstName, year, month, day' 
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: firstName, year, month, day'
       });
     }
-    
+
     console.log('📊 Checking for user:', firstName, 'on date:', `${day}/${month}/${year}`);
-    
+
     // Create regex pattern to match quotation IDs for this user and date
     const pattern = new RegExp(`^ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/\\d{3}$`);
-    
+
     // Find the latest quotation ID matching this pattern
     const latestQuotation = await Quotation.findOne({
       quotationId: { $regex: pattern }
     }).sort({ quotationId: -1 });
-    
+
     let latestSerial = 0;
     if (latestQuotation && latestQuotation.quotationId) {
       // Extract the serial number from the quotation ID
@@ -1764,20 +1843,20 @@ router.post('/check-latest-quotation-id', async (req, res) => {
     } else {
       console.log('ℹ️ No existing quotations found for this user and date');
     }
-    
+
     res.json({
       success: true,
       latestSerial,
       pattern: pattern.toString(),
       foundQuotation: latestQuotation ? latestQuotation.quotationId : null
     });
-    
+
   } catch (error) {
     console.error('❌ Error checking latest quotation ID:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: 'Failed to check latest quotation ID',
-      details: error.message 
+      details: error.message
     });
   }
 });

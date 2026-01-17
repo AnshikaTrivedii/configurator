@@ -65,7 +65,7 @@ class SalesAPI {
       console.log('📧 Email:', email);
       console.log('🔐 Environment:', import.meta.env.MODE);
       console.log('🔐 VITE_API_URL:', import.meta.env.VITE_API_URL);
-      
+
       const response = await fetch(`${API_BASE_URL}/sales/login`, {
         method: 'POST',
         headers: {
@@ -145,7 +145,7 @@ class SalesAPI {
       console.error('❌ Full error object:', error);
       console.error('❌ API Base URL:', API_BASE_URL);
       console.error('❌ =================================');
-      
+
       // Handle network errors (fetch failed completely - CORS, connection refused, etc.)
       if (error instanceof TypeError) {
         if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
@@ -158,7 +158,7 @@ class SalesAPI {
           throw new Error('CORS error: Backend server is not allowing requests from this origin. Please check CORS configuration in backend/server.js');
         }
       }
-      
+
       // Re-throw other errors with their original messages
       throw error;
     }
@@ -271,11 +271,11 @@ class SalesAPI {
     console.log('🌐 Making API call to dashboard endpoint...');
     console.log('🔗 API URL:', `${API_BASE_URL}/sales/dashboard`);
     console.log('🔑 Auth headers:', this.getAuthHeaders());
-    
+
     // Add cache-busting parameter
     const url = `${API_BASE_URL}/sales/dashboard?t=${Date.now()}`;
     console.log('🔗 Final URL:', url);
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: this.getAuthHeaders()
@@ -301,7 +301,7 @@ class SalesAPI {
     console.log('💰 API totalRevenue === 0:', apiStats.totalRevenue === 0);
     console.log('💰 API totalRevenue == 0:', apiStats.totalRevenue == 0);
     console.log('💰 API totalRevenue || 0:', apiStats.totalRevenue || 0);
-    
+
     const stats = {
       totalSalesPersons: salesPersons.length,
       totalQuotations: salesPersons.reduce((sum: number, person: any) => sum + person.quotationCount, 0),
@@ -334,7 +334,7 @@ class SalesAPI {
       payloadKeys: Object.keys(quotationData),
       timestamp: new Date().toISOString()
     });
-    
+
     const response = await fetch(`${API_BASE_URL}/sales/quotation`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -350,19 +350,19 @@ class SalesAPI {
     return data;
   }
 
-  async getSalesPersonDetails(salesPersonId: string): Promise<{ 
-    success: boolean; 
-    salesPerson: any; 
-    customers: any[]; 
-    totalQuotations: number; 
-    totalCustomers: number 
+  async getSalesPersonDetails(salesPersonId: string): Promise<{
+    success: boolean;
+    salesPerson: any;
+    customers: any[];
+    totalQuotations: number;
+    totalCustomers: number
   }> {
     console.log('🌐 API Call: getSalesPersonDetails for ID:', salesPersonId);
-    
+
     // Add cache-busting parameter to ensure fresh data
     const url = `${API_BASE_URL}/sales/salesperson/${salesPersonId}?t=${Date.now()}`;
     console.log('🔗 Final URL:', url);
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: this.getAuthHeaders()
@@ -389,11 +389,11 @@ class SalesAPI {
     return data;
   }
 
-  async getMyDashboard(): Promise<{ 
-    success: boolean; 
-    salesPerson: any; 
-    customers: any[]; 
-    totalQuotations: number; 
+  async getMyDashboard(): Promise<{
+    success: boolean;
+    salesPerson: any;
+    customers: any[];
+    totalQuotations: number;
     totalCustomers: number;
     totalRevenue: number;
   }> {
@@ -429,9 +429,9 @@ class SalesAPI {
   /**
    * Upload PDF to S3 for an existing quotation
    */
-  async uploadQuotationPdf(quotationId: string, pdfBlob: Blob): Promise<{ 
-    success: boolean; 
-    pdfS3Key: string; 
+  async uploadQuotationPdf(quotationId: string, pdfBlob: Blob): Promise<{
+    success: boolean;
+    pdfS3Key: string;
     pdfS3Url: string;
     message: string;
   }> {
@@ -461,9 +461,9 @@ class SalesAPI {
   /**
    * Get presigned URL for PDF from S3
    */
-  async getQuotationPdfUrl(quotationId: string): Promise<{ 
-    success: boolean; 
-    pdfS3Url: string; 
+  async getQuotationPdfUrl(quotationId: string): Promise<{
+    success: boolean;
+    pdfS3Url: string;
     pdfS3Key: string;
   }> {
     const response = await fetch(`${API_BASE_URL}/sales/quotation/${quotationId}/pdf-url`, {
@@ -475,6 +475,24 @@ class SalesAPI {
 
     if (!response.ok) {
       throw new Error(data.message || 'Failed to get PDF URL');
+    }
+
+    return data;
+  }
+  /**
+   * Register a new user (admin only)
+   */
+  async registerUser(userData: any): Promise<{ success: boolean; message: string; user: SalesUser }> {
+    const response = await fetch(`${API_BASE_URL}/sales/register`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(userData)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to register user');
     }
 
     return data;

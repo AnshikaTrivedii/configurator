@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Users, FileText, MapPin, Download, RefreshCw } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { SalesPersonDetailsModal } from './SalesPersonDetailsModal';
+import { AddUserModal } from './AddUserModal';
 
 const DASHBOARD_REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -54,18 +55,19 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
   });
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState<string | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
   const isFetchingRef = useRef(false);
 
   useEffect(() => {
     fetchDashboardData();
-    
+
     // Auto-refresh every 30 minutes to show new data
     const interval = setInterval(() => {
       console.log('🔄 Auto-refreshing dashboard data (30-minute interval)...');
       fetchDashboardData();
     }, DASHBOARD_REFRESH_INTERVAL_MS);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -78,10 +80,10 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log('🔄 Fetching dashboard data...', forceRefresh ? '(FORCE REFRESH)' : '');
       console.log('🔑 Auth token present:', !!localStorage.getItem('salesToken'));
-      
+
       // Clear any cached data if force refresh
       if (forceRefresh) {
         console.log('🧹 Clearing cached data for force refresh...');
@@ -89,7 +91,7 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
         const timestamp = Date.now();
         console.log('⏰ Force refresh timestamp:', timestamp);
       }
-      
+
       // Fetch sales persons data
       const response = await salesAPI.getSalesPersons();
       console.log('📊 Dashboard API response:', response);
@@ -97,7 +99,7 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
       console.log('📈 Stats:', response.stats);
       console.log('💰 Total Revenue from API:', response.stats?.totalRevenue);
       console.log('📊 Total Quotations from API:', response.stats?.totalQuotations);
-      
+
       setSalesPersons(response.salesPersons || []);
       setStats(response.stats || null);
       setLastRefreshTime(new Date());
@@ -114,10 +116,10 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
 
   const filteredSalesPersons = salesPersons.filter(person => {
     const matchesLocation = !filters.location || person.location.toLowerCase().includes(filters.location.toLowerCase());
-    const matchesSearch = !filters.search || 
+    const matchesSearch = !filters.search ||
       person.name.toLowerCase().includes(filters.search.toLowerCase()) ||
       person.email.toLowerCase().includes(filters.search.toLowerCase());
-    
+
     return matchesLocation && matchesSearch;
   });
 
@@ -175,7 +177,7 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
             <p className="text-red-600 mb-4">{error}</p>
             <button
-              onClick={fetchDashboardData}
+              onClick={() => fetchDashboardData()}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
               Retry
@@ -202,6 +204,13 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
               )}
             </div>
             <div className="flex space-x-3">
+              <button
+                onClick={() => setIsAddUserModalOpen(true)}
+                className="flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Add User
+              </button>
               <button
                 onClick={() => fetchDashboardData(true)}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -348,7 +357,7 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
             <h3 className="text-lg font-medium text-gray-900">Sales Team & Partners</h3>
             <p className="text-sm text-gray-600">Showing {filteredSalesPersons.length} of {salesPersons.length} users (Sales + Partners)</p>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -425,11 +434,10 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        person.quotationCount > 0 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${person.quotationCount > 0
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                        }`}>
                         {person.quotationCount > 0 ? 'Active' : 'Inactive'}
                       </span>
                     </td>
@@ -447,6 +455,16 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
         onClose={handleCloseDetailsModal}
         salesPersonId={selectedSalesPersonId}
         loggedInUser={loggedInUser}
+      />
+
+      {/* Add User Modal */}
+      <AddUserModal
+        isOpen={isAddUserModalOpen}
+        onClose={() => setIsAddUserModalOpen(false)}
+        onUserAdded={() => {
+          fetchDashboardData(true);
+          setIsAddUserModalOpen(false);
+        }}
       />
     </div>
   );
