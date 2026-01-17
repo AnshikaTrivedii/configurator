@@ -2,13 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, Download, Save } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
-import { getProcessorPrice } from '../utils/processorPrices';
+// import { getProcessorPrice } from '../utils/processorPrices';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { applyDiscount, DiscountInfo } from '../utils/discountCalculator';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
 
 // Conversion constant
-const METERS_TO_FEET = 3.2808399;
+// Conversion constant removed unused
 
 // Helper function to trigger PDF download reliably
 const triggerPdfDownload = (blob: Blob, fileName: string, setBlob?: (blob: Blob) => void, setUrl?: (url: string) => void) => {
@@ -26,27 +26,27 @@ const triggerPdfDownload = (blob: Blob, fileName: string, setBlob?: (blob: Blob)
 
   try {
     const url = window.URL.createObjectURL(blob);
-    
+
     // Store blob and URL for manual download if automatic fails
     if (setBlob) setBlob(blob);
     if (setUrl) setUrl(url);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = fileName;
     link.style.display = 'none';
     link.setAttribute('download', fileName);
-    
+
     // Add to DOM
     document.body.appendChild(link);
-    
+
     console.log('🖱️ Clicking download link...');
-    
+
     // Trigger click immediately
     link.click();
-    
+
     // Note: Removed window.open fallback as it can cause navigation/page refresh issues
-    
+
     // Cleanup after delay to ensure download starts
     setTimeout(() => {
       if (link.parentNode) {
@@ -56,7 +56,7 @@ const triggerPdfDownload = (blob: Blob, fileName: string, setBlob?: (blob: Blob)
       // URL will be revoked when component unmounts or new PDF is generated
       console.log('✅ Download link removed (URL kept for manual download)');
     }, 1000);
-    
+
     console.log('✅ Download triggered successfully');
   } catch (error: any) {
     console.error('❌ Error triggering download:', error);
@@ -89,7 +89,7 @@ function calculateCorrectTotalPrice(
       config,
       customPricing
     );
-    
+
     // Check if price is available
     if (!pricingResult.isAvailable) {
       console.log('⚠️ PdfViewModal - Price not available:', {
@@ -99,11 +99,11 @@ function calculateCorrectTotalPrice(
       });
       return null;
     }
-    
+
     // Structure and Installation are now calculated separately in centralized pricing function
     // The grand total already includes them separately - never combined
     const grandTotal = pricingResult.grandTotal;
-    
+
     console.log('💰 PdfViewModal - Using Centralized Calculation:', {
       product: product.name,
       userType: pricingResult.userType,
@@ -118,9 +118,9 @@ function calculateCorrectTotalPrice(
       customPricing: customPricing?.enabled ? 'Enabled' : 'Disabled',
       note: 'Using centralized pricing function with Structure (separate) + Installation (separate)'
     });
-    
+
     return Math.round(grandTotal);
-    
+
   } catch (error) {
     console.error('Error in PdfViewModal calculation:', error);
     // Fallback to simple calculation
@@ -128,22 +128,11 @@ function calculateCorrectTotalPrice(
   }
 }
 
-// Get processor price based on user type (using centralized pricing)
-const getProcessorPriceLocal = (processor: string, userType: string): number => {
-  // Convert userType to match centralized pricing format
-  let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
-  if (userType === 'reseller') {
-    pdfUserType = 'Reseller';
-  } else if (userType === 'siChannel') {
-    pdfUserType = 'Channel';
-  }
-  
-  return getProcessorPrice(processor, pdfUserType);
-};
+// Helper function removed unused
 
 // Get user type display name
 const getUserTypeDisplayName = (type: string): string => {
-  switch(type) {
+  switch (type) {
     case 'siChannel':
       return 'SI/Channel Partner';
     case 'reseller':
@@ -182,6 +171,7 @@ interface PdfViewModalProps {
     structurePrice: number | null;
     installationPrice: number | null;
   };
+  onUpdate?: () => void; // Callback when quotation is updated
 }
 
 export const PdfViewModal: React.FC<PdfViewModalProps> = ({
@@ -189,7 +179,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   onClose,
   htmlContent,
   onDownload,
-  onDownloadDocx,
+  // onDownloadDocx, // Removed unused prop
   fileName,
   selectedProduct,
   config,
@@ -200,17 +190,20 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   salesUser,
   userRole,
   quotationId,
-  customPricing
+  customPricing,
+  onUpdate
 }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [salesPersons, setSalesPersons] = useState<any[]>([]);
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState<string | null>(null);
   const [loadingSalesPersons, setLoadingSalesPersons] = useState(false);
   const [generatedPdfBlob, setGeneratedPdfBlob] = useState<Blob | null>(null);
   const [pdfDownloadUrl, setPdfDownloadUrl] = useState<string | null>(null);
-  
+
   // Discount state (only for superadmin)
   const [discountType, setDiscountType] = useState<'led' | 'controller' | 'total' | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
@@ -224,7 +217,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         userInfo: userInfo ? { name: userInfo.fullName, userType: userInfo.userType } : null,
         quotationId: quotationId
       });
-      
+
       // Check if salesUser is missing for sales/partner users
       if ((userRole === 'sales' || userRole === 'partner') && !salesUser) {
         console.error('❌ CRITICAL: salesUser is missing for', userRole, 'user');
@@ -278,7 +271,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     }
 
     const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
-    
+
     // If no discount, use original HTML
     if (!isSuperAdmin || !discountType || discountPercent <= 0) {
       return htmlContent;
@@ -289,7 +282,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     const pricingResult = calculateCentralizedPricing(
       selectedProduct,
       cabinetGrid,
-      processor,
+      processor || null,
       userTypeForCalc,
       config,
       customPricing
@@ -363,7 +356,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           const response = await salesAPI.getSalesPersons();
           const persons = response.salesPersons || [];
           setSalesPersons(persons);
-          
+
           console.log('📋 Loaded sales persons for dropdown:', {
             count: persons.length,
             persons: persons.map(p => ({
@@ -373,7 +366,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
               email: p.email
             }))
           });
-          
+
           // Default to current user if available
           if (salesUser?._id) {
             const currentUserId = salesUser._id.toString();
@@ -419,23 +412,23 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       e.preventDefault();
       e.stopPropagation();
     }
-    
+
     // Prevent multiple simultaneous saves
     if (isSaving) {
       console.log('⚠️ Save already in progress, ignoring duplicate click');
       return;
     }
-    
+
     // For superadmin, require salesUser or selectedSalesPersonId
     const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
     const isPartner = userRole === 'partner';
     const isSalesUser = userRole === 'sales';
-    
+
     if (isSuperAdmin && !salesUser && !selectedSalesPersonId) {
       setSaveError('Please select a sales person to assign this quotation to');
       return;
     }
-    
+
     // For sales users and partners, salesUser is required
     if ((isSalesUser || isPartner) && !salesUser) {
       console.error('❌ Missing salesUser for sales/partner:', {
@@ -448,7 +441,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       setIsSaving(false);
       return;
     }
-    
+
     // CRITICAL: Check if salesUser has _id (required for saving quotations)
     if ((isSalesUser || isPartner) && salesUser && !salesUser._id) {
       console.error('❌ CRITICAL: salesUser missing _id field:', {
@@ -461,7 +454,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       setIsSaving(false);
       return;
     }
-    
+
     if ((!isSuperAdmin && !salesUser) || !selectedProduct || !userInfo) {
       console.error('❌ Missing required data:', {
         isSuperAdmin: isSuperAdmin,
@@ -481,26 +474,26 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     // Use already generated PDF if available (from button click), otherwise generate it
     let pdfBlob: Blob | null = generatedPdfBlob || null;
     let pdfUrl: string | null = pdfDownloadUrl || null;
-    
+
     // Only generate PDF if we don't already have it (it was generated in button click handler)
     if (!pdfBlob || !pdfUrl) {
       try {
         console.log('📄 Generating PDF in handleSave (not generated in button click)...');
         const { generateConfigurationPdf } = await import('../utils/docxGenerator');
-        
+
         // Calculate pricing for PDF
         const userTypeForCalc = getUserType();
         const pricingResult = calculateCentralizedPricing(
           selectedProduct,
           cabinetGrid,
-          processor,
+          processor || null,
           userTypeForCalc,
           config || { width: 2400, height: 1010, unit: 'mm' },
           customPricing
         );
 
         // Apply discount if applicable
-        let finalPricingResult = pricingResult;
+        let finalPricingResult = pricingResult as any;
         if (isSuperAdmin && discountType && discountPercent > 0) {
           const discountInfo: DiscountInfo = {
             discountType,
@@ -548,13 +541,13 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         pdfUrl = window.URL.createObjectURL(pdfBlob);
         setGeneratedPdfBlob(pdfBlob);
         setPdfDownloadUrl(pdfUrl);
-        
+
         console.log('✅ PDF generated in handleSave', {
           blobSize: pdfBlob.size,
           blobType: pdfBlob.type,
           fileName: fileName
         });
-        
+
       } catch (pdfGenError: any) {
         console.error('❌ Error generating PDF in handleSave:', pdfGenError);
         // Continue with save even if PDF generation fails
@@ -567,13 +560,13 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     let finalQuotationId = quotationId;
     if (!finalQuotationId) {
       // For superadmin, use selected sales person name or current user name
-      const nameForId = isSuperAdmin && selectedSalesPersonId 
+      const nameForId = isSuperAdmin && selectedSalesPersonId
         ? salesPersons.find(p => p._id === selectedSalesPersonId)?.name || salesUser?.name
         : salesUser?.name;
       if (nameForId) {
         try {
           finalQuotationId = await QuotationIdGenerator.generateQuotationId(nameForId);
-      console.log('🆔 Generated new quotationId:', finalQuotationId);
+          console.log('🆔 Generated new quotationId:', finalQuotationId);
         } catch (idError: any) {
           console.warn('⚠️ Failed to generate quotation ID, using fallback:', idError);
           // Use fallback ID with timestamp for uniqueness
@@ -589,12 +582,12 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         return;
       }
     }
-    
+
     // CRITICAL: Determine salesUserId and salesUserName for quotation attribution
     // This determines which user the quotation will be counted under in the dashboard
     let finalSalesUserId: string | undefined;
     let finalSalesUserName: string | undefined;
-    
+
     if (isSuperAdmin) {
       // Superadmin can assign to selected sales person or themselves
       if (selectedSalesPersonId) {
@@ -604,14 +597,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           salesPersonsCount: salesPersons.length,
           salesPersonsIds: salesPersons.map(p => ({ id: p._id, idType: typeof p._id, name: p.name }))
         });
-        
+
         const selectedPerson = salesPersons.find(p => {
           // Handle both string and ObjectId comparisons
           const personId = p._id?.toString();
           const selectedId = selectedSalesPersonId?.toString();
           return personId === selectedId;
         });
-        
+
         if (selectedPerson) {
           // Assign to the selected sales person
           // CRITICAL: Always convert to string to ensure consistent format
@@ -661,7 +654,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         note: 'Quotation will be attributed to this user in dashboard'
       });
     }
-    
+
     if (!finalSalesUserId || !finalSalesUserName) {
       console.error('❌ Missing sales user information:', {
         finalSalesUserId: !!finalSalesUserId,
@@ -676,7 +669,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       setIsSaving(false);
       return;
     }
-    
+
     // Track if save was successful to trigger download
     let saveSuccessful = false;
 
@@ -703,7 +696,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       // Store config for accurate PDF regeneration
       config: config || { width: 2400, height: 1010, unit: 'mm' },
       category: selectedProduct.category,
-      
+
       // Display specifications
       pixelPitch: selectedProduct.pixelPitch,
       resolution: selectedProduct.resolution,
@@ -718,21 +711,21 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       maxPowerConsumption: selectedProduct.maxPowerConsumption,
       avgPowerConsumption: selectedProduct.avgPowerConsumption,
       weightPerCabinet: selectedProduct.weightPerCabinet,
-      
+
       // Configuration details
       cabinetGrid: cabinetGrid,
       displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
         width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
         height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
       } : undefined,
-      aspectRatio: selectedProduct.resolution ? 
+      aspectRatio: selectedProduct.resolution ?
         calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
       processor: processor,
       mode: mode,
-      
+
       // User type and timestamp
       userType: getUserType(),
-      userTypeDisplayName: getUserTypeDisplayName(),
+      userTypeDisplayName: getUserTypeDisplayName(getUserType()),
       generatedAt: new Date().toISOString()
     };
 
@@ -757,29 +750,29 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     const pricingResult = calculateCentralizedPricing(
       selectedProduct,
       cabinetGrid,
-      processor,
+      processor || null,
       userTypeForCalc,
       config || { width: 2400, height: 1010, unit: 'mm' },
       customPricing
     );
 
     // Apply discount if superadmin has set one
-    let finalPricingResult = pricingResult;
+    let finalPricingResult = pricingResult as any;
     let finalTotalPrice = correctTotalPrice;
     let discountInfo: DiscountInfo | null = null;
-    
+
     // isSuperAdmin is already declared at the top of handleSave function
     if (isSuperAdmin && discountType && discountPercent > 0) {
       discountInfo = {
         discountType,
         discountPercent
       };
-      
+
       // Apply discount to pricing result
       const discountedResult = applyDiscount(pricingResult, discountInfo);
       finalPricingResult = discountedResult;
       finalTotalPrice = discountedResult.grandTotal;
-      
+
       console.log('💰 DISCOUNT APPLIED TO QUOTATION:', {
         discountType,
         discountPercent: `${discountPercent}%`,
@@ -813,7 +806,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         userInfo?.userType === 'SI/Channel Partner'
           ? 'Channel'
           : (userInfo?.userType === 'Reseller' ? 'Reseller' : 'End User');
-      
+
       finalHtmlContent = generateConfigurationHtml(
         config || { width: 2400, height: 1010, unit: 'mm' },
         selectedProduct,
@@ -853,10 +846,13 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       userType: userTypeForCalc,
       userTypeDisplayName: getUserTypeDisplayName(userTypeForCalc),
       totalPrice: finalTotalPrice,  // CRITICAL: Grand Total with GST (and discount if applied) - matches PDF exactly
-      
+
+      // Optional field for PDF base64
+      pdfBase64: undefined as string | undefined,
+
       // CRITICAL: Save the exact HTML that's displayed in the PDF
       pdfPage6HTML: finalHtmlContent,
-      
+
       // CRITICAL: Include salesUserId and salesUserName for quotation attribution
       // This determines which user the quotation is counted under in the dashboard
       // For superadmin: can be assigned user or themselves
@@ -864,17 +860,17 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       // Partners are saved with the same structure as sales users
       salesUserId: finalSalesUserId,
       salesUserName: finalSalesUserName,
-      
+
       // Store discount information in quotationData
       discountType: discountInfo?.discountType || null,
       discountPercent: discountInfo?.discountPercent || 0,
-      
+
       // Store exact pricing breakdown using centralized calculation + discount
       exactPricingBreakdown: {
         unitPrice: finalPricingResult.unitPrice,
         quantity: finalPricingResult.quantity,
         subtotal: finalPricingResult.productSubtotal,
-          gstRate: 18,
+        gstRate: 18,
         gstAmount: finalPricingResult.productGST,
         processorPrice: finalPricingResult.processorPrice,
         processorGst: finalPricingResult.processorGST,
@@ -894,7 +890,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           discountAmount: 'discountAmount' in finalPricingResult ? finalPricingResult.discountAmount : 0
         } : undefined
       },
-      
+
       // Store exact product specifications as shown
       exactProductSpecs: {
         productName: selectedProduct.name,
@@ -906,19 +902,19 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
           height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
         } : undefined,
-        aspectRatio: selectedProduct.resolution ? 
+        aspectRatio: selectedProduct.resolution ?
           calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
         processor: processor,
         mode: mode,
         cabinetGrid: cabinetGrid
       },
-      
+
       // Store comprehensive product details for backend compatibility
       productDetails: comprehensiveProductDetails,
-      
+
       // Store config in quotationData for accurate PDF regeneration
       config: config || { width: 2400, height: 1010, unit: 'mm' },
-      
+
       // Timestamp when quotation was created
       createdAt: new Date().toISOString()
     };
@@ -935,11 +931,11 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
       // Generate PDF first (before saving quotation)
       console.log('📄 Generating PDF for upload to S3...');
-      
+
       let pdfBlob: Blob;
       try {
         const { generateConfigurationPdf } = await import('../utils/docxGenerator');
-        
+
         // Create exactPricingBreakdown with discounted values for PDF generation
         const exactPricingBreakdownForPdf = {
           unitPrice: finalPricingResult.unitPrice,
@@ -987,7 +983,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           stack: pdfError?.stack,
           name: pdfError?.name
         });
-        
+
         // Provide user-friendly error message
         let errorMessage = 'Failed to generate PDF. Please try again.';
         if (pdfError?.message) {
@@ -999,7 +995,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             errorMessage = `PDF error: ${pdfError.message}`;
           }
         }
-        
+
         alert(errorMessage);
         // Fallback to original onDownload if PDF generation fails
         console.log('🔄 Falling back to original onDownload handler...');
@@ -1027,19 +1023,19 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
       setSaveSuccess(true);
       saveSuccessful = true;
-      
+
       // Store blob and URL for manual download
       setGeneratedPdfBlob(pdfBlob);
       const url = window.URL.createObjectURL(pdfBlob);
       setPdfDownloadUrl(url);
-      
+
       // Automatically download PDF after successful save
       if (saveSuccessful) {
         console.log('✅ Quotation saved, starting PDF download...');
         // Use helper function to trigger download
         triggerPdfDownload(pdfBlob, fileName, setGeneratedPdfBlob, setPdfDownloadUrl);
       }
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => {
         setSaveSuccess(false);
@@ -1047,7 +1043,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
     } catch (error: any) {
       console.error('❌ Error saving quotation:', error);
-      
+
       // If it's a duplicate ID error, try with a timestamp-based fallback ID
       if (error.message && error.message.includes('already exists')) {
         console.log('🔄 Duplicate ID detected, trying with timestamp-based fallback ID...');
@@ -1060,26 +1056,26 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             : salesUser?.name || 'Admin';
           const firstName = nameForId.trim().split(' ')[0].toUpperCase();
           const fallbackQuotationId = `ORION/${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${firstName}/${timestamp}`;
-          
+
           console.log('🆔 Generated timestamp-based fallback quotationId:', fallbackQuotationId);
-          
+
           const fallbackQuotationData = {
             ...exactQuotationData,
             quotationId: fallbackQuotationId
           };
-          
+
           const fallbackResult = await salesAPI.saveQuotation(fallbackQuotationData);
           console.log('✅ Quotation saved with fallback ID:', fallbackResult);
-          
+
           setSaveSuccess(true);
           saveSuccessful = true;
-          
+
           // Automatically download PDF after successful save with discount applied
           if (saveSuccessful) {
             // Generate PDF with discount applied
             try {
               const { generateConfigurationPdf } = await import('../utils/docxGenerator');
-              
+
               // Create exactPricingBreakdown with discounted values for PDF generation
               const exactPricingBreakdownForPdf = {
                 unitPrice: finalPricingResult.unitPrice,
@@ -1110,12 +1106,12 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
               );
 
               console.log('✅ PDF generated successfully (fallback)');
-              
+
               // Store blob and URL for manual download
               setGeneratedPdfBlob(blob);
               const url = window.URL.createObjectURL(blob);
               setPdfDownloadUrl(url);
-              
+
               // Use helper function to trigger download
               triggerPdfDownload(blob, fileName, setGeneratedPdfBlob, setPdfDownloadUrl);
             } catch (pdfError: any) {
@@ -1125,7 +1121,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                 stack: pdfError?.stack,
                 name: pdfError?.name
               });
-              
+
               // Provide user-friendly error message
               let errorMessage = 'Failed to generate PDF. Please try again.';
               if (pdfError?.message) {
@@ -1137,18 +1133,18 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                   errorMessage = `PDF error: ${pdfError.message}`;
                 }
               }
-              
+
               alert(errorMessage);
               // Fallback to original onDownload if PDF generation fails
-            onDownload();
+              onDownload();
             }
           }
-          
+
           // Clear success message after 3 seconds
           setTimeout(() => {
             setSaveSuccess(false);
           }, 3000);
-          
+
         } catch (fallbackError: any) {
           console.error('❌ Fallback save also failed:', fallbackError);
           setSaveError(fallbackError.message || 'Failed to save quotation even with fallback ID');
@@ -1158,6 +1154,151 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       }
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Handle updating existing quotation with discount
+  const handleUpdate = async () => {
+    // Only super admin can update discounts
+    if (userRole !== 'super' && userRole !== 'super_admin') return;
+
+    // Prevent multiple clicks
+    if (isUpdating) return;
+
+    // Require discount type and valid percent
+    if (!discountType || discountPercent <= 0) {
+      alert('Please select a discount type and enter a valid percentage > 0');
+      return;
+    }
+
+    if (!quotationId) {
+      alert('Cannot update: Missing quotation ID');
+      return;
+    }
+
+    if (!selectedProduct || !config || !userInfo) {
+      alert('Missing required data for update');
+      return;
+    }
+
+    try {
+      setIsUpdating(true);
+      console.log('🔄 UPADTE: Applying discount and updating quotation...', {
+        quotationId,
+        discountType,
+        discountPercent
+      });
+
+      // 1. Generate new PDF with discount
+      const { generateConfigurationPdf } = await import('../utils/docxGenerator');
+
+      // Calculate pricing for PDF
+      const userTypeForCalc = getUserType();
+      const pricingResult = calculateCentralizedPricing(
+        selectedProduct,
+        cabinetGrid,
+        processor || null,
+        userTypeForCalc,
+        config || { width: 2400, height: 1010, unit: 'mm' },
+        customPricing
+      );
+
+      // Apply discount
+      const discountInfo: DiscountInfo = {
+        discountType,
+        discountPercent
+      };
+      const finalPricingResult = applyDiscount(pricingResult, discountInfo);
+
+      // Create exactPricingBreakdown for PDF generation and saving
+      const exactPricingBreakdown = {
+        unitPrice: finalPricingResult.unitPrice,
+        quantity: finalPricingResult.quantity,
+        subtotal: finalPricingResult.productSubtotal,
+        gstAmount: finalPricingResult.productGST,
+        processorPrice: finalPricingResult.processorPrice,
+        processorGst: finalPricingResult.processorGST,
+        grandTotal: finalPricingResult.grandTotal,
+        discount: {
+          discountedProductTotal: finalPricingResult.discountedProductTotal,
+          discountedProcessorTotal: finalPricingResult.discountedProcessorTotal,
+          discountedGrandTotal: finalPricingResult.discountedGrandTotal // Explicitly use discountedGrandTotal
+        }
+      };
+
+      // Map UI user type label to legacy pricing userType
+      const uiUserType: string | undefined = userInfo?.userType;
+      const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
+        uiUserType === 'SI/Channel Partner'
+          ? 'Channel'
+          : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
+
+      // Generate PDF Blob
+      const pdfBlob = await generateConfigurationPdf(
+        config || { width: 2400, height: 1010, unit: 'mm' },
+        selectedProduct,
+        cabinetGrid,
+        processor,
+        mode,
+        userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
+        salesUser,
+        quotationId,
+        customPricing,
+        exactPricingBreakdown
+      );
+
+      // Convert PDF to base64
+      const pdfBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64String = (reader.result as string).split(',')[1];
+          resolve(base64String);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(pdfBlob);
+      });
+
+      // 2. Prepare update payload
+      const updateData = {
+        totalPrice: finalPricingResult.grandTotal,
+        exactPricingBreakdown: exactPricingBreakdown,
+        // Also update PDF HTML if needed, though usually we regen from data
+        // pdfPage6HTML: generatedHtml, // Optional
+        pdfBase64: pdfBase64,
+        quotationData: {
+          updatedAt: new Date().toISOString(),
+          discountApplied: true,
+          discountInfo: {
+            type: discountType,
+            percent: discountPercent,
+            amount: finalPricingResult.discountAmount
+          }
+        }
+      };
+
+      // 3. Call update API
+      const result = await salesAPI.updateQuotation(quotationId, updateData);
+      console.log('✅ Update success:', result);
+
+      if (onUpdate) {
+        onUpdate();
+      }
+
+      setUpdateSuccess(true);
+
+      // Update local blob for download button usage
+      setGeneratedPdfBlob(pdfBlob);
+      const url = window.URL.createObjectURL(pdfBlob);
+      setPdfDownloadUrl(url);
+
+      // Auto-hide success message
+      setTimeout(() => setUpdateSuccess(false), 3000);
+
+    } catch (error: any) {
+      console.error('❌ Update failed:', error);
+      alert(`Failed to update quotation: ${error.message}`);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -1218,7 +1359,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                   </select>
                 </div>
               )}
-              
+
               {/* Discount Section for Super Admin */}
               {(userRole === 'super' || userRole === 'super_admin') && (
                 <div className="flex items-center space-x-4 bg-white/10 p-2 rounded border border-white/20">
@@ -1249,15 +1390,30 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                           const value = parseFloat(e.target.value) || 0;
                           setDiscountPercent(Math.max(0, Math.min(100, value)));
                         }}
-                        disabled={isSaving}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (discountPercent > 0) {
+                              handleUpdate();
+                            }
+                          }
+                        }}
+                        disabled={isSaving || isUpdating}
                         placeholder="0-100"
                         className="w-20 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                        title="Press Enter to apply discount and update PDF"
                       />
                     </div>
                   )}
+                  {updateSuccess && (
+                    <span className="text-xs text-green-400 font-medium animate-pulse ml-2 flex items-center">
+                      <Save size={12} className="mr-1" />
+                      Updated!
+                    </span>
+                  )}
                 </div>
               )}
-              
+
               {/* Combined Save & Download button for sales users and superadmin */}
               {((salesUser || (userRole === 'super' || userRole === 'super_admin')) && userInfo) ? (
                 <button
@@ -1265,18 +1421,18 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                   onClick={async (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    
+
                     // Prevent multiple clicks
                     if (isSaving) {
                       console.log('⚠️ Already saving, ignoring click');
                       return;
                     }
-                    
+
                     console.log('🔵 Save & Download PDF button clicked');
-                    
+
                     // Set saving state immediately to prevent double clicks
                     setIsSaving(true);
-                    
+
                     // CRITICAL: Generate and download PDF IMMEDIATELY on click
                     // This must happen BEFORE any async operations to maintain user gesture context
                     try {
@@ -1290,32 +1446,32 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                       if (!userInfo) {
                         throw new Error('Missing userInfo');
                       }
-                      
+
                       console.log('📄 Generating PDF immediately on button click...', {
                         hasProduct: !!selectedProduct,
                         hasConfig: !!config,
                         hasUserInfo: !!userInfo
                       });
-                      
+
                       const { generateConfigurationPdf } = await import('../utils/docxGenerator');
-                      
+
                       // Calculate pricing for PDF
                       const userTypeForCalc = getUserType();
                       const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
-                      
+
                       console.log('💰 Calculating pricing...', { userTypeForCalc, isSuperAdmin });
-                      
+
                       const pricingResult = calculateCentralizedPricing(
                         selectedProduct,
                         cabinetGrid,
-                        processor,
+                        processor || null,
                         userTypeForCalc,
                         config || { width: 2400, height: 1010, unit: 'mm' },
                         customPricing
                       );
 
                       // Apply discount if applicable
-                      let finalPricingResult = pricingResult;
+                      let finalPricingResult = pricingResult as any;
                       if (isSuperAdmin && discountType && discountPercent > 0) {
                         const discountInfo: DiscountInfo = {
                           discountType,
@@ -1341,7 +1497,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                       };
 
                       console.log('📝 Generating PDF blob...');
-                      
+
                       // Generate PDF
                       // Map UI user type label to legacy pricing userType expected by docxGenerator/html helpers
                       const uiUserType: string | undefined = userInfo?.userType;
@@ -1372,10 +1528,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                         blobType: pdfBlob.type,
                         fileName: fileName
                       });
-                      
+
                       // DOWNLOAD IMMEDIATELY - simple and direct, no async operations
                       const pdfUrl = window.URL.createObjectURL(pdfBlob);
-                      
+
                       // Create and trigger download link immediately
                       const link = document.createElement('a');
                       link.href = pdfUrl;
@@ -1386,17 +1542,17 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                       link.style.top = '-9999px';
                       link.style.opacity = '0';
                       link.style.pointerEvents = 'none';
-                      
+
                       document.body.appendChild(link);
-                      
+
                       // Force reflow to ensure link is in DOM
                       void link.offsetWidth;
-                      
+
                       // Trigger download immediately
                       link.click();
-                      
+
                       console.log('✅ Download triggered immediately');
-                      
+
                       // Clean up after delay
                       setTimeout(() => {
                         if (link.parentNode) {
@@ -1404,20 +1560,20 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                         }
                         // Don't revoke URL immediately - keep it available
                       }, 1000);
-                      
+
                       // Store for potential future use (but don't show manual download button)
                       setGeneratedPdfBlob(pdfBlob);
                       setPdfDownloadUrl(pdfUrl);
-                      
+
                       console.log('✅ PDF download completed');
-                      
+
                     } catch (pdfError: any) {
                       console.error('❌ Error generating PDF on button click:', pdfError);
                       alert(`Error generating PDF: ${pdfError.message}. Please check the console for details.`);
                       setIsSaving(false);
                       return;
                     }
-                    
+
                     // Now save the quotation in the background (don't block on errors)
                     // PDF has already been downloaded, so save errors won't affect user experience
                     handleSave(e).catch((saveError: any) => {
@@ -1444,7 +1600,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                         const pricingResult = calculateCentralizedPricing(
                           selectedProduct,
                           cabinetGrid,
-                          processor,
+                          processor || null,
                           userTypeForCalc,
                           config,
                           customPricing
@@ -1487,15 +1643,15 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                             exactPricingBreakdown
                           );
 
-              console.log('✅ PDF generated successfully (direct download)');
-              
-              // Store blob and URL for manual download
-              setGeneratedPdfBlob(blob);
-              const url = window.URL.createObjectURL(blob);
-              setPdfDownloadUrl(url);
-              
-              // Use helper function to trigger download
-              triggerPdfDownload(blob, fileName, setGeneratedPdfBlob, setPdfDownloadUrl);
+                          console.log('✅ PDF generated successfully (direct download)');
+
+                          // Store blob and URL for manual download
+                          setGeneratedPdfBlob(blob);
+                          const url = window.URL.createObjectURL(blob);
+                          setPdfDownloadUrl(url);
+
+                          // Use helper function to trigger download
+                          triggerPdfDownload(blob, fileName, setGeneratedPdfBlob, setPdfDownloadUrl);
                           return;
                         }
                       }
@@ -1538,13 +1694,13 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             {saveSuccess && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Save className="h-5 w-5 text-green-400" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-green-800">Quotation saved successfully! It will appear in the Super User Dashboard.</p>
-                  </div>
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <Save className="h-5 w-5 text-green-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-green-800">Quotation saved successfully! It will appear in the Super User Dashboard.</p>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -439,7 +439,7 @@ class SalesAPI {
       // Convert blob to base64
       const pdfBase64 = await this.blobToBase64(pdfBlob);
 
-      const response = await fetch(`${API_BASE_URL}/sales/quotation/${quotationId}/upload-pdf`, {
+      const response = await fetch(`${API_BASE_URL}/sales/quotation/${encodeURIComponent(quotationId)}/upload-pdf`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ pdfBase64 })
@@ -466,7 +466,8 @@ class SalesAPI {
     pdfS3Url: string;
     pdfS3Key: string;
   }> {
-    const response = await fetch(`${API_BASE_URL}/sales/quotation/${quotationId}/pdf-url`, {
+    // Add timestamp to prevent caching of the API response
+    const response = await fetch(`${API_BASE_URL}/sales/quotation/${encodeURIComponent(quotationId)}/pdf-url?t=${Date.now()}`, {
       method: 'GET',
       headers: this.getAuthHeaders()
     });
@@ -475,6 +476,25 @@ class SalesAPI {
 
     if (!response.ok) {
       throw new Error(data.message || 'Failed to get PDF URL');
+    }
+
+    return data;
+  }
+
+  // Update existing quotation (including PDF replacement)
+  async updateQuotation(quotationId: string, updateData: any): Promise<{ success: boolean; message: string; quotation: any }> {
+    const response = await fetch(`${API_BASE_URL}/sales/quotation/${encodeURIComponent(quotationId)}`, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(updateData)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('❌ Update failed with status:', response.status);
+      console.error('❌ Update error data:', data);
+      throw new Error(data.message || 'Failed to update quotation');
     }
 
     return data;

@@ -1185,6 +1185,127 @@ router.post('/quotation', authenticateToken, async (req, res) => {
   }
 });
 
+// PUT /api/sales/quotation/:quotationId (Update existing quotation)
+router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
+  const startTime = Date.now();
+  console.log('🏁 ===== QUOTATION UPDATE REQUEST STARTED =====');
+  try {
+    const { quotationId } = req.params;
+    const updateData = req.body;
+
+    console.log('📥 Update request for quotation:', quotationId);
+
+    // Find the existing quotation
+    const quotation = await Quotation.findOne({ quotationId });
+
+    if (!quotation) {
+      console.log('❌ Quotation not found:', quotationId);
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+
+    // Check permissions - only the owner or super admin can update
+    // For updates, we generally want to allow the "salesUserId" stored in the quotation to update it
+    const isOwner = quotation.salesUserId.toString() === req.user._id.toString();
+    const isSuperAdmin = ['super', 'super_admin', 'superadmin', 'admin'].includes(req.user.role);
+
+    if (!isOwner && !isSuperAdmin) {
+      console.log('❌ Permission denied for update:', {
+        user: req.user.email,
+        role: req.user.role,
+        owner: quotation.salesUserId
+      });
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only quotation owner or super admin can update this quotation.'
+      });
+    }
+
+    // Handle PDF upload/replacement if new PDF data is provided
+    let pdfS3Key = quotation.pdfS3Key;
+    let pdfS3Url = quotation.pdfS3Url;
+
+    if (updateData.pdfBase64) {
+      console.log('📄 New PDF data provided, updating S3...');
+      try {
+        const pdfBuffer = Buffer.from(updateData.pdfBase64, 'base64');
+
+        // Upload to S3 (this will overwrite if key is the same)
+        // We use the existing logic to generate/reuse the key
+        // Ideally we keep the same key structure
+        pdfS3Key = await uploadPdfToS3(
+          pdfBuffer,
+          quotationId,
+          quotation.salesUserId.toString()
+        );
+
+        // Generate new presigned URL
+        pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
+
+        console.log('✅ S3 PDF updated successfully');
+      } catch (s3Error) {
+        console.error('❌ Error updating PDF in S3:', s3Error);
+        // We proceed with the update but warn about S3 failure
+      }
+    }
+
+    // Update fields
+    // We only update specific allowed fields to ensure data integrity
+    if (updateData.totalPrice !== undefined) quotation.totalPrice = updateData.totalPrice;
+    if (updateData.exactPricingBreakdown !== undefined) quotation.exactPricingBreakdown = updateData.exactPricingBreakdown;
+    if (updateData.exactProductSpecs !== undefined) quotation.exactProductSpecs = updateData.exactProductSpecs;
+    if (updateData.quotationData !== undefined) {
+      // Merge existing quotationData with updates
+      quotation.quotationData = {
+        ...quotation.quotationData,
+        ...updateData.quotationData,
+        updatedAt: new Date().toISOString()
+      };
+    }
+
+    // Update PDF related fields
+    if (updateData.pdfBase64) {
+      quotation.pdfS3Key = pdfS3Key;
+      quotation.pdfS3Url = pdfS3Url;
+      // Also update stored HTML if provided (backup)
+      if (updateData.pdfPage6HTML) quotation.pdfPage6HTML = updateData.pdfPage6HTML;
+    }
+
+    // Save the updated quotation
+    const savedQuotation = await quotation.save();
+
+    console.log('✅ Quotation updated successfully:', {
+      id: savedQuotation.quotationId,
+      newPrice: savedQuotation.totalPrice,
+      hasDiscount: !!savedQuotation.exactPricingBreakdown?.discount
+    });
+
+    res.json({
+      success: true,
+      message: 'Quotation updated successfully',
+      quotation: {
+        quotationId: savedQuotation.quotationId,
+        totalPrice: savedQuotation.totalPrice,
+        pdfS3Url: savedQuotation.pdfS3Url
+      }
+    });
+
+    const endTime = Date.now();
+    console.log('⏱️ Update request duration:', (endTime - startTime) + 'ms');
+    console.log('🏁 ===== QUOTATION UPDATE REQUEST COMPLETE =====');
+
+  } catch (error) {
+    console.error('❌ Error updating quotation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update quotation',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // POST /api/sales/quotation/:quotationId/upload-pdf (Upload PDF to S3 for existing quotation)
 router.post('/quotation/:quotationId/upload-pdf', authenticateToken, async (req, res) => {
   try {
