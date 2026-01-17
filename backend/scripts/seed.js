@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
@@ -5,7 +7,8 @@ import SalesUser from '../models/SalesUser.js';
 import connectDB from '../config/database.js';
 
 // Load environment variables
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Sales team data with correct phone numbers
 const SALES_TEAM_DATA = [
