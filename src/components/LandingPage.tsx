@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Package, ArrowRight, Zap, Monitor, Settings, LogIn, Sparkles, Star, Wand2, Grid3x3, Layers, Boxes } from 'lucide-react';
 
 interface LandingPageProps {
@@ -9,10 +9,87 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onStartConfiguration, onChooseProductDirectly, onSalesLogin, onPartnerLogin }) => {
+  const [isLoginMenuOpen, setIsLoginMenuOpen] = useState(false);
+  const loginMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isLoginMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!loginMenuRef.current) return;
+      if (!loginMenuRef.current.contains(event.target as Node)) {
+        setIsLoginMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsLoginMenuOpen(false);
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isLoginMenuOpen]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100">
       {/* Premium Black Header */}
-      <header className="bg-gradient-to-r from-gray-900 via-black to-gray-900 w-full shadow-2xl border-b border-cyan-500/20">
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-gray-900 via-black to-gray-900 w-full shadow-2xl border-b border-cyan-500/20 relative">
+        {/* Login (single button, top-right, aligned to viewport edge) */}
+        <div className="absolute top-4 right-4" ref={loginMenuRef}>
+          <div className="relative flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => setIsLoginMenuOpen((v) => !v)}
+              className="group relative px-6 py-3 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 text-white text-sm sm:text-base font-semibold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.03] hover:-translate-y-0.5 overflow-hidden border border-slate-600/50"
+              style={{
+                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3), 0 0 15px rgba(6, 182, 212, 0.2)'
+              }}
+              aria-haspopup="menu"
+              aria-expanded={isLoginMenuOpen}
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                <LogIn className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                Login
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            </button>
+
+            {isLoginMenuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full mt-3 w-56 overflow-hidden rounded-xl border border-slate-700/60 bg-slate-950/95 backdrop-blur-md shadow-2xl"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsLoginMenuOpen(false);
+                    onSalesLogin();
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800/70 transition-colors"
+                >
+                  Sales Login
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsLoginMenuOpen(false);
+                    onPartnerLogin();
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800/70 transition-colors border-t border-slate-800/80"
+                >
+                  Partner Login
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="max-w-7xl mx-auto">
           <div 
             className="flex flex-col items-center justify-center gap-4 sm:gap-6 px-6 sm:px-8 lg:px-12"
@@ -240,39 +317,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartConfiguration, 
         </div>
       </div>
 
-      {/* Sales & Partner Login Section with Premium Styling */}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20">
-        <div className="text-center">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button
-              onClick={onSalesLogin}
-              className="group relative px-8 py-4 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 text-white text-base sm:text-lg font-semibold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 overflow-hidden border border-slate-600/50"
-              style={{
-                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3), 0 0 15px rgba(6, 182, 212, 0.2)'
-              }}
-            >
-              <span className="relative z-10 flex items-center gap-3">
-                <LogIn className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                Sales Login
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </button>
-            <button
-              onClick={onPartnerLogin}
-              className="group relative px-8 py-4 bg-gradient-to-r from-purple-700 via-purple-800 to-purple-900 text-white text-base sm:text-lg font-semibold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 overflow-hidden border border-purple-600/50"
-              style={{
-                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3), 0 0 15px rgba(139, 92, 246, 0.2)'
-              }}
-            >
-              <span className="relative z-10 flex items-center gap-3">
-                <LogIn className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                Partner Login
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

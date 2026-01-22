@@ -108,8 +108,14 @@ const main = async () => {
   }
 };
 
-// Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run if called directly (Windows-safe)
+// `import.meta.url` is a file URL; `process.argv[1]` is a filesystem path.
+// Comparing them as strings breaks on Windows, so compare normalized paths.
+const isDirectRun =
+  process.argv[1] &&
+  path.resolve(fileURLToPath(import.meta.url)) === path.resolve(process.argv[1]);
+
+if (isDirectRun) {
   main();
 }
 

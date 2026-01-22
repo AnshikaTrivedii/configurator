@@ -1080,7 +1080,9 @@ export const generateConfigurationHtml = (
                         </tr>
                         <tr>
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; width: 30%; font-size: 13px;">Validity</td>
-                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">Offer shall remain valid for period of 30 days from the date of quotation made.</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">
+                                ${userInfo?.validity ? userInfo.validity.replace(/\n/g, '<br/>') : '• Offer shall remain valid for period of 30 days from the date of quotation made.<br/>• The current offer is based on USD=INR 88. Any increase in exchange rate beyond 1% at the time of placement of order will lead to increase in INR price'}
+                            </td>
                         </tr>
                         <tr style="background: rgba(248, 249, 250, 0.5);">
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #dc3545; font-size: 13px;">GST</td>

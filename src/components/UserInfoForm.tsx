@@ -8,6 +8,7 @@ interface UserInfo {
   projectTitle: string;
   address: string;
   userType: 'End User' | 'Reseller' | 'SI/Channel Partner';
+  validity?: string;
   paymentTerms?: string;
   warranty?: string;
 }
@@ -75,6 +76,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
       projectTitle: '',
       address: '',
       userType: getDefaultUserType(),
+      validity: '• Offer shall remain valid for period of 30 days from the date of quotation made.\n• The current offer is based on USD=INR 88. Any increase in exchange rate beyond 1% at the time of placement of order will lead to increase in INR price',
       paymentTerms: '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation',
       warranty: 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier. Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.'
     }
@@ -519,6 +521,20 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
               <h3 className="text-sm font-semibold text-gray-700 mb-4">Terms & Conditions</h3>
               
               <div className="space-y-4">
+                <div>
+                  <label htmlFor="validity" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Validity
+                  </label>
+                  <textarea
+                    id="validity"
+                    value={formData.validity || ''}
+                    onChange={(e) => handleInputChange('validity', e.target.value)}
+                    placeholder="Enter validity terms"
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                  />
+                </div>
+
                 <div>
                   <label htmlFor="paymentTerms" className="block text-sm font-semibold text-gray-700 mb-2">
                     Payment Terms
