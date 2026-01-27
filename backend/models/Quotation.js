@@ -77,6 +77,11 @@ const quotationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     required: false
   },
+  // CRITICAL: Store original undiscounted breakdown for accurate reset
+  originalPricingBreakdown: {
+    type: mongoose.Schema.Types.Mixed,
+    required: false
+  },
   exactProductSpecs: {
     type: mongoose.Schema.Types.Mixed,
     required: false

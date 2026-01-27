@@ -87,18 +87,24 @@ export function applyDiscount(
   let discountedGrandTotal = originalGrandTotal;
   let discountAmount = 0;
 
+  // Calculate unaccounted costs (difference between original Grand Total and sum of known components)
+  // This ensures we preserve any costs (like extra rounding, unmapped fees etc) that are not in the component breakdown
+  const sumOfComponents = originalProductTotal + originalProcessorTotal + pricingResult.structureTotal + pricingResult.installationTotal;
+  const unaccountedDifference = originalGrandTotal - sumOfComponents;
+
   // Apply discount based on type
   switch (discountType) {
     case 'led':
       // Apply discount to LED Screen Price (Product Total A)
       discountAmount = Math.round((originalProductTotal * discountPercent / 100) * 100) / 100;
       discountedProductTotal = Math.round((originalProductTotal - discountAmount) * 100) / 100;
-      // Recalculate grand total with discounted product total
+      // Recalculate grand total with discounted product total + preserved unaccounted difference
       discountedGrandTotal = Math.round(
         discountedProductTotal +
         originalProcessorTotal +
         pricingResult.structureTotal +
-        pricingResult.installationTotal
+        pricingResult.installationTotal +
+        unaccountedDifference
       );
       break;
 
@@ -106,12 +112,13 @@ export function applyDiscount(
       // Apply discount to Controller Price (Processor Total B)
       discountAmount = Math.round((originalProcessorTotal * discountPercent / 100) * 100) / 100;
       discountedProcessorTotal = Math.round((originalProcessorTotal - discountAmount) * 100) / 100;
-      // Recalculate grand total with discounted processor total
+      // Recalculate grand total with discounted processor total + preserved unaccounted difference
       discountedGrandTotal = Math.round(
         originalProductTotal +
         discountedProcessorTotal +
         pricingResult.structureTotal +
-        pricingResult.installationTotal
+        pricingResult.installationTotal +
+        unaccountedDifference
       );
       break;
 

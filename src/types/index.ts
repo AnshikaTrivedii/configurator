@@ -163,4 +163,11 @@ export interface Quotation {
   pdfPage6HTML?: string;
   createdAt: string;
   updatedAt: string;
+  originalTotalPrice?: number;
+  exactPricingBreakdown?: any;
+  originalPricingBreakdown?: any;
+  exactProductSpecs?: any;
+  quotationData?: any;
+  pdfS3Key?: string;
+  pdfS3Url?: string;
 }

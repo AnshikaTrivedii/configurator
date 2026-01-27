@@ -7,6 +7,7 @@ import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
 import { getProcessorPrice } from '../utils/processorPrices';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
+import { applyDiscount, DiscountInfo } from '../utils/discountCalculator';
 
 // Import Product type for proper typing
 interface ProductWithPricing extends Product {
@@ -18,9 +19,9 @@ interface ProductWithPricing extends Product {
 
 // Check if product is a Jumbo Series product (prices include controllers)
 function isJumboSeriesProduct(product: ProductWithPricing): boolean {
-  return product.category?.toLowerCase().includes('jumbo') || 
-         product.id?.toLowerCase().startsWith('jumbo-') ||
-         product.name?.toLowerCase().includes('jumbo series');
+  return product.category?.toLowerCase().includes('jumbo') ||
+    product.id?.toLowerCase().startsWith('jumbo-') ||
+    product.name?.toLowerCase().includes('jumbo series');
 }
 
 // CRITICAL: This is the authoritative price calculation function
@@ -43,7 +44,7 @@ function calculateCorrectTotalPrice(
   }
 ): number {
   const METERS_TO_FEET = 3.2808399;
-  
+
   // Convert userType to match PDF logic
   let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
   if (userType === 'reseller') {
@@ -51,10 +52,10 @@ function calculateCorrectTotalPrice(
   } else if (userType === 'siChannel') {
     pdfUserType = 'Channel';
   }
-  
+
   // Get unit price (same logic as PDF)
   let unitPrice = 0;
-  
+
   // Handle rental products
   if (product.category?.toLowerCase().includes('rental') && product.prices) {
     if (pdfUserType === 'Reseller') {
@@ -79,44 +80,44 @@ function calculateCorrectTotalPrice(
       unitPrice = 5300; // Default fallback
     }
   }
-  
+
   // Calculate quantity based on product type - EXACT SAME LOGIC AS PDF
   let quantity = 0;
-  
+
   if (product.category?.toLowerCase().includes('rental')) {
     // For rental series, calculate quantity as number of cabinets
     quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
   } else if (isJumboSeriesProduct(product)) {
     // For Jumbo Series, use fixed area-based pricing
     const pixelPitch = product.pixelPitch;
-    
+
     if (pixelPitch === 4 || pixelPitch === 2.5) {
       // P4 and P2.5: Fixed area = 7.34ft × 4.72ft = 34.64 sqft
       const widthInFeet = 7.34;
       const heightInFeet = 4.72;
       const fixedQuantity = widthInFeet * heightInFeet;
-      
+
       console.log('🎯 QuoteModal Jumbo Series P4/P2.5 Fixed Pricing:', {
         product: product.name,
         pixelPitch,
         fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
         quantity: fixedQuantity.toFixed(2) + ' sqft'
       });
-      
+
       quantity = Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
     } else if (pixelPitch === 3 || pixelPitch === 6) {
       // P3 and P6: Fixed area = 6.92ft × 5.04ft = 34.88 sqft
       const widthInFeet = 6.92;
       const heightInFeet = 5.04;
       const fixedQuantity = widthInFeet * heightInFeet;
-      
+
       console.log('🎯 QuoteModal Jumbo Series P3/P6 Fixed Pricing:', {
         product: product.name,
         pixelPitch,
         fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
         quantity: fixedQuantity.toFixed(2) + ' sqft'
       });
-      
+
       quantity = Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
     } else {
       quantity = 1; // Fallback
@@ -129,17 +130,17 @@ function calculateCorrectTotalPrice(
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
     const rawQuantity = widthInFeet * heightInFeet;
-    
+
     // Round to 2 decimal places for consistency with display
     quantity = Math.round(rawQuantity * 100) / 100;
-    
+
     // Ensure quantity is reasonable (same as PDF)
     quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
   }
-  
+
   // Calculate subtotal (product price before GST)
   const subtotal = unitPrice * quantity;
-  
+
   // Add processor price if available (before GST)
   // Note: Skip processor price for Jumbo Series products as their prices already include controllers
   let processorPrice = 0;
@@ -155,16 +156,16 @@ function calculateCorrectTotalPrice(
   } else if (processor && isJumboSeriesProduct(product)) {
     console.log('🚫 Skipping processor price for Jumbo Series product:', product.name);
   }
-  
+
   // Calculate totals with GST (18%) - SAME LOGIC AS PDF
   // Product total (A)
   const gstProduct = subtotal * 0.18;
   const totalProduct = subtotal + gstProduct;
-  
+
   // Processor/Controller total (B)
   const gstProcessor = processorPrice * 0.18;
   const totalProcessor = processorPrice + gstProcessor;
-  
+
   // Calculate screen area in square feet for Structure and Installation pricing
   // This should always be based on actual display dimensions
   const widthInMeters = config.width / 1000;
@@ -172,12 +173,12 @@ function calculateCorrectTotalPrice(
   const widthInFeet = widthInMeters * METERS_TO_FEET;
   const heightInFeet = heightInMeters * METERS_TO_FEET;
   const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
-  
+
   // Structure and Installation pricing - use custom if enabled, otherwise use default calculation
   // IMPORTANT: Structure and Installation are kept SEPARATE - never combined
   let structureBasePrice: number;
   let installationBasePrice: number;
-  
+
   if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
     // Use custom pricing (base prices without GST)
     structureBasePrice = customPricing.structurePrice;
@@ -197,18 +198,18 @@ function calculateCorrectTotalPrice(
     }
     installationBasePrice = screenAreaSqFt * 500;
   }
-  
+
   // Calculate GST on structure and installation separately (always 18%)
   const structureGST = structureBasePrice * 0.18;
   const totalStructure = structureBasePrice + structureGST;
-  
+
   const installationGST = installationBasePrice * 0.18;
   const totalInstallation = installationBasePrice + installationGST;
-  
+
   // GRAND TOTAL (A + B + Structure + Installation) - This matches the PDF exactly
   // Structure and Installation are added separately - never combined
   const grandTotal = totalProduct + totalProcessor + totalStructure + totalInstallation;
-  
+
   console.log('💰 Price Calculation (WITH GST - matches PDF exactly):', {
     product: product.name,
     userType: pdfUserType,
@@ -223,23 +224,23 @@ function calculateCorrectTotalPrice(
     gstProcessor,
     totalProcessor,
     grandTotal: Math.round(grandTotal),
-      breakdown: {
-        'Unit Price (per sq.ft)': unitPrice,
-        'Quantity (sq.ft)': quantity,
-        'Product Subtotal': subtotal,
-        'Product GST (18%)': gstProduct,
-        'Product Total (A)': totalProduct,
-        'Processor Price': processorPrice,
-        'Processor GST (18%)': gstProcessor,
-        'Processor Total (B)': totalProcessor,
-        'Structure Cost (Base)': structureBasePrice,
-        'Structure GST (18%)': structureGST,
-        'Structure Total': totalStructure,
-        'Installation Cost (Base)': installationBasePrice,
-        'Installation GST (18%)': installationGST,
-        'Installation Total': totalInstallation,
-        'GRAND TOTAL (A+B+C+D) with GST': Math.round(grandTotal)
-      },
+    breakdown: {
+      'Unit Price (per sq.ft)': unitPrice,
+      'Quantity (sq.ft)': quantity,
+      'Product Subtotal': subtotal,
+      'Product GST (18%)': gstProduct,
+      'Product Total (A)': totalProduct,
+      'Processor Price': processorPrice,
+      'Processor GST (18%)': gstProcessor,
+      'Processor Total (B)': totalProcessor,
+      'Structure Cost (Base)': structureBasePrice,
+      'Structure GST (18%)': structureGST,
+      'Structure Total': totalStructure,
+      'Installation Cost (Base)': installationBasePrice,
+      'Installation GST (18%)': installationGST,
+      'Installation Total': totalInstallation,
+      'GRAND TOTAL (A+B+C+D) with GST': Math.round(grandTotal)
+    },
     calculation: {
       'Config Dimensions': `${config.width}×${config.height}mm`,
       'Config in Meters': `${(config.width / 1000).toFixed(2)}×${(config.height / 1000).toFixed(2)}m`,
@@ -249,7 +250,7 @@ function calculateCorrectTotalPrice(
       'Calculated Total': `${((product.cabinetDimensions?.width || 0) * (cabinetGrid?.columns || 1))}×${((product.cabinetDimensions?.height || 0) * (cabinetGrid?.rows || 1))}mm`
     }
   });
-  
+
   // Return grand total rounded to nearest rupee (INCLUDES 18% GST)
   return Math.round(grandTotal);
 }
@@ -310,8 +311,8 @@ type QuoteModalProps = {
     width: number;
     height: number;
     unit: string;
-  }; 
-  cabinetGrid?: CabinetGrid; 
+  };
+  cabinetGrid?: CabinetGrid;
   processor?: string;
   mode?: string;
   userInfo?: {
@@ -352,7 +353,7 @@ const calculateAspectRatio = (width: number, height: number): string => {
 
 // Get user type display name
 const getUserTypeDisplayName = (type: string): string => {
-  switch(type) {
+  switch (type) {
     case 'siChannel':
       return 'SI/Channel Partner';
     case 'reseller':
@@ -371,7 +372,7 @@ const getProcessorPriceLocal = (processor: string, userType: string): number => 
   } else if (userType === 'siChannel') {
     pdfUserType = 'Channel';
   }
-  
+
   return getProcessorPrice(processor, pdfUserType);
 };
 
@@ -394,7 +395,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   userRole,
   quotationId,
   customPricing: externalCustomPricing,
-  onCustomPricingChange
+  onCustomPricingChange,
+  config
 }) => {
   const [message, setMessage] = useState('');
   const [customerName, setCustomerName] = useState(userInfo?.fullName || '');
@@ -406,15 +408,15 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   // Support all three customer types
   type UserTypeDisplay = 'End User' | 'SI/Channel Partner' | 'Reseller';
   const [selectedUserType, setSelectedUserType] = useState<UserTypeDisplay>(
-    userInfo?.userType === 'Reseller' ? 'Reseller' : 
-    userInfo?.userType === 'SI/Channel Partner' ? 'SI/Channel Partner' : 
-    'End User'
+    userInfo?.userType === 'Reseller' ? 'Reseller' :
+      userInfo?.userType === 'SI/Channel Partner' ? 'SI/Channel Partner' :
+        'End User'
   );
-  
+
   // Get allowed customer types from salesUser (for partners)
   const allowedCustomerTypes = salesUser?.allowedCustomerTypes || [];
   const isPartner = userRole === 'partner';
-  
+
   // Filter available user types based on permissions
   const availableUserTypes: UserTypeDisplay[] = React.useMemo(() => {
     if (isPartner && allowedCustomerTypes.length > 0) {
@@ -428,7 +430,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     // Sales/Super: show all types
     return ['End User', 'SI/Channel Partner', 'Reseller'];
   }, [isPartner, allowedCustomerTypes]);
-  
+
   // Ensure selectedUserType is valid based on permissions
   React.useEffect(() => {
     if (isPartner && allowedCustomerTypes.length > 0) {
@@ -438,21 +440,21 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       }
     }
   }, [isPartner, allowedCustomerTypes, availableUserTypes, selectedUserType]);
-  
+
   // Discount state (only for superadmin)
   const [discountType, setDiscountType] = useState<'led' | 'controller' | 'total' | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
-  
+
   // Custom pricing state - use external if provided, otherwise use internal state
   const [internalCustomPricingEnabled, setInternalCustomPricingEnabled] = useState(externalCustomPricing?.enabled || false);
   const [internalCustomStructurePrice, setInternalCustomStructurePrice] = useState<number | null>(externalCustomPricing?.structurePrice || null);
   const [internalCustomInstallationPrice, setInternalCustomInstallationPrice] = useState<number | null>(externalCustomPricing?.installationPrice || null);
-  
+
   // Use external pricing if provided, otherwise use internal state
   const customPricingEnabled = externalCustomPricing?.enabled ?? internalCustomPricingEnabled;
   const customStructurePrice = externalCustomPricing?.structurePrice ?? internalCustomStructurePrice;
   const customInstallationPrice = externalCustomPricing?.installationPrice ?? internalCustomInstallationPrice;
-  
+
   // Update external state when internal state changes
   const updateCustomPricing = (enabled: boolean, structurePrice: number | null, installationPrice: number | null) => {
     if (onCustomPricingChange) {
@@ -477,7 +479,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       setSelectedUserType(userInfo.userType);
     }
   }, [userInfo]);
-  
+
   // Load sales persons if user is superadmin
   useEffect(() => {
     if ((userRole === 'super' || userRole === 'super_admin') && isOpen) {
@@ -487,7 +489,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           const response = await salesAPI.getSalesPersons();
           const persons = response.salesPersons || [];
           setSalesPersons(persons);
-          
+
           console.log('📋 Loaded sales persons for dropdown:', {
             count: persons.length,
             persons: persons.map(p => ({
@@ -497,7 +499,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               email: p.email
             }))
           });
-          
+
           // Default to current user if available
           if (salesUser?._id) {
             const currentUserId = salesUser._id.toString();
@@ -523,7 +525,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       loadSalesPersons();
     }
   }, [userRole, isOpen, salesUser]);
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -542,61 +544,56 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     }
   };
 
-  // Get the user type display name for email
-  const getUserTypeDisplayName = (): string => {
-    return selectedUserType;
-  };
-
 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     console.log('🚀 QuoteModal handleSubmit called');
     console.log('📋 Sales User:', salesUser);
     console.log('🆔 Quotation ID:', quotationId);
     console.log('📦 Selected Product:', selectedProduct?.name);
-    
+
     // Validate required fields
     if (!selectedProduct) {
       alert('Please select a product');
       return;
     }
-    
+
     if (!customerName || customerName.trim() === '') {
       alert('Please enter your name');
       return;
     }
-    
+
     if (!customerEmail || customerEmail.trim() === '') {
       alert('Please enter your email address');
       return;
     }
-    
+
     if (!customerPhone || customerPhone.trim() === '') {
       alert('Please enter your phone number');
       return;
     }
-    
+
     if (!selectedUserType) {
       alert('Please select a user type');
       return;
     }
-    
+
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(customerEmail)) {
       alert('Please enter a valid email address');
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       const userType = getUserType();
       // const userPrice = getPriceForUserType(); // Commented out for future use
       // const totalPrice = calculateTotalPrice(); // Commented out for future use
-      
+
       const quoteData: QuoteRequest = {
         // Root level required fields for backend compatibility
         productName: selectedProduct.name,
@@ -604,8 +601,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim(),
         message: message.trim() || 'No additional message provided',
-        userTypeDisplayName: getUserTypeDisplayName(),
-        
+        userTypeDisplayName: getUserTypeDisplayName(getUserType()),
+
         // Product details object
         product: {
           // Basic product info
@@ -628,8 +625,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           maxPowerConsumption: selectedProduct.maxPowerConsumption,
           avgPowerConsumption: selectedProduct.avgPowerConsumption,
           weightPerCabinet: selectedProduct.weightPerCabinet,
-                  // Pricing - Commented out for future use
-        // processorPrice: userPrice,
+          // Pricing - Commented out for future use
+          // processorPrice: userPrice,
           // User info
           userType: userType
         },
@@ -638,7 +635,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
           height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
         } : undefined,
-        aspectRatio: selectedProduct.resolution ? 
+        aspectRatio: selectedProduct.resolution ?
           calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
         // Include processor and mode if available
         processor: processor,
@@ -648,31 +645,31 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         // Include total price - Commented out for future use
         // totalPrice: totalPrice
       };
-      
+
       console.log('Submitting quote data:', quoteData);
-      
+
       // First, save quotation to local database if this is a sales user
       console.log('🔍 Checking conditions for database save:');
       console.log('  - salesUser present:', !!salesUser);
       console.log('  - quotationId present:', !!quotationId);
       console.log('  - salesUser details:', salesUser ? { name: salesUser.name, email: salesUser.email } : 'null');
       console.log('  - quotationId value:', quotationId);
-      
+
       // Generate quotationId if missing but salesUser is present
       let finalQuotationId = quotationId;
       const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
-      
+
       // For superadmin, require salesUser or selectedSalesPersonId
       if (isSuperAdmin && !salesUser && !selectedSalesPersonId) {
         alert('Please select a sales person to assign this quotation to');
         setIsSubmitting(false);
         return;
       }
-      
+
       if ((salesUser || isSuperAdmin) && !quotationId) {
         console.log('⚠️ QuotationId missing, generating new one...');
         // For superadmin, use selected sales person name or current user name
-        const nameForId = isSuperAdmin && selectedSalesPersonId 
+        const nameForId = isSuperAdmin && selectedSalesPersonId
           ? salesPersons.find(p => p._id === selectedSalesPersonId)?.name || salesUser?.name
           : salesUser?.name;
         if (nameForId) {
@@ -684,12 +681,12 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           return;
         }
       }
-      
+
       // CRITICAL: Determine salesUserId and salesUserName for quotation attribution
       // This determines which user the quotation will be counted under in the dashboard
       let finalSalesUserId: string | undefined;
       let finalSalesUserName: string | undefined;
-      
+
       if (isSuperAdmin) {
         // Superadmin can assign to selected sales person or themselves
         if (selectedSalesPersonId) {
@@ -699,14 +696,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             salesPersonsCount: salesPersons.length,
             salesPersonsIds: salesPersons.map(p => ({ id: p._id, idType: typeof p._id, name: p.name }))
           });
-          
+
           const selectedPerson = salesPersons.find(p => {
             // Handle both string and ObjectId comparisons
             const personId = p._id?.toString();
             const selectedId = selectedSalesPersonId?.toString();
             return personId === selectedId;
           });
-          
+
           if (selectedPerson) {
             // Assign to the selected sales person
             // CRITICAL: Always convert to string to ensure consistent format
@@ -756,10 +753,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           note: 'Quotation will be attributed to this user in dashboard'
         });
       }
-      
+
       // Save quotation for sales users, partners, and superadmins
       // Partners are treated exactly the same as sales users
       if ((salesUser || isSuperAdmin) && finalQuotationId && finalSalesUserId && finalSalesUserName) {
+        let exactQuotationData: any = null;
         console.log('✅ Conditions met - attempting to save quotation to database...');
         console.log('📋 User:', salesUser?.name || 'Super Admin', salesUser?.email || 'N/A');
         console.log('👤 User Role:', userRole);
@@ -771,7 +769,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           isPartner: userRole === 'partner',
           note: 'Quotation will be saved with same structure as sales user quotations'
         });
-        
+
         try {
           // PRODUCTION DEBUG: Log the exact payload being sent
           console.log('🚀 QUOTATION SAVE - Payload being sent:', {
@@ -787,20 +785,20 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             currentUserId: salesUser?._id,
             timestamp: new Date().toISOString()
           });
-          
+
           // Create comprehensive product details object
           const comprehensiveProductDetails = {
             // Basic product info
             productId: selectedProduct.id,
             productName: selectedProduct.name,
             category: selectedProduct.category,
-            
+
             // Pricing information (CRITICAL for backend pricing calculation)
             price: selectedProduct.price,
             resellerPrice: selectedProduct.resellerPrice,
             siChannelPrice: selectedProduct.siChannelPrice,
             prices: selectedProduct.prices,
-            
+
             // Display specifications
             pixelPitch: selectedProduct.pixelPitch,
             resolution: selectedProduct.resolution,
@@ -808,7 +806,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             moduleDimensions: selectedProduct.moduleDimensions,
             moduleResolution: selectedProduct.moduleResolution,
             moduleQuantity: selectedProduct.moduleQuantity,
-            
+
             // Technical specifications
             pixelDensity: selectedProduct.pixelDensity,
             brightness: selectedProduct.brightness,
@@ -817,22 +815,22 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             maxPowerConsumption: selectedProduct.maxPowerConsumption,
             avgPowerConsumption: selectedProduct.avgPowerConsumption,
             weightPerCabinet: selectedProduct.weightPerCabinet,
-            
+
             // Configuration details
             cabinetGrid: cabinetGrid,
             displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
               width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
               height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
             } : undefined,
-            aspectRatio: selectedProduct.resolution ? 
+            aspectRatio: selectedProduct.resolution ?
               calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
             processor: processor,
             mode: mode,
-            
+
             // User type and pricing context
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
-            
+
             // Timestamp
             generatedAt: new Date().toISOString()
           };
@@ -840,16 +838,16 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           // CRITICAL: Calculate total price using calculateCorrectTotalPrice with custom pricing support
           // This ensures 100% consistency between database storage and PDF generation
           const configForCalc = config || { width: 2400, height: 1010, unit: 'mm' };
-          
+
           // Prepare custom pricing object if enabled
           const customPricingObj = customPricingEnabled && customStructurePrice !== null && customInstallationPrice !== null
             ? {
-                enabled: true,
-                structurePrice: customStructurePrice,
-                installationPrice: customInstallationPrice
-              }
+              enabled: true,
+              structurePrice: customStructurePrice,
+              installationPrice: customInstallationPrice
+            }
             : undefined;
-          
+
           // Calculate total price with custom pricing support
           const correctTotalPrice = calculateCorrectTotalPrice(
             selectedProduct,
@@ -859,17 +857,17 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             configForCalc,
             customPricingObj
           );
-          
+
           // Also get centralized pricing for breakdown (with custom pricing support)
           const pricingResult = calculateCentralizedPricing(
-            selectedProduct,
+            selectedProduct as any,
             cabinetGrid,
             processor,
             userType,
             configForCalc,
             customPricingObj
           );
-          
+
           // Check if price is available
           if (!pricingResult.isAvailable) {
             alert('❌ Price is not available for this product configuration. Please contact sales for pricing information.');
@@ -880,19 +878,20 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           let finalPricingResult = pricingResult;
           let finalTotalPrice = correctTotalPrice;
           let discountInfo: DiscountInfo | null = null;
-          
-          const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
+
+          // Re-use isSuperAdmin from outer scope if needed, or just check userRole
+          // const isSuperAdmin = userRole === 'super' || userRole === 'super_admin'; // REMOVED REDECLARATION
           if (isSuperAdmin && discountType && discountPercent > 0) {
             discountInfo = {
               discountType,
               discountPercent
             };
-            
+
             // Apply discount to pricing result
             const discountedResult = applyDiscount(pricingResult, discountInfo);
             finalPricingResult = discountedResult;
             finalTotalPrice = discountedResult.grandTotal;
-            
+
             console.log('💰 DISCOUNT APPLIED TO QUOTATION:', {
               discountType,
               discountPercent: `${discountPercent}%`,
@@ -917,7 +916,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           });
 
           // Capture exact quotation data as shown on the page
-          const exactQuotationData = {
+          exactQuotationData = {
             // Basic quotation info
             quotationId: finalQuotationId,
             customerName: customerName.trim(),
@@ -928,7 +927,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
             totalPrice: finalTotalPrice,  // CRITICAL: Grand Total with GST (and discount if applied) - matches PDF exactly
-            
+            originalTotalPrice: correctTotalPrice, // Store original total price before discount
+
             // CRITICAL: Include salesUserId and salesUserName for quotation attribution
             // This determines which user the quotation is counted under in the dashboard
             // For superadmin: can be assigned user or themselves
@@ -936,7 +936,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             // Partners are saved with the same structure as sales users
             salesUserId: finalSalesUserId,
             salesUserName: finalSalesUserName,
-            
+
             // Store exact pricing breakdown using centralized calculation + custom pricing + discount
             exactPricingBreakdown: {
               unitPrice: finalPricingResult.unitPrice,
@@ -968,11 +968,29 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 discountAmount: 'discountAmount' in finalPricingResult ? finalPricingResult.discountAmount : 0
               } : undefined
             },
-            
+
+            // Store original pricing breakdown (Source of Truth for Resets)
+            originalPricingBreakdown: {
+              unitPrice: pricingResult.unitPrice,
+              quantity: pricingResult.quantity,
+              subtotal: pricingResult.productSubtotal,
+              gstRate: 18,
+              gstAmount: pricingResult.productGST,
+              processorPrice: pricingResult.processorPrice,
+              processorGst: pricingResult.processorGST,
+              structureCost: pricingResult.structureCost,
+              structureGST: pricingResult.structureGST,
+              structureTotal: pricingResult.structureTotal,
+              installationCost: pricingResult.installationCost,
+              installationGST: pricingResult.installationGST,
+              installationTotal: pricingResult.installationTotal,
+              grandTotal: pricingResult.grandTotal // Always clean total
+            },
+
             // Store discount information in quotationData
             discountType: discountInfo?.discountType || null,
             discountPercent: discountInfo?.discountPercent || 0,
-            
+
             // Store exact product specifications as shown
             exactProductSpecs: {
               productName: selectedProduct.name,
@@ -984,23 +1002,23 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
                 height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
               } : undefined,
-              aspectRatio: selectedProduct.resolution ? 
+              aspectRatio: selectedProduct.resolution ?
                 calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
               processor: processor,
               mode: mode,
               cabinetGrid: cabinetGrid
             },
-            
+
             // Store comprehensive product details for backend compatibility
             productDetails: comprehensiveProductDetails,
-            
+
             // Custom pricing fields
             customPricing: customPricingObj ? {
               enabled: true,
               structurePrice: customStructurePrice,
               installationPrice: customInstallationPrice
             } : undefined,
-            
+
             // Timestamp when quotation was created
             createdAt: new Date().toISOString()
           };
@@ -1012,13 +1030,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             salesUserIdString: exactQuotationData.salesUserId?.toString(),
             salesUserName: exactQuotationData.salesUserName
           });
-          
+
           const saveResult = await salesAPI.saveQuotation(exactQuotationData);
           console.log('✅ Quotation saved to database successfully:', saveResult);
-          
+
           // Show success message to user
           alert('Quotation saved successfully to database!');
-          
+
         } catch (dbError: any) {
           console.error('❌ Error saving quotation to database:', dbError);
           console.error('❌ Error details:', {
@@ -1027,7 +1045,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             quotationId,
             salesUser: salesUser?.name
           });
-          
+
           // If it's a duplicate ID error, try with a fallback ID
           if (dbError.message && dbError.message.includes('already exists')) {
             console.log('🔄 Duplicate ID detected in QuoteModal, trying with fallback ID...');
@@ -1038,18 +1056,18 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                   : salesUser?.name || 'Admin'
               );
               console.log('🆔 Generated fallback quotationId:', fallbackQuotationId);
-              
+
               const fallbackQuotationData = {
                 ...exactQuotationData,
                 quotationId: fallbackQuotationId
               };
-              
+
               const fallbackResult = await salesAPI.saveQuotation(fallbackQuotationData);
               console.log('✅ Quotation saved with fallback ID:', fallbackResult);
-              
+
               // Show success message to user
               alert('Quotation saved successfully to database with fallback ID!');
-              
+
             } catch (fallbackError: any) {
               console.error('❌ Fallback save also failed:', fallbackError);
               alert(`Failed to save quotation to database: ${fallbackError.message}`);
@@ -1058,7 +1076,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             // Show error message to user
             alert(`Failed to save quotation to database: ${dbError.message}`);
           }
-          
+
           // Don't fail the entire process if database save fails
         }
       } else {
@@ -1089,7 +1107,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         onSubmit(message);
       }
       setIsSubmitted(true);
-      
+
       // Reset form after 10 seconds
       setTimeout(() => {
         setMessage('');
@@ -1166,7 +1184,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                           <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                         </div>
                       </div>
-                      
+
                       <div>
                         <label htmlFor="customerEmail" className="block text-base font-medium text-gray-700 mb-3">
                           Email Address <span className="text-red-500">*</span>
@@ -1185,7 +1203,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                           <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                         </div>
                       </div>
-                      
+
                       <div>
                         <label htmlFor="customerPhone" className="block text-base font-medium text-gray-700 mb-3">
                           Phone Number <span className="text-red-500">*</span>
@@ -1289,7 +1307,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                       {(userRole === 'super' || userRole === 'super_admin') && (
                         <div className="pt-4 border-t border-gray-200">
                           <h3 className="text-base font-semibold text-gray-700 mb-3">Discount (Super User Only)</h3>
-                          
+
                           {/* Discount Type Radio Buttons */}
                           <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1411,9 +1429,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   id="customStructurePrice"
                                   min="0"
                                   step="0.01"
-                                  className={`w-full px-4 py-3 border rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all ${
-                                    customPricingEnabled ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-300'
-                                  }`}
+                                  className={`w-full px-4 py-3 border rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all ${customPricingEnabled ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-300'
+                                    }`}
                                   placeholder="Enter custom structure price"
                                   value={customStructurePrice ?? ''}
                                   onChange={(e) => {
@@ -1434,9 +1451,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   id="customInstallationPrice"
                                   min="0"
                                   step="0.01"
-                                  className={`w-full px-4 py-3 border rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all ${
-                                    customPricingEnabled ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-300'
-                                  }`}
+                                  className={`w-full px-4 py-3 border rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all ${customPricingEnabled ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-300'
+                                    }`}
                                   placeholder="Enter custom installation price"
                                   value={customInstallationPrice ?? ''}
                                   onChange={(e) => {
@@ -1486,42 +1502,42 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                             <span className="text-sm font-medium text-gray-600">Product:</span>
                             <span className="font-semibold text-gray-900 text-sm">{selectedProduct.name}</span>
                           </div>
-                          
+
                           {selectedProduct.pixelPitch && (
                             <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
                               <span className="text-sm font-medium text-gray-600">Pixel Pitch:</span>
                               <span className="font-semibold text-gray-900 text-sm">{selectedProduct.pixelPitch} mm</span>
                             </div>
                           )}
-                          
+
                           {selectedProduct.resolution && (
                             <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
                               <span className="text-sm font-medium text-gray-600">Resolution:</span>
                               <span className="font-semibold text-gray-900 text-sm">{selectedProduct.resolution.width} × {selectedProduct.resolution.height} px</span>
                             </div>
                           )}
-                          
+
                           {cabinetGrid && (
                             <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
                               <span className="text-sm font-medium text-gray-600">Cabinet Grid:</span>
                               <span className="font-semibold text-gray-900 text-sm">{cabinetGrid.columns} × {cabinetGrid.rows}</span>
                             </div>
                           )}
-                          
+
                           {processor && (
                             <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
                               <span className="text-sm font-medium text-gray-600">Processor:</span>
                               <span className="font-semibold text-gray-900 text-sm">{processor}</span>
                             </div>
                           )}
-                          
+
                           {mode && (
                             <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
                               <span className="text-sm font-medium text-gray-600">Mode:</span>
                               <span className="font-semibold text-gray-900 text-sm">{mode}</span>
                             </div>
                           )}
-                          
+
                         </div>
                       </div>
                     </div>
@@ -1569,11 +1585,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`px-16 py-6 rounded-2xl font-bold text-white transition-all text-xl flex items-center space-x-4 shadow-2xl border-2 border-gray-800 ${
-                    isSubmitting
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105'
-                  }`}
+                  className={`px-16 py-6 rounded-2xl font-bold text-white transition-all text-xl flex items-center space-x-4 shadow-2xl border-2 border-gray-800 ${isSubmitting
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105'
+                    }`}
                 >
                   {isSubmitting ? (
                     <>

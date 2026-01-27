@@ -868,8 +868,10 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       userType,
       userTypeDisplayName,
       totalPrice,
+      originalTotalPrice, // Added field
       // New exact quotation data fields
       exactPricingBreakdown,
+      originalPricingBreakdown, // Added field
       exactProductSpecs,
       pdfPage6HTML,
       createdAt,
@@ -1050,8 +1052,10 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       userType,
       userTypeDisplayName,
       totalPrice: totalPrice || 0,
+      originalTotalPrice: originalTotalPrice || totalPrice || 0, // Fallback to totalPrice if original is missing
       // Store exact quotation data as shown on the page
       exactPricingBreakdown: exactPricingBreakdown || null,
+      originalPricingBreakdown: originalPricingBreakdown || null, // Capture original
       exactProductSpecs: exactProductSpecs || null,
       // Store the exact PDF HTML that was displayed when quotation was created
       pdfPage6HTML: pdfPage6HTML || null,
@@ -1256,6 +1260,7 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
     if (updateData.totalPrice !== undefined) quotation.totalPrice = updateData.totalPrice;
     if (updateData.originalTotalPrice !== undefined) quotation.originalTotalPrice = updateData.originalTotalPrice;
     if (updateData.exactPricingBreakdown !== undefined) quotation.exactPricingBreakdown = updateData.exactPricingBreakdown;
+    if (updateData.originalPricingBreakdown !== undefined) quotation.originalPricingBreakdown = updateData.originalPricingBreakdown;
     if (updateData.exactProductSpecs !== undefined) quotation.exactProductSpecs = updateData.exactProductSpecs;
     if (updateData.quotationData !== undefined) {
       // Merge existing quotationData with updates
@@ -1718,6 +1723,8 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
         pdfS3Key: quotation.pdfS3Key || null,
         pdfS3Url: quotation.pdfS3Url || null,
         exactPricingBreakdown: quotation.exactPricingBreakdown || null,
+        originalPricingBreakdown: quotation.originalPricingBreakdown || null,
+        originalTotalPrice: quotation.originalTotalPrice || null,
         exactProductSpecs: quotation.exactProductSpecs || null,
         quotationData: quotation.quotationData || null
       });
@@ -1855,6 +1862,8 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
         pdfS3Key: quotation.pdfS3Key || null,
         pdfS3Url: quotation.pdfS3Url || null,
         exactPricingBreakdown: quotation.exactPricingBreakdown || null,
+        originalPricingBreakdown: quotation.originalPricingBreakdown || null,
+        originalTotalPrice: quotation.originalTotalPrice || null,
         exactProductSpecs: quotation.exactProductSpecs || null,
         quotationData: quotation.quotationData || null
       });

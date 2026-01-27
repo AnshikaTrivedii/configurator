@@ -57,6 +57,7 @@ interface Quotation {
     cabinetGrid: any;
   };
   quotationData?: any;
+  originalPricingBreakdown?: any;
 }
 
 interface Customer {
@@ -264,8 +265,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
   };
 
   const handleApplyDiscount = async (quotation: Quotation) => {
-    if (!discountType || discountPercent <= 0) {
-      alert('Please select a discount type and enter a valid percentage > 0');
+    if (!discountType || discountPercent < 0) {
+      alert('Please select a discount type and enter a valid percentage >= 0');
       return;
     }
 
@@ -282,138 +283,271 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       let finalPricingResult: any = null;
 
       // Construct pricing result from existing breakdown if available
-      if (quotation.exactPricingBreakdown) {
-        const productDetails = quotation.productDetails;
-        const exactSpecs = (quotation.exactProductSpecs || {}) as any;
-        const product = productDetails?.product || productDetails;
+      // 0. Setup variables
+      const productDetails = quotation.productDetails;
+      const exactSpecs = (quotation.exactProductSpecs || {}) as any;
+      const product = productDetails?.product || productDetails;
 
-        let config = quotation.quotationData?.config;
+      let config = quotation.quotationData?.config;
 
-        // Fallback 1: Try exactSpecs
-        if (!config && exactSpecs?.displaySize) {
-          config = {
-            width: (exactSpecs.displaySize.width * 1000) || 0,
-            height: (exactSpecs.displaySize.height * 1000) || 0,
-            unit: 'mm'
-          };
-        }
+      // Fallback 1: Try exactSpecs
+      if (!config && exactSpecs?.displaySize) {
+        config = {
+          width: (exactSpecs.displaySize.width * 1000) || 0,
+          height: (exactSpecs.displaySize.height * 1000) || 0,
+          unit: 'mm'
+        };
+      }
 
-        // Fallback 2: Try productDetails directly
-        if (!config && productDetails?.displaySize) {
-          config = {
-            width: (productDetails.displaySize.width * 1000) || 0,
-            height: (productDetails.displaySize.height * 1000) || 0,
-            unit: 'mm'
-          };
-        }
+      // Fallback 2: Try productDetails directly
+      if (!config && productDetails?.displaySize) {
+        config = {
+          width: (productDetails.displaySize.width * 1000) || 0,
+          height: (productDetails.displaySize.height * 1000) || 0,
+          unit: 'mm'
+        };
+      }
 
-        console.log('📊 Discount Calculation Data:', {
-          hasProduct: !!product,
-          hasConfig: !!config,
-          configSource: quotation.quotationData?.config ? 'quotationData' : (exactSpecs?.displaySize ? 'exactSpecs' : 'productDetails'),
+      console.log('📊 Discount Calculation Data:', {
+        hasProduct: !!product,
+        hasConfig: !!config,
+        configSource: quotation.quotationData?.config ? 'quotationData' : (exactSpecs?.displaySize ? 'exactSpecs' : 'productDetails'),
+        config,
+        productName: product?.name
+      });
+
+      // PRIORITY 0: RESTORE FROM originalPricingBreakdown (The Source of Truth)
+      // This guarantees we always start from the true 0% discount state
+      let isRestoredFromOriginalBreakdown = false;
+      if (quotation.originalPricingBreakdown) {
+        console.log('✅ Restoring from originalPricingBreakdown (Source of Truth)');
+        isRestoredFromOriginalBreakdown = true;
+        const ob = quotation.originalPricingBreakdown;
+
+        // Map original breakdown to PricingCalculationResult interface
+        finalPricingResult = {
+          unitPrice: ob.unitPrice || 0,
+          quantity: ob.quantity || 0,
+          productSubtotal: ob.productSubtotal || ob.subtotal || 0,
+          productGST: ob.productGST || ob.gstAmount || 0,
+          productTotal: (ob.productSubtotal || ob.subtotal || 0) + (ob.productGST || ob.gstAmount || 0),
+
+          processorPrice: ob.processorPrice || 0,
+          processorGST: ob.processorGST || ob.processorGst || 0,
+          processorTotal: (ob.processorPrice || 0) + (ob.processorGST || ob.processorGst || 0),
+
+          structureCost: ob.structureCost || 0,
+          structureGST: ob.structureGST || 0,
+          structureTotal: ob.structureTotal || 0,
+
+          installationCost: ob.installationCost || 0,
+          installationGST: ob.installationGST || 0,
+          installationTotal: ob.installationTotal || 0,
+
+          grandTotal: ob.grandTotal || 0,
+
+          userType: quotation.userTypeDisplayName || 'End User',
+          productName: quotation.productName || 'Unknown Product',
+          isAvailable: true
+        };
+      }
+      // PRIORITY 1: Use existing breakdown directly (ONLY if clean/undiscounted)
+      // If a discount was previously applied, exactPricingBreakdown contains discounted values,
+      // so we CANNOT use it as the source of truth for the original price.
+      else if (quotation.exactPricingBreakdown && !quotation.quotationData?.discountApplied) {
+        console.log('✅ Using existing exactPricingBreakdown as base for discount');
+        const eb = quotation.exactPricingBreakdown as any;
+
+        // Map legacy breakdown to PricingCalculationResult interface
+        finalPricingResult = {
+          unitPrice: eb.unitPrice || 0,
+          quantity: eb.quantity || 0,
+          productSubtotal: eb.productSubtotal || eb.subtotal || 0,
+          productGST: eb.productGST || eb.gstAmount || 0,
+          productTotal: (eb.productSubtotal || eb.subtotal || 0) + (eb.productGST || eb.gstAmount || 0),
+
+          processorPrice: eb.processorPrice || 0,
+          processorGST: eb.processorGST || eb.processorGst || 0,
+          processorTotal: (eb.processorPrice || 0) + (eb.processorGST || eb.processorGst || 0),
+
+          structureCost: eb.structureCost || 0,
+          structureGST: eb.structureGST || 0,
+          structureTotal: eb.structureTotal || 0,
+
+          installationCost: eb.installationCost || 0,
+          installationGST: eb.installationGST || 0,
+          installationTotal: eb.installationTotal || 0,
+
+          grandTotal: eb.grandTotal || 0,
+
+          // Restoration of original values for preventing compounded discounts
+          originalProductTotal: undefined,
+          originalProcessorTotal: undefined,
+          originalGrandTotal: undefined,
+
+          userType: quotation.userTypeDisplayName || 'End User',
+          productName: quotation.productName || 'Unknown Product',
+          isAvailable: true
+        };
+      }
+
+      // PRIORITY 2: Recalculate if no clean breakdown available (Fallback)
+      if (!finalPricingResult && product && config) {
+        console.log('⚠️ No clean breakdown found (or existing was tainted), attempting recalculation from product specs...');
+        const userType = quotation.userTypeDisplayName === 'Reseller' ? 'reseller' : (quotation.userTypeDisplayName === 'SI/Channel Partner' ? 'siChannel' : 'endUser');
+        const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
+        const processor = exactSpecs.processor || productDetails?.processor || null;
+        const customPricing = quotation.quotationData?.customPricing;
+
+        const pricingResult = calculateCentralizedPricing(
+          product,
+          cabinetGrid,
+          processor,
+          userType,
           config,
-          productName: product?.name
-        });
+          customPricing
+        );
 
-        if (product && config) {
-          const userType = quotation.userTypeDisplayName === 'Reseller' ? 'reseller' : (quotation.userTypeDisplayName === 'SI/Channel Partner' ? 'siChannel' : 'endUser');
-          const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
-          const processor = exactSpecs.processor || productDetails?.processor || null;
-          const customPricing = quotation.quotationData?.customPricing;
+        if (pricingResult.isAvailable) {
+          console.log('✅ Recalculation successful - Generated clean original pricing');
+          finalPricingResult = pricingResult;
+        }
+      }
 
-          const pricingResult = calculateCentralizedPricing(
-            product,
-            cabinetGrid,
-            processor,
-            userType,
-            config,
-            customPricing
-          );
+      // FALLBACK for Legacy Data: If Recalculation failed but we have a tainted breakdown
+      // Try to reverse-engineer the original price from the tainted one
+      if (!finalPricingResult && quotation.exactPricingBreakdown && quotation.quotationData?.discountApplied) {
+        console.warn('⚠️ Recalculation failed. Attempting to reverse-engineer from tainted breakdown.');
+        const eb = quotation.exactPricingBreakdown as any;
+        const di = quotation.quotationData.discountInfo;
+        const discountAmount = di?.amount || 0;
+        const discountType = di?.type;
 
-          if (pricingResult.isAvailable) {
-            finalPricingResult = pricingResult;
+        // Base tainted result
+        finalPricingResult = {
+          unitPrice: eb.unitPrice || 0,
+          quantity: eb.quantity || 0,
+          productSubtotal: eb.productSubtotal || eb.subtotal || 0,
+          productGST: eb.productGST || eb.gstAmount || 0,
+          productTotal: (eb.productSubtotal || eb.subtotal || 0) + (eb.productGST || eb.gstAmount || 0),
+
+          processorPrice: eb.processorPrice || 0,
+          processorGST: eb.processorGST || eb.processorGst || 0,
+          processorTotal: (eb.processorPrice || 0) + (eb.processorGST || eb.processorGst || 0),
+
+          structureCost: eb.structureCost || 0,
+          structureGST: eb.structureGST || 0,
+          structureTotal: eb.structureTotal || 0,
+
+          installationCost: eb.installationCost || 0,
+          installationGST: eb.installationGST || 0,
+          installationTotal: eb.installationTotal || 0,
+
+          grandTotal: eb.grandTotal || 0,
+
+          userType: quotation.userTypeDisplayName || 'End User',
+          productName: quotation.productName || 'Unknown Product',
+          isAvailable: true
+        };
+
+        // Reverse the discount to get "Original" state
+        if (discountAmount > 0 && discountType) {
+          console.log(`🔄 Reversing ${discountType} discount of ${discountAmount} to restore original state`);
+
+          // Restore Grand Total
+          finalPricingResult.grandTotal += discountAmount;
+
+          // Restore Component Totals
+          if (discountType === 'led') {
+            // Reconstruct Product Total
+            // Note: We can't perfectly separate subtotal vs GST restoration without rate, 
+            // but typically we just add to the total for the 'base' pricing result.
+            finalPricingResult.productTotal += discountAmount;
+            finalPricingResult.productSubtotal += discountAmount; // Approximation
+          } else if (discountType === 'controller') {
+            finalPricingResult.processorTotal += discountAmount;
+            finalPricingResult.processorPrice += discountAmount; // Approximation
           }
         }
+      }
 
-        // Fallback 3: If recalculation failed (e.g. missing config), use existing breakdown directly
-        if (!finalPricingResult && quotation.exactPricingBreakdown) {
-          console.log('⚠️ Recalculation failed, falling back to existing exactPricingBreakdown');
-          const eb = quotation.exactPricingBreakdown as any;
+      if (finalPricingResult && !isRestoredFromOriginalBreakdown) {
+        // If discount was already applied, we need to restore original values to prevent compounding
+        // Priority: 1. Use stored originalTotalPrice if available (New Schema)
+        // Priority: 2. Restore from discount amount (Backwards Compatibility)
+        let restoredGrandTotal = 0;
+        let restoreInfoFromDiscountData = false;
 
-          // Map legacy breakdown to PricingCalculationResult interface
-          finalPricingResult = {
-            unitPrice: eb.unitPrice || 0,
-            quantity: eb.quantity || 0,
-            productSubtotal: eb.productSubtotal || eb.subtotal || 0,
-            productGST: eb.productGST || eb.gstAmount || 0,
-            productTotal: (eb.productSubtotal || eb.subtotal || 0) + (eb.productGST || eb.gstAmount || 0),
+        if (quotation.originalTotalPrice && quotation.originalTotalPrice > 0) {
+          console.log('✅ Using stored originalTotalPrice:', quotation.originalTotalPrice);
+          restoredGrandTotal = quotation.originalTotalPrice;
+          (finalPricingResult as any).originalGrandTotal = restoredGrandTotal;
+          finalPricingResult.grandTotal = restoredGrandTotal; // RESET grandTotal to original
 
-            processorPrice: eb.processorPrice || 0,
-            processorGST: eb.processorGST || eb.processorGst || 0,
-            processorTotal: (eb.processorPrice || 0) + (eb.processorGST || eb.processorGst || 0),
+          // Even if we have stored originalTotalPrice, we might need to restore component totals if they were discounted
+          if (quotation.quotationData?.discountApplied && quotation.quotationData.discountInfo) {
+            restoreInfoFromDiscountData = true;
+          }
+        } else if (quotation.quotationData?.discountApplied && quotation.quotationData.discountInfo) {
+          restoreInfoFromDiscountData = true;
+        }
 
-            structureCost: eb.structureCost || 0,
-            structureGST: eb.structureGST || 0,
-            structureTotal: eb.structureTotal || 0,
+        if (restoreInfoFromDiscountData && quotation.quotationData?.discountInfo) {
+          const di = quotation.quotationData.discountInfo;
+          const amount = di.amount || 0;
+          const type = di.type;
 
-            installationCost: eb.installationCost || 0,
-            installationGST: eb.installationGST || 0,
-            installationTotal: eb.installationTotal || 0,
+          console.log('🔄 Restoring original price components from existing discount:', { type, amount });
 
-            grandTotal: eb.grandTotal || 0,
-
-            // Restoration of original values for preventing compounded discounts
-            originalProductTotal: undefined,
-            originalProcessorTotal: undefined,
-            originalGrandTotal: undefined,
-
-            userType: quotation.userTypeDisplayName || 'End User',
-            productName: quotation.productName || 'Unknown Product',
-            isAvailable: true
-          };
-
-          // If discount was already applied, we need to restore original values to prevent compounding
-          // Priority: 1. Use stored originalTotalPrice if available (New Schema)
-          // Priority: 2. Restore from discount amount (Backwards Compatibility)
-          if (quotation.originalTotalPrice && quotation.originalTotalPrice > 0) {
-            console.log('✅ Using stored originalTotalPrice:', quotation.originalTotalPrice);
-            (finalPricingResult as any).originalGrandTotal = quotation.originalTotalPrice;
-            // We should also try to restore product total if possible, but grandTotal is most critical for 'total' discounts
-            // For 'led' and 'controller' discounts, we might need to restore their specific totals if originalTotalPrice is present but components aren't
-            // But usually if originalTotalPrice is present, we are in a "good state"
-          } else if (quotation.quotationData?.discountApplied && quotation.quotationData.discountInfo) {
-            const di = quotation.quotationData.discountInfo;
-            const amount = di.amount || 0;
-            const type = di.type;
-
-            console.log('🔄 Restoring original price from existing discount:', { type, amount });
-
-            // Restore Grand Total (Always grandTotal + amount)
-            const restoredGrandTotal = (finalPricingResult.grandTotal || 0) + amount;
+          // If we didn't get grandTotal from storage, calculate it
+          if (!restoredGrandTotal) {
+            restoredGrandTotal = (finalPricingResult.grandTotal || 0) + amount;
             (finalPricingResult as any).originalGrandTotal = restoredGrandTotal;
+            finalPricingResult.grandTotal = restoredGrandTotal;
+          }
 
-            // Restore other totals based on type
-            if (type === 'led') {
-              // Discount was on product (LED) price
-              // finalPricingResult.productTotal is the discounted one
-              (finalPricingResult as any).originalProductTotal = (finalPricingResult.productTotal || 0) + amount;
-            } else if (type === 'controller') {
-              // Discount was on processor (Controller) price
-              (finalPricingResult as any).originalProcessorTotal = (finalPricingResult.processorTotal || 0) + amount;
-            } else if (type === 'total') {
-              // Discount was on Grand Total only, product totals should be intact
-              // But we should verify if productTotal in `eb` is original.
-              // Logic in applyDiscount case 'total' leaves productTotal/processorTotal UNCHANGED (lines 122-123).
-              // So finalPricingResult.productTotal IS original.
-              (finalPricingResult as any).originalProductTotal = finalPricingResult.productTotal;
-              (finalPricingResult as any).originalProcessorTotal = finalPricingResult.processorTotal;
-            }
+          // Restore other totals based on type
+          if (type === 'led') {
+            const originalProduct = (finalPricingResult.productTotal || 0) + amount;
+            (finalPricingResult as any).originalProductTotal = originalProduct;
+            finalPricingResult.productTotal = originalProduct; // RESET productTotal
+          } else if (type === 'controller') {
+            const originalProcessor = (finalPricingResult.processorTotal || 0) + amount;
+            (finalPricingResult as any).originalProcessorTotal = originalProcessor;
+            finalPricingResult.processorTotal = originalProcessor; // RESET processorTotal
+          } else if (type === 'total') {
+            (finalPricingResult as any).originalProductTotal = finalPricingResult.productTotal;
+            (finalPricingResult as any).originalProcessorTotal = finalPricingResult.processorTotal;
           }
         }
       }
 
       if (!finalPricingResult) {
         throw new Error("Could not calculate base pricing. Missing configuration data and valid breakdown.");
+      }
+
+      // CRITICAL: Capture original pricing breakdown BEFORE applying discount
+      // This ensures we always have a clean "Source of Truth" to revert to
+      let newOriginalPricingBreakdown = quotation.originalPricingBreakdown;
+
+      if (!newOriginalPricingBreakdown) {
+        console.log('📝 Capturing new Original Pricing Breakdown from Clean Result');
+        newOriginalPricingBreakdown = {
+          unitPrice: finalPricingResult.unitPrice,
+          quantity: finalPricingResult.quantity,
+          subtotal: finalPricingResult.productSubtotal,
+          gstAmount: finalPricingResult.productGST,
+          processorPrice: finalPricingResult.processorPrice,
+          processorGst: finalPricingResult.processorGST,
+          structureCost: finalPricingResult.structureCost,
+          structureGST: finalPricingResult.structureGST,
+          structureTotal: finalPricingResult.structureTotal,
+          installationCost: finalPricingResult.installationCost,
+          installationGST: finalPricingResult.installationGST,
+          installationTotal: finalPricingResult.installationTotal,
+          grandTotal: finalPricingResult.grandTotal
+        };
+        console.log('📝 Captured Breakdown (Grand Total):', newOriginalPricingBreakdown.grandTotal);
       }
 
       // Apply discount
@@ -443,18 +577,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
 
       // 2. Generate new PDF
-      const productDetails = quotation.productDetails;
-      const exactSpecs = (quotation.exactProductSpecs || {}) as any;
-      const product = productDetails?.product || productDetails;
+      // Variables already setup at step 0 so we don't need to re-declare
 
-      let config = quotation.quotationData?.config;
-      if (!config && exactSpecs.displaySize) {
-        config = {
-          width: (exactSpecs.displaySize.width * 1000) || 0,
-          height: (exactSpecs.displaySize.height * 1000) || 0,
-          unit: 'mm'
-        };
-      }
+
 
       // Determine user type for PDF generation
       let userTypeForHtml = 'End User';
@@ -510,11 +635,12 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         totalPrice: discountedPricing.grandTotal,
         originalTotalPrice: discountedPricing.originalGrandTotal,
         exactPricingBreakdown: newExactPricingBreakdown,
+        originalPricingBreakdown: newOriginalPricingBreakdown, // SAVE THE SOURCE OF TRUTH
         pdfBase64: pdfBase64,
         quotationData: {
           ...quotation.quotationData,
           updatedAt: new Date().toISOString(),
-          discountApplied: true,
+          discountApplied: discountPercent > 0,
           discountInfo: {
             type: discountType,
             percent: discountPercent,
@@ -1013,7 +1139,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                         />
                                                         <button
                                                           onClick={() => handleApplyDiscount(quotation)}
-                                                          disabled={isUpdatingDiscount || !discountType || discountPercent <= 0}
+                                                          disabled={isUpdatingDiscount || !discountType || discountPercent < 0}
                                                           className="bg-blue-600 text-white min-w-[32px] h-[32px] flex items-center justify-center rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
                                                           title="Apply Discount"
                                                         >
