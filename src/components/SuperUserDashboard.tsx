@@ -4,7 +4,7 @@ import { salesAPI } from '../api/sales';
 import { SalesPersonDetailsModal } from './SalesPersonDetailsModal';
 import { AddUserModal } from './AddUserModal';
 
-const DASHBOARD_REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+
 
 interface SalesPerson {
   _id: string;
@@ -61,14 +61,6 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
 
   useEffect(() => {
     fetchDashboardData();
-
-    // Auto-refresh every 30 minutes to show new data
-    const interval = setInterval(() => {
-      console.log('🔄 Auto-refreshing dashboard data (30-minute interval)...');
-      fetchDashboardData();
-    }, DASHBOARD_REFRESH_INTERVAL_MS);
-
-    return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardData = async (forceRefresh = false) => {
@@ -199,7 +191,7 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
               <p className="text-gray-600 mt-1">Manage and monitor sales team performance</p>
               {lastRefreshTime && (
                 <p className="text-xs text-gray-500 mt-1">
-                  Last updated: {lastRefreshTime.toLocaleTimeString()} (Auto-refresh every 30 minutes)
+                  Last updated: {lastRefreshTime.toLocaleTimeString()}
                 </p>
               )}
             </div>

@@ -170,6 +170,8 @@ interface PdfViewModalProps {
     structurePrice: number | null;
     installationPrice: number | null;
   };
+  // Stored pricing breakdown for existing quotations
+  exactPricingBreakdown?: any;
   // onUpdate?: () => void; // Callback removed
 }
 
@@ -190,6 +192,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   userRole,
   quotationId,
   customPricing,
+  exactPricingBreakdown,
   // onUpdate removed unused
 }) => {
   const [isSaving, setIsSaving] = useState(false);
@@ -639,50 +642,75 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
     // Calculate correct total price using the same logic as QuoteModal
     const userTypeForCalc = getUserType();
-    const correctTotalPrice = calculateCorrectTotalPrice(
-      selectedProduct,
-      cabinetGrid,
-      processor || null,
-      userTypeForCalc,
-      config || { width: 2400, height: 1010, unit: 'mm' },
-      customPricing
-    );
 
-    // Check if price is available
-    if (correctTotalPrice === null) {
-      alert('❌ Price is not available for this product configuration. Please contact sales for pricing information.');
-      return;
+    // CRITICAL: For existing quotations with stored pricing, use that instead of recalculating
+    // This prevents "Price is not available" errors when product prices change to "NA" after quotation creation
+    let finalPricingResult: any;
+    let finalTotalPrice: number;
+
+    if (quotationId && exactPricingBreakdown) {
+      // Use stored pricing for existing quotations
+      console.log('✅ Using stored pricing for existing quotation:', {
+        quotationId,
+        storedGrandTotal: exactPricingBreakdown.grandTotal,
+        note: 'Skipping price recalculation to preserve original pricing'
+      });
+
+      finalPricingResult = exactPricingBreakdown;
+      finalTotalPrice = exactPricingBreakdown.grandTotal;
+    } else {
+      // Recalculate for new quotations or when stored data is missing
+      console.log('🔄 Recalculating pricing (new quotation or missing stored data)');
+
+      const correctTotalPrice = calculateCorrectTotalPrice(
+        selectedProduct,
+        cabinetGrid,
+        processor || null,
+        userTypeForCalc,
+        config || { width: 2400, height: 1010, unit: 'mm' },
+        customPricing
+      );
+
+      // Check if price is available
+      if (correctTotalPrice === null) {
+        alert('❌ Price is not available for this product configuration. Please contact sales for pricing information.');
+        setIsSaving(false);
+        return;
+      }
+
+      // Get centralized pricing for discount calculation
+      const pricingResult = calculateCentralizedPricing(
+        selectedProduct,
+        cabinetGrid,
+        processor || null,
+        userTypeForCalc,
+        config || { width: 2400, height: 1010, unit: 'mm' },
+        customPricing
+      );
+
+      // Check if pricing is available
+      if (!pricingResult.isAvailable) {
+        alert('❌ Price is not available for this product configuration. Please contact sales for pricing information.');
+        setIsSaving(false);
+        return;
+      }
+
+      finalPricingResult = pricingResult;
+      finalTotalPrice = correctTotalPrice;
     }
-
-    // Get centralized pricing for discount calculation
-    const pricingResult = calculateCentralizedPricing(
-      selectedProduct,
-      cabinetGrid,
-      processor || null,
-      userTypeForCalc,
-      config || { width: 2400, height: 1010, unit: 'mm' },
-      customPricing
-    );
-
-    // Simplified: No new discount checks here. Use calculated price.
-    let finalPricingResult = pricingResult;
-    let finalTotalPrice = correctTotalPrice;
-
-    // We do NOT apply new discounts in this modal anymore.
-    // If the quotation already had a discount (passed via props?), we might need to respect it,
-    // but the calculateCorrectTotalPrice and calculateCentralizedPricing functions calculate base price.
-    // The previous implementation was adding a NEW discount based on state that is now removed.
 
     console.log('💰 Calculated price for quotation (WITH GST - matches PDF):', {
       quotationId: finalQuotationId,
       totalPrice: finalTotalPrice,
-      originalTotal: correctTotalPrice,
       formatted: `₹${finalTotalPrice.toLocaleString('en-IN')}`,
       includesGST: true,
       gstRate: '18%',
       userType: getUserTypeDisplayName(userTypeForCalc),
       product: selectedProduct.name,
-      note: 'This price includes 18% GST and matches PDF Grand Total'
+      usedStoredPricing: !!(quotationId && exactPricingBreakdown),
+      note: quotationId && exactPricingBreakdown
+        ? 'Using stored pricing from existing quotation'
+        : 'This price includes 18% GST and matches PDF Grand Total'
     });
 
     // Generate HTML

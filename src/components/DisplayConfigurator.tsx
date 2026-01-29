@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Package, Menu, X, Mail, Download, FileText } from 'lucide-react';
+import { Package, Menu, X, Mail, Download, FileText, User, LayoutDashboard, LogOut } from 'lucide-react';
 import { useDisplayCalculations } from '../hooks/useDisplayCalculations';
 import { DimensionControls } from './DimensionControls';
 import { AspectRatioSelector } from './AspectRatioSelector';
@@ -7,7 +7,7 @@ import { DisplayPreview } from './DisplayPreview';
 import { ProductSelector } from './ProductSelector';
 import { ConfigurationSummary } from './ConfigurationSummary';
 import { ProductSidebar } from './ProductSidebar';
-import { Product, CabinetGrid } from '../types';
+import { Product, CabinetGrid, Quotation } from '../types';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -43,6 +43,7 @@ interface DisplayConfiguratorProps {
     pixelPitch: number | null;
     selectedProduct: Product | null;
   } | null;
+  activeQuotation?: Quotation | null;
   showDashboard?: boolean;
   onDashboardClose?: () => void;
   onDashboardOpen?: () => void;
@@ -51,12 +52,13 @@ interface DisplayConfiguratorProps {
   onSalesDashboardClose?: () => void;
 }
 
-export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({ 
-  userRole, 
-  salesUser, 
-  onShowSalesLogin, 
+export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
+  userRole,
+  salesUser,
+  onShowSalesLogin,
   onSalesLogout,
   initialConfig,
+  activeQuotation,
   showDashboard: showDashboardProp,
   onDashboardClose,
   onDashboardOpen,
@@ -70,7 +72,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   );
   const [showLeftPanel, setShowLeftPanel] = useState(!!initialConfig?.selectedProduct);
   const isInitialMount = useRef(true);
-  
+
   const {
     config,
     aspectRatios,
@@ -87,7 +89,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   useEffect(() => {
     // Set flag to prevent sync during initialization
     isInitialMount.current = true;
-    
+
     if (initialConfig) {
       // If we have initialConfig from wizard, use it exactly as provided
       // initialConfig.width and initialConfig.height are already in mm
@@ -98,25 +100,25 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         widthMM: initialConfig.width,
         heightMM: initialConfig.height,
         // Show what should be displayed
-        expectedWidthDisplay: initialConfig.unit === 'm' 
+        expectedWidthDisplay: initialConfig.unit === 'm'
           ? (initialConfig.width / 1000).toFixed(2) + ' m'
           : initialConfig.unit === 'ft'
-          ? (initialConfig.width / 304.8).toFixed(2) + ' ft'
-          : initialConfig.width + ' mm',
+            ? (initialConfig.width / 304.8).toFixed(2) + ' ft'
+            : initialConfig.width + ' mm',
         expectedHeightDisplay: initialConfig.unit === 'm'
           ? (initialConfig.height / 1000).toFixed(2) + ' m'
           : initialConfig.unit === 'ft'
-          ? (initialConfig.height / 304.8).toFixed(2) + ' ft'
-          : initialConfig.height + ' mm'
+            ? (initialConfig.height / 304.8).toFixed(2) + ' ft'
+            : initialConfig.height + ' mm'
       });
-      
+
       // Set dimensions directly using setConfig to preserve exact values
       // Convert unit if needed (wizard uses 'mm' | 'cm' | 'm' | 'ft', but configurator uses 'm' | 'ft')
       // IMPORTANT: Preserve 'ft' unit if user entered feet, convert mm/cm to 'm'
-      const displayUnit = initialConfig.unit === 'mm' || initialConfig.unit === 'cm' 
-        ? 'm' 
+      const displayUnit = initialConfig.unit === 'mm' || initialConfig.unit === 'cm'
+        ? 'm'
         : initialConfig.unit; // Keep 'ft' or 'm' as entered
-      
+
       // Use a function form of setConfig to ensure we're setting the exact values
       setConfig(prevConfig => {
         const newConfig = {
@@ -125,7 +127,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           unit: displayUnit, // Preserve 'ft' or 'm' as user entered
           aspectRatio: 'None' // Reset aspect ratio to allow free dimensions
         };
-        
+
         console.log('📐 setConfig called with:', {
           newWidth: newConfig.width,
           newHeight: newConfig.height,
@@ -134,10 +136,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           prevHeight: prevConfig.height,
           prevUnit: prevConfig.unit
         });
-        
+
         return newConfig;
       });
-      
+
       // Update global state with original unit from wizard
       updateGlobalDimensions(initialConfig.width, initialConfig.height, initialConfig.unit);
     } else {
@@ -147,10 +149,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         height: globalConfig.height,
         unit: globalConfig.unit
       });
-      
+
       // Convert unit if needed
       const displayUnit = globalConfig.unit === 'mm' || globalConfig.unit === 'cm' ? 'm' : globalConfig.unit;
-      
+
       setConfig(prevConfig => ({
         width: globalConfig.width,
         height: globalConfig.height,
@@ -158,7 +160,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         aspectRatio: 'None'
       }));
     }
-    
+
     // Mark initialization complete after a short delay to ensure state is set
     setTimeout(() => {
       isInitialMount.current = false;
@@ -171,6 +173,69 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialConfig]);
 
+  // Handle loading existing quotation for editing
+  useEffect(() => {
+    if (activeQuotation) {
+      console.log('✏️ Hydrating DisplayConfigurator from activeQuotation:', activeQuotation);
+
+      // Set quotation state
+      setQuotationId(activeQuotation.quotationId);
+      setIsEditMode(true);
+
+      // Helper to convert legacy/DB types to current types
+      const getUserType = (type: string): 'End User' | 'Reseller' | 'SI/Channel Partner' => {
+        if (type === 'reseller' || type === 'Reseller') return 'Reseller';
+        if (type === 'siChannel' || type === 'Channel' || type === 'SI/Channel Partner') return 'SI/Channel Partner';
+        return 'End User';
+      };
+
+      // Try to extract user info from top-level fields or quotationData
+      let extractedUserInfo: any = null;
+      const qUserInfo = activeQuotation.quotationData?.userInfo;
+
+      if (activeQuotation.customerName) {
+        extractedUserInfo = {
+          fullName: activeQuotation.customerName,
+          email: activeQuotation.customerEmail,
+          phoneNumber: activeQuotation.customerPhone,
+          projectTitle: qUserInfo?.projectTitle || activeQuotation.quotationData?.projectTitle || '',
+          address: qUserInfo?.address || activeQuotation.quotationData?.address || '',
+          userType: getUserType(activeQuotation.userType),
+          validity: qUserInfo?.validity,
+          paymentTerms: qUserInfo?.paymentTerms,
+          warranty: qUserInfo?.warranty
+        };
+      } else if (qUserInfo) {
+        // Fallback to userInfo inside quotationData
+        extractedUserInfo = {
+          fullName: qUserInfo.fullName || qUserInfo.customerName || '',
+          email: qUserInfo.email || qUserInfo.customerEmail || '',
+          phoneNumber: qUserInfo.phoneNumber || qUserInfo.customerPhone || '',
+          projectTitle: qUserInfo.projectTitle || '',
+          address: qUserInfo.address || '',
+          userType: getUserType(qUserInfo.userType || activeQuotation.userType)
+        };
+      }
+
+      if (extractedUserInfo && extractedUserInfo.fullName) {
+        console.log('✅ Hydrated User Info:', extractedUserInfo);
+        setUserInfo(extractedUserInfo);
+        setIsMandatoryFormSubmitted(true);
+      } else {
+        console.warn("⚠️ Could not extract complete UserInfo from activeQuotation");
+        // If we have at least some info, set it even if form is not submitted
+        if (extractedUserInfo) {
+          setUserInfo(extractedUserInfo);
+        }
+      }
+
+      // Load custom pricing if available
+      if (activeQuotation.quotationData?.customPricing) {
+        setCustomPricing(activeQuotation.quotationData.customPricing);
+      }
+    }
+  }, [activeQuotation]);
+
   // Sync local config changes to global state (only after initial mount)
   useEffect(() => {
     // Skip sync on initial mount to avoid overwriting values
@@ -178,21 +243,21 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       console.log('⏸️ Skipping sync - still in initial mount phase');
       return;
     }
-    
+
     // Don't sync if we just set values from initialConfig
-    if (initialConfig && 
-        config.width === initialConfig.width && 
-        config.height === initialConfig.height) {
+    if (initialConfig &&
+      config.width === initialConfig.width &&
+      config.height === initialConfig.height) {
       // This is likely the initial set, don't sync yet
       return;
     }
-    
+
     console.log('🔄 Syncing config to global state:', {
       width: config.width,
       height: config.height,
       unit: config.unit
     });
-    
+
     // Convert 'm' back to the stored format (keep as 'm' in global state)
     const unitForStorage = config.unit === 'm' ? 'm' : config.unit;
     updateGlobalDimensions(config.width, config.height, unitForStorage);
@@ -226,13 +291,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [isPdfViewModalOpen, setIsPdfViewModalOpen] = useState(false);
   const [isUserInfoFormOpen, setIsUserInfoFormOpen] = useState(false);
-  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string } | undefined>(undefined);
+  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string; validity?: string } | undefined>(undefined);
   const [pendingAction, setPendingAction] = useState<'quote' | 'pdf' | null>(null);
   const [isMandatoryFormSubmitted, setIsMandatoryFormSubmitted] = useState(false);
   const [quotationId, setQuotationId] = useState<string>('');
   const [isEditMode, setIsEditMode] = useState(false);
   const [showDashboardInternal, setShowDashboardInternal] = useState(false);
-  
+
   // Use prop if provided, otherwise use internal state
   const showDashboard = showDashboardProp !== undefined ? showDashboardProp : showDashboardInternal;
   const setShowDashboard = onDashboardClose || (() => setShowDashboardInternal(false));
@@ -240,7 +305,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   // New state for processor/controller and mode
   const [selectedController, setSelectedController] = useState<string>('');
   const [selectedMode, setSelectedMode] = useState<string>('');
-  
+
   // Custom pricing state
   const [customPricing, setCustomPricing] = useState<{
     enabled: boolean;
@@ -260,10 +325,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   // Create controller selection object using the simple logic
   const createControllerSelection = () => {
     if (!selectedProduct) return null;
-    
+
     const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
     const totalPixelsMillion = totalPixels / 1_000_000;
-    
+
     // Simple controller mapping based on pixel count
     const controllerMapping = [
       { max: 0.65, name: 'TB2', type: 'asynchronous', portCount: 1, pixelCapacity: 0.65 },
@@ -278,7 +343,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       { max: 6.5, name: 'VX1000 Pro', type: 'synchronous', portCount: 10, pixelCapacity: 6.5 },
       { max: 13, name: '4K PRIME', type: 'synchronous', portCount: 16, pixelCapacity: 13 },
     ];
-    
+
     let selectedController = controllerMapping[controllerMapping.length - 1]; // Default to 4K PRIME
     for (const mapping of controllerMapping) {
       if (totalPixelsMillion <= mapping.max) {
@@ -286,7 +351,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         break;
       }
     }
-    
+
     return {
       selectedController: {
         name: selectedController.name,
@@ -301,7 +366,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       totalPixels: totalPixels
     };
   };
-  
+
   const controllerSelection = createControllerSelection() || undefined;
 
 
@@ -309,7 +374,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const getAutoSelectedController = (product: Product, grid: CabinetGrid) => {
     const totalPixels = product.resolution.width * grid.columns * product.resolution.height * grid.rows;
     const totalPixelsMillion = totalPixels / 1_000_000;
-    
+
     const controllerMapping = [
       { max: 0.65, name: 'TB2' },
       { max: 1.3, name: 'TB40' },
@@ -323,7 +388,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       { max: 6.5, name: 'VX1000 Pro' },
       { max: 13, name: '4K PRIME' },
     ];
-    
+
     for (const mapping of controllerMapping) {
       if (totalPixelsMillion <= mapping.max) {
         return mapping.name;
@@ -359,8 +424,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       environment: normalizedEnv === 'indoor'
         ? 'Indoor'
         : normalizedEnv === 'outdoor'
-        ? 'Outdoor'
-        : globalConfig.environment
+          ? 'Outdoor'
+          : globalConfig.environment
     });
     // Auto-select controller on product select
     setIsProductSelectorOpen(false);
@@ -369,14 +434,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string }) => {
     setUserInfo(userData);
     setIsUserInfoFormOpen(false);
-    
+
     // Generate unique quotation ID (only for new submissions, not edits)
     if (!isEditMode) {
       const username = (userRole === 'sales' || userRole === 'partner') && salesUser ? salesUser.name : userData.fullName;
       try {
         const newQuotationId = await QuotationIdGenerator.generateQuotationId(username);
         setQuotationId(newQuotationId);
-        
+
         // Store the quotation ID to maintain uniqueness
         QuotationIdGenerator.storeQuotationId(newQuotationId, username);
       } catch (error) {
@@ -386,19 +451,19 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         setQuotationId(fallbackId);
       }
     }
-    
+
     // For sales users and partners, mark the mandatory form as submitted
     if (userRole === 'sales' || userRole === 'partner') {
       setIsMandatoryFormSubmitted(true);
     }
-    
+
     // Execute the pending action
     if (pendingAction === 'quote') {
       setIsQuoteModalOpen(true);
     } else if (pendingAction === 'pdf') {
       setIsPdfViewModalOpen(true);
     }
-    
+
     setPendingAction(null);
     setIsEditMode(false);
   };
@@ -441,7 +506,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       setIsUserInfoFormOpen(true);
       return;
     }
-    
+
     if (!userInfo) {
       setPendingAction('pdf');
       setIsUserInfoFormOpen(true);
@@ -452,21 +517,21 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const handleDownloadPdf = async () => {
     if (!selectedProduct) return;
-    
+
     // For sales users and partners, check if salesUser is available
     if ((userRole === 'sales' || userRole === 'partner') && !salesUser) {
       console.error('❌ Cannot download PDF: salesUser is missing for', userRole);
       alert('Sales user information is missing. Please log in again.');
       return;
     }
-    
+
     // For sales users and partners, check if mandatory form is submitted
     if ((userRole === 'sales' || userRole === 'partner') && !isMandatoryFormSubmitted) {
       setPendingAction('pdf');
       setIsUserInfoFormOpen(true);
       return;
     }
-    
+
     try {
       // Get the current user type from the QuoteModal if it's open, otherwise use userInfo
       const currentUserType = userInfo?.userType || 'End User';
@@ -476,7 +541,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         currentUserType === 'SI/Channel Partner'
           ? 'Channel'
           : currentUserType;
-      
+
       const blob = await generateConfigurationPdf(
         config,
         selectedProduct,
@@ -490,7 +555,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         quotationId,
         customPricing.enabled ? customPricing : undefined
       );
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -508,7 +573,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         name: error?.name,
         cause: error?.cause
       });
-      
+
       // Provide more specific error messages
       let errorMessage = 'Failed to generate PDF file. Please try again.';
       if (error?.message) {
@@ -522,30 +587,38 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           errorMessage = `PDF generation error: ${error.message}`;
         }
       }
-      
+
       alert(errorMessage);
     }
   };
 
   const handleDownloadDocx = async () => {
     if (!selectedProduct) return;
-    
+
     try {
       // Get the current user type from the QuoteModal if it's open, otherwise use userInfo
       const currentUserType = userInfo?.userType || 'End User';
-      
+
       const blob = await generateConfigurationDocx(
         config,
         selectedProduct,
         fixedCabinetGrid,
         selectedController,
         selectedMode,
-        userInfo ? { ...userInfo, userType: currentUserType } : { fullName: '', email: '', phoneNumber: '', userType: currentUserType },
+        userInfo ? {
+          ...userInfo,
+          userType: currentUserType === 'SI/Channel Partner' ? 'Channel' : currentUserType
+        } : {
+          fullName: '',
+          email: '',
+          phoneNumber: '',
+          userType: currentUserType === 'SI/Channel Partner' ? 'Channel' : currentUserType
+        },
         salesUser,
         quotationId,
         customPricing.enabled ? customPricing : undefined
       );
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -571,7 +644,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   // Helper to check if product is Digital Standee
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   // Helper to check if product is Jumbo Series
-  
+
   // Helper to get fixed grid for Jumbo
   function getJumboFixedGrid(product: Product) {
     if (!product) return null;
@@ -608,7 +681,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   // Track the last selected product ID to only reset dimensions when product actually changes
   const previousProductIdRef = useRef<string | undefined>(undefined);
-  
+
   // When a product is selected, set initial dimensions ONLY once per product selection
   // This effect ONLY runs when the product ID changes, NEVER when dimensions change
   useEffect(() => {
@@ -616,14 +689,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       previousProductIdRef.current = undefined;
       return;
     }
-    
+
     const currentProductId = selectedProduct.id;
     const isProductChanging = previousProductIdRef.current !== currentProductId;
-    
+
     // Only set dimensions when product actually changes (not on every render)
     if (isProductChanging) {
       previousProductIdRef.current = currentProductId;
-      
+
       // Wait for initialConfig to be processed first (if it exists)
       // Use a small delay to ensure initialConfig useEffect has run
       const timer = setTimeout(() => {
@@ -637,7 +710,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         } else {
           // For other products, only set if NOT from wizard (wizard dimensions are already set)
           const isFromWizard = initialConfig?.selectedProduct?.id === selectedProduct.id;
-          
+
           if (!isFromWizard) {
             // Calculate initial grid based on product cabinet dimensions
             // Use a reasonable default starting size (3x3 grid)
@@ -651,7 +724,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           // If from wizard, dimensions are already set by initialConfig useEffect - do nothing
         }
       }, 150); // Small delay to let initialConfig useEffect run first
-      
+
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -659,22 +732,22 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   // Digital Standee Series price mapping by model and user type
   //const digitalStandeePrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
-    //'P1.8': { endUser: 110300, siChannel: 100000, reseller: 93800 },
-    //'P2.5': { endUser: 80900, siChannel: 73300, reseller: 68800 },
-    //'P4':   { endUser: 95600, siChannel: 86700, reseller: 81300 },
+  //'P1.8': { endUser: 110300, siChannel: 100000, reseller: 93800 },
+  //'P2.5': { endUser: 80900, siChannel: 73300, reseller: 68800 },
+  //'P4':   { endUser: 95600, siChannel: 86700, reseller: 81300 },
   //};
 
   // If dashboard is open, render the appropriate dashboard based on user role
   if (showDashboard && (userRole === 'super' || userRole === 'super_admin')) {
     return (
-      <SuperUserDashboard 
+      <SuperUserDashboard
         onBack={() => {
           if (onDashboardClose) {
             onDashboardClose();
           } else {
             setShowDashboardInternal(false);
           }
-        }} 
+        }}
         loggedInUser={salesUser ? {
           role: salesUser.role,
           name: salesUser.name,
@@ -687,12 +760,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   // If sales dashboard is open, render only the sales dashboard (for sales users only)
   if (showSalesDashboardProp && userRole === 'sales') {
     return (
-      <SalesDashboard 
+      <SalesDashboard
         onBack={() => {
           if (onSalesDashboardClose) {
             onSalesDashboardClose();
           }
-        }} 
+        }}
         onLogout={onSalesLogout}
         loggedInUser={salesUser ? {
           role: salesUser.role,
@@ -724,69 +797,55 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           </div>
 
           {/* Sales Login/Logout - Top Right */}
-          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 lg:top-6 lg:right-6">
-            {(() => {
-              console.log('🎯 DisplayConfigurator - userRole:', userRole);
-              console.log('🎯 DisplayConfigurator - salesUser:', salesUser);
-              console.log('🎯 DisplayConfigurator - showDashboard:', showDashboard);
-              return null;
-            })()}
-            {(userRole === 'super' || userRole === 'super_admin') ? (
-              <div className="flex items-center space-x-2">
+          {/* Sales Login/Logout - Top Right */}
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 lg:top-6 lg:right-6 z-50">
+            {(userRole === 'super' || userRole === 'super_admin' || userRole === 'sales' || userRole === 'partner') ? (
+              <div className="flex items-center space-x-2 bg-black/40 backdrop-blur-md p-1.5 rounded-xl border border-white/10 shadow-lg transition-all hover:bg-black/50">
+                {/* 1. First Name (Left) */}
+                <div className="flex items-center px-3 py-1.5 bg-white/5 rounded-lg border border-white/5 mr-1">
+                  <User className="w-3.5 h-3.5 text-purple-300 mr-2" />
+                  <span className="text-white text-sm font-medium tracking-wide">
+                    {salesUser?.name?.split(' ')[0] || 'User'}
+                  </span>
+                </div>
+
+                {/* 2. Dashboard Button */}
                 <button
                   onClick={() => {
-                    // If parent provides onDashboardOpen callback, use it
-                    // Otherwise, use internal state
-                    if (onDashboardOpen) {
-                      onDashboardOpen();
+                    if (userRole === 'sales' || userRole === 'partner') {
+                      if (onSalesDashboardOpen) onSalesDashboardOpen();
                     } else {
-                      setShowDashboardInternal(true);
+                      if (onDashboardOpen) onDashboardOpen();
+                      else setShowDashboardInternal(true);
                     }
                   }}
-                  className={`px-3 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
-                    showDashboard ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-700'
-                  }`}
+                  className={`
+                    flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-300 shadow-sm border group
+                    ${(showDashboard || showSalesDashboardProp)
+                      ? 'bg-purple-600 text-white border-purple-400/50 shadow-purple-500/20'
+                      : 'bg-white/10 text-gray-200 hover:bg-purple-600 hover:text-white border-white/10 hover:border-purple-500/50'}
+                  `}
                 >
-                  Dashboard
+                  <LayoutDashboard className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                  <span>Dashboard</span>
                 </button>
-                <span className="text-white text-xs sm:text-sm">{salesUser?.name}</span>
+
+                {/* 3. Logout Button */}
                 <button
                   onClick={onSalesLogout}
-                  className="px-3 py-1.5 bg-red-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 text-red-200 hover:bg-red-600 hover:text-white text-sm font-medium rounded-lg transition-all duration-300 border border-red-500/20 hover:border-red-500/50 group"
                 >
-                  Logout
-                </button>
-              </div>
-            ) : (userRole === 'sales' || userRole === 'partner') ? (
-              <div className="flex items-center space-x-2">
-                {userRole === 'sales' && (
-                  <button
-                    onClick={() => {
-                      if (onSalesDashboardOpen) {
-                        onSalesDashboardOpen();
-                      }
-                    }}
-                    className={`px-3 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
-                      showSalesDashboardProp ? 'bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'
-                    }`}
-                  >
-                    My Dashboard
-                  </button>
-                )}
-                <span className="text-white text-xs sm:text-sm">{salesUser?.name}</span>
-                <button
-                  onClick={onSalesLogout}
-                  className="px-3 py-1.5 bg-red-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Logout
+                  <LogOut className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  <span>Logout</span>
                 </button>
               </div>
             ) : (
               <button
                 onClick={onShowSalesLogin}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors border-2 border-white"
+                className="px-5 py-2 bg-blue-600/90 hover:bg-blue-600 text-white text-sm font-bold rounded-xl shadow-lg hover:shadow-blue-500/30 transition-all duration-300 border border-white/10 backdrop-blur-sm flex items-center gap-2"
               >
-                🔐 SALES LOGIN
+                <span>🔐</span>
+                <span>SALES LOGIN</span>
               </button>
             )}
           </div>
@@ -794,13 +853,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
           {/* Logo - Top Left */}
           <div className="absolute top-3 left-3 sm:top-4 sm:left-4 lg:top-6 lg:left-6">
-            <img 
-              src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png" 
-              alt="Orion LED Logo" 
+            <img
+              src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png"
+              alt="Orion LED Logo"
               className="h-8 sm:h-12 lg:h-16 w-auto"
             />
           </div>
-          
+
           {/* Main Content - Centered */}
           <div className="text-center pt-12 sm:pt-16 lg:pt-0">
             <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-white mb-1 sm:mb-2 lg:mb-3 tracking-tight">
@@ -816,7 +875,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       <div className="flex-1 flex relative">
         {/* Mobile Sidebar Overlay */}
         {isSidebarOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
             onClick={() => setIsSidebarOpen(false)}
           />
@@ -908,10 +967,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                     >
                       Data Wiring
                     </button>
-                                          <button
-                        className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'power' ? 'bg-black text-white' : 'bg-gray-200'}`}
-                        onClick={() => setActiveTab('power')}
-                      >
+                    <button
+                      className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'power' ? 'bg-black text-white' : 'bg-gray-200'}`}
+                      onClick={() => setActiveTab('power')}
+                    >
                       Power Wiring
                     </button>
                   </>
@@ -929,12 +988,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                 )}
 
                 {selectedProduct && activeTab === 'data' && (
-                  <DataWiringView 
-                  product={selectedProduct} 
-                  cabinetGrid={fixedCabinetGrid} 
-                  redundancyEnabled={redundancyEnabled}
-                  onRedundancyChange={setRedundancyEnabled}
-                  controllerSelection={controllerSelection}
+                  <DataWiringView
+                    product={selectedProduct}
+                    cabinetGrid={fixedCabinetGrid}
+                    redundancyEnabled={redundancyEnabled}
+                    onRedundancyChange={setRedundancyEnabled}
+                    controllerSelection={controllerSelection}
                   />
                 )}
 
@@ -1072,8 +1131,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                         </div>
                         <div className="h-[70vh] overflow-auto p-2 sm:p-4">
                           {/* PDF Viewer */}
-                          <Document 
-                            file={selectedProduct.pdf} 
+                          <Document
+                            file={selectedProduct.pdf}
                             onLoadSuccess={({ numPages }) => {
                               setNumPages(numPages);
                               setPdfError(null);
@@ -1097,7 +1156,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                             ))}
                           </Document>
                           {pdfError && <div className="p-4 text-red-600 bg-red-100 rounded-md">{pdfError}</div>}
-                          
+
                           <div className="mt-2 text-xs sm:text-sm text-gray-500">For full details, <a href={selectedProduct.pdf} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">open PDF in new tab</a>.</div>
                         </div>
                       </div>
@@ -1117,7 +1176,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                 processor={selectedController}
                 mode={selectedMode}
               />
-              
+
               {/* Action Buttons */}
               {selectedProduct && (
                 <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
@@ -1219,6 +1278,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           quotationId={quotationId}
           customPricing={customPricing}
           onCustomPricingChange={setCustomPricing}
+          existingQuotation={activeQuotation ? {
+            quotationId: activeQuotation.quotationId,
+            customerName: activeQuotation.customerName,
+            customerEmail: activeQuotation.customerEmail,
+            customerPhone: activeQuotation.customerPhone,
+            message: activeQuotation.message,
+            userType: activeQuotation.userType === 'reseller' ? 'Reseller' : (activeQuotation.userType === 'siChannel' ? 'SI/Channel Partner' : 'End User')
+          } : undefined}
         />
       )}
 
@@ -1236,12 +1303,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             // For HTML/PDF generation, map UI label to legacy pricing userType
             userInfo
               ? {
-                  ...userInfo,
-                  userType:
-                    userInfo.userType === 'SI/Channel Partner'
-                      ? 'Channel'
-                      : userInfo.userType || 'End User',
-                }
+                fullName: userInfo.fullName,
+                email: userInfo.email,
+                phoneNumber: userInfo.phoneNumber,
+                projectTitle: userInfo.projectTitle,
+                address: userInfo.address,
+                validity: userInfo.validity,
+                paymentTerms: userInfo.paymentTerms,
+                warranty: userInfo.warranty,
+                userType: userInfo.userType === 'SI/Channel Partner' ? 'Channel' : (userInfo.userType || 'End User')
+              }
               : { fullName: '', email: '', phoneNumber: '', userType: 'End User' },
             salesUser,
             quotationId,

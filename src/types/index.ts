@@ -2,7 +2,7 @@ export interface DisplayConfig {
   width: number;
   height: number;
   aspectRatio: string | null;
-  unit: 'px' | 'm' | 'ft' | 'mm';
+  unit: 'm' | 'ft' | 'mm';
 }
 
 export interface Product {

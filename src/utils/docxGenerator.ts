@@ -266,6 +266,7 @@ interface UserInfo {
   userType?: 'End User' | 'Reseller' | 'Channel';
   paymentTerms?: string;
   warranty?: string;
+  validity?: string;
 }
 
 // Function to generate HTML preview of the configuration

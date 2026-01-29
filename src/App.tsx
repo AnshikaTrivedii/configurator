@@ -5,7 +5,7 @@ import { LandingPage } from './components/LandingPage';
 import { ConfigurationWizard } from './components/ConfigurationWizard';
 import { SalesDashboard } from './components/SalesDashboard';
 import { SalesUser, salesAPI } from './api/sales';
-import { Product } from './types';
+import { Product, Quotation } from './types';
 import { useDisplayConfig } from './contexts/DisplayConfigContext';
 import { verifyUserObject } from './utils/clearAuthCache';
 
@@ -20,6 +20,7 @@ function App() {
   const [showWizard, setShowWizard] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showSalesDashboard, setShowSalesDashboard] = useState(false);
+  const [activeQuotation, setActiveQuotation] = useState<Quotation | null>(null);
   const [initialConfig, setInitialConfig] = useState<{
     width: number;
     height: number;
@@ -275,6 +276,57 @@ function App() {
     setShowWizard(false);
   };
 
+  const handleEditQuotation = (quotation: Quotation) => {
+    console.log('✏️ Editing quotation:', quotation.quotationId);
+    setActiveQuotation(quotation);
+
+    // Construct initial config from quotation data
+    // Use stored exact specs if available
+    const product = quotation.exactProductSpecs?.product || quotation.productDetails?.product || quotation.productDetails;
+    const cabinetGrid = quotation.exactProductSpecs?.cabinetGrid || quotation.productDetails?.cabinetGrid || quotation.quotationData?.cabinetGrid;
+
+    let configWidth = 0;
+    let configHeight = 0;
+
+    // Check various sources for dimensions
+    if (quotation.exactProductSpecs?.displaySize) {
+      configWidth = quotation.exactProductSpecs.displaySize.width * 1000; // stored in m, convert to mm
+      configHeight = quotation.exactProductSpecs.displaySize.height * 1000;
+    } else if (quotation.quotationData?.config) {
+      // Config stored in mm usually
+      configWidth = quotation.quotationData.config.width;
+      configHeight = quotation.quotationData.config.height;
+      if (quotation.quotationData.config.unit === 'm') {
+        configWidth *= 1000;
+        configHeight *= 1000;
+      }
+    } else if (product && cabinetGrid && product.cabinetDimensions) {
+      configWidth = cabinetGrid.columns * product.cabinetDimensions.width;
+      configHeight = cabinetGrid.rows * product.cabinetDimensions.height;
+    }
+
+    if (configWidth && configHeight && product) {
+      setInitialConfig({
+        width: configWidth,
+        height: configHeight,
+        unit: 'mm',
+        viewingDistance: '', // Not strictly needed for edit
+        viewingDistanceUnit: 'meters',
+        environment: product.environment as 'Indoor' | 'Outdoor',
+        pixelPitch: product.pixelPitch,
+        selectedProduct: product
+      });
+
+      // Navigate to configurator
+      setShowSalesDashboard(false);
+      setShowDashboard(false);
+      setShowLandingPage(false);
+    } else {
+      console.error("Could not reconstruct configuration from quotation", quotation);
+      alert("Could not load configuration for editing. Data may be incomplete.");
+    }
+  };
+
 
   // Route to correct view based on user role
   // Sales/Partner users go directly to the LED Configurator (DisplayConfigurator)
@@ -326,6 +378,7 @@ function App() {
             <SalesDashboard
               onBack={() => setShowSalesDashboard(false)}
               onLogout={handleSalesLogout}
+              onEditQuotation={handleEditQuotation}
               loggedInUser={salesUser ? {
                 role: salesUser.role,
                 name: salesUser.name,
@@ -348,7 +401,8 @@ function App() {
             salesUser={salesUser}
             onShowSalesLogin={handleShowSalesLogin}
             onSalesLogout={handleSalesLogout}
-            initialConfig={null}
+            initialConfig={initialConfig}
+            activeQuotation={activeQuotation}
             showDashboard={false}
             onDashboardClose={() => { }}
             showSalesDashboard={showSalesDashboard}
@@ -396,6 +450,7 @@ function App() {
         onShowSalesLogin={handleShowSalesLogin}
         onSalesLogout={handleSalesLogout}
         initialConfig={initialConfig}
+        activeQuotation={activeQuotation}
         showDashboard={showDashboard}
         onDashboardClose={() => setShowDashboard(false)}
         onDashboardOpen={() => setShowDashboard(true)}

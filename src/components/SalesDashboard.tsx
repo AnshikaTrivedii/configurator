@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, FileText, Package, Calendar, RefreshCw, LogOut, MessageSquare, ArrowLeft, Eye } from 'lucide-react';
+import { X, User, Mail, Phone, FileText, Package, Calendar, RefreshCw, LogOut, MessageSquare, Plus, Eye, Edit } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { PdfViewModal } from './PdfViewModal';
+import { QuoteModal } from './QuoteModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
+import { Quotation } from '../types';
 
 interface SalesPerson {
   _id: string;
@@ -11,23 +13,6 @@ interface SalesPerson {
   location: string;
   contactNumber: string;
   role: string;
-}
-
-interface Quotation {
-  quotationId: string;
-  productName: string;
-  productDetails: any;
-  totalPrice: number;
-  message: string;
-  userType: string;
-  userTypeDisplayName: string;
-  createdAt: string;
-  pdfPage6HTML?: string | null;
-  pdfS3Key?: string | null;
-  pdfS3Url?: string | null;
-  exactPricingBreakdown?: any;
-  exactProductSpecs?: any;
-  quotationData?: any;
 }
 
 interface Customer {
@@ -42,6 +27,7 @@ interface Customer {
 interface SalesDashboardProps {
   onBack: () => void;
   onLogout: () => void;
+  onEditQuotation?: (quotation: Quotation) => void;
   loggedInUser?: {
     role?: string;
     name?: string;
@@ -49,7 +35,7 @@ interface SalesDashboardProps {
   };
 }
 
-export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout, loggedInUser }) => {
+export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout, onEditQuotation, loggedInUser }) => {
   const [salesPerson, setSalesPerson] = useState<SalesPerson | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [totalQuotations, setTotalQuotations] = useState(0);
@@ -62,20 +48,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [pdfHtmlContent, setPdfHtmlContent] = useState<string>('');
 
+  // Edit Quote State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
+
   useEffect(() => {
     console.log('🎯 SalesDashboard mounted, fetching data...');
     fetchDashboardData();
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      console.log('🔄 Auto-refreshing sales dashboard data...');
-      fetchDashboardData();
-    }, 30000);
-    
-    return () => {
-      console.log('🎯 SalesDashboard unmounting, clearing interval...');
-      clearInterval(interval);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -83,17 +62,17 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log('🔄 Fetching sales dashboard data...', forceRefresh ? '(FORCE REFRESH)' : '');
       console.log('🔑 Auth token present:', !!localStorage.getItem('salesToken'));
-      
+
       const response = await salesAPI.getMyDashboard();
       console.log('📊 Sales Dashboard API response:', response);
-      
+
       if (!response || !response.success) {
-        throw new Error(response?.message || 'Invalid response from server');
+        throw new Error('Invalid response from server');
       }
-      
+
       setSalesPerson(response.salesPerson);
       setCustomers(response.customers || []);
       setTotalQuotations(response.totalQuotations || 0);
@@ -128,13 +107,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
   const handleViewPdf = async (quotation: Quotation) => {
     try {
       setSelectedQuotation(quotation);
-      
+
       // Priority 1: Check if PDF is stored in S3
       if (quotation.pdfS3Key || quotation.pdfS3Url) {
         try {
           // Get fresh presigned URL (expires in 1 hour)
           const pdfUrlResponse = await salesAPI.getQuotationPdfUrl(quotation.quotationId);
-          
+
           // Open PDF in new tab
           window.open(pdfUrlResponse.pdfS3Url, '_blank');
           return;
@@ -144,7 +123,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           console.log('Falling back to HTML view...');
         }
       }
-      
+
       // Priority 2: If PDF HTML is stored, use it directly
       if (quotation.pdfPage6HTML) {
         setPdfHtmlContent(quotation.pdfPage6HTML);
@@ -157,10 +136,10 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
       if (quotation.exactPricingBreakdown && quotation.exactProductSpecs) {
         const productDetails = quotation.productDetails;
         const exactSpecs = quotation.exactProductSpecs;
-        
+
         // Extract necessary data for PDF generation - use stored specs first
         const product = productDetails?.product || productDetails;
-        
+
         // Use stored config from quotationData if available, otherwise extract from productDetails
         let config = quotation.quotationData?.config;
         if (!config && exactSpecs.displaySize) {
@@ -178,32 +157,32 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             unit: productDetails?.unit || 'mm'
           };
         }
-        
+
         // Use stored specs for cabinetGrid and processor
         const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
         const processor = exactSpecs.processor || productDetails?.processor || null;
         const mode = exactSpecs.mode || productDetails?.mode || undefined;
-        
+
         // Find customer info for userInfo
-        const customer = customers.find(c => 
+        const customer = customers.find(c =>
           c.quotations.some(q => q.quotationId === quotation.quotationId)
         );
-        
+
         // Map userType to the format expected by generateConfigurationHtml
-        let userTypeForHtml = 'End User';
+        let userTypeForHtml: 'End User' | 'Reseller' | 'Channel' = 'End User';
         if (quotation.userType === 'siChannel') {
-          userTypeForHtml = 'SI/Channel Partner';
+          userTypeForHtml = 'Channel';
         } else if (quotation.userType === 'reseller') {
           userTypeForHtml = 'Reseller';
         }
-        
+
         const userInfo = {
           userType: userTypeForHtml,
           fullName: customer?.customerName || '',
           email: customer?.customerEmail || '',
           phoneNumber: customer?.customerPhone || ''
         };
-        
+
         // Generate HTML content using EXACT stored pricing breakdown
         // This ensures prices match exactly what was saved
         const htmlContent = generateConfigurationHtml(
@@ -223,7 +202,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           undefined, // customPricing
           quotation.exactPricingBreakdown // CRITICAL: Use exact pricing breakdown
         );
-        
+
         setPdfHtmlContent(htmlContent);
         setIsPdfModalOpen(true);
       } else {
@@ -235,20 +214,30 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     }
   };
 
+  const handleEditQuotation = (quotation: Quotation) => {
+    if (onEditQuotation) {
+      onEditQuotation(quotation);
+    } else {
+      // Fallback to local modal
+      setEditingQuotation(quotation);
+      setIsEditModalOpen(true);
+    }
+  };
+
   const handleDownloadPdf = async () => {
     if (!selectedQuotation || !pdfHtmlContent) return;
-    
+
     try {
       // Import html2pdf dynamically
       const html2pdf = (await import('html2pdf.js')).default;
-      
+
       // Create a temporary container for the HTML
       const element = document.createElement('div');
       element.innerHTML = pdfHtmlContent;
       element.style.position = 'absolute';
       element.style.left = '-9999px';
       document.body.appendChild(element);
-      
+
       const opt = {
         margin: [10, 10, 10, 10],
         filename: `${selectedQuotation.quotationId}.pdf`,
@@ -256,9 +245,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
-      
+
       await html2pdf().set(opt).from(element).save();
-      
+
       // Cleanup
       document.body.removeChild(element);
     } catch (error) {
@@ -315,11 +304,11 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             <div className="flex items-center gap-2">
               <button
                 onClick={onBack}
-                className="px-3 py-2 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-                title="Back to Configurator"
+                className="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                title="Create New Quotation"
               >
-                <ArrowLeft size={16} />
-                Back
+                <Plus size={16} />
+                New Quotation
               </button>
               <button
                 onClick={() => fetchDashboardData(true)}
@@ -450,6 +439,21 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                               <Eye size={14} />
                               View PDF
                             </button>
+                            <button
+                              onClick={() => handleEditQuotation({
+                                ...quotation,
+                                customerName: customer.customerName,
+                                customerEmail: customer.customerEmail,
+                                customerPhone: customer.customerPhone,
+                                userType: customer.userType, // Ensure userType is passed from customer if missing
+                                userTypeDisplayName: customer.userTypeDisplayName
+                              })}
+                              className="px-3 py-1.5 bg-gray-600 text-white text-xs font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1"
+                              title="Edit Quote"
+                            >
+                              <Edit size={14} />
+                              Edit
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -496,6 +500,58 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           } : null}
           userRole="sales"
           quotationId={selectedQuotation.quotationId}
+          exactPricingBreakdown={selectedQuotation.exactPricingBreakdown}
+        />
+      )}
+
+      {/* Edit Quotation Modal */}
+      {editingQuotation && (
+        <QuoteModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingQuotation(null);
+          }}
+          onSubmit={() => {
+            // Refresh dashboard data after successful update
+            fetchDashboardData(true);
+            setIsEditModalOpen(false);
+            setEditingQuotation(null);
+          }}
+          selectedProduct={editingQuotation.productDetails?.product || editingQuotation.productDetails}
+          config={editingQuotation.quotationData?.config || {
+            width: editingQuotation.productDetails?.width || 0,
+            height: editingQuotation.productDetails?.height || 0,
+            unit: editingQuotation.productDetails?.unit || 'mm'
+          }}
+          cabinetGrid={editingQuotation.productDetails?.cabinetGrid || editingQuotation.quotationData?.cabinetGrid}
+          processor={editingQuotation.productDetails?.processor || editingQuotation.quotationData?.processor || null}
+          mode={editingQuotation.productDetails?.mode || editingQuotation.quotationData?.mode}
+          userInfo={{
+            userType: editingQuotation.userTypeDisplayName as any,
+            fullName: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerName || '',
+            email: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerEmail || '',
+            phoneNumber: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerPhone || ''
+          }}
+          salesUser={salesPerson ? {
+            _id: salesPerson._id,
+            name: salesPerson.name,
+            email: salesPerson.email,
+            role: salesPerson.role as 'sales' | 'super' | 'super_admin' | 'partner',
+            location: salesPerson.location,
+            contactNumber: salesPerson.contactNumber,
+            allowedCustomerTypes: [] // Add missing required property
+          } : null}
+          userRole="sales"
+          existingQuotation={{
+            quotationId: editingQuotation.quotationId,
+            customerName: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerName || '',
+            customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerEmail || '',
+            customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerPhone || '',
+            message: editingQuotation.message || '',
+            userType: (editingQuotation.userType === 'siChannel' ? 'SI/Channel Partner' : editingQuotation.userType === 'reseller' ? 'Reseller' : 'End User')
+          }}
+          customPricing={editingQuotation.quotationData?.customPricing}
         />
       )}
     </div>

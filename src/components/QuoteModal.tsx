@@ -261,6 +261,14 @@ type QuoteModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (message: string) => void;
+  existingQuotation?: {
+    quotationId: string;
+    customerName: string;
+    customerEmail: string;
+    customerPhone: string;
+    message: string;
+    userType: 'End User' | 'SI/Channel Partner' | 'Reseller';
+  };
   selectedProduct?: Product;
   config?: {
     width: number;
@@ -276,6 +284,9 @@ type QuoteModalProps = {
     phoneNumber: string;
     projectTitle?: string;
     address?: string;
+    validity?: string;
+    paymentTerms?: string;
+    warranty?: string;
     userType: 'End User' | 'SI/Channel Partner' | 'Reseller';
   };
   title?: string;
@@ -344,8 +355,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   processor,
   mode,
   userInfo,
-  title = 'Get a Quote',
-  submitButtonText = 'Submit Quote Request',
+  title,
+  submitButtonText,
+  existingQuotation,
   salesUser,
   userRole,
   quotationId,
@@ -353,10 +365,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   onCustomPricingChange,
   config
 }) => {
-  const [message, setMessage] = useState('');
-  const [customerName, setCustomerName] = useState(userInfo?.fullName || '');
-  const [customerEmail, setCustomerEmail] = useState(userInfo?.email || '');
-  const [customerPhone, setCustomerPhone] = useState(userInfo?.phoneNumber || '');
+  const effectiveTitle = title || (existingQuotation ? 'Edit Quote' : 'Get a Quote');
+  const effectiveSubmitButtonText = submitButtonText || (existingQuotation ? 'Update Quote' : 'Submit Quote Request');
+
+  const [message, setMessage] = useState(userInfo?.fullName ? '' : (existingQuotation?.message || ''));
+  const [customerName, setCustomerName] = useState(userInfo?.fullName || existingQuotation?.customerName || '');
+  const [customerEmail, setCustomerEmail] = useState(userInfo?.email || existingQuotation?.customerEmail || '');
+  const [customerPhone, setCustomerPhone] = useState(userInfo?.phoneNumber || existingQuotation?.customerPhone || '');
   const [salesPersons, setSalesPersons] = useState<any[]>([]);
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState<string | null>(null);
   const [loadingSalesPersons, setLoadingSalesPersons] = useState(false);
@@ -365,7 +380,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const [selectedUserType, setSelectedUserType] = useState<UserTypeDisplay>(
     userInfo?.userType === 'Reseller' ? 'Reseller' :
       userInfo?.userType === 'SI/Channel Partner' ? 'SI/Channel Partner' :
-        'End User'
+        existingQuotation?.userType ? existingQuotation.userType :
+          'End User'
   );
 
   // Get allowed customer types from salesUser (for partners)
@@ -600,6 +616,197 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         // Include total price - Commented out for future use
         // totalPrice: totalPrice
       };
+
+      // UPDATE LOGIC
+      if (existingQuotation) {
+        console.log('🔄 Updating existing quotation:', existingQuotation.quotationId);
+
+        // Calculate new total price with current settings
+        const configForCalc = config || { width: 2400, height: 1010, unit: 'mm' };
+
+        // Prepare custom pricing if enabled
+        const customPricingObj = customPricingEnabled && customStructurePrice !== null && customInstallationPrice !== null
+          ? {
+            enabled: true,
+            structurePrice: customStructurePrice,
+            installationPrice: customInstallationPrice
+          }
+          : undefined;
+
+        console.log('💰 Recalculating price for update:', {
+          product: selectedProduct.name,
+          userType: selectedUserType,
+          customPricing: customPricingObj
+        });
+
+        const newTotalPrice = calculateCorrectTotalPrice(
+          selectedProduct as any,
+          cabinetGrid,
+          processor,
+          userType,
+          configForCalc,
+          customPricingObj
+        );
+
+        // Generate pricing breakdown (same as creation)
+        const pdfUserType = selectedUserType === 'Reseller' ? 'Reseller' : (selectedUserType === 'SI/Channel Partner' ? 'Channel' : 'End User');
+
+        // Re-calculate all components for the breakdown
+        let unitPrice = 0;
+        if (selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.prices) {
+          if (pdfUserType === 'Reseller') unitPrice = selectedProduct.prices.cabinet.reseller;
+          else if (pdfUserType === 'Channel') unitPrice = selectedProduct.prices.cabinet.siChannel;
+          else unitPrice = selectedProduct.prices.cabinet.endCustomer;
+        } else {
+          if (pdfUserType === 'Reseller') unitPrice = Number(selectedProduct.resellerPrice) || 0;
+          else if (pdfUserType === 'Channel') unitPrice = Number(selectedProduct.siChannelPrice) || 0;
+          else unitPrice = Number(selectedProduct.price) || 0;
+        }
+
+        let quantity = 0;
+        if (selectedProduct.category?.toLowerCase().includes('rental')) {
+          quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+        } else if (isJumboSeriesProduct(selectedProduct as any)) {
+          // Recalculate jumbo quantity logic as per calculateCorrectTotalPrice
+          const pixelPitch = selectedProduct.pixelPitch;
+          if (pixelPitch === 4 || pixelPitch === 2.5) {
+            quantity = 34.64;
+          } else if (pixelPitch === 3 || pixelPitch === 6) {
+            quantity = 34.88;
+          } else {
+            quantity = 1;
+          }
+        } else {
+          // Standard area calculation
+          const METERS_TO_FEET = 3.2808399;
+          const widthInMeters = configForCalc.width / 1000;
+          const heightInMeters = configForCalc.height / 1000;
+          const widthInFeet = widthInMeters * METERS_TO_FEET;
+          const heightInFeet = heightInMeters * METERS_TO_FEET;
+          quantity = Math.round((widthInFeet * heightInFeet) * 100) / 100;
+          quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
+        }
+
+        const subtotal = unitPrice * quantity;
+        const gstProduct = subtotal * 0.18;
+
+        let processorPrice = 0;
+        if (processor && !isJumboSeriesProduct(selectedProduct as any)) {
+          processorPrice = getProcessorPrice(processor, pdfUserType);
+        }
+        const gstProcessor = processorPrice * 0.18;
+
+        // Structure & Install
+        let structureBasePrice = 0;
+        let installationBasePrice = 0;
+
+        if (customPricingObj?.enabled) {
+          structureBasePrice = customPricingObj.structurePrice || 0;
+          installationBasePrice = customPricingObj.installationPrice || 0;
+        } else {
+          const METERS_TO_FEET = 3.2808399;
+          const widthInMeters = configForCalc.width / 1000;
+          const heightInMeters = configForCalc.height / 1000;
+          const screenAreaSqFt = Math.round((widthInMeters * METERS_TO_FEET * heightInMeters * METERS_TO_FEET) * 100) / 100;
+
+          if (selectedProduct.environment?.toLowerCase().trim() === 'indoor') {
+            const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+            structureBasePrice = numberOfCabinets * 4000;
+          } else {
+            structureBasePrice = screenAreaSqFt * 2500;
+          }
+          installationBasePrice = screenAreaSqFt * 500;
+        }
+
+        const structureGST = structureBasePrice * 0.18;
+        const totalStructure = structureBasePrice + structureGST;
+        const installationGST = installationBasePrice * 0.18;
+        const totalInstallation = installationBasePrice + installationGST;
+
+        const breakdown = {
+          unitPrice,
+          quantity,
+          subtotal: subtotal,
+          gstRate: 18,
+          gstAmount: gstProduct, // legacy field
+          productSubtotal: subtotal,
+          productGST: gstProduct,
+          productTotal: subtotal + gstProduct,
+
+          processorPrice,
+          processorGst: gstProcessor, // legacy field
+          processorGST: gstProcessor,
+          processorTotal: processorPrice + gstProcessor,
+
+          structureCost: structureBasePrice,
+          structureGST: structureGST,
+          structureTotal: totalStructure,
+
+          installationCost: installationBasePrice,
+          installationGST: installationGST,
+          installationTotal: totalInstallation,
+
+          grandTotal: Math.round(newTotalPrice)
+        };
+
+        const updateData = {
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim(),
+          customerPhone: customerPhone.trim(),
+          message: message.trim(),
+          userType: userType,
+          userTypeDisplayName: getUserTypeDisplayName(getUserType()),
+          totalPrice: breakdown.grandTotal,
+          originalTotalPrice: breakdown.grandTotal, // Updating resets any discounts
+
+          // Update exact specs and data
+          exactPricingBreakdown: breakdown,
+          // Reset original breakdown to this new clean state
+          originalPricingBreakdown: breakdown,
+
+          exactProductSpecs: {
+            productName: selectedProduct.name,
+            category: selectedProduct.category,
+            pixelPitch: selectedProduct.pixelPitch,
+            resolution: selectedProduct.resolution,
+            cabinetDimensions: selectedProduct.cabinetDimensions,
+            displaySize: {
+              width: configForCalc.width / 1000,
+              height: configForCalc.height / 1000
+            },
+            aspectRatio: calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height),
+            processor: processor,
+            mode: mode,
+            cabinetGrid: cabinetGrid
+          },
+
+          quotationData: {
+            // Retain existing data but update config
+            config: configForCalc,
+            customPricing: customPricingObj,
+            updatedAt: new Date().toISOString(),
+            // Reset discount flags on update (admin can re-apply if needed)
+            discountApplied: false,
+            discountInfo: null
+          }
+        };
+
+        await salesAPI.updateQuotation(existingQuotation.quotationId, updateData);
+        console.log('✅ Quotation updated successfully');
+
+        // Notify parent
+        onSubmit(message.trim());
+
+        // Close modal
+        setTimeout(() => {
+          setIsSubmitting(false);
+          setIsSubmitted(true);
+          onClose();
+        }, 1500);
+
+        return;
+      }
+
 
       console.log('Submitting quote data:', quoteData);
 
@@ -974,6 +1181,32 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               installationPrice: customInstallationPrice
             } : undefined,
 
+            // CRITICAL: Store extended user info (address, project title, etc.) in quotationData
+            // This ensures they are preserved for editing and hydration
+            quotationData: {
+              userInfo: {
+                fullName: customerName,
+                email: customerEmail,
+                phoneNumber: customerPhone,
+                userType: userType,
+                // Extract extra fields from props.userInfo
+                projectTitle: userInfo?.projectTitle || '',
+                address: userInfo?.address || '',
+                validity: userInfo?.validity || undefined,
+                paymentTerms: userInfo?.paymentTerms || undefined,
+                warranty: userInfo?.warranty || undefined
+              },
+              config: configForCalc, // Also save config for reference
+              cabinetGrid: cabinetGrid,
+              processor: processor,
+              mode: mode,
+              customPricing: customPricingObj ? {
+                enabled: true,
+                structurePrice: customStructurePrice,
+                installationPrice: customInstallationPrice
+              } : undefined
+            },
+
             // Timestamp when quotation was created
             createdAt: new Date().toISOString()
           };
@@ -1095,8 +1328,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 <Mail className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-3xl font-bold">{title}</h2>
-                <p className="text-gray-200 text-base">Request pricing for your LED display configuration</p>
+                <h2 className="text-3xl font-bold">{effectiveTitle}</h2>
+                <p className="text-gray-200 text-base">{existingQuotation ? 'Update your quotation details' : 'Request pricing for your LED display configuration'}</p>
               </div>
             </div>
             <button
@@ -1553,7 +1786,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                   ) : (
                     <>
                       <Mail size={18} />
-                      <span>{submitButtonText}</span>
+                      <span>{effectiveSubmitButtonText}</span>
                     </>
                   )}
                 </button>
