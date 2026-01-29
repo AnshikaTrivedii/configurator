@@ -43,7 +43,7 @@ export interface Product {
   maxPowerConsumption: number;
   avgPowerConsumption: number;
   weightPerCabinet: number;
-  pdf: string;
+  pdf?: string;
   viewingAngle?: string;
   colorDepth?: string;
   voltage?: string;
@@ -77,10 +77,10 @@ export interface Product {
   controlDistance?: string;
   screenResolution?: string;
   activeDisplayArea?: string;
-  rentalOption?: 'cabinet' | 'curve lock';
+  rentalOption?: 'cabinet' | 'curve lock' | string;
   prices?: {
     cabinet: { endCustomer: number; siChannel: number; reseller: number };
-    curveLock: { endCustomer: number; siChannel: number; reseller: number };
+    curveLock?: { endCustomer: number; siChannel: number; reseller: number };
   };
   // Transparent Series specific properties
   transparency?: number; // Transparency percentage

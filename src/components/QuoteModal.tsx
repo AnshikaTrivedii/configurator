@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Mail, User, Phone, MessageSquare, Package, ChevronDown } from 'lucide-react';
 import { submitQuoteRequest, QuoteRequest } from '../api/quote';
 import { salesAPI } from '../api/sales';
-import { SalesUser } from '../api/sales';
+import { Product, SalesUser } from '../types';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
 import { getProcessorPrice } from '../utils/processorPrices';
@@ -33,8 +33,8 @@ function isJumboSeriesProduct(product: ProductWithPricing): boolean {
 // DO NOT modify this function without updating the PDF generation logic
 function calculateCorrectTotalPrice(
   product: ProductWithPricing,
-  cabinetGrid: { columns: number; rows: number } | null,
-  processor: string | null,
+  cabinetGrid: { columns: number; rows: number } | null | undefined,
+  processor: string | null | undefined,
   userType: string,
   config: { width: number; height: number; unit: string },
   customPricing?: {
@@ -255,52 +255,7 @@ function calculateCorrectTotalPrice(
   return Math.round(grandTotal);
 }
 
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  image: string;
-  resolution: {
-    width: number;
-    height: number;
-  };
-  price?: number;
-  siChannelPrice?: number;
-  resellerPrice?: number;
-  cabinetDimensions: {
-    width: number;
-    height: number;
-  };
-  moduleDimensions: {
-    width: number;
-    height: number;
-  };
-  moduleResolution: {
-    width: number;
-    height: number;
-  };
-  moduleQuantity: number;
-  pixelPitch: number;
-  pixelDensity: number;
-  brightness: number;
-  refreshRate: number;
-  environment: string;
-  maxPowerConsumption: number;
-  avgPowerConsumption: number;
-  weightPerCabinet: number;
-  pdf?: string;
-  prices?: {
-    cabinet: { endCustomer: number; siChannel: number; reseller: number };
-    curveLock: { endCustomer: number; siChannel: number; reseller: number };
-  };
-  rentalOption?: string;
-  // Add other product properties as needed
-}
 
-interface CabinetGrid {
-  columns: number;
-  rows: number;
-}
 
 type QuoteModalProps = {
   isOpen: boolean;
@@ -312,7 +267,7 @@ type QuoteModalProps = {
     height: number;
     unit: string;
   };
-  cabinetGrid?: CabinetGrid;
+  cabinetGrid?: { columns: number; rows: number };
   processor?: string;
   mode?: string;
   userInfo?: {
@@ -860,7 +815,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
           // Also get centralized pricing for breakdown (with custom pricing support)
           const pricingResult = calculateCentralizedPricing(
-            selectedProduct as any,
+            selectedProduct,
             cabinetGrid,
             processor,
             userType,
