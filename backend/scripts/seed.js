@@ -29,7 +29,6 @@ const DEFAULT_PASSWORD = 'Orion@123';
 
 const seedSalesUsers = async () => {
   try {
-    console.log('Starting sales users seeding...');
 
     let createdCount = 0;
     let skippedCount = 0;
@@ -45,12 +44,12 @@ const seedSalesUsers = async () => {
           if (!existingUser.role || existingUser.role !== 'sales') {
             existingUser.role = 'sales';
             await existingUser.save();
-            console.log(`Updated user ${userData.email} - set role to 'sales'`);
+
             updated = true;
           }
 
           if (!updated) {
-            console.log(`User ${userData.email} already exists with correct role, skipping...`);
+
           }
           skippedCount++;
           continue;
@@ -71,18 +70,13 @@ const seedSalesUsers = async () => {
         });
 
         await newUser.save();
-        console.log(`Created user: ${userData.email} with role: sales`);
+
         createdCount++;
 
       } catch (error) {
         console.error(`Error creating/updating user ${userData.email}:`, error.message);
       }
     }
-
-    console.log(`\nSeeding completed:`);
-    console.log(`- Created: ${createdCount} users`);
-    console.log(`- Skipped: ${skippedCount} existing users`);
-    console.log(`- Default password for new users: ${DEFAULT_PASSWORD}`);
 
   } catch (error) {
     console.error('Seeding error:', error);
@@ -99,7 +93,7 @@ const main = async () => {
 
     // Close connection
     await mongoose.connection.close();
-    console.log('Database connection closed.');
+
     process.exit(0);
 
   } catch (error) {

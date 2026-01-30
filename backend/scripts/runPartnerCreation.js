@@ -30,10 +30,7 @@ const PARTNER_USERS = [
  */
 export const runPartnerCreation = async () => {
   try {
-    console.log('🚀 Starting partner users creation...');
-    console.log(`📝 Default password: ${DEFAULT_PASSWORD}`);
-    console.log(`📝 Password must be changed on first login: true\n`);
-    
+
     let createdCount = 0;
     let updatedCount = 0;
     let skippedCount = 0;
@@ -56,11 +53,7 @@ export const runPartnerCreation = async () => {
           existingUser.allowedCustomerTypes = userData.allowedCustomerTypes;
           
           await existingUser.save();
-          console.log(`✅ Updated partner user: ${userData.email}`);
-          console.log(`   Name: ${userData.name}`);
-          console.log(`   Role: ${userData.role}`);
-          console.log(`   Allowed Customer Types: ${userData.allowedCustomerTypes.join(', ')}`);
-          console.log(`   Password: ${DEFAULT_PASSWORD} (must change on first login)\n`);
+
           updatedCount++;
           continue;
         }
@@ -81,11 +74,7 @@ export const runPartnerCreation = async () => {
         });
 
         await newUser.save();
-        console.log(`✅ Created partner user: ${userData.email}`);
-        console.log(`   Name: ${userData.name}`);
-        console.log(`   Role: ${userData.role}`);
-        console.log(`   Allowed Customer Types: ${userData.allowedCustomerTypes.join(', ')}`);
-        console.log(`   Password: ${DEFAULT_PASSWORD} (must change on first login)\n`);
+
         createdCount++;
         
       } catch (error) {
@@ -97,13 +86,6 @@ export const runPartnerCreation = async () => {
       }
     }
 
-    console.log(`\n📊 Partner Creation Summary:`);
-    console.log(`   ✅ Created: ${createdCount} partner users`);
-    console.log(`   🔄 Updated: ${updatedCount} partner users`);
-    console.log(`   ⏭️  Skipped: ${skippedCount} partner users`);
-    console.log(`\n🔐 Default password for all partners: ${DEFAULT_PASSWORD}`);
-    console.log(`⚠️  Partners must change password on first login\n`);
-    
     return {
       success: true,
       created: createdCount,

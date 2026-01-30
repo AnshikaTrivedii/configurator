@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Mail, User, Phone, MessageSquare, Package, ChevronDown } from 'lucide-react';
 import { submitQuoteRequest, QuoteRequest } from '../api/quote';
 import { salesAPI } from '../api/sales';
+import { clientAPI } from '../api/clients';
 import { Product, SalesUser } from '../types';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
@@ -9,7 +10,6 @@ import { getProcessorPrice } from '../utils/processorPrices';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { applyDiscount, DiscountInfo } from '../utils/discountCalculator';
 
-// Import Product type for proper typing
 interface ProductWithPricing extends Product {
   prices?: {
     cabinet: { endCustomer: number; siChannel: number; reseller: number };
@@ -17,20 +17,12 @@ interface ProductWithPricing extends Product {
   };
 }
 
-// Check if product is a Jumbo Series product (prices include controllers)
 function isJumboSeriesProduct(product: ProductWithPricing): boolean {
   return product.category?.toLowerCase().includes('jumbo') ||
     product.id?.toLowerCase().startsWith('jumbo-') ||
     product.name?.toLowerCase().includes('jumbo series');
 }
 
-// CRITICAL: This is the authoritative price calculation function
-// This function calculates prices using the EXACT same logic as PDF generation
-// The price calculated here is:
-// 1. Saved to the database as totalPrice
-// 2. Displayed in the generated PDF
-// 3. Displayed in the Super User dashboard
-// DO NOT modify this function without updating the PDF generation logic
 function calculateCorrectTotalPrice(
   product: ProductWithPricing,
   cabinetGrid: { columns: number; rows: number } | null | undefined,
@@ -45,7 +37,6 @@ function calculateCorrectTotalPrice(
 ): number {
   const METERS_TO_FEET = 3.2808399;
 
-  // Convert userType to match PDF logic
   let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
   if (userType === 'reseller') {
     pdfUserType = 'Reseller';
@@ -53,10 +44,8 @@ function calculateCorrectTotalPrice(
     pdfUserType = 'Channel';
   }
 
-  // Get unit price (same logic as PDF)
   let unitPrice = 0;
 
-  // Handle rental products
   if (product.category?.toLowerCase().includes('rental') && product.prices) {
     if (pdfUserType === 'Reseller') {
       unitPrice = product.prices.cabinet.reseller;
@@ -66,7 +55,7 @@ function calculateCorrectTotalPrice(
       unitPrice = product.prices.cabinet.endCustomer;
     }
   } else {
-    // Handle regular products
+
     if (pdfUserType === 'Reseller' && typeof product.resellerPrice === 'number') {
       unitPrice = product.resellerPrice;
     } else if (pdfUserType === 'Channel' && typeof product.siChannelPrice === 'number') {
@@ -81,181 +70,99 @@ function calculateCorrectTotalPrice(
     }
   }
 
-  // Calculate quantity based on product type - EXACT SAME LOGIC AS PDF
   let quantity = 0;
 
   if (product.category?.toLowerCase().includes('rental')) {
-    // For rental series, calculate quantity as number of cabinets
+
     quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
   } else if (isJumboSeriesProduct(product)) {
-    // For Jumbo Series, use fixed area-based pricing
+
     const pixelPitch = product.pixelPitch;
 
     if (pixelPitch === 4 || pixelPitch === 2.5) {
-      // P4 and P2.5: Fixed area = 7.34ft × 4.72ft = 34.64 sqft
+
       const widthInFeet = 7.34;
       const heightInFeet = 4.72;
       const fixedQuantity = widthInFeet * heightInFeet;
 
-      console.log('🎯 QuoteModal Jumbo Series P4/P2.5 Fixed Pricing:', {
-        product: product.name,
-        pixelPitch,
-        fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
-        quantity: fixedQuantity.toFixed(2) + ' sqft'
-      });
-
       quantity = Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
     } else if (pixelPitch === 3 || pixelPitch === 6) {
-      // P3 and P6: Fixed area = 6.92ft × 5.04ft = 34.88 sqft
+
       const widthInFeet = 6.92;
       const heightInFeet = 5.04;
       const fixedQuantity = widthInFeet * heightInFeet;
-
-      console.log('🎯 QuoteModal Jumbo Series P3/P6 Fixed Pricing:', {
-        product: product.name,
-        pixelPitch,
-        fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
-        quantity: fixedQuantity.toFixed(2) + ' sqft'
-      });
 
       quantity = Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
     } else {
       quantity = 1; // Fallback
     }
   } else {
-    // For other products, calculate quantity in square feet - MATCH PDF EXACTLY
-    // CRITICAL: Use config dimensions directly (same as PDF) to avoid rounding differences
+
     const widthInMeters = config.width / 1000;
     const heightInMeters = config.height / 1000;
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
     const rawQuantity = widthInFeet * heightInFeet;
 
-    // Round to 2 decimal places for consistency with display
     quantity = Math.round(rawQuantity * 100) / 100;
 
-    // Ensure quantity is reasonable (same as PDF)
     quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
   }
 
-  // Calculate subtotal (product price before GST)
   const subtotal = unitPrice * quantity;
 
-  // Add processor price if available (before GST)
-  // Note: Skip processor price for Jumbo Series products as their prices already include controllers
   let processorPrice = 0;
   if (processor && !isJumboSeriesProduct(product)) {
-    // Use centralized processor pricing
+
     processorPrice = getProcessorPrice(processor, pdfUserType);
-    console.log('🔧 Processor Price Calculation:', {
-      processor,
-      pdfUserType,
-      calculatedPrice: processorPrice,
-      note: 'Using centralized processor pricing'
-    });
+
   } else if (processor && isJumboSeriesProduct(product)) {
-    console.log('🚫 Skipping processor price for Jumbo Series product:', product.name);
+
   }
 
-  // Calculate totals with GST (18%) - SAME LOGIC AS PDF
-  // Product total (A)
   const gstProduct = subtotal * 0.18;
   const totalProduct = subtotal + gstProduct;
 
-  // Processor/Controller total (B)
   const gstProcessor = processorPrice * 0.18;
   const totalProcessor = processorPrice + gstProcessor;
 
-  // Calculate screen area in square feet for Structure and Installation pricing
-  // This should always be based on actual display dimensions
   const widthInMeters = config.width / 1000;
   const heightInMeters = config.height / 1000;
   const widthInFeet = widthInMeters * METERS_TO_FEET;
   const heightInFeet = heightInMeters * METERS_TO_FEET;
   const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
 
-  // Structure and Installation pricing - use custom if enabled, otherwise use default calculation
-  // IMPORTANT: Structure and Installation are kept SEPARATE - never combined
   let structureBasePrice: number;
   let installationBasePrice: number;
 
   if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
-    // Use custom pricing (base prices without GST)
+
     structureBasePrice = customPricing.structurePrice;
     installationBasePrice = customPricing.installationPrice;
   } else {
-    // Default calculation: 
-    // Structure Price: Indoor = ₹4000 per cabinet, Outdoor = ₹2500 per sq.ft
-    // Installation Price: ₹500 per square foot
+
     const normalizedEnv = product.environment?.toLowerCase().trim();
     if (normalizedEnv === 'indoor') {
-      // Indoor: ₹4000 per cabinet
+
       const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
       structureBasePrice = numberOfCabinets * 4000;
     } else {
-      // Outdoor: ₹2500 per sq.ft
+
       structureBasePrice = screenAreaSqFt * 2500;
     }
     installationBasePrice = screenAreaSqFt * 500;
   }
 
-  // Calculate GST on structure and installation separately (always 18%)
   const structureGST = structureBasePrice * 0.18;
   const totalStructure = structureBasePrice + structureGST;
 
   const installationGST = installationBasePrice * 0.18;
   const totalInstallation = installationBasePrice + installationGST;
 
-  // GRAND TOTAL (A + B + Structure + Installation) - This matches the PDF exactly
-  // Structure and Installation are added separately - never combined
   const grandTotal = totalProduct + totalProcessor + totalStructure + totalInstallation;
 
-  console.log('💰 Price Calculation (WITH GST - matches PDF exactly):', {
-    product: product.name,
-    userType: pdfUserType,
-    unitPrice,
-    quantity,
-    cabinetGrid,
-    cabinetDimensions: product.cabinetDimensions,
-    subtotal,
-    gstProduct,
-    totalProduct,
-    processorPrice,
-    gstProcessor,
-    totalProcessor,
-    grandTotal: Math.round(grandTotal),
-    breakdown: {
-      'Unit Price (per sq.ft)': unitPrice,
-      'Quantity (sq.ft)': quantity,
-      'Product Subtotal': subtotal,
-      'Product GST (18%)': gstProduct,
-      'Product Total (A)': totalProduct,
-      'Processor Price': processorPrice,
-      'Processor GST (18%)': gstProcessor,
-      'Processor Total (B)': totalProcessor,
-      'Structure Cost (Base)': structureBasePrice,
-      'Structure GST (18%)': structureGST,
-      'Structure Total': totalStructure,
-      'Installation Cost (Base)': installationBasePrice,
-      'Installation GST (18%)': installationGST,
-      'Installation Total': totalInstallation,
-      'GRAND TOTAL (A+B+C+D) with GST': Math.round(grandTotal)
-    },
-    calculation: {
-      'Config Dimensions': `${config.width}×${config.height}mm`,
-      'Config in Meters': `${(config.width / 1000).toFixed(2)}×${(config.height / 1000).toFixed(2)}m`,
-      'Config in Feet': `${(config.width / 1000 * METERS_TO_FEET).toFixed(2)}×${(config.height / 1000 * METERS_TO_FEET).toFixed(2)}ft`,
-      'Cabinet Grid': `${cabinetGrid?.columns || 0}×${cabinetGrid?.rows || 0}`,
-      'Cabinet Size': `${product.cabinetDimensions?.width || 0}×${product.cabinetDimensions?.height || 0}mm`,
-      'Calculated Total': `${((product.cabinetDimensions?.width || 0) * (cabinetGrid?.columns || 1))}×${((product.cabinetDimensions?.height || 0) * (cabinetGrid?.rows || 1))}mm`
-    }
-  });
-
-  // Return grand total rounded to nearest rupee (INCLUDES 18% GST)
   return Math.round(grandTotal);
 }
-
-
 
 type QuoteModalProps = {
   isOpen: boolean;
@@ -306,18 +213,15 @@ type QuoteModalProps = {
   }) => void;
 };
 
-// Function to calculate greatest common divisor
 const gcd = (a: number, b: number): number => {
   return b === 0 ? a : gcd(b, a % b);
 };
 
-// Function to calculate aspect ratio
 const calculateAspectRatio = (width: number, height: number): string => {
   const divisor = gcd(width, height);
   return `${width / divisor}:${height / divisor}`;
 };
 
-// Get user type display name
 const getUserTypeDisplayName = (type: string): string => {
   switch (type) {
     case 'siChannel':
@@ -329,9 +233,8 @@ const getUserTypeDisplayName = (type: string): string => {
   }
 };
 
-// Get processor price based on user type (using centralized pricing)
 const getProcessorPriceLocal = (processor: string, userType: string): number => {
-  // Convert userType to match centralized pricing format
+
   let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
   if (userType === 'reseller') {
     pdfUserType = 'Reseller';
@@ -341,10 +244,6 @@ const getProcessorPriceLocal = (processor: string, userType: string): number => 
 
   return getProcessorPrice(processor, pdfUserType);
 };
-
-
-
-
 
 export const QuoteModal: React.FC<QuoteModalProps> = ({
   isOpen,
@@ -375,7 +274,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const [salesPersons, setSalesPersons] = useState<any[]>([]);
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState<string | null>(null);
   const [loadingSalesPersons, setLoadingSalesPersons] = useState(false);
-  // Support all three customer types
+
   type UserTypeDisplay = 'End User' | 'SI/Channel Partner' | 'Reseller';
   const [selectedUserType, setSelectedUserType] = useState<UserTypeDisplay>(
     userInfo?.userType === 'Reseller' ? 'Reseller' :
@@ -384,49 +283,42 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           'End User'
   );
 
-  // Get allowed customer types from salesUser (for partners)
   const allowedCustomerTypes = salesUser?.allowedCustomerTypes || [];
   const isPartner = userRole === 'partner';
 
-  // Filter available user types based on permissions
   const availableUserTypes: UserTypeDisplay[] = React.useMemo(() => {
     if (isPartner && allowedCustomerTypes.length > 0) {
-      // Partner: only show allowed types
+
       const types: UserTypeDisplay[] = [];
       if (allowedCustomerTypes.includes('endUser')) types.push('End User');
       if (allowedCustomerTypes.includes('siChannel')) types.push('SI/Channel Partner');
       if (allowedCustomerTypes.includes('reseller')) types.push('Reseller');
       return types.length > 0 ? types : ['End User']; // Fallback to End User if empty
     }
-    // Sales/Super: show all types
+
     return ['End User', 'SI/Channel Partner', 'Reseller'];
   }, [isPartner, allowedCustomerTypes]);
 
-  // Ensure selectedUserType is valid based on permissions
   React.useEffect(() => {
     if (isPartner && allowedCustomerTypes.length > 0) {
       if (!availableUserTypes.includes(selectedUserType)) {
-        // If current selection is not allowed, switch to first available
+
         setSelectedUserType(availableUserTypes[0]);
       }
     }
   }, [isPartner, allowedCustomerTypes, availableUserTypes, selectedUserType]);
 
-  // Discount state (only for superadmin)
   const [discountType, setDiscountType] = useState<'led' | 'controller' | 'total' | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
 
-  // Custom pricing state - use external if provided, otherwise use internal state
   const [internalCustomPricingEnabled, setInternalCustomPricingEnabled] = useState(externalCustomPricing?.enabled || false);
   const [internalCustomStructurePrice, setInternalCustomStructurePrice] = useState<number | null>(externalCustomPricing?.structurePrice || null);
   const [internalCustomInstallationPrice, setInternalCustomInstallationPrice] = useState<number | null>(externalCustomPricing?.installationPrice || null);
 
-  // Use external pricing if provided, otherwise use internal state
   const customPricingEnabled = externalCustomPricing?.enabled ?? internalCustomPricingEnabled;
   const customStructurePrice = externalCustomPricing?.structurePrice ?? internalCustomStructurePrice;
   const customInstallationPrice = externalCustomPricing?.installationPrice ?? internalCustomInstallationPrice;
 
-  // Update external state when internal state changes
   const updateCustomPricing = (enabled: boolean, structurePrice: number | null, installationPrice: number | null) => {
     if (onCustomPricingChange) {
       onCustomPricingChange({
@@ -441,7 +333,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     }
   };
 
-  // Update form fields when userInfo changes
   React.useEffect(() => {
     if (userInfo) {
       setCustomerName(userInfo.fullName);
@@ -451,7 +342,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     }
   }, [userInfo]);
 
-  // Load sales persons if user is superadmin
   useEffect(() => {
     if ((userRole === 'super' || userRole === 'super_admin') && isOpen) {
       const loadSalesPersons = async () => {
@@ -461,34 +351,17 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           const persons = response.salesPersons || [];
           setSalesPersons(persons);
 
-          console.log('📋 Loaded sales persons for dropdown:', {
-            count: persons.length,
-            persons: persons.map(p => ({
-              _id: p._id,
-              _idType: typeof p._id,
-              name: p.name,
-              email: p.email
-            }))
-          });
-
-          // Default to current user if available
           if (salesUser?._id) {
             const currentUserId = salesUser._id.toString();
             setSelectedSalesPersonId(currentUserId);
-            console.log('✅ Defaulted to current user:', {
-              salesUserId: currentUserId,
-              salesUserName: salesUser.name
-            });
+
           } else if (persons.length > 0) {
             const firstPersonId = persons[0]._id?.toString();
             setSelectedSalesPersonId(firstPersonId);
-            console.log('✅ Defaulted to first person in list:', {
-              personId: firstPersonId,
-              personName: persons[0].name
-            });
+
           }
         } catch (error) {
-          console.error('Error loading sales persons:', error);
+
         } finally {
           setLoadingSalesPersons(false);
         }
@@ -502,7 +375,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Get the current user type from local state with proper mapping
   const getUserType = (): 'endUser' | 'reseller' | 'siChannel' => {
     switch (selectedUserType) {
       case 'Reseller':
@@ -515,17 +387,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     }
   };
 
-
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    console.log('🚀 QuoteModal handleSubmit called');
-    console.log('📋 Sales User:', salesUser);
-    console.log('🆔 Quotation ID:', quotationId);
-    console.log('📦 Selected Product:', selectedProduct?.name);
-
-    // Validate required fields
     if (!selectedProduct) {
       alert('Please select a product');
       return;
@@ -551,7 +415,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       return;
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(customerEmail)) {
       alert('Please enter a valid email address');
@@ -562,11 +425,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
     try {
       const userType = getUserType();
-      // const userPrice = getPriceForUserType(); // Commented out for future use
-      // const totalPrice = calculateTotalPrice(); // Commented out for future use
 
       const quoteData: QuoteRequest = {
-        // Root level required fields for backend compatibility
+
         productName: selectedProduct.name,
         customerName: customerName.trim(),
         customerEmail: customerEmail.trim(),
@@ -574,21 +435,20 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         message: message.trim() || 'No additional message provided',
         userTypeDisplayName: getUserTypeDisplayName(getUserType()),
 
-        // Product details object
         product: {
-          // Basic product info
+
           id: selectedProduct.id,
           name: selectedProduct.name,
           category: selectedProduct.category,
-          // Display specifications
+
           pixelPitch: selectedProduct.pixelPitch,
           resolution: selectedProduct.resolution,
           cabinetDimensions: selectedProduct.cabinetDimensions,
-          // Module details
+
           moduleDimensions: selectedProduct.moduleDimensions,
           moduleResolution: selectedProduct.moduleResolution,
           moduleQuantity: selectedProduct.moduleQuantity,
-          // Technical specifications
+
           pixelDensity: selectedProduct.pixelDensity,
           brightness: selectedProduct.brightness,
           refreshRate: selectedProduct.refreshRate,
@@ -596,9 +456,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           maxPowerConsumption: selectedProduct.maxPowerConsumption,
           avgPowerConsumption: selectedProduct.avgPowerConsumption,
           weightPerCabinet: selectedProduct.weightPerCabinet,
-          // Pricing - Commented out for future use
-          // processorPrice: userPrice,
-          // User info
+
           userType: userType
         },
         cabinetGrid: cabinetGrid,
@@ -608,23 +466,18 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         } : undefined,
         aspectRatio: selectedProduct.resolution ?
           calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
-        // Include processor and mode if available
+
         processor: processor,
         mode: mode,
-        // Include user type at the root level as well for backward compatibility
+
         userType: userType,
-        // Include total price - Commented out for future use
-        // totalPrice: totalPrice
+
       };
 
-      // UPDATE LOGIC
       if (existingQuotation) {
-        console.log('🔄 Updating existing quotation:', existingQuotation.quotationId);
 
-        // Calculate new total price with current settings
         const configForCalc = config || { width: 2400, height: 1010, unit: 'mm' };
 
-        // Prepare custom pricing if enabled
         const customPricingObj = customPricingEnabled && customStructurePrice !== null && customInstallationPrice !== null
           ? {
             enabled: true,
@@ -632,12 +485,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             installationPrice: customInstallationPrice
           }
           : undefined;
-
-        console.log('💰 Recalculating price for update:', {
-          product: selectedProduct.name,
-          userType: selectedUserType,
-          customPricing: customPricingObj
-        });
 
         const newTotalPrice = calculateCorrectTotalPrice(
           selectedProduct as any,
@@ -648,10 +495,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           customPricingObj
         );
 
-        // Generate pricing breakdown (same as creation)
         const pdfUserType = selectedUserType === 'Reseller' ? 'Reseller' : (selectedUserType === 'SI/Channel Partner' ? 'Channel' : 'End User');
 
-        // Re-calculate all components for the breakdown
         let unitPrice = 0;
         if (selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.prices) {
           if (pdfUserType === 'Reseller') unitPrice = selectedProduct.prices.cabinet.reseller;
@@ -667,7 +512,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         if (selectedProduct.category?.toLowerCase().includes('rental')) {
           quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
         } else if (isJumboSeriesProduct(selectedProduct as any)) {
-          // Recalculate jumbo quantity logic as per calculateCorrectTotalPrice
+
           const pixelPitch = selectedProduct.pixelPitch;
           if (pixelPitch === 4 || pixelPitch === 2.5) {
             quantity = 34.64;
@@ -677,7 +522,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             quantity = 1;
           }
         } else {
-          // Standard area calculation
+
           const METERS_TO_FEET = 3.2808399;
           const widthInMeters = configForCalc.width / 1000;
           const heightInMeters = configForCalc.height / 1000;
@@ -696,7 +541,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         }
         const gstProcessor = processorPrice * 0.18;
 
-        // Structure & Install
         let structureBasePrice = 0;
         let installationBasePrice = 0;
 
@@ -759,9 +603,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           totalPrice: breakdown.grandTotal,
           originalTotalPrice: breakdown.grandTotal, // Updating resets any discounts
 
-          // Update exact specs and data
           exactPricingBreakdown: breakdown,
-          // Reset original breakdown to this new clean state
+
           originalPricingBreakdown: breakdown,
 
           exactProductSpecs: {
@@ -781,23 +624,48 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           },
 
           quotationData: {
-            // Retain existing data but update config
+
             config: configForCalc,
             customPricing: customPricingObj,
             updatedAt: new Date().toISOString(),
-            // Reset discount flags on update (admin can re-apply if needed)
+
             discountApplied: false,
             discountInfo: null
           }
         };
 
-        await salesAPI.updateQuotation(existingQuotation.quotationId, updateData);
-        console.log('✅ Quotation updated successfully');
+        // Create or update client when updating quotation
+        let clientId: string | undefined;
+        try {
+          const clientData = {
+            name: customerName.trim(),
+            email: customerEmail.trim(),
+            phone: customerPhone.trim(),
+            projectTitle: userInfo?.projectTitle || '',
+            location: userInfo?.address || '',
+            company: '',
+            notes: message.trim() || ''
+          };
 
-        // Notify parent
+          const clientResponse = await clientAPI.findOrCreateClient(clientData);
+          if (clientResponse.success && clientResponse.client) {
+            clientId = clientResponse.client._id;
+            console.log('✅ Client created/found for update:', clientResponse.client._id);
+          }
+        } catch (clientError: any) {
+          console.error('⚠️ Failed to create/find client during update:', clientError);
+          // Continue with quotation update even if client creation fails
+        }
+
+        // Add clientId to update data if available
+        if (clientId) {
+          (updateData as any).clientId = clientId;
+        }
+
+        await salesAPI.updateQuotation(existingQuotation.quotationId, updateData);
+
         onSubmit(message.trim());
 
-        // Close modal
         setTimeout(() => {
           setIsSubmitting(false);
           setIsSubmitted(true);
@@ -807,21 +675,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         return;
       }
 
-
-      console.log('Submitting quote data:', quoteData);
-
-      // First, save quotation to local database if this is a sales user
-      console.log('🔍 Checking conditions for database save:');
-      console.log('  - salesUser present:', !!salesUser);
-      console.log('  - quotationId present:', !!quotationId);
-      console.log('  - salesUser details:', salesUser ? { name: salesUser.name, email: salesUser.email } : 'null');
-      console.log('  - quotationId value:', quotationId);
-
-      // Generate quotationId if missing but salesUser is present
       let finalQuotationId = quotationId;
       const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
 
-      // For superadmin, require salesUser or selectedSalesPersonId
       if (isSuperAdmin && !salesUser && !selectedSalesPersonId) {
         alert('Please select a sales person to assign this quotation to');
         setIsSubmitting(false);
@@ -829,14 +685,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       }
 
       if ((salesUser || isSuperAdmin) && !quotationId) {
-        console.log('⚠️ QuotationId missing, generating new one...');
-        // For superadmin, use selected sales person name or current user name
+
         const nameForId = isSuperAdmin && selectedSalesPersonId
           ? salesPersons.find(p => p._id === selectedSalesPersonId)?.name || salesUser?.name
           : salesUser?.name;
         if (nameForId) {
           finalQuotationId = await QuotationIdGenerator.generateQuotationId(nameForId);
-          console.log('🆔 Generated new quotationId:', finalQuotationId);
+
         } else {
           alert('Unable to generate quotation ID - missing sales person name');
           setIsSubmitting(false);
@@ -844,124 +699,60 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         }
       }
 
-      // CRITICAL: Determine salesUserId and salesUserName for quotation attribution
-      // This determines which user the quotation will be counted under in the dashboard
       let finalSalesUserId: string | undefined;
       let finalSalesUserName: string | undefined;
 
       if (isSuperAdmin) {
-        // Superadmin can assign to selected sales person or themselves
+
         if (selectedSalesPersonId) {
-          console.log('🔍 DEBUG: Looking for selected sales person:', {
-            selectedSalesPersonId,
-            selectedSalesPersonIdType: typeof selectedSalesPersonId,
-            salesPersonsCount: salesPersons.length,
-            salesPersonsIds: salesPersons.map(p => ({ id: p._id, idType: typeof p._id, name: p.name }))
-          });
 
           const selectedPerson = salesPersons.find(p => {
-            // Handle both string and ObjectId comparisons
+
             const personId = p._id?.toString();
             const selectedId = selectedSalesPersonId?.toString();
             return personId === selectedId;
           });
 
           if (selectedPerson) {
-            // Assign to the selected sales person
-            // CRITICAL: Always convert to string to ensure consistent format
-            // Backend will validate and convert to ObjectId
+
             finalSalesUserId = selectedPerson._id?.toString();
             finalSalesUserName = selectedPerson.name;
-            console.log('✅ Superadmin assigning quotation to:', {
-              selectedSalesPersonId: selectedSalesPersonId,
-              finalSalesUserId: finalSalesUserId,
-              finalSalesUserIdType: typeof finalSalesUserId,
-              finalSalesUserIdString: finalSalesUserId,
-              finalSalesUserName: finalSalesUserName,
-              email: selectedPerson.email,
-              note: 'ID sent as string - backend will convert to ObjectId'
-            });
+
           } else {
-            // Fallback to current user (should not happen if dropdown works correctly)
-            console.error('❌ Selected person not found in salesPersons list!', {
-              selectedSalesPersonId,
-              availableIds: salesPersons.map(p => p._id),
-              availableNames: salesPersons.map(p => p.name)
-            });
+
             finalSalesUserId = salesUser?._id;
             finalSalesUserName = salesUser?.name;
-            console.log('⚠️ Selected person not found, falling back to superadmin themselves');
+
           }
         } else {
-          // Default to current user (superadmin creating for themselves)
+
           finalSalesUserId = salesUser?._id?.toString();
           finalSalesUserName = salesUser?.name;
-          console.log('📊 Superadmin creating quotation for themselves:', {
-            salesUserId: finalSalesUserId,
-            salesUserName: finalSalesUserName
-          });
+
         }
       } else {
-        // Regular sales user or partner - always uses their own ID
-        // Partners are treated the same as sales users for quotation attribution
+
         finalSalesUserId = salesUser?._id?.toString();
         finalSalesUserName = salesUser?.name;
-        console.log('📊 Sales user/Partner creating quotation:', {
-          salesUserId: finalSalesUserId,
-          salesUserIdType: typeof finalSalesUserId,
-          salesUserName: finalSalesUserName,
-          userRole: userRole,
-          isPartner: userRole === 'partner',
-          note: 'Quotation will be attributed to this user in dashboard'
-        });
+
       }
 
-      // Save quotation for sales users, partners, and superadmins
-      // Partners are treated exactly the same as sales users
       if ((salesUser || isSuperAdmin) && finalQuotationId && finalSalesUserId && finalSalesUserName) {
         let exactQuotationData: any = null;
-        console.log('✅ Conditions met - attempting to save quotation to database...');
-        console.log('📋 User:', salesUser?.name || 'Super Admin', salesUser?.email || 'N/A');
-        console.log('👤 User Role:', userRole);
-        console.log('🆔 Quotation ID:', finalQuotationId);
-        console.log('👥 Attribution:', {
-          salesUserId: finalSalesUserId,
-          salesUserName: finalSalesUserName,
-          userRole: userRole,
-          isPartner: userRole === 'partner',
-          note: 'Quotation will be saved with same structure as sales user quotations'
-        });
 
         try {
-          // PRODUCTION DEBUG: Log the exact payload being sent
-          console.log('🚀 QUOTATION SAVE - Payload being sent:', {
-            environment: import.meta.env.MODE,
-            apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
-            quotationId: finalQuotationId,
-            salesUserId: finalSalesUserId,
-            salesUserIdType: typeof finalSalesUserId,
-            salesUserName: finalSalesUserName,
-            isSuperAdmin: isSuperAdmin,
-            selectedSalesPersonId: selectedSalesPersonId,
-            currentUser: salesUser?.name,
-            currentUserId: salesUser?._id,
-            timestamp: new Date().toISOString()
-          });
 
-          // Create comprehensive product details object
           const comprehensiveProductDetails = {
-            // Basic product info
+
             productId: selectedProduct.id,
             productName: selectedProduct.name,
             category: selectedProduct.category,
 
-            // Pricing information (CRITICAL for backend pricing calculation)
             price: selectedProduct.price,
             resellerPrice: selectedProduct.resellerPrice,
             siChannelPrice: selectedProduct.siChannelPrice,
             prices: selectedProduct.prices,
 
-            // Display specifications
             pixelPitch: selectedProduct.pixelPitch,
             resolution: selectedProduct.resolution,
             cabinetDimensions: selectedProduct.cabinetDimensions,
@@ -969,7 +760,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             moduleResolution: selectedProduct.moduleResolution,
             moduleQuantity: selectedProduct.moduleQuantity,
 
-            // Technical specifications
             pixelDensity: selectedProduct.pixelDensity,
             brightness: selectedProduct.brightness,
             refreshRate: selectedProduct.refreshRate,
@@ -978,7 +768,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             avgPowerConsumption: selectedProduct.avgPowerConsumption,
             weightPerCabinet: selectedProduct.weightPerCabinet,
 
-            // Configuration details
             cabinetGrid: cabinetGrid,
             displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
               width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
@@ -989,19 +778,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             processor: processor,
             mode: mode,
 
-            // User type and pricing context
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
 
-            // Timestamp
             generatedAt: new Date().toISOString()
           };
 
-          // CRITICAL: Calculate total price using calculateCorrectTotalPrice with custom pricing support
-          // This ensures 100% consistency between database storage and PDF generation
           const configForCalc = config || { width: 2400, height: 1010, unit: 'mm' };
 
-          // Prepare custom pricing object if enabled
           const customPricingObj = customPricingEnabled && customStructurePrice !== null && customInstallationPrice !== null
             ? {
               enabled: true,
@@ -1010,7 +794,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             }
             : undefined;
 
-          // Calculate total price with custom pricing support
           const correctTotalPrice = calculateCorrectTotalPrice(
             selectedProduct,
             cabinetGrid,
@@ -1020,7 +803,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             customPricingObj
           );
 
-          // Also get centralized pricing for breakdown (with custom pricing support)
           const pricingResult = calculateCentralizedPricing(
             selectedProduct,
             cabinetGrid,
@@ -1030,56 +812,29 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             customPricingObj
           );
 
-          // Check if price is available
           if (!pricingResult.isAvailable) {
             alert('❌ Price is not available for this product configuration. Please contact sales for pricing information.');
             return;
           }
 
-          // Apply discount if superadmin has set one
           let finalPricingResult = pricingResult;
           let finalTotalPrice = correctTotalPrice;
           let discountInfo: DiscountInfo | null = null;
 
-          // Re-use isSuperAdmin from outer scope if needed, or just check userRole
-          // const isSuperAdmin = userRole === 'super' || userRole === 'super_admin'; // REMOVED REDECLARATION
           if (isSuperAdmin && discountType && discountPercent > 0) {
             discountInfo = {
               discountType,
               discountPercent
             };
 
-            // Apply discount to pricing result
             const discountedResult = applyDiscount(pricingResult, discountInfo);
             finalPricingResult = discountedResult;
             finalTotalPrice = discountedResult.grandTotal;
 
-            console.log('💰 DISCOUNT APPLIED TO QUOTATION:', {
-              discountType,
-              discountPercent: `${discountPercent}%`,
-              originalTotal: correctTotalPrice,
-              discountedTotal: finalTotalPrice,
-              discountAmount: discountedResult.discountAmount,
-              savings: `₹${discountedResult.discountAmount.toLocaleString('en-IN')}`
-            });
           }
 
-          console.log('💰 Calculated price for quotation (WITH GST - matches PDF):', {
-            quotationId: finalQuotationId,
-            totalPrice: finalTotalPrice,
-            originalTotal: correctTotalPrice,
-            formatted: `₹${finalTotalPrice.toLocaleString('en-IN')}`,
-            includesGST: true,
-            gstRate: '18%',
-            userType: getUserTypeDisplayName(userType),
-            product: selectedProduct.name,
-            hasDiscount: !!discountInfo,
-            note: discountInfo ? 'Price includes discount (not shown in PDF)' : 'This price includes 18% GST and matches PDF Grand Total'
-          });
-
-          // Capture exact quotation data as shown on the page
           exactQuotationData = {
-            // Basic quotation info
+
             quotationId: finalQuotationId,
             customerName: customerName.trim(),
             customerEmail: customerEmail.trim(),
@@ -1091,15 +846,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             totalPrice: finalTotalPrice,  // CRITICAL: Grand Total with GST (and discount if applied) - matches PDF exactly
             originalTotalPrice: correctTotalPrice, // Store original total price before discount
 
-            // CRITICAL: Include salesUserId and salesUserName for quotation attribution
-            // This determines which user the quotation is counted under in the dashboard
-            // For superadmin: can be assigned user or themselves
-            // For sales users and partners: always their own ID
-            // Partners are saved with the same structure as sales users
             salesUserId: finalSalesUserId,
             salesUserName: finalSalesUserName,
 
-            // Store exact pricing breakdown using centralized calculation + custom pricing + discount
             exactPricingBreakdown: {
               unitPrice: finalPricingResult.unitPrice,
               quantity: finalPricingResult.quantity,
@@ -1109,21 +858,21 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               processorPrice: finalPricingResult.processorPrice,
               processorGst: finalPricingResult.processorGST,
               grandTotal: finalTotalPrice, // Use finalTotalPrice which includes discount if applied
-              // Custom pricing information
+
               customPricing: customPricingObj ? {
                 enabled: true,
                 structurePrice: customStructurePrice,
                 installationPrice: customInstallationPrice
               } : undefined,
-              // Discount information (stored but never shown in PDF)
+
               discount: discountInfo ? {
                 discountType: discountInfo.discountType,
                 discountPercent: discountInfo.discountPercent,
-                // Store original values for reference
+
                 originalProductTotal: 'originalProductTotal' in finalPricingResult ? finalPricingResult.originalProductTotal : finalPricingResult.productTotal,
                 originalProcessorTotal: 'originalProcessorTotal' in finalPricingResult ? finalPricingResult.originalProcessorTotal : finalPricingResult.processorTotal,
                 originalGrandTotal: 'originalGrandTotal' in finalPricingResult ? finalPricingResult.originalGrandTotal : correctTotalPrice,
-                // Store discounted values (these are what appear in PDF)
+
                 discountedProductTotal: 'discountedProductTotal' in finalPricingResult ? finalPricingResult.discountedProductTotal : finalPricingResult.productTotal,
                 discountedProcessorTotal: 'discountedProcessorTotal' in finalPricingResult ? finalPricingResult.discountedProcessorTotal : finalPricingResult.processorTotal,
                 discountedGrandTotal: finalTotalPrice,
@@ -1131,7 +880,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               } : undefined
             },
 
-            // Store original pricing breakdown (Source of Truth for Resets)
             originalPricingBreakdown: {
               unitPrice: pricingResult.unitPrice,
               quantity: pricingResult.quantity,
@@ -1149,11 +897,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               grandTotal: pricingResult.grandTotal // Always clean total
             },
 
-            // Store discount information in quotationData
             discountType: discountInfo?.discountType || null,
             discountPercent: discountInfo?.discountPercent || 0,
 
-            // Store exact product specifications as shown
             exactProductSpecs: {
               productName: selectedProduct.name,
               category: selectedProduct.category,
@@ -1171,25 +917,21 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               cabinetGrid: cabinetGrid
             },
 
-            // Store comprehensive product details for backend compatibility
             productDetails: comprehensiveProductDetails,
 
-            // Custom pricing fields
             customPricing: customPricingObj ? {
               enabled: true,
               structurePrice: customStructurePrice,
               installationPrice: customInstallationPrice
             } : undefined,
 
-            // CRITICAL: Store extended user info (address, project title, etc.) in quotationData
-            // This ensures they are preserved for editing and hydration
             quotationData: {
               userInfo: {
                 fullName: customerName,
                 email: customerEmail,
                 phoneNumber: customerPhone,
                 userType: userType,
-                // Extract extra fields from props.userInfo
+
                 projectTitle: userInfo?.projectTitle || '',
                 address: userInfo?.address || '',
                 validity: userInfo?.validity || undefined,
@@ -1207,43 +949,51 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               } : undefined
             },
 
-            // Timestamp when quotation was created
             createdAt: new Date().toISOString()
           };
 
-          console.log('📤 Sending exact quotation data to API:', {
-            ...exactQuotationData,
-            salesUserId: exactQuotationData.salesUserId,
-            salesUserIdType: typeof exactQuotationData.salesUserId,
-            salesUserIdString: exactQuotationData.salesUserId?.toString(),
-            salesUserName: exactQuotationData.salesUserName
-          });
+          // Create or find client before saving quotation
+          let clientId: string | undefined;
+          try {
+            const clientData = {
+              name: customerName.trim(),
+              email: customerEmail.trim(),
+              phone: customerPhone.trim(),
+              projectTitle: userInfo?.projectTitle || '',
+              location: userInfo?.address || '',
+              company: '', // Can be added to userInfo form later if needed
+              notes: message.trim() || ''
+            };
+
+            const clientResponse = await clientAPI.findOrCreateClient(clientData);
+            if (clientResponse.success && clientResponse.client) {
+              clientId = clientResponse.client._id;
+              console.log('✅ Client created/found:', clientResponse.client._id);
+            }
+          } catch (clientError: any) {
+            console.error('⚠️ Failed to create/find client:', clientError);
+            // Continue with quotation save even if client creation fails
+          }
+
+          // Add clientId to quotation data if available
+          if (clientId) {
+            exactQuotationData.clientId = clientId;
+          }
 
           const saveResult = await salesAPI.saveQuotation(exactQuotationData);
-          console.log('✅ Quotation saved to database successfully:', saveResult);
 
-          // Show success message to user
           alert('Quotation saved successfully to database!');
 
         } catch (dbError: any) {
-          console.error('❌ Error saving quotation to database:', dbError);
-          console.error('❌ Error details:', {
-            message: dbError.message,
-            stack: dbError.stack,
-            quotationId,
-            salesUser: salesUser?.name
-          });
 
-          // If it's a duplicate ID error, try with a fallback ID
           if (dbError.message && dbError.message.includes('already exists')) {
-            console.log('🔄 Duplicate ID detected in QuoteModal, trying with fallback ID...');
+
             try {
               const fallbackQuotationId = QuotationIdGenerator.generateFallbackQuotationId(
                 isSuperAdmin && selectedSalesPersonId
                   ? salesPersons.find(p => p._id === selectedSalesPersonId)?.name || salesUser?.name || 'Admin'
                   : salesUser?.name || 'Admin'
               );
-              console.log('🆔 Generated fallback quotationId:', fallbackQuotationId);
 
               const fallbackQuotationData = {
                 ...exactQuotationData,
@@ -1251,44 +1001,28 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               };
 
               const fallbackResult = await salesAPI.saveQuotation(fallbackQuotationData);
-              console.log('✅ Quotation saved with fallback ID:', fallbackResult);
 
-              // Show success message to user
               alert('Quotation saved successfully to database with fallback ID!');
 
             } catch (fallbackError: any) {
-              console.error('❌ Fallback save also failed:', fallbackError);
+
               alert(`Failed to save quotation to database: ${fallbackError.message}`);
             }
           } else {
-            // Show error message to user
+
             alert(`Failed to save quotation to database: ${dbError.message}`);
           }
 
-          // Don't fail the entire process if database save fails
         }
       } else {
-        console.log('❌ Quotation not saved to database - missing salesUser or quotationId');
-        console.log('📋 Sales User present:', !!salesUser);
-        console.log('📋 Is Super Admin:', isSuperAdmin);
-        console.log('📋 Selected Sales Person ID:', selectedSalesPersonId);
-        console.log('🆔 Quotation ID present:', !!finalQuotationId);
-        console.log('🔍 Debug info:');
-        console.log('  - salesUser:', salesUser);
-        console.log('  - original quotationId:', quotationId);
-        console.log('  - final quotationId:', finalQuotationId);
-        console.log('  - typeof salesUser:', typeof salesUser);
-        console.log('  - typeof quotationId:', typeof quotationId);
+
       }
 
-      // Then, try to submit to external API (for email notifications)
       try {
         const result = await submitQuoteRequest(quoteData);
-        console.log('External quote submission successful:', result);
+
       } catch (externalError) {
-        console.error('External quote submission failed:', externalError);
-        // Don't fail the entire process if external API fails
-        console.log('⚠️ External quote submission failed, but local save succeeded');
+
       }
 
       if (onSubmit) {
@@ -1296,7 +1030,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       }
       setIsSubmitted(true);
 
-      // Reset form after 10 seconds
       setTimeout(() => {
         setMessage('');
         setCustomerName('');
@@ -1306,16 +1039,12 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         onClose();
       }, 10000);
     } catch (error) {
-      console.error('Error submitting quote:', error);
-      // You might want to show an error message to the user here
+
       alert('Failed to submit quote request. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Calculate total price for display - Commented out for future use
-  // const totalPrice = calculateTotalPrice();
 
   return (
     <div className={`${isOpen ? 'fixed inset-0 bg-black/60 backdrop-blur-sm z-50' : ''}`}>
@@ -1456,14 +1185,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   value={selectedSalesPersonId || ''}
                                   onChange={(e) => {
                                     const newId = e.target.value;
-                                    console.log('🔄 Sales person dropdown changed:', {
-                                      newId,
-                                      newIdType: typeof newId,
-                                      selectedPerson: salesPersons.find(p => {
-                                        const personId = p._id?.toString();
-                                        return personId === newId;
-                                      })
-                                    });
                                     setSelectedSalesPersonId(newId);
                                   }}
                                   disabled={isSubmitting || loadingSalesPersons}
@@ -1473,7 +1194,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                     <option value="">No sales persons available</option>
                                   ) : (
                                     salesPersons.map((person) => {
-                                      // CRITICAL: Convert _id to string for option value
+
                                       const personId = person._id?.toString() || person._id;
                                       return (
                                         <option key={personId} value={personId}>

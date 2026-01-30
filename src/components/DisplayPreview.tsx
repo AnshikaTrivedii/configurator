@@ -25,7 +25,6 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [mediaAspectRatio, setMediaAspectRatio] = useState<number | null>(null);
 
-  // Helper to get aspect ratio from image
   const getImageAspectRatio = (src: string, cb: (ratio: number) => void) => {
     const img = new window.Image();
     img.onload = function () {
@@ -36,7 +35,6 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     img.src = src;
   };
 
-  // Helper to get aspect ratio from video
   const getVideoAspectRatio = (src: string, cb: (ratio: number) => void) => {
     const video = document.createElement('video');
     video.onloadedmetadata = function () {
@@ -47,7 +45,6 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     video.src = src;
   };
 
-  // When background image or video changes, detect aspect ratio
   useEffect(() => {
     if (backgroundType === 'image' && backgroundImage) {
       getImageAspectRatio(backgroundImage, setMediaAspectRatio);
@@ -58,17 +55,14 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     }
   }, [backgroundType, backgroundImage, backgroundVideo]);
 
-  // Calculate responsive preview size based on screen size
   const getResponsivePreviewSize = () => {
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
-    
-    // Base dimensions from displayDimensions
+
     const baseWidth = displayDimensions.width;
     const baseHeight = displayDimensions.height;
     const aspectRatio = baseWidth / baseHeight;
-    
-    // Responsive max sizes with better mobile handling
+
     let maxWidth, maxHeight;
     
     if (screenWidth < 640) { // Mobile
@@ -84,14 +78,13 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
       maxWidth = Math.min(screenWidth - 140, 550);
       maxHeight = Math.min(screenHeight * 0.65, 450);
     }
-    
-    // Calculate scaled dimensions maintaining aspect ratio
+
     let scaledWidth, scaledHeight;
     
     if (aspectRatio > 1) { // Landscape
       scaledWidth = Math.min(maxWidth, maxHeight * aspectRatio);
       scaledHeight = scaledWidth / aspectRatio;
-      // Ensure height doesn't exceed maxHeight
+
       if (scaledHeight > maxHeight) {
         scaledHeight = maxHeight;
         scaledWidth = scaledHeight * aspectRatio;
@@ -99,7 +92,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     } else { // Portrait
       scaledHeight = Math.min(maxHeight, maxWidth / aspectRatio);
       scaledWidth = scaledHeight * aspectRatio;
-      // Ensure width doesn't exceed maxWidth
+
       if (scaledWidth > maxWidth) {
         scaledWidth = maxWidth;
         scaledHeight = scaledWidth / aspectRatio;
@@ -111,18 +104,15 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
 
   const { width: previewWidth, height: previewHeight } = getResponsivePreviewSize();
 
-  // Calculate preview area size based on media aspect ratio
   let mediaWidth = previewWidth;
   let mediaHeight = previewHeight;
 
-  // Detect if product is digital standee
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
 
-  // If digital standee, use cabinet size for preview area
   if (isDigitalStandee && selectedProduct?.cabinetDimensions) {
     const { width: cabW, height: cabH } = selectedProduct.cabinetDimensions;
     const cabRatio = cabW / cabH;
-    // Scale to fit preview size
+
     if (cabW >= cabH) {
       mediaWidth = previewWidth;
       mediaHeight = previewWidth / cabRatio;
@@ -135,10 +125,10 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   if (mediaAspectRatio) {
     const containerRatio = mediaWidth / mediaHeight;
     if (containerRatio > mediaAspectRatio) {
-      // Container is wider than media, fit by height
+
       mediaWidth = mediaHeight * mediaAspectRatio;
     } else {
-      // Container is taller than media, fit by width
+
       mediaHeight = mediaWidth / mediaAspectRatio;
     }
   }
@@ -202,8 +192,6 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     }
   };
 
-
-
   const renderCabinetGrid = () => {
     const cabinets = [];
     const cabinetWidth = previewWidth / cabinetGrid.columns;
@@ -229,7 +217,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
                 alt="Orion LED Logo" 
                 className="w-full h-full object-contain p-1 sm:p-2"
                 onError={(e) => {
-                  // Fallback to a simple text display if image fails
+
                   e.currentTarget.style.display = 'none';
                   const parent = e.currentTarget.parentElement;
                   if (parent && !parent.querySelector('.fallback-text')) {
@@ -251,13 +239,11 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     return cabinets;
   };
 
-  // Helper to determine if product should use module grid
   const useModuleGrid = selectedProduct && (
     selectedProduct.category?.toLowerCase().includes('digital standee') ||
     selectedProduct.category?.toLowerCase().includes('jumbo')
   );
 
-  // Calculate grid for modules if needed
   const moduleGrid = useModuleGrid && selectedProduct ? (
     selectedProduct.category?.toLowerCase().includes('digital standee')
       ? { columns: 7, rows: 5, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
@@ -300,7 +286,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
                 alt="Orion LED Logo" 
                 className="w-full h-full object-contain p-1 sm:p-2"
                 onError={(e) => {
-                  // Fallback to a simple text display if image fails
+
                   e.currentTarget.style.display = 'none';
                   const parent = e.currentTarget.parentElement;
                   if (parent && !parent.querySelector('.fallback-text')) {
@@ -320,23 +306,20 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     return modules;
   };
 
-  // Convert mm to display unit with high precision
-  // Using exact conversion factors to match wizard input
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
   const MM_TO_FEET = 1 / FEET_TO_MM;
   
   const toDisplayUnit = (mm: number): string => {
     if (config.unit === 'ft') {
-      // Direct conversion from mm to ft for precision (matches wizard conversion)
+
       const feet = mm * MM_TO_FEET;
       return feet.toFixed(2);
     }
-    // Convert mm to meters
+
     const meters = mm / 1000;
     return meters.toFixed(2);
   };
 
-  // Helper to get measurement values for preview labels
   let previewWidthMM = config.width;
   let previewHeightMM = config.height;
   if (isDigitalStandee && selectedProduct?.cabinetDimensions) {

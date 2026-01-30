@@ -7,7 +7,7 @@ interface AspectRatioSelectorProps {
   selectedRatio: string | null;
   onRatioChange: (ratio: string) => void;
 }
-// aspect ration functions
+
 export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
   aspectRatios,
   selectedRatio,

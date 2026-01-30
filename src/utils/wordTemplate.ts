@@ -48,7 +48,7 @@ export const generateWordWithQuotation = async (
   }
 ): Promise<Blob> => {
   try {
-    // Step 1: Fetch the existing Word template
+
     const templatePath = getWordTemplate();
     const templateResponse = await fetch(templatePath);
     
@@ -58,13 +58,10 @@ export const generateWordWithQuotation = async (
     
     const templateBlob = await templateResponse.blob();
     const templateArrayBuffer = await templateBlob.arrayBuffer();
-    
-    // Step 2: Read the Word document structure using mammoth
-    // This converts Word to HTML so we can identify sections
+
     const mammothResult = await mammoth.convertToHtml({ arrayBuffer: templateArrayBuffer });
     const templateHtml = mammothResult.value;
-    
-    // Step 3: Generate the dynamic quotation HTML
+
     const fullHtml = generateConfigurationHtml(
       config,
       selectedProduct,
@@ -76,15 +73,13 @@ export const generateWordWithQuotation = async (
       quotationId,
       customPricing
     );
-    
-    // Extract only the quotation section
+
     const quotationHtml = extractQuotationSection(fullHtml);
     
     if (!quotationHtml) {
       throw new Error('Failed to extract quotation section from HTML');
     }
-    
-    // Step 4: Convert quotation HTML to image for Word insertion
+
     const container = document.createElement('div');
     container.style.position = 'fixed';
     container.style.left = '-10000px';
@@ -101,8 +96,7 @@ export const generateWordWithQuotation = async (
     
     container.innerHTML = styledHtml;
     document.body.appendChild(container);
-    
-    // Wait for images to load
+
     const allImages = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
     await Promise.all(
       allImages.map(img =>
@@ -116,8 +110,7 @@ export const generateWordWithQuotation = async (
     );
     
     await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Convert to image
+
     const canvas = await html2canvas(container, {
       scale: 2,
       useCORS: true,
@@ -132,8 +125,7 @@ export const generateWordWithQuotation = async (
     });
     
     document.body.removeChild(container);
-    
-    // Convert to base64
+
     const base64 = await new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -142,15 +134,7 @@ export const generateWordWithQuotation = async (
       };
       reader.readAsDataURL(imageBlob);
     });
-    
-    // Step 5: For now, create a new document with the quotation image
-    // TODO: In a full implementation, we would:
-    // - Parse the template HTML to identify pages
-    // - Keep cover page, client info page, terms pages
-    // - Replace only the quotation page
-    // - Rebuild the Word document with all pages
-    
-    // A4 dimensions
+
     const A4_WIDTH_INCHES = 210 / 25.4;
     const A4_HEIGHT_INCHES = 297 / 25.4;
     const A4_WIDTH_EMU = Math.round(A4_WIDTH_INCHES * 914400);
@@ -160,10 +144,7 @@ export const generateWordWithQuotation = async (
     
     const imageWidthPoints = 555;
     const imageHeightPoints = (canvas.height / canvas.width) * imageWidthPoints;
-    
-    // Create Word document with quotation image
-    // Note: This creates a new document. To preserve the template structure,
-    // we would need to use a backend service or more complex Word manipulation
+
     const doc = new Document({
       creator: 'ORION LED Configurator',
       title: 'Configuration Quotation',
@@ -202,7 +183,7 @@ export const generateWordWithQuotation = async (
     return wordBlob;
     
   } catch (error) {
-    console.error('Error generating Word with quotation:', error);
+
     throw error;
   }
 };
@@ -230,7 +211,7 @@ export const downloadWordTemplate = (customFileName?: string): void => {
       document.body.removeChild(link);
     }, 100);
   } catch (error) {
-    console.error('Error downloading Word template:', error);
+
     throw error;
   }
 };

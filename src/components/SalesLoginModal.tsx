@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, User, Phone } from 'lucide-react';
+import { X, Mail, Lock, User } from 'lucide-react';
 import { salesAPI, SalesUser } from '../api/sales';
 import { SalesSetPassword } from './SalesSetPassword';
 import { dataPrefetcher } from '../utils/dataPrefetch';
@@ -28,102 +28,58 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (!email.trim() || !password.trim()) {
       setError('Email and password are required.');
       return;
     }
-    
+
     setIsLoading(true);
     setLoadingStep('Authenticating...');
 
     try {
-      console.log('🚀 Starting login process...');
-      console.log('📧 Email entered:', email);
-      console.log('🔐 Password entered:', password ? '***' : '(empty)');
-      
+
       setLoadingStep('Verifying credentials...');
       const response = await salesAPI.login(email, password);
-      
-      console.log('✅ Login API call successful');
-      console.log('📦 Full response:', JSON.stringify(response, null, 2));
-      console.log('📦 Response.user:', JSON.stringify(response.user, null, 2));
-      console.log('📦 Response.user.role:', response.user?.role);
-      console.log('📦 Response.user._id:', response.user?._id);
-      console.log('📦 Response.user has _id?:', '_id' in (response.user || {}));
-      console.log('📦 Response.user has role?:', 'role' in (response.user || {}));
-      
-      // CRITICAL: Check if _id is present (required for quotation attribution)
+
       if (!response.user._id) {
-        console.error('❌ CRITICAL: User object missing _id field!', {
-          user: response.user,
-          userKeys: Object.keys(response.user || {}),
-          note: 'Backend should include _id in login response'
-        });
-        // Don't block login, but log the error
+
       }
-      
-      // Ensure role is set - if backend didn't return it, default to 'sales'
+
       if (!response.user.role) {
-        console.warn('⚠️ WARNING: User object missing role! Defaulting to "sales"');
+
         response.user.role = 'sales';
       }
-      
+
       setLoadingStep('Setting up session...');
-      // Store auth data
+
       salesAPI.setAuthData(response.token, response.user);
-      console.log('✅ Auth data stored');
-      console.log('✅ Stored user object:', JSON.stringify(response.user, null, 2));
-      console.log('✅ Stored user.role:', response.user.role);
-      
-      // Check if user needs to set password
+
       if (response.mustChangePassword) {
-        console.log('⚠️ User must change password');
+
         setCurrentUserEmail(response.user.email);
         setShowPasswordSetup(true);
         setIsLoading(false);
         setLoadingStep('');
         return;
       }
-      
-      setLoadingStep('Loading dashboard...');
-      
-      // Start prefetching data in the background for better performance
-      dataPrefetcher.prefetchUserData().catch(console.warn);
-      
-      // CRITICAL: Verify user has _id before proceeding
+
+      dataPrefetcher.prefetchUserData().catch(() => { });
+
       if (!response.user._id) {
-        console.error('❌ CRITICAL: Login response missing _id!', {
-          response: response,
-          user: response.user,
-          userKeys: Object.keys(response.user || {}),
-          note: 'Backend should include _id in login response'
-        });
+
         setError('Login successful but user ID is missing. Please contact support.');
         setIsLoading(false);
         setLoadingStep('');
         return;
       }
-      
-      // Login successful, proceed normally
-      console.log('✅ Login successful, calling onLogin callback with user:', JSON.stringify(response.user, null, 2));
-      console.log('✅ User _id:', response.user._id);
-      console.log('✅ User role before callback:', response.user.role);
+
       onLogin(response.user);
-      
+
     } catch (error: any) {
-      console.error('❌ ========== LOGIN ERROR IN MODAL ==========');
-      console.error('❌ Error type:', error?.constructor?.name);
-      console.error('❌ Error message:', error?.message);
-      console.error('❌ Error stack:', error?.stack);
-      console.error('❌ Full error:', error);
-      console.error('❌ Error toString:', error?.toString());
-      console.error('❌ =========================================');
-      
-      // Display error message, handling both string errors and Error objects
+
       let errorMessage = error?.message || error?.toString() || 'Login failed. Please check your credentials.';
-      
-      // Provide more helpful error messages
+
       if (errorMessage.includes('Cannot connect') || errorMessage.includes('Failed to connect') || errorMessage.includes('fetch')) {
         errorMessage = `Cannot connect to backend server.\n\nPlease ensure:\n1. Backend server is running on port 3001\n2. Backend URL is correct: ${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}\n3. No firewall is blocking the connection\n4. Test: Open http://localhost:3001/health in browser\n\nTo start the backend:\ncd backend && npm start`;
       } else if (errorMessage.includes('Invalid email or password')) {
@@ -135,7 +91,7 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
       } else if (errorMessage.includes('404') || errorMessage.includes('not found')) {
         errorMessage = `Login endpoint not found.\n\nPlease check:\n1. Backend API routes are configured correctly\n2. Backend server is running\n3. API URL is correct: ${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}\n\nFix: Check backend/routes/sales.js for /login route`;
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -143,7 +99,7 @@ export const SalesLoginModal: React.FC<SalesLoginModalProps> = ({
     }
   };
 
-  const handlePasswordSetupSuccess = (token: string, user: SalesUser) => {
+  const handlePasswordSetupSuccess = (_token: string, user: SalesUser) => {
     setShowPasswordSetup(false);
     setCurrentUserEmail('');
     onLogin(user);

@@ -22,42 +22,37 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
   onUnitChange,
   selectedProduct
 }) => {
-  // Get cabinet dimensions or use defaults (600x337.5mm)
+
   const cabinetWidth = selectedProduct?.cabinetDimensions?.width || 600;
   const cabinetHeight = selectedProduct?.cabinetDimensions?.height || 337.5;
 
-  // Conversion constants - using exact values for precision
   const METERS_TO_FEET = 3.2808399;
   const FEET_TO_METERS = 1 / METERS_TO_FEET;
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
   const MM_TO_FEET = 1 / FEET_TO_MM;
 
-  // Convert mm to display unit with high precision
   const toDisplayUnit = (mm: number, unit: 'm' | 'ft') => {
     if (unit === 'ft') {
-      // Direct conversion from mm to ft for precision
+
       const feet = mm * MM_TO_FEET;
       return feet.toFixed(2);
     }
-    // Convert mm to meters
+
     const meters = mm / 1000;
     return meters.toFixed(2);
   };
 
-  // Convert display unit to mm with high precision
   const fromDisplayUnit = (value: number, unit: 'm' | 'ft') => {
     if (unit === 'ft') {
-      // Direct conversion from ft to mm for precision
+
       return value * FEET_TO_MM;
     }
-    // Convert meters to mm
+
     return value * 1000;
   };
-  
-  // Step size in display unit
+
   const stepSize = config.unit === 'ft' ? 0.33 : 0.1; // ~1ft or 0.1m
 
-  // Adjust value by cabinet size
   const adjustValue = (value: number, increment: number, isWidth: boolean) => {
     const cabinetSize = isWidth ? cabinetWidth : cabinetHeight;
     const currentCabinets = Math.round(value / cabinetSize);
@@ -65,9 +60,6 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
     return newCabinets * cabinetSize;
   };
 
-
-
-  // Detect if product is digital standee or jumbo
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
   const isFixedGrid = isDigitalStandee || isJumbo;

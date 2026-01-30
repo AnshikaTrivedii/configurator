@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Controller, ControllerSelection } from '../types';
 
-// Controller definitions with their specifications
 const CONTROLLERS: Controller[] = [
   {
     id: 'tb2',
@@ -75,31 +74,29 @@ export const useControllerSelection = (
   isRedundancyMode: boolean
 ): ControllerSelection => {
   return useMemo(() => {
-    // Calculate required ports based on redundancy mode
+
     let requiredPorts: number;
     let backupPorts: number;
     
     if (isRedundancyMode) {
-      // When redundancy is ON, each datahub port needs a backup port
+
       requiredPorts = dataHubPorts * 2;
       backupPorts = dataHubPorts;
-      
-      // Start from TB40 when redundancy is enabled (TB2 cannot fulfill redundancy)
+
       const availableControllers = CONTROLLERS.filter(ctrl => ctrl.minPortsForRedundancy > 0);
-      
-      // Find the smallest controller that can handle the required ports
+
       const selectedController = availableControllers.find(ctrl => ctrl.portCount >= requiredPorts);
       
       if (selectedController) {
-        // Check if pixel capacity is exceeded
+
         if (totalPixels > selectedController.pixelCapacity * 1000000) {
-          // Find next higher controller that can handle the pixel count
+
           const pixelCapableControllers = availableControllers.filter(
             ctrl => ctrl.pixelCapacity * 1000000 >= totalPixels
           );
           
           if (pixelCapableControllers.length > 0) {
-            // Sort by port count and pixel capacity to find the most suitable
+
             const bestController = pixelCapableControllers.sort((a, b) => {
               if (a.portCount !== b.portCount) {
                 return a.portCount - b.portCount; // Prefer fewer ports
@@ -128,23 +125,22 @@ export const useControllerSelection = (
         };
       }
     } else {
-      // When redundancy is OFF, only consider datahub ports
+
       requiredPorts = dataHubPorts;
       backupPorts = 0;
-      
-      // Find the smallest controller that can handle the required ports
+
       const selectedController = CONTROLLERS.find(ctrl => ctrl.portCount >= requiredPorts);
       
       if (selectedController) {
-        // Check if pixel capacity is exceeded
+
         if (totalPixels > selectedController.pixelCapacity * 1000000) {
-          // Find next higher controller that can handle the pixel count
+
           const pixelCapableControllers = CONTROLLERS.filter(
             ctrl => ctrl.pixelCapacity * 1000000 >= totalPixels
           );
           
           if (pixelCapableControllers.length > 0) {
-            // Sort by port count and pixel capacity to find the most suitable
+
             const bestController = pixelCapableControllers.sort((a, b) => {
               if (a.portCount !== b.portCount) {
                 return a.portCount - b.portCount; // Prefer fewer ports
@@ -173,8 +169,7 @@ export const useControllerSelection = (
         };
       }
     }
-    
-    // Fallback: return the highest capacity controller if no suitable one found
+
     const fallbackController = CONTROLLERS[CONTROLLERS.length - 1];
     return {
       selectedController: fallbackController,

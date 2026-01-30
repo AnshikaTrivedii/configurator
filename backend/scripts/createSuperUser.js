@@ -31,19 +31,17 @@ const createSuperUser = async () => {
         const existingUser = await SalesUser.findOne({ email: superUserEmail });
 
         if (existingUser) {
-            console.log(`User ${superUserEmail} already exists. Updating to super_admin...`);
+
             existingUser.role = 'super_admin';
             existingUser.passwordHash = hashedPassword;
             existingUser.mustChangePassword = false;
             await existingUser.save();
-            console.log('✅ User updated to Super Admin successfully.');
-        } else {
-            console.log(`Creating new super user: ${superUserEmail}...`);
-            await SalesUser.create(superUserData);
-            console.log('✅ Super Admin created successfully.');
-        }
 
-        console.log(`\ncredentials:\nEmail: ${superUserEmail}\nPassword: ${password}`);
+        } else {
+
+            await SalesUser.create(superUserData);
+
+        }
 
         process.exit(0);
     } catch (error) {

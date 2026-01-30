@@ -27,10 +27,7 @@ const PARTNER_USERS = [
 
 const createPartnerUsers = async () => {
   try {
-    console.log('🚀 Starting partner users creation...');
-    console.log(`📝 Default password: ${DEFAULT_PASSWORD}`);
-    console.log(`📝 Password must be changed on first login: true\n`);
-    
+
     let createdCount = 0;
     let updatedCount = 0;
     let skippedCount = 0;
@@ -53,11 +50,7 @@ const createPartnerUsers = async () => {
           existingUser.allowedCustomerTypes = userData.allowedCustomerTypes;
           
           await existingUser.save();
-          console.log(`✅ Updated partner user: ${userData.email}`);
-          console.log(`   Name: ${userData.name}`);
-          console.log(`   Role: ${userData.role}`);
-          console.log(`   Allowed Customer Types: ${userData.allowedCustomerTypes.join(', ')}`);
-          console.log(`   Password: ${DEFAULT_PASSWORD} (must change on first login)\n`);
+
           updatedCount++;
           continue;
         }
@@ -78,11 +71,7 @@ const createPartnerUsers = async () => {
         });
 
         await newUser.save();
-        console.log(`✅ Created partner user: ${userData.email}`);
-        console.log(`   Name: ${userData.name}`);
-        console.log(`   Role: ${userData.role}`);
-        console.log(`   Allowed Customer Types: ${userData.allowedCustomerTypes.join(', ')}`);
-        console.log(`   Password: ${DEFAULT_PASSWORD} (must change on first login)\n`);
+
         createdCount++;
         
       } catch (error) {
@@ -93,13 +82,6 @@ const createPartnerUsers = async () => {
       }
     }
 
-    console.log(`\n📊 Summary:`);
-    console.log(`   ✅ Created: ${createdCount} partner users`);
-    console.log(`   🔄 Updated: ${updatedCount} partner users`);
-    console.log(`   ⏭️  Skipped: ${skippedCount} partner users`);
-    console.log(`\n🔐 Default password for all partners: ${DEFAULT_PASSWORD}`);
-    console.log(`⚠️  Partners must change password on first login\n`);
-    
   } catch (error) {
     console.error('❌ Partner creation error:', error);
     throw error;
@@ -109,16 +91,15 @@ const createPartnerUsers = async () => {
 const main = async () => {
   try {
     // Connect to database
-    console.log('🔌 Connecting to database...');
+
     await connectDB();
-    console.log('✅ Database connected\n');
-    
+
     // Create partner users
     await createPartnerUsers();
     
     // Close connection
     await mongoose.connection.close();
-    console.log('✅ Database connection closed.');
+
     process.exit(0);
     
   } catch (error) {

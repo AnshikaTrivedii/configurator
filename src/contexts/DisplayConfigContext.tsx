@@ -27,7 +27,6 @@ const DisplayConfigContext = createContext<DisplayConfigContextType | undefined>
 
 const STORAGE_KEY = 'led_display_config';
 
-// Default values
 const defaultConfig: DisplayConfigState = {
   width: 1800, // 1.8m in mm
   height: 675, // 0.675m in mm
@@ -41,7 +40,6 @@ const defaultConfig: DisplayConfigState = {
   selectedProductName: null
 };
 
-// Load from localStorage
 const loadFromStorage = (): DisplayConfigState => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -53,17 +51,16 @@ const loadFromStorage = (): DisplayConfigState => {
       };
     }
   } catch (error) {
-    console.error('Error loading display config from localStorage:', error);
+
   }
   return defaultConfig;
 };
 
-// Save to localStorage
 const saveToStorage = (config: DisplayConfigState) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
   } catch (error) {
-    console.error('Error saving display config to localStorage:', error);
+
   }
 };
 
@@ -85,13 +82,11 @@ const areConfigsEqual = (a: DisplayConfigState, b: DisplayConfigState) => {
 export const DisplayConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [config, setConfig] = useState<DisplayConfigState>(loadFromStorage);
 
-  // Load from localStorage on mount
   useEffect(() => {
     const stored = loadFromStorage();
     setConfig(stored);
   }, []);
 
-  // Save to localStorage whenever config changes
   useEffect(() => {
     saveToStorage(config);
   }, [config]);

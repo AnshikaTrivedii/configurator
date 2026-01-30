@@ -40,13 +40,7 @@ export const authenticateToken = async (req, res, next) => {
         allowedCustomerTypes: decoded.allowedCustomerTypes || [], // Include permissions
         mustChangePassword: false // Default to false for cached data
       };
-      
-      console.log('🔐 Auth middleware - Using token data:', {
-        userId: req.user._id,
-        userEmail: req.user.email,
-        userRole: req.user.role
-      });
-      
+
       return next();
     }
     
@@ -86,13 +80,7 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     req.user = user;
-    
-    console.log('🔐 Auth middleware - Using database user:', {
-      userId: req.user._id?.toString(),
-      userEmail: req.user.email,
-      userRole: req.user.role
-    });
-    
+
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {

@@ -311,8 +311,6 @@ router.post('/register', authenticateToken, async (req, res) => {
 
     await newUser.save();
 
-    console.log(`✅ Admin ${req.user.email} registered new user: ${email} (${role})`);
-
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
@@ -345,16 +343,6 @@ router.post('/login', validateLogin, async (req, res) => {
       .select('_id email name location contactNumber passwordHash mustChangePassword passwordSetAt role allowedCustomerTypes')
       .lean(); // Use lean() for better performance
 
-    console.log('🔐 Database user query result:', {
-      email: user?.email,
-      hasId: !!user?._id,
-      idType: user?._id ? typeof user._id : 'undefined',
-      idValue: user?._id ? user._id.toString() : 'N/A',
-      hasRole: !!user?.role,
-      role: user?.role,
-      roleType: typeof user?.role
-    });
-
     if (!user) {
       return res.status(400).json({
         success: false,
@@ -374,10 +362,6 @@ router.post('/login', validateLogin, async (req, res) => {
     // Ensure role is set (default to 'sales' if not set)
     // This handles cases where users were created before role field was added
     const userRole = user.role || 'sales';
-
-    console.log('🔐 User login - email:', user.email);
-    console.log('🔐 User role from DB:', user.role);
-    console.log('🔐 Final userRole (with fallback):', userRole);
 
     // Get allowed customer types for partners (empty array for non-partners)
     const allowedCustomerTypes = userRole === 'partner' ? (user.allowedCustomerTypes || []) : [];
@@ -421,21 +405,6 @@ router.post('/login', validateLogin, async (req, res) => {
       allowedCustomerTypes: allowedCustomerTypes // Include permissions for partners
     };
 
-    console.log('🔐 User response object:', {
-      hasId: !!userResponse._id,
-      idValue: userResponse._id,
-      idType: typeof userResponse._id,
-      role: userResponse.role,
-      allowedCustomerTypes: userResponse.allowedCustomerTypes,
-      allKeys: Object.keys(userResponse)
-    });
-
-    console.log('🔐 Sending user response:', JSON.stringify(userResponse, null, 2));
-    console.log('🔐 User response role:', userResponse.role);
-    console.log('🔐 User response _id:', userResponse._id);
-    console.log('🔐 User response has _id property:', '_id' in userResponse);
-    console.log('🔐 User response has role property:', 'role' in userResponse);
-
     // CRITICAL: Verify userResponse has _id before sending
     if (!userResponse._id) {
       console.error('❌ CRITICAL: userResponse missing _id before sending!', {
@@ -456,10 +425,6 @@ router.post('/login', validateLogin, async (req, res) => {
       user: userResponse,
       mustChangePassword: user.mustChangePassword
     };
-
-    console.log('🔐 FINAL RESPONSE PAYLOAD:', JSON.stringify(responsePayload, null, 2));
-    console.log('🔐 FINAL RESPONSE user._id:', responsePayload.user._id);
-    console.log('🔐 FINAL RESPONSE user keys:', Object.keys(responsePayload.user));
 
     res.json(responsePayload);
 
@@ -707,7 +672,6 @@ router.get('/test-routes', (req, res) => {
 // Database connection test endpoint
 router.get('/test-db', async (req, res) => {
   try {
-    console.log('🔍 Testing database connection from server...');
 
     const mongoose = await import('mongoose');
     const { default: Quotation } = await import('../models/Quotation.js');
@@ -718,15 +682,8 @@ router.get('/test-db', async (req, res) => {
     const host = mongoose.default.connection.host;
     const port = mongoose.default.connection.port;
 
-    console.log('📊 Database connection details:');
-    console.log('   State:', connectionState);
-    console.log('   Database:', dbName);
-    console.log('   Host:', host);
-    console.log('   Port:', port);
-
     // Test query
     const count = await Quotation.countDocuments();
-    console.log('📊 Total quotations in database:', count);
 
     // Test creating a quotation
     const testQuotation = new Quotation({
@@ -744,17 +701,13 @@ router.get('/test-db', async (req, res) => {
       totalPrice: 999999
     });
 
-    console.log('💾 Attempting to save test quotation...');
     await testQuotation.save();
-    console.log('✅ Test quotation saved successfully:', testQuotation.quotationId);
 
     // Verify it was saved
     const savedQuotation = await Quotation.findById(testQuotation._id);
-    console.log('🔍 Verification - Quotation found:', !!savedQuotation);
 
     // Clean up
     await Quotation.deleteOne({ _id: testQuotation._id });
-    console.log('🧹 Test quotation cleaned up');
 
     res.json({
       success: true,
@@ -781,8 +734,6 @@ router.get('/test-db', async (req, res) => {
 // Simplified test quotation endpoint
 router.post('/test-quotation', async (req, res) => {
   try {
-    console.log('🧪 SIMPLE TEST: Received quotation request');
-    console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
 
     const { default: Quotation } = await import('../models/Quotation.js');
 
@@ -801,10 +752,7 @@ router.post('/test-quotation', async (req, res) => {
       totalPrice: req.body.totalPrice || 100000
     });
 
-    console.log('💾 SIMPLE TEST: Attempting to save quotation...');
     await quotation.save();
-
-    console.log('✅ SIMPLE TEST: Quotation saved successfully:', quotation.quotationId);
 
     res.json({
       success: true,
@@ -823,28 +771,11 @@ router.post('/test-quotation', async (req, res) => {
   }
 });
 
-
 // POST /api/sales/quotation (save quotation to database)
 router.post('/quotation', authenticateToken, async (req, res) => {
   const startTime = Date.now();
-  console.log('🚀 ===== QUOTATION SAVE REQUEST START =====');
-  console.log('⏰ Request timestamp:', new Date().toISOString());
-  console.log('🌐 Request IP:', req.ip || req.connection.remoteAddress);
-  console.log('🔑 Authorization header present:', !!req.headers.authorization);
 
   try {
-    console.log('🔄 Received quotation save request');
-    console.log('👤 User:', req.user?.name, req.user?.email);
-    console.log('👤 User ID:', req.user?._id);
-    console.log('👤 User Role:', req.user?.role);
-    console.log('📋 Request body keys:', Object.keys(req.body));
-    console.log('📋 Request body (full):', JSON.stringify(req.body, null, 2));
-    console.log('🔍 CRITICAL - salesUserId from request:', {
-      providedSalesUserId: req.body.salesUserId,
-      providedSalesUserIdType: typeof req.body.salesUserId,
-      providedSalesUserIdString: req.body.salesUserId?.toString(),
-      providedSalesUserName: req.body.salesUserName
-    });
 
     // Check if user has permission to create quotations
     // Partners are allowed to create quotations just like sales users
@@ -880,7 +811,9 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       // Allow superadmin to specify salesUserId and salesUserName
       // CRITICAL: These fields determine quotation attribution in dashboard
       salesUserId: providedSalesUserId,
-      salesUserName: providedSalesUserName
+      salesUserName: providedSalesUserName,
+      // Client reference
+      clientId
     } = req.body;
 
     // Validate required fields
@@ -906,10 +839,6 @@ router.post('/quotation', authenticateToken, async (req, res) => {
         message: 'Quotation ID already exists. Please try saving again to generate a new unique ID.'
       });
     }
-
-    console.log('📤 Creating new quotation with ID:', quotationId);
-    console.log('🔍 Quotation model check:', !!Quotation);
-    console.log('🔍 Quotation constructor:', typeof Quotation);
 
     // CRITICAL: Determine salesUserId and salesUserName for quotation attribution
     // This field determines which user the quotation is counted under in the dashboard
@@ -946,21 +875,11 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       finalSalesUserId = assignedUser._id; // Already an ObjectId from database
       finalSalesUserName = req.body.salesUserName || assignedUser.name;
 
-      console.log('✅ Super user assigned quotation to:', {
-        assignedUserId: finalSalesUserId.toString(),
-        assignedUserName: finalSalesUserName,
-        assignedUserEmail: assignedUser.email
-      });
     } else {
       // No assignment → owner is the logged-in user
       finalSalesUserId = req.user._id;
       finalSalesUserName = req.user.name;
 
-      console.log('✅ No assignment - quotation owned by logged-in user:', {
-        ownerId: finalSalesUserId.toString(),
-        ownerName: finalSalesUserName,
-        ownerRole: req.user.role
-      });
     }
 
     // CRITICAL: Ensure finalSalesUserId is an ObjectId before saving
@@ -976,18 +895,21 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       }
     }
 
-    // Log final assignment BEFORE save
-    console.log('FINAL ASSIGNMENT →', finalSalesUserName, finalSalesUserId.toString());
+    // Validate clientId if provided
+    let validatedClientId = null;
+    if (clientId) {
+      if (!mongoose.Types.ObjectId.isValid(clientId)) {
+        console.error('❌ Invalid clientId format (not a valid ObjectId):', clientId);
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid clientId format. Must be a valid MongoDB ObjectId.'
+        });
+      }
+      validatedClientId = new mongoose.Types.ObjectId(clientId);
+      console.log('✅ Valid clientId provided:', validatedClientId.toString());
+    }
 
-    console.log('📊 FINAL ATTRIBUTION:', {
-      quotationId,
-      finalSalesUserId: finalSalesUserId.toString(),
-      finalSalesUserName,
-      createdBy: req.user.name,
-      createdByRole: req.user.role,
-      createdById: req.user._id.toString(),
-      note: 'This quotation will be counted under finalSalesUserId in dashboard'
-    });
+    // Log final assignment BEFORE save
 
     // Upload PDF to S3 if provided
     let pdfS3Key = null;
@@ -995,31 +917,16 @@ router.post('/quotation', authenticateToken, async (req, res) => {
 
     if (pdfBase64) {
       try {
-        console.log('📤 Processing PDF upload to S3...', {
-          quotationId,
-          salesUserId: finalSalesUserId.toString(),
-          pdfBase64Length: pdfBase64.length
-        });
 
         // Convert base64 to buffer
         const pdfBuffer = Buffer.from(pdfBase64, 'base64');
-        console.log('📦 PDF buffer created:', {
-          bufferSize: pdfBuffer.length,
-          isValid: pdfBuffer.length > 0
-        });
 
         // Upload to S3
         pdfS3Key = await uploadPdfToS3(pdfBuffer, quotationId, finalSalesUserId.toString());
-        console.log('✅ PDF uploaded to S3, key:', pdfS3Key);
 
         // Generate presigned URL (valid for 1 hour, can be regenerated when needed)
         pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
 
-        console.log('✅ PDF uploaded to S3 successfully:', {
-          quotationId,
-          s3Key: pdfS3Key,
-          urlPreview: pdfS3Url.substring(0, 50) + '...'
-        });
       } catch (s3Error) {
         console.error('❌ Error uploading PDF to S3:', s3Error);
         console.error('❌ S3 Error details:', {
@@ -1035,7 +942,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
         pdfS3Url = null;
       }
     } else {
-      console.log('ℹ️ No PDF data provided (pdfBase64 is empty or missing)');
+
     }
 
     // Create new quotation with exact data as shown on the page
@@ -1043,6 +950,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       quotationId,
       salesUserId: finalSalesUserId,  // CRITICAL: Must be ObjectId for proper matching
       salesUserName: finalSalesUserName,
+      clientId: validatedClientId,  // Client reference
       customerName,
       customerEmail,
       customerPhone,
@@ -1072,16 +980,11 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       }
     });
 
-    console.log('💾 Attempting to save quotation to database...');
-    console.log('📋 Quotation object before save:', JSON.stringify(quotation, null, 2));
-    console.log('🔍 Database connection state:', mongoose.connection.readyState);
-
     // Write to file to verify code execution
     fs.writeFileSync('quotation-save-debug.txt', `QUOTATION SAVE ATTEMPT - ${new Date().toISOString()}\nQuotation ID: ${quotation.quotationId}\n`);
 
     try {
       const saveResult = await quotation.save();
-      console.log('📊 Save result:', saveResult);
 
       // Write success to file
       fs.writeFileSync('quotation-save-debug.txt', `SUCCESS: Quotation saved with ID ${quotation.quotationId}\n`, { flag: 'a' });
@@ -1091,35 +994,9 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       throw saveError;
     }
 
-    console.log('✅ DATABASE SAVE SUCCESSFUL!');
-    console.log('🆔 Saved quotation ID:', quotation.quotationId);
-    console.log('🆔 MongoDB document ID:', quotation._id);
-    console.log('💰 Total price saved:', quotation.totalPrice);
-    console.log('👤 Sales user ID (CRITICAL for attribution):', {
-      salesUserId: quotation.salesUserId,
-      salesUserIdType: quotation.salesUserId?.constructor?.name,
-      salesUserIdString: quotation.salesUserId?.toString(),
-      salesUserName: quotation.salesUserName,
-      createdBy: req.user.name,
-      createdByRole: req.user.role,
-      createdById: req.user._id,
-      createdByIdString: req.user._id?.toString(),
-      isAssigned: quotation.salesUserId.toString() !== req.user._id.toString(),
-      note: 'Dashboard will count this quotation under salesUserId above'
-    });
-
     // CRITICAL: Verify the saved quotation has correct salesUserId
     const savedQuotation = await Quotation.findById(quotation._id);
     if (savedQuotation) {
-      console.log('✅ VERIFICATION: Saved quotation has correct salesUserId:', {
-        quotationId: savedQuotation.quotationId,
-        savedSalesUserId: savedQuotation.salesUserId,
-        savedSalesUserIdType: savedQuotation.salesUserId.constructor.name,
-        savedSalesUserIdString: savedQuotation.salesUserId.toString(),
-        savedSalesUserName: savedQuotation.salesUserName,
-        expectedSalesUserId: finalSalesUserId.toString(),
-        matchesExpected: savedQuotation.salesUserId.toString() === finalSalesUserId.toString()
-      });
 
       if (savedQuotation.salesUserId.toString() !== finalSalesUserId.toString()) {
         console.error('❌ CRITICAL ERROR: Saved salesUserId does not match expected!', {
@@ -1128,10 +1005,6 @@ router.post('/quotation', authenticateToken, async (req, res) => {
         });
       }
     }
-    console.log('📅 Created at:', quotation.createdAt);
-    console.log('📊 Product details keys:', Object.keys(quotation.productDetails || {}));
-    console.log('📊 Exact pricing breakdown saved:', !!quotation.exactPricingBreakdown);
-    console.log('📊 Exact product specs saved:', !!quotation.exactProductSpecs);
 
     const response = {
       success: true,
@@ -1146,12 +1019,8 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       }
     };
 
-    console.log('📤 Sending success response:', JSON.stringify(response, null, 2));
-
     const endTime = Date.now();
     const duration = endTime - startTime;
-    console.log('⏱️ Request processing time:', duration + 'ms');
-    console.log('🏁 ===== QUOTATION SAVE REQUEST COMPLETE =====');
 
     res.json(response);
 
@@ -1178,8 +1047,6 @@ router.post('/quotation', authenticateToken, async (req, res) => {
 
     const endTime = Date.now();
     const duration = endTime - startTime;
-    console.log('⏱️ Request processing time (error):', duration + 'ms');
-    console.log('🏁 ===== QUOTATION SAVE REQUEST FAILED =====');
 
     res.status(500).json({
       success: false,
@@ -1192,18 +1059,16 @@ router.post('/quotation', authenticateToken, async (req, res) => {
 // PUT /api/sales/quotation/:quotationId (Update existing quotation)
 router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
   const startTime = Date.now();
-  console.log('🏁 ===== QUOTATION UPDATE REQUEST STARTED =====');
+
   try {
     const { quotationId } = req.params;
     const updateData = req.body;
-
-    console.log('📥 Update request for quotation:', quotationId);
 
     // Find the existing quotation
     const quotation = await Quotation.findOne({ quotationId });
 
     if (!quotation) {
-      console.log('❌ Quotation not found:', quotationId);
+
       return res.status(404).json({
         success: false,
         message: 'Quotation not found'
@@ -1216,11 +1081,7 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
     const isSuperAdmin = ['super', 'super_admin', 'superadmin', 'admin'].includes(req.user.role);
 
     if (!isOwner && !isSuperAdmin) {
-      console.log('❌ Permission denied for update:', {
-        user: req.user.email,
-        role: req.user.role,
-        owner: quotation.salesUserId
-      });
+
       return res.status(403).json({
         success: false,
         message: 'Access denied. Only quotation owner or super admin can update this quotation.'
@@ -1232,7 +1093,7 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
     let pdfS3Url = quotation.pdfS3Url;
 
     if (updateData.pdfBase64) {
-      console.log('📄 New PDF data provided, updating S3...');
+
       try {
         const pdfBuffer = Buffer.from(updateData.pdfBase64, 'base64');
 
@@ -1248,7 +1109,6 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
         // Generate new presigned URL
         pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
 
-        console.log('✅ S3 PDF updated successfully');
       } catch (s3Error) {
         console.error('❌ Error updating PDF in S3:', s3Error);
         // We proceed with the update but warn about S3 failure
@@ -1262,6 +1122,34 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
     if (updateData.exactPricingBreakdown !== undefined) quotation.exactPricingBreakdown = updateData.exactPricingBreakdown;
     if (updateData.originalPricingBreakdown !== undefined) quotation.originalPricingBreakdown = updateData.originalPricingBreakdown;
     if (updateData.exactProductSpecs !== undefined) quotation.exactProductSpecs = updateData.exactProductSpecs;
+
+    // Update customer information fields
+    if (updateData.customerName !== undefined) quotation.customerName = updateData.customerName;
+    if (updateData.customerEmail !== undefined) quotation.customerEmail = updateData.customerEmail;
+    if (updateData.customerPhone !== undefined) quotation.customerPhone = updateData.customerPhone;
+    if (updateData.message !== undefined) quotation.message = updateData.message;
+    if (updateData.userType !== undefined) quotation.userType = updateData.userType;
+    if (updateData.userTypeDisplayName !== undefined) quotation.userTypeDisplayName = updateData.userTypeDisplayName;
+
+    // Update clientId if provided
+    if (updateData.clientId !== undefined) {
+      if (updateData.clientId) {
+        // Validate clientId format if provided
+        if (!mongoose.Types.ObjectId.isValid(updateData.clientId)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid clientId format. Must be a valid MongoDB ObjectId.'
+          });
+        }
+        quotation.clientId = new mongoose.Types.ObjectId(updateData.clientId);
+        console.log('✅ Updated clientId:', quotation.clientId.toString());
+      } else {
+        // Allow clearing clientId by setting to null
+        quotation.clientId = null;
+        console.log('ℹ️ Cleared clientId');
+      }
+    }
+
     if (updateData.quotationData !== undefined) {
       // Merge existing quotationData with updates
       quotation.quotationData = {
@@ -1282,12 +1170,6 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
     // Save the updated quotation
     const savedQuotation = await quotation.save();
 
-    console.log('✅ Quotation updated successfully:', {
-      id: savedQuotation.quotationId,
-      newPrice: savedQuotation.totalPrice,
-      hasDiscount: !!savedQuotation.exactPricingBreakdown?.discount
-    });
-
     res.json({
       success: true,
       message: 'Quotation updated successfully',
@@ -1299,8 +1181,6 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
     });
 
     const endTime = Date.now();
-    console.log('⏱️ Update request duration:', (endTime - startTime) + 'ms');
-    console.log('🏁 ===== QUOTATION UPDATE REQUEST COMPLETE =====');
 
   } catch (error) {
     console.error('❌ Error updating quotation:', error);
@@ -1314,16 +1194,15 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
 
 // DELETE /api/sales/quotation/:quotationId (Delete a quotation)
 router.delete('/quotation/:quotationId', authenticateToken, async (req, res) => {
-  console.log('🗑️ ===== QUOTATION DELETE REQUEST =====');
+
   try {
     const { quotationId } = req.params;
-    console.log('🗑️ Deleting quotation:', quotationId);
 
     // Find the quotation
     const quotation = await Quotation.findOne({ quotationId });
 
     if (!quotation) {
-      console.log('❌ Quotation not found for deletion:', quotationId);
+
       return res.status(404).json({
         success: false,
         message: 'Quotation not found'
@@ -1335,10 +1214,7 @@ router.delete('/quotation/:quotationId', authenticateToken, async (req, res) => 
     const isSuperAdmin = ['super', 'super_admin', 'superadmin', 'admin'].includes(req.user.role);
 
     if (!isSuperAdmin) {
-      console.log('❌ Permission denied for delete (not super admin):', {
-        user: req.user.email,
-        role: req.user.role
-      });
+
       return res.status(403).json({
         success: false,
         message: 'Access denied. Only super admin can delete quotations.'
@@ -1347,8 +1223,6 @@ router.delete('/quotation/:quotationId', authenticateToken, async (req, res) => 
 
     // Delete the quotation
     await Quotation.deleteOne({ quotationId });
-
-    console.log('✅ Quotation deleted successfully:', quotationId);
 
     res.json({
       success: true,
@@ -1415,8 +1289,6 @@ router.post('/quotation/:quotationId/upload-pdf', authenticateToken, async (req,
     quotation.pdfS3Key = pdfS3Key;
     quotation.pdfS3Url = pdfS3Url;
     await quotation.save();
-
-    console.log('✅ PDF uploaded to S3 for quotation:', quotationId);
 
     res.json({
       success: true,
@@ -1559,30 +1431,10 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
 
         // Debug logging for specific user (Rajneesh Rawat)
         if (user.name && user.name.toLowerCase().includes('rajneesh')) {
-          console.log('🔍 DEBUG - Rajneesh Rawat attribution check:', {
-            userId: user._id,
-            userIdType: typeof user._id,
-            userIdForQuery: userIdForQuery,
-            userIdForQueryType: userIdForQuery.constructor.name,
-            quotationCount,
-            revenue: revenueResult.length > 0 ? revenueResult[0].totalRevenue : 0,
-            dateFilter,
-            note: 'Checking quotations where salesUserId matches this user'
-          });
 
           // Also check raw quotations for debugging
           const debugQuotations = await Quotation.find({ salesUserId: userIdForQuery }).select('quotationId salesUserId totalPrice createdAt').lean();
-          console.log('🔍 DEBUG - Quotations found for Rajneesh:', {
-            count: debugQuotations.length,
-            quotations: debugQuotations.map(q => ({
-              quotationId: q.quotationId,
-              salesUserId: q.salesUserId,
-              salesUserIdType: typeof q.salesUserId,
-              salesUserIdString: q.salesUserId?.toString(),
-              totalPrice: q.totalPrice,
-              createdAt: q.createdAt
-            }))
-          });
+
         }
 
         return {
@@ -1687,8 +1539,6 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    console.log(`📊 Found ${quotations.length} quotations for sales user ${userId}`);
-
     // Group quotations by customer
     const customerMap = new Map();
 
@@ -1786,11 +1636,6 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
     // Uses salesUserId field to ensure correct attribution
     // This includes quotations assigned to this user by superadmin
     // Convert id to ObjectId for proper matching
-    console.log('🔍 SalesPersonDetails - Query parameters:', {
-      providedId: id,
-      providedIdType: typeof id,
-      isValidObjectId: mongoose.Types.ObjectId.isValid(id)
-    });
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       console.error('❌ Invalid ObjectId format for salesperson ID:', id);
@@ -1802,31 +1647,9 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
 
     const userIdForQuery = new mongoose.Types.ObjectId(id);
 
-    console.log('🔍 SalesPersonDetails - Query details:', {
-      providedId: id,
-      userIdForQuery: userIdForQuery,
-      userIdForQueryType: userIdForQuery.constructor.name,
-      userIdForQueryString: userIdForQuery.toString()
-    });
-
     const quotations = await Quotation.find({ salesUserId: userIdForQuery })
       .sort({ createdAt: -1 })
       .lean();
-
-    console.log(`📊 Found ${quotations.length} quotations for salesperson ${id} (salesUserId: ${userIdForQuery.toString()})`);
-    console.log(`📊 Attribution: Quotations are counted where salesUserId = ${userIdForQuery.toString()}`);
-    console.log(`📊 Query details:`, {
-      providedId: id,
-      providedIdType: typeof id,
-      userIdForQuery: userIdForQuery.toString(),
-      userIdForQueryType: userIdForQuery.constructor.name,
-      quotationCount: quotations.length,
-      sampleQuotations: quotations.slice(0, 3).map(q => ({
-        quotationId: q.quotationId,
-        salesUserId: q.salesUserId?.toString(),
-        totalPrice: q.totalPrice
-      }))
-    });
 
     // Group quotations by customer
     const customerMap = new Map();
@@ -1848,7 +1671,6 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
       // CRITICAL: Use the stored price directly from the database
       // This price INCLUDES 18% GST and matches the PDF Grand Total exactly
       // Do NOT recalculate - always use the stored value to match the PDF
-      console.log(`💰 Quotation ${quotation.quotationId}: Stored price = ₹${quotation.totalPrice?.toLocaleString('en-IN') || 'N/A'} (incl. GST)`);
 
       customerMap.get(customerKey).quotations.push({
         quotationId: quotation.quotationId,
@@ -1902,14 +1724,12 @@ router.post('/generate-quotation-id', async (req, res) => {
 
   try {
     await session.withTransaction(async () => {
-      console.log('🔍 Generating globally unique quotation ID...');
+
       const { firstName, year, month, day } = req.body;
 
       if (!firstName || !year || !month || !day) {
         throw new Error('Missing required fields: firstName, year, month, day');
       }
-
-      console.log('📊 Generating ID for user:', firstName, 'on date:', `${day}/${month}/${year}`);
 
       // Step 1: Get the highest serial number ever used in ANY quotation ID
       const latestQuotation = await Quotation.findOne({
@@ -1925,9 +1745,9 @@ router.post('/generate-quotation-id', async (req, res) => {
           const lastSerial = parseInt(parts[5], 10) || 0;
           nextSerial = lastSerial + 1;
         }
-        console.log('✅ Found latest quotation ID:', latestQuotation.quotationId, 'Next serial:', nextSerial);
+
       } else {
-        console.log('ℹ️ No existing quotations found, starting with serial 001');
+
       }
 
       // Step 2: Generate the new quotation ID
@@ -1938,7 +1758,6 @@ router.post('/generate-quotation-id', async (req, res) => {
       const existingQuotation = await Quotation.findOne({ quotationId }).session(session);
       if (existingQuotation) {
         // If ID exists, find the next available serial number
-        console.log('⚠️ Generated ID already exists, finding next available...');
 
         // Get all quotations with the same prefix (ORION/YYYY/MM/DD/FIRSTNAME/)
         const prefix = `ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/`;
@@ -1959,8 +1778,6 @@ router.post('/generate-quotation-id', async (req, res) => {
         const newSerial = nextSerial.toString().padStart(3, '0');
         const newQuotationId = `ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/${newSerial}`;
 
-        console.log('✅ Generated new unique ID:', newQuotationId);
-
         res.json({
           success: true,
           quotationId: newQuotationId,
@@ -1969,7 +1786,6 @@ router.post('/generate-quotation-id', async (req, res) => {
           message: 'Globally unique quotation ID generated successfully'
         });
       } else {
-        console.log('✅ Generated unique ID:', quotationId);
 
         res.json({
           success: true,
@@ -1996,7 +1812,7 @@ router.post('/generate-quotation-id', async (req, res) => {
 // Check latest quotation ID for a specific user and date to prevent duplicates (legacy endpoint)
 router.post('/check-latest-quotation-id', async (req, res) => {
   try {
-    console.log('🔍 Checking latest quotation ID...');
+
     const { firstName, year, month, day } = req.body;
 
     if (!firstName || !year || !month || !day) {
@@ -2005,8 +1821,6 @@ router.post('/check-latest-quotation-id', async (req, res) => {
         error: 'Missing required fields: firstName, year, month, day'
       });
     }
-
-    console.log('📊 Checking for user:', firstName, 'on date:', `${day}/${month}/${year}`);
 
     // Create regex pattern to match quotation IDs for this user and date
     const pattern = new RegExp(`^ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/\\d{3}$`);
@@ -2023,9 +1837,9 @@ router.post('/check-latest-quotation-id', async (req, res) => {
       if (parts.length === 6) {
         latestSerial = parseInt(parts[5], 10) || 0;
       }
-      console.log('✅ Found latest quotation ID:', latestQuotation.quotationId, 'Serial:', latestSerial);
+
     } else {
-      console.log('ℹ️ No existing quotations found for this user and date');
+
     }
 
     res.json({

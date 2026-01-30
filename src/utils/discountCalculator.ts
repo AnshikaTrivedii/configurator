@@ -18,17 +18,15 @@ export interface DiscountInfo {
 }
 
 export interface DiscountedPricingResult extends PricingCalculationResult {
-  // Original values (before discount)
+
   originalProductTotal: number;
   originalProcessorTotal: number;
   originalGrandTotal: number;
 
-  // Discounted values (after discount)
   discountedProductTotal: number;
   discountedProcessorTotal: number;
   discountedGrandTotal: number;
 
-  // Discount metadata
   discountInfo: DiscountInfo;
   discountAmount: number; // Total discount amount applied
 }
@@ -44,7 +42,7 @@ export function applyDiscount(
   pricingResult: PricingCalculationResult,
   discountInfo: DiscountInfo | null
 ): DiscountedPricingResult {
-  // If no discount, return original values
+
   if (!discountInfo || !discountInfo.discountType || discountInfo.discountPercent <= 0) {
     return {
       ...pricingResult,
@@ -61,9 +59,8 @@ export function applyDiscount(
 
   const { discountType, discountPercent } = discountInfo;
 
-  // Validate discount percentage
   if (discountPercent < 0 || discountPercent > 100) {
-    console.warn('Invalid discount percentage:', discountPercent);
+
     return {
       ...pricingResult,
       originalProductTotal: pricingResult.productTotal,
@@ -77,7 +74,6 @@ export function applyDiscount(
     };
   }
 
-  // Store original values (use existing originals if available to avoid compounding discounts)
   const originalProductTotal = (pricingResult as any).originalProductTotal || pricingResult.productTotal;
   const originalProcessorTotal = (pricingResult as any).originalProcessorTotal || pricingResult.processorTotal;
   const originalGrandTotal = (pricingResult as any).originalGrandTotal || pricingResult.grandTotal;
@@ -87,18 +83,15 @@ export function applyDiscount(
   let discountedGrandTotal = originalGrandTotal;
   let discountAmount = 0;
 
-  // Calculate unaccounted costs (difference between original Grand Total and sum of known components)
-  // This ensures we preserve any costs (like extra rounding, unmapped fees etc) that are not in the component breakdown
   const sumOfComponents = originalProductTotal + originalProcessorTotal + pricingResult.structureTotal + pricingResult.installationTotal;
   const unaccountedDifference = originalGrandTotal - sumOfComponents;
 
-  // Apply discount based on type
   switch (discountType) {
     case 'led':
-      // Apply discount to LED Screen Price (Product Total A)
+
       discountAmount = Math.round((originalProductTotal * discountPercent / 100) * 100) / 100;
       discountedProductTotal = Math.round((originalProductTotal - discountAmount) * 100) / 100;
-      // Recalculate grand total with discounted product total + preserved unaccounted difference
+
       discountedGrandTotal = Math.round(
         discountedProductTotal +
         originalProcessorTotal +
@@ -109,10 +102,10 @@ export function applyDiscount(
       break;
 
     case 'controller':
-      // Apply discount to Controller Price (Processor Total B)
+
       discountAmount = Math.round((originalProcessorTotal * discountPercent / 100) * 100) / 100;
       discountedProcessorTotal = Math.round((originalProcessorTotal - discountAmount) * 100) / 100;
-      // Recalculate grand total with discounted processor total + preserved unaccounted difference
+
       discountedGrandTotal = Math.round(
         originalProductTotal +
         discountedProcessorTotal +
@@ -123,44 +116,35 @@ export function applyDiscount(
       break;
 
     case 'total':
-      // Apply discount to Grand Total (A + B + C + D)
+
       discountAmount = Math.round((originalGrandTotal * discountPercent / 100) * 100) / 100;
       discountedGrandTotal = Math.round((originalGrandTotal - discountAmount) * 100) / 100;
-      // Product and processor totals remain unchanged for display
+
       discountedProductTotal = originalProductTotal;
       discountedProcessorTotal = originalProcessorTotal;
       break;
 
     default:
-      // No discount applied
+
       discountAmount = 0;
       break;
   }
 
-  console.log('💰 DISCOUNT APPLIED:', {
-    discountType,
-    discountPercent: `${discountPercent}%`,
-    originalGrandTotal,
-    discountedGrandTotal,
-    discountAmount,
-    savings: `₹${discountAmount.toLocaleString('en-IN')}`
-  });
-
   return {
     ...pricingResult,
-    // Override totals with discounted values
+
     productTotal: discountedProductTotal,
     processorTotal: discountedProcessorTotal,
     grandTotal: discountedGrandTotal,
-    // Store original values
+
     originalProductTotal,
     originalProcessorTotal,
     originalGrandTotal,
-    // Store discounted values
+
     discountedProductTotal,
     discountedProcessorTotal,
     discountedGrandTotal,
-    // Store discount metadata
+
     discountInfo,
     discountAmount
   };

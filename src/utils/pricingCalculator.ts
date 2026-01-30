@@ -1,5 +1,4 @@
-// User-specific pricing calculator
-// Different user types get different pricing based on their account level
+
 
 export interface PricingTier {
   name: string;
@@ -14,7 +13,6 @@ export interface ProductPricing {
   environmentMultiplier: number;
 }
 
-// Pricing tiers based on customer type
 export const PRICING_TIERS: Record<string, PricingTier> = {
   'endUser': {
     name: 'End User',
@@ -33,7 +31,6 @@ export const PRICING_TIERS: Record<string, PricingTier> = {
   }
 };
 
-// Base pricing structure for different products
 export const PRODUCT_PRICING: Record<string, ProductPricing> = {
   'rigel-p3-outdoor': {
     basePrice: 50000, // Base price per square meter
@@ -71,7 +68,7 @@ export const PRODUCT_PRICING: Record<string, ProductPricing> = {
     sizeMultiplier: 1.0,
     environmentMultiplier: 1.2
   },
-  // Indoor variants (lower base price, no outdoor premium)
+
   'rigel-p3-indoor': {
     basePrice: 40000,
     pixelPitchMultiplier: 1.0,
@@ -140,14 +137,12 @@ export function calculateUserSpecificPrice(
     userDiscount: number;
   };
 } {
-  // Get pricing tier based on the quotation's user type
+
   const pricingTier = PRICING_TIERS[userType] || PRICING_TIERS['endUser'];
-  
-  // Get product pricing info
+
   const productId = productDetails?.productId || '';
   const productPricing = PRODUCT_PRICING[productId] || PRODUCT_PRICING['rigel-p3-outdoor'];
-  
-  // Calculate display size in square meters
+
   const displaySize = productDetails?.displaySize;
   const sizeInSqm = displaySize ? 
     (displaySize.width * displaySize.height) : 
@@ -155,15 +150,13 @@ export function calculateUserSpecificPrice(
       (productDetails.cabinetGrid.columns * productDetails.cabinetGrid.rows * 0.5) : // Default cabinet size
       1
     );
-  
-  // Calculate base price
+
   const productBase = productPricing.basePrice * sizeInSqm;
   const sizeAdjustment = productBase * (productPricing.sizeMultiplier - 1);
   const environmentAdjustment = productBase * (productPricing.environmentMultiplier - 1);
   
   const basePrice = productBase + sizeAdjustment + environmentAdjustment;
-  
-  // Apply user-specific discount
+
   const userDiscount = basePrice * (1 - pricingTier.multiplier);
   const userPrice = basePrice * pricingTier.multiplier;
   
@@ -216,12 +209,11 @@ export function formatPrice(price: number): string {
  * Get user type from quotation data
  */
 export function getUserTypeFromQuotation(quotation: any): string {
-  // First check the userType field
+
   if (quotation.userType) {
     return quotation.userType;
   }
-  
-  // If userType is not available, check userTypeDisplayName
+
   if (quotation.userTypeDisplayName) {
     const displayName = quotation.userTypeDisplayName.toLowerCase();
     if (displayName.includes('reseller')) {
@@ -232,7 +224,6 @@ export function getUserTypeFromQuotation(quotation: any): string {
       return 'endUser';
     }
   }
-  
-  // Default fallback
+
   return 'endUser';
 }

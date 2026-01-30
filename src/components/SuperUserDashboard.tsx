@@ -4,8 +4,6 @@ import { salesAPI } from '../api/sales';
 import { SalesPersonDetailsModal } from './SalesPersonDetailsModal';
 import { AddUserModal } from './AddUserModal';
 
-
-
 interface SalesPerson {
   _id: string;
   name: string;
@@ -65,7 +63,7 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
 
   const fetchDashboardData = async (forceRefresh = false) => {
     if (isFetching()) {
-      console.log('⏭️ Dashboard fetch already in progress, skipping new request');
+
       return;
     }
     isFetchingRef.current = true;
@@ -73,30 +71,19 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
       setLoading(true);
       setError(null);
 
-      console.log('🔄 Fetching dashboard data...', forceRefresh ? '(FORCE REFRESH)' : '');
-      console.log('🔑 Auth token present:', !!localStorage.getItem('salesToken'));
-
-      // Clear any cached data if force refresh
       if (forceRefresh) {
-        console.log('🧹 Clearing cached data for force refresh...');
-        // Clear any potential browser cache by adding a unique timestamp
+
         const timestamp = Date.now();
-        console.log('⏰ Force refresh timestamp:', timestamp);
+
       }
 
-      // Fetch sales persons data
       const response = await salesAPI.getSalesPersons();
-      console.log('📊 Dashboard API response:', response);
-      console.log('👥 Sales persons:', response.salesPersons?.length || 0);
-      console.log('📈 Stats:', response.stats);
-      console.log('💰 Total Revenue from API:', response.stats?.totalRevenue);
-      console.log('📊 Total Quotations from API:', response.stats?.totalQuotations);
 
       setSalesPersons(response.salesPersons || []);
       setStats(response.stats || null);
       setLastRefreshTime(new Date());
     } catch (err) {
-      console.error('❌ Error fetching dashboard data:', err);
+
       setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -389,7 +376,7 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
                         <div className="ml-4">
                           <button
                             onClick={() => {
-                              console.log('Sales person clicked:', person._id, person.name);
+
                               handleSalesPersonClick(person._id);
                             }}
                             className="text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer"

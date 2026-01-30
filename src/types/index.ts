@@ -17,7 +17,7 @@ export interface Product {
   price?: number | string;
   siChannelPrice?: number | string;
   resellerPrice?: number | string;
-  // Cabinet dimensions in mm
+
   cabinetDimensions: {
     width: number;
     height: number;
@@ -82,11 +82,11 @@ export interface Product {
     cabinet: { endCustomer: number; siChannel: number; reseller: number };
     curveLock?: { endCustomer: number; siChannel: number; reseller: number };
   };
-  // Transparent Series specific properties
+
   transparency?: number; // Transparency percentage
   scanMode?: string; // Scan mode (e.g., "Static")
   pixelComposition?: string; // Pixel composition (e.g., "SMD2121", "SMD2020", "SMD1313", "SMD1921")
-  // Product availability flag
+
   enabled?: boolean; // If false, product is hidden from UI but kept in codebase
 }
 
@@ -146,11 +146,31 @@ export interface DashboardFilters {
   location?: string;
 }
 
+export interface Client {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  projectTitle?: string;
+  location?: string;
+  company?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Quotation {
   _id: string;
   quotationId: string;
   salesUserId: string;
   salesUserName: string;
+  // New: Client reference
+  clientId?: string;
+  client?: Client;
+  // Old fields: Keep for backward compatibility
   customerName: string;
   customerEmail: string;
   customerPhone: string;

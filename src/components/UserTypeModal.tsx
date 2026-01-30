@@ -19,14 +19,10 @@ const allUserTypeOptions = [
 
 const UserTypeModal: React.FC<UserTypeModalProps> = ({ isOpen, onSelect, allowedCustomerTypes }) => {
   const [selected, setSelected] = useState<UserType | null>(null);
-  
-  // Filter options based on permissions
-  // If allowedCustomerTypes is provided (partner), filter options
-  // If not provided (sales/super), show all options
+
   const userTypeOptions = allowedCustomerTypes && allowedCustomerTypes.length > 0
     ? allUserTypeOptions.filter(option => allowedCustomerTypes.includes(option.value))
     : allUserTypeOptions;
-
 
   const handleSelect = (value: UserType) => {
     setSelected(value);

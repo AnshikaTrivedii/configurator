@@ -37,18 +37,17 @@ function normalizeEnv(env: string): string {
  */
 function getProductType(product: Product): 'SMD' | 'COB' | undefined {
   const normalizeType = (type: string | undefined) => (type || '').toLowerCase();
-  
-  // Check ledType property
+
   if (product.ledType) {
     if (normalizeType(product.ledType).includes('cob')) return 'COB';
     if (normalizeType(product.ledType).includes('smd')) return 'SMD';
   }
-  // Check pixelComposition property
+
   if (product.pixelComposition) {
     if (normalizeType(product.pixelComposition).includes('cob')) return 'COB';
     if (normalizeType(product.pixelComposition).includes('smd')) return 'SMD';
   }
-  // Check product name
+
   if (product.name.toLowerCase().includes('cob')) return 'COB';
   if (product.name.toLowerCase().includes('smd')) return 'SMD';
   return undefined;
@@ -71,12 +70,10 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
 
   let filtered = [...products];
 
-  // Filter by enabled status
   if (enabled) {
     filtered = filtered.filter((p) => p.enabled === true); // Only enabled: true, not false or undefined
   }
-  
-  // Exclude rental, flexible, transparent, jumbo products
+
   filtered = filtered.filter((p) => {
     const category = (p.category || '').toLowerCase();
     return !category.includes('rental') && 
@@ -85,29 +82,24 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
            !category.includes('jumbo');
   });
 
-  // Filter by environment
   if (environment) {
     filtered = filtered.filter((p) => normalizeEnv(p.environment) === normalizeEnv(environment));
   }
 
-  // Filter by indoor type (SMD/COB) - only applies when Indoor is selected
   if (environment === 'Indoor' && indoorType) {
     filtered = filtered.filter((p) => getProductType(p) === indoorType);
   }
 
-  // Filter by category
   if (category) {
     filtered = filtered.filter((p) => p.category === category);
   }
 
-  // Filter by pixel pitch (exact match with tolerance)
   if (pixelPitch !== null) {
     filtered = filtered.filter((p) => Math.abs(p.pixelPitch - pixelPitch) < 0.1);
   }
 
-  // Filter by viewing distance
   if (viewingDistance) {
-    // Viewing distance is a range (e.g., "3-6")
+
     const recommendedPixelPitches = getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit, environment);
     if (recommendedPixelPitches.length > 0) {
       filtered = filtered.filter((p) =>
@@ -115,7 +107,7 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
       );
     }
   } else if (viewingDistanceValue !== null) {
-    // Viewing distance is a single value
+
     const recommendedPixelPitches = getPixelPitchesForViewingDistance(viewingDistanceValue, viewingDistanceUnit, environment);
     if (recommendedPixelPitches.length > 0) {
       filtered = filtered.filter((p) =>
@@ -124,7 +116,6 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
     }
   }
 
-  // Remove duplicates and sort by pixel pitch
   const unique = filtered.filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
   return unique.sort((a, b) => a.pixelPitch - b.pixelPitch);
 }
@@ -143,7 +134,7 @@ export function getAvailablePixelPitches(options: ProductFilterOptions = {}): nu
 export function getProductSeries(filteredProducts: Product[]): string[] {
   const series = new Set<string>();
   filteredProducts.forEach(product => {
-    // Extract series from category or name
+
     const category = product.category || '';
     if (category.includes('Rigel')) series.add('Rigel Series');
     if (category.includes('Betel')) series.add('Betel Series');
@@ -168,14 +159,11 @@ export function getIdealPixelPitchRange(
   unit: 'meters' | 'feet'
 ): { ideal: number; min: number; max: number } | null {
   if (distance <= 0) return null;
-  
-  // Convert to feet
+
   const distanceFt = unit === 'meters' ? distance * 3.28084 : distance;
-  
-  // Calculate ideal pitch: IdealPitch = ViewingDistance(feet) ÷ 10
+
   const idealPitch = distanceFt / 10;
-  
-  // ± 30% range
+
   const min = idealPitch * 0.7; // 30% below
   const max = idealPitch * 1.3; // 30% above
   
@@ -197,17 +185,15 @@ export function findClosestAvailablePitch(
   availablePitches: number[]
 ): number | null {
   if (availablePitches.length === 0) return null;
-  
-  // Find pitches within ideal range (± 40%)
+
   const inRange = availablePitches.filter(p => p >= idealMin && p <= idealMax);
   if (inRange.length > 0) {
-    // Return the one closest to ideal pitch
+
     return inRange.reduce((closest, current) => 
       Math.abs(current - idealPitch) < Math.abs(closest - idealPitch) ? current : closest
     );
   }
-  
-  // If no pitch in range, find closest to ideal pitch
+
   return availablePitches.reduce((closest, current) => 
     Math.abs(current - idealPitch) < Math.abs(closest - idealPitch) ? current : closest
   );
@@ -228,16 +214,14 @@ export function getRecommendedPixelPitchesForViewingDistance(
   availablePitches: number[];
   closestPitch: number | null;
 } {
-  // Get ideal range
+
   const idealRange = getIdealPixelPitchRange(distance, unit);
-  
-  // Get all available pitches from actual products (excluding rental/flexible/transparent/jumbo)
+
   const allAvailablePitches = getAvailablePixelPitches({ 
     enabled: true, 
     environment: environment || undefined 
   });
-  
-  // Find closest available pitch if ideal range exists
+
   let closestPitch: number | null = null;
   if (idealRange) {
     closestPitch = findClosestAvailablePitch(
@@ -247,31 +231,25 @@ export function getRecommendedPixelPitchesForViewingDistance(
       allAvailablePitches
     );
   }
-  
-  // Get pitches within ideal range (if any)
+
   const pitchesInRange = idealRange
     ? allAvailablePitches.filter(p => p >= idealRange.min && p <= idealRange.max)
     : [];
-  
-  // CRITICAL RULE: If no pitches in range, use closest HIGHER pitch (never default to P1.8)
-  // Return only pitches that are actually in range, or closest pitch if none in range
-  // Don't return all available pitches as fallback - that's too broad
+
   let finalAvailablePitches: number[] = [];
   if (pitchesInRange.length > 0) {
-    // Use pitches within ideal range
+
     finalAvailablePitches = pitchesInRange;
   } else if (closestPitch) {
-    // Use closest pitch (should be higher than ideal if no exact match)
+
     finalAvailablePitches = [closestPitch];
-    
-    // CRITICAL: Validate closest pitch is reasonable
-    // If ideal is > 2.0 and closest is 1.8, that's wrong - find next higher pitch
+
     if (idealRange && closestPitch === 1.8 && idealRange.ideal > 2.0) {
-      // Find next higher pitch
+
       const higherPitches = allAvailablePitches.filter(p => p > idealRange.ideal);
       if (higherPitches.length > 0) {
         const nextHigher = higherPitches.sort((a, b) => a - b)[0];
-        console.log('[getRecommendedPixelPitchesForViewingDistance] ⚠️ Closest pitch P1.8 seems wrong for ideal', idealRange.ideal, '- using next higher:', nextHigher);
+
         finalAvailablePitches = [nextHigher];
       }
     }

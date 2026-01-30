@@ -79,14 +79,11 @@ export const SalesSetPassword: React.FC<SalesSetPasswordProps> = ({
       };
 
       const response = await salesAPI.setPassword(passwordData);
-      
-      // Update stored auth data
+
       salesAPI.setAuthData(response.token, response.user);
-      
-      // Call success callback
+
       onSuccess(response.token, response.user);
-      
-      // Reset form
+
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');

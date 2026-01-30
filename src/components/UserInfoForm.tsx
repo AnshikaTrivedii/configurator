@@ -48,12 +48,12 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   customPricing: externalCustomPricing,
   onCustomPricingChange
 }) => {
-  // Helper function to get default user type based on permissions
+
   const getDefaultUserType = (): 'End User' | 'Reseller' | 'SI/Channel Partner' => {
     if (initialData?.userType) {
       return initialData.userType;
     }
-    // For partners, use first allowed type; otherwise default to 'End User'
+
     const partnerAllowedTypes = allowedCustomerTypes || salesUser?.allowedCustomerTypes || [];
     const isPartner = salesUser?.role === 'partner';
     if (isPartner && partnerAllowedTypes.length > 0) {
@@ -84,18 +84,15 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   const [errors, setErrors] = useState<Partial<UserInfo>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUserTypeDropdownOpen, setIsUserTypeDropdownOpen] = useState(false);
-  
-  // Custom pricing state
+
   const [internalCustomPricingEnabled, setInternalCustomPricingEnabled] = useState(externalCustomPricing?.enabled || false);
   const [internalCustomStructurePrice, setInternalCustomStructurePrice] = useState<number | null>(externalCustomPricing?.structurePrice || null);
   const [internalCustomInstallationPrice, setInternalCustomInstallationPrice] = useState<number | null>(externalCustomPricing?.installationPrice || null);
-  
-  // Use external pricing if provided, otherwise use internal state
+
   const customPricingEnabled = externalCustomPricing?.enabled ?? internalCustomPricingEnabled;
   const customStructurePrice = externalCustomPricing?.structurePrice ?? internalCustomStructurePrice;
   const customInstallationPrice = externalCustomPricing?.installationPrice ?? internalCustomInstallationPrice;
-  
-  // Update external state when internal state changes
+
   const updateCustomPricing = (enabled: boolean, structurePrice: number | null, installationPrice: number | null) => {
     if (onCustomPricingChange) {
       onCustomPricingChange({
@@ -110,45 +107,37 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     }
   };
 
-  // Update form data when initialData changes
   useEffect(() => {
     if (initialData) {
       setFormData(initialData);
     }
   }, [initialData]);
 
-  // All available user type options
   const allUserTypeOptions: Array<{ value: 'End User' | 'Reseller' | 'SI/Channel Partner'; label: string; internalValue: string }> = [
     { value: 'End User', label: 'End User', internalValue: 'endUser' },
     { value: 'Reseller', label: 'Reseller', internalValue: 'reseller' },
     { value: 'SI/Channel Partner', label: 'SI/Channel Partner', internalValue: 'siChannel' }
   ];
 
-  // Get allowed customer types from props or salesUser
   const partnerAllowedTypes = allowedCustomerTypes || salesUser?.allowedCustomerTypes || [];
   const isPartner = salesUser?.role === 'partner';
-  
-  // Filter user type options based on permissions
-  // If partner and has allowedCustomerTypes, filter options
-  // Otherwise, show all options (for sales/super users)
+
   const userTypeOptions = React.useMemo(() => {
     if (isPartner && partnerAllowedTypes.length > 0) {
-      // Partner: only show allowed types
+
       return allUserTypeOptions.filter(option => partnerAllowedTypes.includes(option.internalValue));
     }
-    // Sales/Super: show all types
+
     return allUserTypeOptions;
   }, [isPartner, partnerAllowedTypes]);
 
-  // Ensure selected user type is valid based on permissions
   React.useEffect(() => {
     if (isPartner && partnerAllowedTypes.length > 0) {
-      // Map current userType to internal value
+
       const currentInternalValue = formData.userType === 'End User' ? 'endUser' :
                                    formData.userType === 'Reseller' ? 'reseller' :
                                    formData.userType === 'SI/Channel Partner' ? 'siChannel' : null;
-      
-      // If current selection is not allowed, switch to first available
+
       if (currentInternalValue && !partnerAllowedTypes.includes(currentInternalValue)) {
         const firstAllowedOption = userTypeOptions[0];
         if (firstAllowedOption) {
@@ -204,9 +193,9 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     
     try {
       await onSubmit(formData);
-      // Only reset form if not in edit mode
+
       if (!isEditMode) {
-        // Set default user type to first available option (for partners) or 'End User' (for others)
+
         const defaultUserType = userTypeOptions.length > 0 ? userTypeOptions[0].value : 'End User';
         setFormData({ 
           fullName: '', 
@@ -221,7 +210,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
       }
       setErrors({});
     } catch (error) {
-      console.error('Error submitting form:', error);
+
     } finally {
       setIsSubmitting(false);
     }
@@ -229,7 +218,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
 
   const handleInputChange = (field: keyof UserInfo, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
+
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }

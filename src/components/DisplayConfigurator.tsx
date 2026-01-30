@@ -19,13 +19,12 @@ import { useControllerSelection } from '../hooks/useControllersSelection';
 import { generateConfigurationDocx, generateConfigurationHtml, generateConfigurationPdf } from '../utils/docxGenerator';
 import { PdfViewModal } from './PdfViewModal';
 import { SalesUser } from '../api/sales';
+import { clientAPI } from '../api/clients';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { SuperUserDashboard } from './SuperUserDashboard';
 import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 
-// Configure the PDF worker from a CDN to avoid local path issues.
-// See: https://github.com/wojtekmaj/react-pdf/wiki/Frequently-Asked-Questions#i-am-getting-error-warning-setting-up-fake-worker-failed-cannot-read-property-getdocument-of-undefined
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 interface DisplayConfiguratorProps {
@@ -85,41 +84,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setConfig
   } = useDisplayCalculations(selectedProduct);
 
-  // Initialize dimensions from global context or initialConfig
   useEffect(() => {
-    // Set flag to prevent sync during initialization
+
     isInitialMount.current = true;
 
     if (initialConfig) {
-      // If we have initialConfig from wizard, use it exactly as provided
-      // initialConfig.width and initialConfig.height are already in mm
-      console.log('📐 Loading from initialConfig:', {
-        originalWidth: initialConfig.width,
-        originalHeight: initialConfig.height,
-        originalUnit: initialConfig.unit,
-        widthMM: initialConfig.width,
-        heightMM: initialConfig.height,
-        // Show what should be displayed
-        expectedWidthDisplay: initialConfig.unit === 'm'
-          ? (initialConfig.width / 1000).toFixed(2) + ' m'
-          : initialConfig.unit === 'ft'
-            ? (initialConfig.width / 304.8).toFixed(2) + ' ft'
-            : initialConfig.width + ' mm',
-        expectedHeightDisplay: initialConfig.unit === 'm'
-          ? (initialConfig.height / 1000).toFixed(2) + ' m'
-          : initialConfig.unit === 'ft'
-            ? (initialConfig.height / 304.8).toFixed(2) + ' ft'
-            : initialConfig.height + ' mm'
-      });
 
-      // Set dimensions directly using setConfig to preserve exact values
-      // Convert unit if needed (wizard uses 'mm' | 'cm' | 'm' | 'ft', but configurator uses 'm' | 'ft')
-      // IMPORTANT: Preserve 'ft' unit if user entered feet, convert mm/cm to 'm'
       const displayUnit = initialConfig.unit === 'mm' || initialConfig.unit === 'cm'
         ? 'm'
         : initialConfig.unit; // Keep 'ft' or 'm' as entered
 
-      // Use a function form of setConfig to ensure we're setting the exact values
       setConfig(prevConfig => {
         const newConfig = {
           width: initialConfig.width,  // Already in mm, exact value from wizard
@@ -128,29 +102,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           aspectRatio: 'None' // Reset aspect ratio to allow free dimensions
         };
 
-        console.log('📐 setConfig called with:', {
-          newWidth: newConfig.width,
-          newHeight: newConfig.height,
-          newUnit: newConfig.unit,
-          prevWidth: prevConfig.width,
-          prevHeight: prevConfig.height,
-          prevUnit: prevConfig.unit
-        });
-
         return newConfig;
       });
 
-      // Update global state with original unit from wizard
       updateGlobalDimensions(initialConfig.width, initialConfig.height, initialConfig.unit);
     } else {
-      // Otherwise, load from global context (localStorage)
-      console.log('📐 Loading from globalConfig:', {
-        width: globalConfig.width,
-        height: globalConfig.height,
-        unit: globalConfig.unit
-      });
 
-      // Convert unit if needed
       const displayUnit = globalConfig.unit === 'mm' || globalConfig.unit === 'cm' ? 'm' : globalConfig.unit;
 
       setConfig(prevConfig => ({
@@ -161,35 +118,25 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       }));
     }
 
-    // Mark initialization complete after a short delay to ensure state is set
     setTimeout(() => {
       isInitialMount.current = false;
-      console.log('✅ Initialization complete, sync enabled. Current config:', {
-        width: config.width,
-        height: config.height,
-        unit: config.unit
-      });
+
     }, 200);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [initialConfig]);
 
-  // Handle loading existing quotation for editing
   useEffect(() => {
     if (activeQuotation) {
-      console.log('✏️ Hydrating DisplayConfigurator from activeQuotation:', activeQuotation);
 
-      // Set quotation state
       setQuotationId(activeQuotation.quotationId);
       setIsEditMode(true);
 
-      // Helper to convert legacy/DB types to current types
       const getUserType = (type: string): 'End User' | 'Reseller' | 'SI/Channel Partner' => {
         if (type === 'reseller' || type === 'Reseller') return 'Reseller';
         if (type === 'siChannel' || type === 'Channel' || type === 'SI/Channel Partner') return 'SI/Channel Partner';
         return 'End User';
       };
 
-      // Try to extract user info from top-level fields or quotationData
       let extractedUserInfo: any = null;
       const qUserInfo = activeQuotation.quotationData?.userInfo;
 
@@ -206,7 +153,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           warranty: qUserInfo?.warranty
         };
       } else if (qUserInfo) {
-        // Fallback to userInfo inside quotationData
+
         extractedUserInfo = {
           fullName: qUserInfo.fullName || qUserInfo.customerName || '',
           email: qUserInfo.email || qUserInfo.customerEmail || '',
@@ -218,53 +165,41 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       }
 
       if (extractedUserInfo && extractedUserInfo.fullName) {
-        console.log('✅ Hydrated User Info:', extractedUserInfo);
+
         setUserInfo(extractedUserInfo);
         setIsMandatoryFormSubmitted(true);
       } else {
-        console.warn("⚠️ Could not extract complete UserInfo from activeQuotation");
-        // If we have at least some info, set it even if form is not submitted
+
         if (extractedUserInfo) {
           setUserInfo(extractedUserInfo);
         }
       }
 
-      // Load custom pricing if available
       if (activeQuotation.quotationData?.customPricing) {
         setCustomPricing(activeQuotation.quotationData.customPricing);
       }
     }
   }, [activeQuotation]);
 
-  // Sync local config changes to global state (only after initial mount)
   useEffect(() => {
-    // Skip sync on initial mount to avoid overwriting values
+
     if (isInitialMount.current) {
-      console.log('⏸️ Skipping sync - still in initial mount phase');
+
       return;
     }
 
-    // Don't sync if we just set values from initialConfig
     if (initialConfig &&
       config.width === initialConfig.width &&
       config.height === initialConfig.height) {
-      // This is likely the initial set, don't sync yet
+
       return;
     }
 
-    console.log('🔄 Syncing config to global state:', {
-      width: config.width,
-      height: config.height,
-      unit: config.unit
-    });
-
-    // Convert 'm' back to the stored format (keep as 'm' in global state)
     const unitForStorage = config.unit === 'm' ? 'm' : config.unit;
     updateGlobalDimensions(config.width, config.height, unitForStorage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [config.width, config.height, config.unit]);
 
-  // Show left panel when product is selected
   useEffect(() => {
     if (selectedProduct) {
       setShowLeftPanel(true);
@@ -273,10 +208,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
 
-  // Auto-open product selector if no product is selected and no initial config (direct product selection mode)
   useEffect(() => {
     if (!initialConfig && !selectedProduct) {
-      // Small delay to ensure component is fully mounted
+
       const timer = setTimeout(() => {
         setIsProductSelectorOpen(true);
       }, 300);
@@ -298,15 +232,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const [isEditMode, setIsEditMode] = useState(false);
   const [showDashboardInternal, setShowDashboardInternal] = useState(false);
 
-  // Use prop if provided, otherwise use internal state
   const showDashboard = showDashboardProp !== undefined ? showDashboardProp : showDashboardInternal;
   const setShowDashboard = onDashboardClose || (() => setShowDashboardInternal(false));
 
-  // New state for processor/controller and mode
   const [selectedController, setSelectedController] = useState<string>('');
   const [selectedMode, setSelectedMode] = useState<string>('');
 
-  // Custom pricing state
   const [customPricing, setCustomPricing] = useState<{
     enabled: boolean;
     structurePrice: number | null;
@@ -320,16 +251,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const cabinetGrid = calculateCabinetGrid(selectedProduct);
 
-
-
-  // Create controller selection object using the simple logic
   const createControllerSelection = () => {
     if (!selectedProduct) return null;
 
     const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
     const totalPixelsMillion = totalPixels / 1_000_000;
 
-    // Simple controller mapping based on pixel count
     const controllerMapping = [
       { max: 0.65, name: 'TB2', type: 'asynchronous', portCount: 1, pixelCapacity: 0.65 },
       { max: 1.3, name: 'TB40', type: 'asynchronous', portCount: 2, pixelCapacity: 1.3 },
@@ -369,8 +296,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const controllerSelection = createControllerSelection() || undefined;
 
-
-  // Helper function to auto-select controller based on pixel count
   const getAutoSelectedController = (product: Product, grid: CabinetGrid) => {
     const totalPixels = product.resolution.width * grid.columns * product.resolution.height * grid.rows;
     const totalPixelsMillion = totalPixels / 1_000_000;
@@ -397,7 +322,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     return '4K PRIME';
   };
 
-  // Update selectedController when product or grid changes
   useEffect(() => {
     if (selectedProduct) {
       const grid = calculateCabinetGrid(selectedProduct);
@@ -407,7 +331,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
-    // If digital standee, set width/height to cabinet size
+
     if (product.category?.toLowerCase().includes('digital standee')) {
       updateWidth(product.cabinetDimensions.width);
       updateHeight(product.cabinetDimensions.height);
@@ -427,7 +351,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           ? 'Outdoor'
           : globalConfig.environment
     });
-    // Auto-select controller on product select
+
     setIsProductSelectorOpen(false);
   };
 
@@ -435,29 +359,47 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setUserInfo(userData);
     setIsUserInfoFormOpen(false);
 
-    // Generate unique quotation ID (only for new submissions, not edits)
+    // Create or find client when user info is submitted (for sales/partner users)
+    if (userRole === 'sales' || userRole === 'partner') {
+      try {
+        const clientData = {
+          name: userData.fullName.trim(),
+          email: userData.email.trim(),
+          phone: userData.phoneNumber.trim(),
+          projectTitle: userData.projectTitle?.trim() || '',
+          location: userData.address?.trim() || '',
+          company: '',
+          notes: ''
+        };
+
+        const clientResponse = await clientAPI.findOrCreateClient(clientData);
+        if (clientResponse.success && clientResponse.client) {
+          console.log('✅ Client created/found from UserInfoForm:', clientResponse.client._id);
+        }
+      } catch (clientError: any) {
+        console.error('⚠️ Failed to create/find client from UserInfoForm:', clientError);
+        // Continue even if client creation fails
+      }
+    }
+
     if (!isEditMode) {
       const username = (userRole === 'sales' || userRole === 'partner') && salesUser ? salesUser.name : userData.fullName;
       try {
         const newQuotationId = await QuotationIdGenerator.generateQuotationId(username);
         setQuotationId(newQuotationId);
 
-        // Store the quotation ID to maintain uniqueness
         QuotationIdGenerator.storeQuotationId(newQuotationId, username);
       } catch (error) {
-        console.error('Failed to generate quotation ID:', error);
-        // Fallback to a simple timestamp-based ID
+
         const fallbackId = `ORION/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getDate()).padStart(2, '0')}/${username.toUpperCase()}/001`;
         setQuotationId(fallbackId);
       }
     }
 
-    // For sales users and partners, mark the mandatory form as submitted
     if (userRole === 'sales' || userRole === 'partner') {
       setIsMandatoryFormSubmitted(true);
     }
 
-    // Execute the pending action
     if (pendingAction === 'quote') {
       setIsQuoteModalOpen(true);
     } else if (pendingAction === 'pdf') {
@@ -468,13 +410,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setIsEditMode(false);
   };
 
-  // Reset mandatory form state when user changes or logs out
   const resetMandatoryFormState = () => {
     setIsMandatoryFormSubmitted(false);
     setUserInfo(undefined);
   };
 
-  // Handle opening the form in edit mode
   const handleEditForm = () => {
     setIsEditMode(true);
     setPendingAction('pdf'); // Set to pdf since we want to regenerate the document
@@ -483,24 +423,23 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const handleQuoteClick = () => {
     if ((userRole === 'sales' || userRole === 'partner') && salesUser) {
-      // For sales users and partners, show the UserInfoForm first (which will lead to QuoteModal)
+
       setPendingAction('quote');
       setIsUserInfoFormOpen(true);
     } else {
-      // For normal users, go directly to QuoteModal
+
       setIsQuoteModalOpen(true);
     }
   };
 
   const handlePdfClick = () => {
-    // For sales users and partners, check if salesUser is available
+
     if ((userRole === 'sales' || userRole === 'partner') && !salesUser) {
-      console.error('❌ Cannot open PDF: salesUser is missing for', userRole);
+
       alert('Sales user information is missing. Please log in again.');
       return;
     }
 
-    // For sales users and partners, check if mandatory form is submitted
     if ((userRole === 'sales' || userRole === 'partner') && !isMandatoryFormSubmitted) {
       setPendingAction('pdf');
       setIsUserInfoFormOpen(true);
@@ -518,14 +457,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const handleDownloadPdf = async () => {
     if (!selectedProduct) return;
 
-    // For sales users and partners, check if salesUser is available
     if ((userRole === 'sales' || userRole === 'partner') && !salesUser) {
-      console.error('❌ Cannot download PDF: salesUser is missing for', userRole);
+
       alert('Sales user information is missing. Please log in again.');
       return;
     }
 
-    // For sales users and partners, check if mandatory form is submitted
     if ((userRole === 'sales' || userRole === 'partner') && !isMandatoryFormSubmitted) {
       setPendingAction('pdf');
       setIsUserInfoFormOpen(true);
@@ -533,10 +470,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     }
 
     try {
-      // Get the current user type from the QuoteModal if it's open, otherwise use userInfo
+
       const currentUserType = userInfo?.userType || 'End User';
 
-      // Map display label to legacy pricing userType expected by docxGenerator/html helpers
       const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
         currentUserType === 'SI/Channel Partner'
           ? 'Channel'
@@ -556,7 +492,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         customPricing.enabled ? customPricing : undefined
       );
 
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -566,15 +501,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
-      console.error('❌ Error generating PDF:', error);
-      console.error('❌ Error details:', {
-        message: error?.message,
-        stack: error?.stack,
-        name: error?.name,
-        cause: error?.cause
-      });
 
-      // Provide more specific error messages
       let errorMessage = 'Failed to generate PDF file. Please try again.';
       if (error?.message) {
         if (error.message.includes('canvas')) {
@@ -596,7 +523,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     if (!selectedProduct) return;
 
     try {
-      // Get the current user type from the QuoteModal if it's open, otherwise use userInfo
+
       const currentUserType = userInfo?.userType || 'End User';
 
       const blob = await generateConfigurationDocx(
@@ -619,7 +546,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         customPricing.enabled ? customPricing : undefined
       );
 
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -629,7 +555,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error generating DOCX:', error);
+
       alert('Failed to generate DOCX file. Please try again.');
     }
   };
@@ -639,13 +565,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setIsPdfViewModalOpen(true);
   };
 
-
-
-  // Helper to check if product is Digital Standee
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
-  // Helper to check if product is Jumbo Series
 
-  // Helper to get fixed grid for Jumbo
   function getJumboFixedGrid(product: Product) {
     if (!product) return null;
     if (product.category?.toLowerCase() !== 'jumbo series') return null;
@@ -659,12 +580,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   }
   const jumboGrid = selectedProduct ? getJumboFixedGrid(selectedProduct) : null;
 
-  // Override cabinetGrid for Digital Standee and Jumbo
   const fixedCabinetGrid = isDigitalStandee
     ? { ...cabinetGrid, columns: 7, rows: 5 }
     : (jumboGrid ? { ...cabinetGrid, ...jumboGrid } : cabinetGrid);
 
-  // Prevent changing columns/rows for Digital Standee and Jumbo
   const handleColumnsChange = (columns: number) => {
     if (isDigitalStandee || jumboGrid) return;
     if (!selectedProduct) return;
@@ -679,11 +598,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     updateHeight(newHeight);
   };
 
-  // Track the last selected product ID to only reset dimensions when product actually changes
   const previousProductIdRef = useRef<string | undefined>(undefined);
 
-  // When a product is selected, set initial dimensions ONLY once per product selection
-  // This effect ONLY runs when the product ID changes, NEVER when dimensions change
   useEffect(() => {
     if (!selectedProduct) {
       previousProductIdRef.current = undefined;
@@ -693,14 +609,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     const currentProductId = selectedProduct.id;
     const isProductChanging = previousProductIdRef.current !== currentProductId;
 
-    // Only set dimensions when product actually changes (not on every render)
     if (isProductChanging) {
       previousProductIdRef.current = currentProductId;
 
-      // Wait for initialConfig to be processed first (if it exists)
-      // Use a small delay to ensure initialConfig useEffect has run
       const timer = setTimeout(() => {
-        // For fixed grid products (Digital Standee, Jumbo), always set fixed dimensions
+
         if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
           updateWidth(selectedProduct.cabinetDimensions.width);
           updateHeight(selectedProduct.cabinetDimensions.height);
@@ -708,12 +621,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           updateWidth(selectedProduct.cabinetDimensions.width);
           updateHeight(selectedProduct.cabinetDimensions.height);
         } else {
-          // For other products, only set if NOT from wizard (wizard dimensions are already set)
+
           const isFromWizard = initialConfig?.selectedProduct?.id === selectedProduct.id;
 
           if (!isFromWizard) {
-            // Calculate initial grid based on product cabinet dimensions
-            // Use a reasonable default starting size (3x3 grid)
+
             const cabinetWidth = selectedProduct.cabinetDimensions.width || 600;
             const cabinetHeight = selectedProduct.cabinetDimensions.height || 337.5;
             const initialWidth = cabinetWidth * 3;
@@ -721,23 +633,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             updateWidth(initialWidth);
             updateHeight(initialHeight);
           }
-          // If from wizard, dimensions are already set by initialConfig useEffect - do nothing
+
         }
       }, 150); // Small delay to let initialConfig useEffect run first
 
       return () => clearTimeout(timer);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [selectedProduct?.id]); // Only depend on product ID - this prevents the effect from running when dimensions change
 
-  // Digital Standee Series price mapping by model and user type
-  //const digitalStandeePrices: Record<string, { endUser: number; siChannel: number; reseller: number }> = {
-  //'P1.8': { endUser: 110300, siChannel: 100000, reseller: 93800 },
-  //'P2.5': { endUser: 80900, siChannel: 73300, reseller: 68800 },
-  //'P4':   { endUser: 95600, siChannel: 86700, reseller: 81300 },
-  //};
-
-  // If dashboard is open, render the appropriate dashboard based on user role
   if (showDashboard && (userRole === 'super' || userRole === 'super_admin')) {
     return (
       <SuperUserDashboard
@@ -757,7 +661,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     );
   }
 
-  // If sales dashboard is open, render only the sales dashboard (for sales users only)
   if (showSalesDashboardProp && userRole === 'sales') {
     return (
       <SalesDashboard
@@ -850,7 +753,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             )}
           </div>
 
-
           {/* Logo - Top Left */}
           <div className="absolute top-3 left-3 sm:top-4 sm:left-4 lg:top-6 lg:left-6">
             <img
@@ -898,7 +800,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               setIsProductSelectorOpen(true);
               setIsSidebarOpen(false); // Close sidebar on mobile when opening product selector
             }}
-            // New props to get controller and mode
+
             onControllerChange={setSelectedController}
             onModeChange={setSelectedMode}
             controllerSelection={controllerSelection}
@@ -1056,7 +958,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                             selectedProduct.rentalOption &&
                             selectedProduct.prices
                           ) {
-                            // Map userType to price key
+
                             const userTypeToPriceKey = (type: string): 'endCustomer' | 'siChannel' | 'reseller' => {
                               if (type === 'siChannel' || type === 'reseller') return type;
                               return 'endCustomer';
@@ -1069,8 +971,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                               : 'Contact for pricing';
                           }
                           let price = selectedProduct.price;
-                          // For normal users, always show end customer price
-                          // Sales users can see different pricing based on their role
+
                           return price ? `₹${price.toLocaleString('en-IN')}` : 'Contact for pricing';
                         })()}
                       </p>
@@ -1138,7 +1039,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                               setPdfError(null);
                             }}
                             onLoadError={(error) => {
-                              console.error('PDF load error:', error.message);
+
                               setPdfError('Failed to load PDF. Please check the browser console for more details.');
                             }}
                             loading={<div className="text-center py-6">Loading PDF...</div>}
@@ -1262,7 +1163,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           isOpen={isQuoteModalOpen}
           onClose={() => setIsQuoteModalOpen(false)}
           onSubmit={(message) => {
-            console.log('Quote submitted:', message);
+
             setIsQuoteModalOpen(false);
           }}
           selectedProduct={selectedProduct}
@@ -1300,7 +1201,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             fixedCabinetGrid,
             selectedController,
             selectedMode,
-            // For HTML/PDF generation, map UI label to legacy pricing userType
+
             userInfo
               ? {
                 fullName: userInfo.fullName,
@@ -1327,7 +1228,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           cabinetGrid={fixedCabinetGrid}
           processor={selectedController}
           mode={selectedMode}
-          // For PdfViewModal logic, keep the display label so getUserType() can map to siChannel
+
           userInfo={userInfo ? { ...userInfo, userType: userInfo.userType || 'End User' } : undefined}
           salesUser={salesUser}
           userRole={userRole}

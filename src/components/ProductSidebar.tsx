@@ -40,33 +40,27 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const [activeTab, setActiveTab] = useState<'dimensions' | 'processing'>('dimensions');
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
 
-
-  // Calculate total pixels (width * height) only if selectedProduct is defined
   const totalPixels = selectedProduct ? (selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows) : 0;
   const totalPixelsMillion = totalPixels / 1_000_000;
 
-  // Use the controller selection from parent if available, otherwise calculate locally
   const selectedController = controllerSelection?.selectedController?.name || '4K PRIME';
 
-  // Mode logic: only TB40 and TB60 allow both modes, others default to Synchronous
   const isSyncAsyncSelectable = selectedController === 'TB40' || selectedController === 'TB60';
   React.useEffect(() => {
-    // Always default to Synchronous unless TB40 or TB60 and user has chosen otherwise
+
     if (!isSyncAsyncSelectable) {
       setCloudSolution('Synchronous');
     }
   }, [selectedController]);
 
-  // Call onModeChange when cloudSolution changes
   React.useEffect(() => {
     if (onModeChange && cloudSolution) onModeChange(cloudSolution);
   }, [cloudSolution]);
 
-  // Helper to check if product is Digital Standee
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
-  // Helper to check if product is Jumbo Series
+
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
-  // Helper to get fixed grid for Jumbo
+
   function getJumboFixedGrid(product: Product | undefined) {
     if (!product) return null;
     if (product.category?.toLowerCase() !== 'jumbo series') return null;
@@ -80,7 +74,6 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   }
   const jumboGrid = getJumboFixedGrid(selectedProduct);
 
-  // Use fixed grid for display if digital standee or jumbo
   const displayColumns = isDigitalStandee ? 7 : (jumboGrid ? jumboGrid.columns : cabinetGrid.columns);
   const displayRows = isDigitalStandee ? 5 : (jumboGrid ? jumboGrid.rows : cabinetGrid.rows);
 

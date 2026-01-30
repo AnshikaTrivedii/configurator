@@ -24,23 +24,22 @@ interface Props {
 }
 
 const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
-  // --- Interactivity State ---
+
   const [hoveredRun, setHoveredRun] = useState<number | null>(null);
   const [selectedRun, setSelectedRun] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; content: string } | null>(null);
-  // --- Sidebar/modal state ---
+
   const [sidebarData, setSidebarData] = useState<{
     type: string;
     data: any;
   } | null>(null);
-  
-  // --- Export functionality ---
+
   const flowRef = useRef<HTMLDivElement>(null);
   const reactFlowInstanceRef = useRef<any>(null);
   
   const getFlowViewport = (): HTMLElement | null => {
     if (!flowRef.current) return null;
-    // Find the React Flow viewport element - it contains the full diagram SVG
+
     const viewport = flowRef.current.querySelector('.react-flow__viewport') as HTMLElement;
     return viewport || flowRef.current;
   };
@@ -48,39 +47,34 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
   const exportAsImage = async (format: 'png' | 'jpeg' | 'svg') => {
     const instance = reactFlowInstanceRef.current;
     if (!instance) {
-      console.error('React Flow instance not available');
+
       return;
     }
     
     const viewportElement = getFlowViewport();
     if (!viewportElement) {
-      console.error('Could not find React Flow viewport');
+
       return;
     }
-    
-    // Save current viewport state outside try block for error handling
+
     let currentViewport: any = null;
     
     try {
-      // Save current viewport state
+
       currentViewport = instance.getViewport();
-      
-      // Fit view to show entire diagram before export
+
       instance.fitView({ padding: 0.2, duration: 200 });
-      
-      // Wait for fitView animation to complete
+
       await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Use scrollWidth and scrollHeight to capture the full diagram
+
       const fullWidth = viewportElement.scrollWidth;
       const fullHeight = viewportElement.scrollHeight;
       
       if (fullWidth === 0 || fullHeight === 0) {
-        console.error('Invalid viewport dimensions');
+
         return;
       }
-      
-      // Capture the viewport with transform removed and full dimensions
+
       const options = {
         pixelRatio: 3,
         backgroundColor: 'white',
@@ -92,7 +86,7 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
           transformOrigin: 'top left',
         },
         filter: (node: any) => {
-          // Exclude controls, minimap, and export buttons from export
+
           if (!node || !node.className) return true;
           const className = typeof node.className === 'string' ? node.className : '';
           return !className.includes('react-flow__controls') && 
@@ -124,19 +118,17 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
           mimeType = 'image/svg+xml';
           break;
       }
-      
-      // Restore viewport after capture
+
       instance.setViewport(currentViewport);
       
       download(dataUrl, filename, mimeType);
     } catch (error) {
-      console.error('Error exporting image:', error);
-      // Try to restore viewport even on error
+
       if (reactFlowInstanceRef.current && currentViewport) {
         try {
           reactFlowInstanceRef.current.setViewport(currentViewport);
         } catch (e) {
-          // Ignore restore errors
+
         }
       }
     }
@@ -145,37 +137,32 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
   const exportAsPDF = async () => {
     const instance = reactFlowInstanceRef.current;
     if (!instance) {
-      console.error('React Flow instance not available');
+
       return;
     }
     
     const viewportElement = getFlowViewport();
     if (!viewportElement) {
-      console.error('Could not find React Flow viewport');
+
       return;
     }
-    
-    // Save current viewport state outside try block for error handling
+
     let currentViewport: any = null;
     
     try {
-      // Save current viewport state
+
       currentViewport = instance.getViewport();
-      
-      // Fit view to show entire diagram before export
+
       instance.fitView({ padding: 0.2, duration: 200 });
-      
-      // Wait for fitView animation to complete
+
       await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Get all nodes to calculate the actual bounding box
+
       const nodes = instance.getNodes();
       if (nodes.length === 0) {
-        console.error('No nodes found in diagram');
+
         return;
       }
-      
-      // Calculate the actual bounding box from all nodes
+
       let minX = Infinity;
       let minY = Infinity;
       let maxX = -Infinity;
@@ -189,26 +176,22 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
         maxX = Math.max(maxX, node.position.x + nodeWidth);
         maxY = Math.max(maxY, node.position.y + nodeHeight);
       });
-      
-      // Add padding around the diagram
+
       const padding = 100;
       const nodeBasedWidth = Math.ceil(maxX - minX + padding * 2);
       const nodeBasedHeight = Math.ceil(maxY - minY + padding * 2);
-      
-      // Also get viewport dimensions as fallback
+
       const viewportWidth = viewportElement.scrollWidth || viewportElement.clientWidth;
       const viewportHeight = viewportElement.scrollHeight || viewportElement.clientHeight;
-      
-      // Use the maximum of both to ensure we capture everything
+
       const fullWidth = Math.max(nodeBasedWidth, viewportWidth);
       const fullHeight = Math.max(nodeBasedHeight, viewportHeight);
       
       if (fullWidth === 0 || fullHeight === 0) {
-        console.error('Invalid diagram dimensions');
+
         return;
       }
-      
-      // Capture the viewport with transform removed and full dimensions
+
       const options = {
         pixelRatio: 3,
         backgroundColor: 'white',
@@ -220,7 +203,7 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
           transformOrigin: 'top left',
         },
         filter: (node: any) => {
-          // Exclude controls, minimap, and export buttons from export
+
           if (!node || !node.className) return true;
           const className = typeof node.className === 'string' ? node.className : '';
           return !className.includes('react-flow__controls') && 
@@ -230,20 +213,16 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
                  !node.classList?.contains('absolute');
         },
       };
-      
-      // Convert to PNG first
+
       const dataUrl = await toPng(viewportElement, options);
-      
-      // Restore viewport before PDF creation (so user sees normal view)
+
       instance.setViewport(currentViewport);
-      
-      // Create PDF in landscape orientation
+
       const pdf = new jsPDF('l', 'pt', 'a4');
       const imgProps = pdf.getImageProperties(dataUrl);
       const pdfPageWidth = pdf.internal.pageSize.getWidth();
       const pdfPageHeight = pdf.internal.pageSize.getHeight();
-      
-      // Calculate scaling to fit within page while maintaining aspect ratio
+
       const imgAspectRatio = imgProps.width / imgProps.height;
       const pdfAspectRatio = pdfPageWidth / pdfPageHeight;
       
@@ -251,47 +230,41 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       let finalHeight: number;
       
       if (imgAspectRatio > pdfAspectRatio) {
-        // Image is wider - fit to page width
+
         finalWidth = pdfPageWidth;
         finalHeight = pdfPageWidth / imgAspectRatio;
       } else {
-        // Image is taller - fit to page height
+
         finalHeight = pdfPageHeight;
         finalWidth = pdfPageHeight * imgAspectRatio;
       }
-      
-      // Center the image on the page
+
       const xOffset = (pdfPageWidth - finalWidth) / 2;
       const yOffset = (pdfPageHeight - finalHeight) / 2;
       
       pdf.addImage(dataUrl, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
       pdf.save('power-wiring-diagram.pdf');
     } catch (error) {
-      console.error('Error exporting PDF:', error);
-      // Try to restore viewport even on error
+
       if (reactFlowInstanceRef.current && currentViewport) {
         try {
           reactFlowInstanceRef.current.setViewport(currentViewport);
         } catch (e) {
-          // Ignore restore errors
+
         }
       }
     }
   };
 
-  // Calculate pixel count per cabinet
   const pixelPitch = product.pixelPitch; // in mm
   const cabinetWidth = product.cabinetDimensions.width; // in mm
   const cabinetHeight = product.cabinetDimensions.height; // in mm
 
-  // Color palette for Data Hub groups
-  // Generate a unique color for each Data Hub
   function getHubColor(index: number, total: number) {
     const hue = (index * 360) / total;
     return `hsl(${hue}, 70%, 50%)`;
   }
 
-  // Make cabinetAssignments available for group backgrounds
   const cabinetAssignments: { [cabinetId: string]: number } = {};
   const generateNodesAndEdges = useMemo(() => {
     const cols = cabinetGrid.columns;
@@ -301,20 +274,16 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     const nodes: any[] = [];
     const edges: any[] = [];
 
-    // Data Hub stacking
     const dataHubStartX = 50;
     const dataHubStartY = 50;
     const dataHubSpacingY = 220;
     const dataHubs: { id: string; position: { x: number; y: number }; label: string }[] = [];
 
-    // Cabinet node layout
     const startX = 350;
     const startY = 150;
     const spacingX = 180; // was 140 or less
     const spacingY = 140; // was 120 or less
 
-    // Update the power run assignment logic to snake through the grid row by row, left to right, and start a new run as soon as the max is reached for the pixel pitch.
-    // Place this logic where you generate the nodes and edges:
     const getMaxPerRun = (pixelPitch: number) => {
       if ([0.9, 0.9375, 1.25, 1.5, 1.5625, 1.8, 2.5].some(p => Math.abs(pixelPitch - p) < 0.01)) return 25;
       if ([3, 3.0].some(p => Math.abs(pixelPitch - p) < 0.01)) return 35;
@@ -329,11 +298,11 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     for (let row = 0; row < cabinetGrid.rows; row++) {
       for (let col = 0; col < cabinetGrid.columns; col++) {
         const cabinetId = `cabinet-${row + 1}-${col + 1}`;
-        // Assign runIndex to cabinet node data
+
         cabinetAssignments[cabinetId] = runIndex;
-        // Debug log for hub assignment
+
         if (parseInt(cabinetId.split('-')[1], 10) >= 7 && parseInt(cabinetId.split('-')[1], 10) <= 18) {
-          console.log(`Cabinet ${cabinetId} assigned to hub ${runIndex}`);
+
         }
         cabinetsInRun++;
         if (cabinetsInRun === maxPerRun) {
@@ -344,7 +313,6 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       }
     }
 
-    // Add Data Hub nodes (vertical stacking)
     const totalHubs = runIndex; // Total number of power runs
     for (let i = 0; i < totalHubs; i++) {
       const color = getHubColor(i, totalHubs);
@@ -356,7 +324,6 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       });
     }
 
-    // Add cabinet nodes (serpentine placement)
     let nodeId = 1;
     for (let row = 0; row < rows; row++) {
       const isEven = row % 2 === 0;
@@ -364,7 +331,7 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
         const actualCol = isEven ? col : cols - 1 - col;
         const posX = startX + actualCol * spacingX;
         const posY = startY + row * spacingY;
-        // Assign the color of the respective Data Hub to each cabinet
+
         const hubIdx = cabinetAssignments[`cabinet-${nodeId}`];
         const color = getHubColor(hubIdx, totalHubs);
         nodes.push({
@@ -377,7 +344,6 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       }
     }
 
-    // Group cabinets by Data Hub and add group background nodes
     const groupBackgroundNodes: any[] = [];
     const groups: { [hubIdx: number]: { x: number[]; y: number[] } } = {};
     let tempNodeId = 1;
@@ -402,7 +368,7 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       const maxX = Math.max(...coords.x) + 170;
       const minY = Math.min(...coords.y) - 20;
       const maxY = Math.max(...coords.y) + 100;
-      // Optionally, you could color the background with the hub color as well
+
       groupBackgroundNodes.push({
         id: `group-bg-${hubIdx}`,
         type: 'groupBackground',
@@ -414,15 +380,14 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       });
     });
 
-    // Edges (serpentine wiring, no cross-hub connections)
     if (totalCabinets > 0) {
-      // Connect each Data Hub to the first cabinet in its range with a single step edge, using group color
+
       for (let i = 0; i < totalHubs; i++) {
         const hubId = `data-hub-${i + 1}`;
         const firstCabinetInRun = `cabinet-${i * maxPerRun + 1}`;
         const color = getHubColor(i, totalHubs);
         if (i === 0) {
-          // Data Hub 1: direct connection (as is)
+
           edges.push({
             id: `hub${i + 1}-to-cab${firstCabinetInRun}`,
             source: hubId,
@@ -434,14 +399,14 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
             targetHandle: 'center', // Always enter at the center
           });
         } else {
-          // Data Hub 2+: route between rows using bend points
+
           const cabNode = nodes.find(n => n.id === firstCabinetInRun);
           const hubNode = nodes.find(n => n.id === hubId);
           if (cabNode && hubNode) {
-            // Find the row of the first cabinet in this hub
+
             const cabIdx = parseInt(firstCabinetInRun.split('-')[1], 10) - 1;
             const cabRow = Math.floor(cabIdx / cols);
-            // Y position between previous row and this row
+
             const betweenRowsY = cabRow > 0
               ? (startY + (cabRow - 1) * spacingY + startY + cabRow * spacingY) / 2
               : cabNode.position.y - spacingY / 2;
@@ -471,16 +436,14 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
         const thisCabHub = cabinetAssignments[`cabinet-${i}`];
         const nextCabHub = cabinetAssignments[`cabinet-${i + 1}`];
         const color = getHubColor(thisCabHub, totalHubs);
-      
-        // Avoid wiring across hubs
+
         if (thisCabHub !== nextCabHub) continue;
       
         const sourceRow = Math.floor((i - 1) / cols);
         const nextRow = Math.floor(i / cols);
         const currentCol = (i - 1) % cols;
         const isSourceRowEven = sourceRow % 2 === 0;
-      
-        // Correct vertical connection: end of row (i % cols === 0)
+
         const isVerticalConnection = i % cols === 0 && nextRow === sourceRow + 1;
       
         if (isVerticalConnection) {
@@ -497,7 +460,7 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
           });
           continue;
         }
-        // Horizontal connection (step type)
+
         const sourceHandle = isSourceRowEven ? 'right-source' : 'left-source';
         const targetHandle = isSourceRowEven ? 'left-target' : 'right-target';
         edges.push({
@@ -517,15 +480,15 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
   }, [cabinetGrid, product]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(generateNodesAndEdges.nodes);
-  // --- Edge filtering: Remove previous cabinet-to-cabinet connection if cabinet is directly powered by a distributor ---
+
   const filterEdges = (edges: any[]) => {
-    // Find all cabinets that are directly powered by a distributor (i.e., have an edge from a data hub)
+
     const directlyPoweredCabinets = new Set(
       edges
         .filter(e => e.source && e.source.startsWith('data-hub-'))
         .map(e => e.target)
     );
-    // Remove cabinet-to-cabinet edge if the target is directly powered by a distributor
+
     return edges.filter(e => {
       if (e.source && e.source.startsWith('data-hub-')) return true;
       if (directlyPoweredCabinets.has(e.target)) return false;
@@ -541,7 +504,6 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     setEdges(filterEdges(generateNodesAndEdges.edges)); // Apply filter here
   }, [generateNodesAndEdges, setNodes, setEdges]);
 
-  // --- Custom Node Renderers with Interactivity ---
   const PowerNode = ({ data }: any) => {
     const color = runColors[(data.runIndex - 1) % runColors.length];
     return (
@@ -580,7 +542,6 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     );
   };
 
-  // --- Enhanced CabinetNode for always-on strong colored border and glow ---
   const CabinetNode = ({ data }: any) => {
     const color = runColors[(data.runIndex - 1) % runColors.length];
     const isActive = hoveredRun === data.runIndex || selectedRun === data.runIndex;
@@ -625,7 +586,6 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     );
   };
 
-  // Add this custom node type for group backgrounds
   const GroupBackgroundNode = ({ data }: any) => (
     <div
       style={{
@@ -641,18 +601,17 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     />
   );
 
-  // --- Custom BendEdge for React Flow ---
   const BendEdge: React.FC<EdgeProps> = ({ id, sourceX, sourceY, targetX, targetY, style, markerEnd, data }) => {
-    // Type guard for bendPoints
+
     const hasBendPoints = Array.isArray(data?.bendPoints) && data.bendPoints.length > 0;
     let finalTargetX = targetX;
     let finalTargetY = targetY;
-    // Offset the endpoint for better arrowhead visibility
+
     if (hasBendPoints) {
       const bendPoints = Array.isArray(data?.bendPoints) ? (data.bendPoints as { x: number; y: number }[]) : [];
       const lastBend = bendPoints.length > 0 ? bendPoints[bendPoints.length - 1] : undefined;
       if (lastBend) {
-        // Determine direction
+
         const dx = targetX - lastBend.x;
         const dy = targetY - lastBend.y;
         const len = Math.sqrt(dx * dx + dy * dy);
@@ -663,7 +622,7 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
       }
     }
     if (!hasBendPoints) {
-      // For straight lines, offset based on direction
+
       const dx = targetX - sourceX;
       const dy = targetY - sourceY;
       const len = Math.sqrt(dx * dx + dy * dy);
@@ -708,23 +667,8 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     bend: BendEdge,
   };
 
-  // --- Custom Legend ---
   const runColors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444'];
 
-  // 1. Glassmorphism for PR nodes and tooltips
-  // 2. Animated SVG edges with pulsing, glowing, and traveling dot
-  // 3. Sidebar/modal for PR/cabinet details on click
-  // 4. Curved/stepped edges
-  // 5. Responsive & dark mode (CSS vars or Tailwind)
-  // 6. MiniMap
-  // 7. Smooth transitions
-  // 8. Keyboard navigation & ARIA
-  // 9. Context menu on right-click
-  // 10. Drag-to-highlight and floating aggregate info
-
-  // For brevity, here is a high-impact sample for glassmorphism, animated edges, and a sidebar/modal:
-
-  // --- Glassmorphism Styles ---
   const glassStyle = {
     background: 'rgba(255,255,255,0.25)',
     boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
@@ -733,7 +677,6 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     border: '1px solid rgba(255,255,255,0.18)',
   };
 
-  // --- Enhanced AnimatedEdge for thick, glowing, animated cable from PR to first cabinet ---
   const AnimatedEdge = ({ id, sourceX, sourceY, targetX, targetY, style, markerEnd, data }: EdgeProps) => {
     const isMainCable = data && data.isMainCable;
     const runIndex: number = typeof data?.runIndex === 'number' ? data.runIndex : 1;
@@ -814,24 +757,6 @@ const PowerWiringView: React.FC<Props> = ({ product, cabinetGrid }) => {
     );
   };
 
-  // --- Sidebar/Modal for Details ---
-  // Add state:
-  // const [sidebarData, setSidebarData] = useState(null);
-  // On node click: setSidebarData({ type: 'pr', data: ... })
-  // Render a sidebar/modal with glassmorphism and smooth transitions.
-
-  // --- Responsive & Dark Mode ---
-  // Use Tailwind or CSS variables for colors, and add a dark mode toggle.
-
-  // --- MiniMap ---
-  // Already included in previous step.
-
-  // --- Context Menu, Keyboard Nav, Drag-to-Highlight ---
-  // Add event handlers and floating panels as needed.
-
-  // For a full implementation, expand each section, refactor node/edge renderers, and add the necessary state and event handlers. This will result in a beautiful, interactive, and accessible dashboard experience for your Power Wiring view.
-
-  // --- PR badge with lock icon ---
   return (
     <div ref={flowRef} style={{ width: '100%', height: '600px', position: 'relative', background: 'linear-gradient(to bottom right, #f8fafc, #e2e8f0)' }}>
       {/* Tooltip */}

@@ -16,17 +16,24 @@ const quotationSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // New: Reference to Client entity
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: false // Optional during migration
+  },
+  // Old fields: Keep for backward compatibility during migration
   customerName: {
     type: String,
-    required: true
+    required: false // Made optional for migration
   },
   customerEmail: {
     type: String,
-    required: true
+    required: false // Made optional for migration
   },
   customerPhone: {
     type: String,
-    required: true
+    required: false // Made optional for migration
   },
   productName: {
     type: String,

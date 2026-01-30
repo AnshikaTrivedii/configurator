@@ -104,7 +104,6 @@ const extractTemplatePages = async () => {
       throw new Error(`Template file not found: ${TEMPLATE_PATH}`);
     }
 
-    console.log('📄 Reading template.docx from:', TEMPLATE_PATH);
     const templateBuffer = fs.readFileSync(TEMPLATE_PATH);
     
     // Use PizZip to read the DOCX (which is a ZIP file)
@@ -122,9 +121,7 @@ const extractTemplatePages = async () => {
     // Read the document properties
     const appProps = zip.files['docProps/app.xml'];
     const coreProps = zip.files['docProps/core.xml'];
-    
-    console.log('✅ Successfully extracted template structure');
-    
+
     return {
       zip,
       documentXml: documentXml.asText(),
@@ -780,8 +777,6 @@ const extractTemplatePagesAsHTML = async () => {
       return [];
     }
 
-    console.log('📄 Converting template.docx to HTML...');
-    
     // Use mammoth to convert DOCX to HTML
     // Read the file as buffer first
     const templateBuffer = fs.readFileSync(TEMPLATE_PATH);
@@ -792,9 +787,7 @@ const extractTemplatePagesAsHTML = async () => {
     if (messages && messages.length > 0) {
       console.warn('⚠️ Mammoth conversion warnings:', messages);
     }
-    
-    console.log('✅ Template converted to HTML, length:', html.length);
-    
+
     // Split HTML by page breaks (mammoth converts page breaks to <p> with specific classes or <hr>)
     // We'll look for common page break indicators
     const pageBreaks = html.split(/<hr[^>]*>/gi).filter(p => p.trim().length > 0);
@@ -810,9 +803,7 @@ const extractTemplatePagesAsHTML = async () => {
     if (pages.length < 2) {
       pages = [html];
     }
-    
-    console.log(`📄 Extracted ${pages.length} pages from template`);
-    
+
     return pages;
   } catch (error) {
     console.error('❌ Error extracting template pages:', error);
@@ -844,10 +835,6 @@ export const generateWordDocumentFromTemplate = async (data) => {
       customPricing
     } = data;
 
-    console.log('📄 Generating Word document from template.docx...');
-    console.log('📁 Template path:', TEMPLATE_PATH);
-    console.log('📁 Template exists:', fs.existsSync(TEMPLATE_PATH));
-
     // Check if template exists
     if (!fs.existsSync(TEMPLATE_PATH)) {
       const errorMsg = `Template file not found: ${TEMPLATE_PATH}`;
@@ -868,7 +855,7 @@ export const generateWordDocumentFromTemplate = async (data) => {
     const A4_HEIGHT_EMU = Math.round((297 / 25.4) * 914400);
 
     // Extract images from template to use as backgrounds
-    console.log('📷 Extracting images from template...');
+
     const templateImages = {};
     let imageCount = 0;
     Object.keys(templateZip.files).forEach((fileName) => {
@@ -878,19 +865,18 @@ export const generateWordDocumentFromTemplate = async (data) => {
           const imageName = path.basename(fileName);
           templateImages[imageName] = imageBuffer;
           imageCount++;
-          console.log(`📷 Found image in template: ${imageName} (${(imageBuffer.length / 1024 / 1024).toFixed(2)} MB)`);
+
         } catch (imageError) {
           console.error(`❌ Error extracting image ${fileName}:`, imageError.message);
         }
       }
     });
-    console.log(`✅ Extracted ${imageCount} images from template`);
-    
+
     // Convert template to HTML to understand structure
     let templatePages = [];
     try {
       templatePages = await extractTemplatePagesAsHTML();
-      console.log(`📄 Template has ${templatePages.length} pages`);
+
     } catch (error) {
       console.warn('⚠️ Could not extract template pages, using template directly:', error.message);
     }
@@ -959,7 +945,7 @@ export const generateWordDocumentFromTemplate = async (data) => {
       } else {
         // Log warning if image not found
         console.warn(`⚠️ Template image not found for page ${i}: ${pageImageName}`);
-        console.log(`📷 Available images:`, Object.keys(templateImages));
+
         // Still create a page, but without background
         children.push(
           new Paragraph({
@@ -992,7 +978,7 @@ export const generateWordDocumentFromTemplate = async (data) => {
     }
     
     // Page 6: Quotation content with template page 6 background
-    console.log('📄 Creating quotation content for page 6...');
+
     const quotationContent = createQuotationContent({
       config,
       selectedProduct,
@@ -1003,15 +989,14 @@ export const generateWordDocumentFromTemplate = async (data) => {
       quotationId,
       customPricing
     });
-    console.log(`✅ Created ${quotationContent.length} quotation content elements`);
-    
+
     // Try to find page 6 background image
     const page6ImageName = 'image6.png';
     let page6Background = null;
     
     if (templateImages[page6ImageName]) {
       try {
-        console.log(`📷 Creating ImageRun for page 6 (${page6ImageName})...`);
+
         const uint8Array = new Uint8Array(templateImages[page6ImageName]);
         page6Background = new ImageRun({
           data: uint8Array,
@@ -1020,7 +1005,7 @@ export const generateWordDocumentFromTemplate = async (data) => {
             height: A4_HEIGHT_EMU,
           },
         });
-        console.log(`✅ ImageRun created for page 6`);
+
       } catch (imageError) {
         console.error(`❌ Error creating ImageRun for page 6:`, imageError.message);
       }
@@ -1082,7 +1067,7 @@ export const generateWordDocumentFromTemplate = async (data) => {
     });
     
     // Pages 7, 9, 10: Use template
-    console.log('📄 Creating sections for pages 7, 9, 10...');
+
     const remainingPages = [7, 9, 10];
     for (const i of remainingPages) {
       const pageImageName = `image${i}.png`;
@@ -1090,7 +1075,7 @@ export const generateWordDocumentFromTemplate = async (data) => {
       
       if (templateImages[pageImageName]) {
         try {
-          console.log(`📷 Creating ImageRun for page ${i} (${pageImageName})...`);
+
           const uint8Array = new Uint8Array(templateImages[pageImageName]);
           backgroundImage = new ImageRun({
             data: uint8Array,
@@ -1099,7 +1084,7 @@ export const generateWordDocumentFromTemplate = async (data) => {
               height: A4_HEIGHT_EMU,
             },
           });
-          console.log(`✅ ImageRun created for page ${i}`);
+
         } catch (imageError) {
           console.error(`❌ Error creating ImageRun for page ${i}:`, imageError.message);
         }
@@ -1168,7 +1153,7 @@ export const generateWordDocumentFromTemplate = async (data) => {
     }
     
     // Create document
-    console.log('📄 Creating Document object with', sections.length, 'sections...');
+
     const doc = new Document({
       creator: 'ORION LED Configurator',
       title: 'Configuration Quotation',
@@ -1177,11 +1162,11 @@ export const generateWordDocumentFromTemplate = async (data) => {
     });
     
     // Generate buffer
-    console.log('🔄 Packing document to buffer (this may take a while with large images)...');
+
     let buffer;
     try {
       buffer = await Packer.toBuffer(doc);
-      console.log('✅ Document packed successfully');
+
     } catch (packError) {
       console.error('❌ Error packing document:', packError);
       console.error('❌ Pack error message:', packError.message);
@@ -1192,9 +1177,7 @@ export const generateWordDocumentFromTemplate = async (data) => {
     if (!buffer || buffer.length === 0) {
       throw new Error('Generated buffer is empty');
     }
-    
-    console.log('✅ Word document generated successfully, size:', buffer.length, 'bytes (', (buffer.length / 1024 / 1024).toFixed(2), 'MB)');
-    
+
     return buffer;
     
   } catch (error) {

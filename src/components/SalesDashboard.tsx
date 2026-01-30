@@ -48,14 +48,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [pdfHtmlContent, setPdfHtmlContent] = useState<string>('');
 
-  // Edit Quote State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
 
   useEffect(() => {
-    console.log('🎯 SalesDashboard mounted, fetching data...');
+
     fetchDashboardData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   const fetchDashboardData = async (forceRefresh = false) => {
@@ -63,11 +62,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
       setLoading(true);
       setError(null);
 
-      console.log('🔄 Fetching sales dashboard data...', forceRefresh ? '(FORCE REFRESH)' : '');
-      console.log('🔑 Auth token present:', !!localStorage.getItem('salesToken'));
-
       const response = await salesAPI.getMyDashboard();
-      console.log('📊 Sales Dashboard API response:', response);
 
       if (!response || !response.success) {
         throw new Error('Invalid response from server');
@@ -80,8 +75,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
       setTotalRevenue(response.totalRevenue || 0);
       setLastRefreshTime(new Date());
     } catch (err: any) {
-      console.error('❌ Error fetching sales dashboard data:', err);
-      console.error('❌ Error details:', JSON.stringify(err, null, 2));
+
       setError(err.message || 'Failed to load dashboard data. Please try again.');
     } finally {
       setLoading(false);
@@ -108,49 +102,40 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     try {
       setSelectedQuotation(quotation);
 
-      // Priority 1: Check if PDF is stored in S3
       if (quotation.pdfS3Key || quotation.pdfS3Url) {
         try {
-          // Get fresh presigned URL (expires in 1 hour)
+
           const pdfUrlResponse = await salesAPI.getQuotationPdfUrl(quotation.quotationId);
 
-          // Open PDF in new tab
           window.open(pdfUrlResponse.pdfS3Url, '_blank');
           return;
         } catch (s3Error) {
-          console.error('Error fetching PDF from S3:', s3Error);
-          // Fallback to HTML view if S3 fails
-          console.log('Falling back to HTML view...');
+
         }
       }
 
-      // Priority 2: If PDF HTML is stored, use it directly
       if (quotation.pdfPage6HTML) {
         setPdfHtmlContent(quotation.pdfPage6HTML);
         setIsPdfModalOpen(true);
         return;
       }
 
-      // Otherwise, try to regenerate PDF from stored data
-      // CRITICAL: Use exactPricingBreakdown and exactProductSpecs to ensure exact match
       if (quotation.exactPricingBreakdown && quotation.exactProductSpecs) {
         const productDetails = quotation.productDetails;
         const exactSpecs = quotation.exactProductSpecs;
 
-        // Extract necessary data for PDF generation - use stored specs first
         const product = productDetails?.product || productDetails;
 
-        // Use stored config from quotationData if available, otherwise extract from productDetails
         let config = quotation.quotationData?.config;
         if (!config && exactSpecs.displaySize) {
-          // Convert display size from meters to mm
+
           config = {
             width: (exactSpecs.displaySize.width * 1000) || 0,
             height: (exactSpecs.displaySize.height * 1000) || 0,
             unit: 'mm'
           };
         } else if (!config) {
-          // Fallback to productDetails
+
           config = {
             width: productDetails?.width || productDetails?.displaySize?.width || 0,
             height: productDetails?.height || productDetails?.displaySize?.height || 0,
@@ -158,17 +143,14 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           };
         }
 
-        // Use stored specs for cabinetGrid and processor
         const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
         const processor = exactSpecs.processor || productDetails?.processor || null;
         const mode = exactSpecs.mode || productDetails?.mode || undefined;
 
-        // Find customer info for userInfo
         const customer = customers.find(c =>
           c.quotations.some(q => q.quotationId === quotation.quotationId)
         );
 
-        // Map userType to the format expected by generateConfigurationHtml
         let userTypeForHtml: 'End User' | 'Reseller' | 'Channel' = 'End User';
         if (quotation.userType === 'siChannel') {
           userTypeForHtml = 'Channel';
@@ -183,8 +165,6 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           phoneNumber: customer?.customerPhone || ''
         };
 
-        // Generate HTML content using EXACT stored pricing breakdown
-        // This ensures prices match exactly what was saved
         const htmlContent = generateConfigurationHtml(
           config,
           product,
@@ -209,7 +189,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
         alert('PDF data not available for this quotation. The quotation may have been created before PDF storage was implemented. Please contact support.');
       }
     } catch (error) {
-      console.error('Error viewing PDF:', error);
+
       alert('Failed to load PDF. Please try again or contact support.');
     }
   };
@@ -218,7 +198,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     if (onEditQuotation) {
       onEditQuotation(quotation);
     } else {
-      // Fallback to local modal
+
       setEditingQuotation(quotation);
       setIsEditModalOpen(true);
     }
@@ -228,10 +208,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     if (!selectedQuotation || !pdfHtmlContent) return;
 
     try {
-      // Import html2pdf dynamically
+
       const html2pdf = (await import('html2pdf.js')).default;
 
-      // Create a temporary container for the HTML
       const element = document.createElement('div');
       element.innerHTML = pdfHtmlContent;
       element.style.position = 'absolute';
@@ -248,10 +227,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
 
       await html2pdf().set(opt).from(element).save();
 
-      // Cleanup
       document.body.removeChild(element);
     } catch (error) {
-      console.error('Error downloading PDF:', error);
+
       alert('Failed to download PDF. Please try again.');
     }
   };
@@ -513,7 +491,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             setEditingQuotation(null);
           }}
           onSubmit={() => {
-            // Refresh dashboard data after successful update
+
             fetchDashboardData(true);
             setIsEditModalOpen(false);
             setEditingQuotation(null);

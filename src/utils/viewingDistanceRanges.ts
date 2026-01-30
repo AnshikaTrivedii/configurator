@@ -1,5 +1,4 @@
-// Viewing Distance Ranges based on Pixel Pitch
-// Updated according to the provided viewing distance tables for Indoor and Outdoor
+
 
 import { AVAILABLE_PIXEL_PITCHES } from './pixelPitchRecommendation';
 
@@ -13,8 +12,6 @@ export interface ViewingDistanceRange {
   environment?: 'Indoor' | 'Outdoor'; // Optional environment filter
 }
 
-// Indoor viewing distance ranges (from the provided table)
-// Note: Some pixel pitches appear in multiple rows (e.g., P1.25 appears in both 0.9-1.5m and 1.25-1.8m)
 export const INDOOR_VIEWING_DISTANCE_RANGES: ViewingDistanceRange[] = [
   { pixelPitch: 0.9,  minMeters: 0.9,  maxMeters: 1.5,  minFeet: 3,   maxFeet: 4.9,  displayText: '0.9-1.5m (3-4.9ft)', environment: 'Indoor' },
   { pixelPitch: 1.25, minMeters: 0.9,  maxMeters: 1.5,  minFeet: 3,   maxFeet: 4.9,  displayText: '0.9-1.5m (3-4.9ft)', environment: 'Indoor' }, // P1.25 also in first row
@@ -24,7 +21,6 @@ export const INDOOR_VIEWING_DISTANCE_RANGES: ViewingDistanceRange[] = [
   { pixelPitch: 2.5,  minMeters: 1.8,  maxMeters: 3,    minFeet: 5.9,  maxFeet: 9.8,  displayText: '1.8-3m (5.9-9.8ft)', environment: 'Indoor' }
 ];
 
-// Outdoor viewing distance ranges (from the provided table)
 export const OUTDOOR_VIEWING_DISTANCE_RANGES: ViewingDistanceRange[] = [
   { pixelPitch: 2.5,  minMeters: 2.5,  maxMeters: 3,    minFeet: 8.2, maxFeet: 9.8,  displayText: '2.5-3m (8.2-9.8ft)', environment: 'Outdoor' },
   { pixelPitch: 3,    minMeters: 2.5,  maxMeters: 3,    minFeet: 8.2, maxFeet: 9.8,  displayText: '2.5-3m (8.2-9.8ft)', environment: 'Outdoor' },
@@ -34,7 +30,6 @@ export const OUTDOOR_VIEWING_DISTANCE_RANGES: ViewingDistanceRange[] = [
   { pixelPitch: 10,   minMeters: 10,   maxMeters: 999,  minFeet: 32.8, maxFeet: 3278, displayText: '10m+ (32.8ft+)', environment: 'Outdoor' }
 ];
 
-// Combined ranges for backward compatibility (defaults to Indoor if environment not specified)
 export const VIEWING_DISTANCE_RANGES: ViewingDistanceRange[] = [
   ...INDOOR_VIEWING_DISTANCE_RANGES,
   ...OUTDOOR_VIEWING_DISTANCE_RANGES
@@ -67,14 +62,12 @@ export function getViewingDistanceOptions(pixelPitch: number, environment?: 'Ind
   }
 
   const options = [];
-  
-  // Add minimum distance option
+
   options.push({
     value: `${range.minMeters}`,
     label: `${range.minMeters}m (${range.minFeet}ft) - Minimum`
   });
 
-  // Add maximum distance option (skip if it's a "10m+" range)
   if (range.maxMeters < 999) {
     options.push({
       value: `${range.maxMeters}`,
@@ -82,7 +75,6 @@ export function getViewingDistanceOptions(pixelPitch: number, environment?: 'Ind
     });
   }
 
-  // Add range option
   const rangeValue = range.maxMeters >= 999 ? `${range.minMeters}+` : `${range.minMeters}-${range.maxMeters}`;
   options.push({
     value: rangeValue,
@@ -112,12 +104,9 @@ export function getRecommendedViewingDistance(pixelPitch: number, environment?: 
 export function isViewingDistanceInRange(pixelPitch: number, distance: number, unit: 'meters' | 'feet', environment?: 'Indoor' | 'Outdoor' | null): boolean {
   const range = getViewingDistanceRange(pixelPitch, environment);
   if (!range) return false;
-  
-  // Convert distance to meters if needed
+
   const distanceInMeters = unit === 'feet' ? distance * 0.3048 : distance;
-  
-  // Check if distance is within the recommended range
-  // For ranges with max >= 999, treat as "and above"
+
   if (range.maxMeters >= 999) {
     return distanceInMeters >= range.minMeters;
   }
@@ -130,24 +119,21 @@ export function isViewingDistanceInRange(pixelPitch: number, distance: number, u
  */
 export function getAllViewingDistanceOptions(): { value: string; label: string; pixelPitch?: number }[] {
   const options: { value: string; label: string; pixelPitch?: number }[] = [];
-  
-  // Add all pixel pitch ranges
+
   VIEWING_DISTANCE_RANGES.forEach(range => {
-    // Add minimum distance option
+
     options.push({
       value: `${range.pixelPitch}-min`,
       label: `P${range.pixelPitch} - ${range.minMeters}m (${range.minFeet}ft) - Minimum`,
       pixelPitch: range.pixelPitch
     });
-    
-    // Add maximum distance option
+
     options.push({
       value: `${range.pixelPitch}-max`,
       label: `P${range.pixelPitch} - ${range.maxMeters}m (${range.maxFeet}ft) - Maximum`,
       pixelPitch: range.pixelPitch
     });
-    
-    // Add range option
+
     options.push({
       value: `${range.pixelPitch}-range`,
       label: `P${range.pixelPitch} - ${range.displayText} - Recommended Range`,
@@ -170,14 +156,12 @@ export function getViewingDistanceOptionsForPixelPitch(pixelPitch: number, envir
   }
 
   const options = [];
-  
-  // Add minimum distance option
+
   options.push({
     value: `${range.pixelPitch}-min`,
     label: `${range.minMeters}m (${range.minFeet}ft) - Minimum`
   });
 
-  // Add maximum distance option (skip if it's a "10m+" range)
   if (range.maxMeters < 999) {
     options.push({
       value: `${range.pixelPitch}-max`,
@@ -185,7 +169,6 @@ export function getViewingDistanceOptionsForPixelPitch(pixelPitch: number, envir
     });
   }
 
-  // Add range option
   options.push({
     value: `${range.pixelPitch}-range`,
     label: `${range.displayText} - Recommended Range`
@@ -210,8 +193,7 @@ export function getViewingDistanceOptionsByUnit(unit: 'meters' | 'feet', environ
   
   ranges.forEach(range => {
     if (unit === 'meters') {
-      // Show distances in meters as min-to-max range (without pixel pitch info)
-      // For 10m+, show as "10+" instead of "10-999"
+
       const maxValue = range.maxMeters >= 999 ? '+' : range.maxMeters;
       const label = range.maxMeters >= 999 ? `${range.minMeters}m+` : `${range.minMeters}-${range.maxMeters}m`;
       options.push({
@@ -220,7 +202,7 @@ export function getViewingDistanceOptionsByUnit(unit: 'meters' | 'feet', environ
         pixelPitch: range.pixelPitch
       });
     } else {
-      // Show distances in feet as min-to-max range (without pixel pitch info)
+
       const maxValue = range.maxFeet >= 3278 ? '+' : range.maxFeet;
       const label = range.maxFeet >= 3278 ? `${range.minFeet}ft+` : `${range.minFeet}-${range.maxFeet}ft`;
       options.push({
@@ -230,8 +212,7 @@ export function getViewingDistanceOptionsByUnit(unit: 'meters' | 'feet', environ
       });
     }
   });
-  
-  // Remove duplicates and sort by pixel pitch
+
   const uniqueOptions = options.filter((option, index, self) => 
     index === self.findIndex(o => o.value === option.value)
   );
@@ -253,7 +234,6 @@ export function getPixelPitchesForViewingDistanceRange(
 ): number[] {
   if (!distanceRange) return [];
 
-  // Handle "10+" format for 10m+ ranges
   const isPlusRange = distanceRange.endsWith('+');
   const cleanRange = isPlusRange ? distanceRange.slice(0, -1) : distanceRange;
   const [minStr, maxStr] = cleanRange.split('-');
@@ -284,21 +264,18 @@ export function getPixelPitchesForViewingDistanceRange(
       rangeMax = range.maxFeet;
     }
 
-    // For plus ranges (10+), check if selectedMin matches rangeMin and rangeMax is high
     if (isPlusRange) {
       if (Math.abs(selectedMin - rangeMin) < 0.01 && rangeMax >= 999) {
         matchingPixelPitches.push(range.pixelPitch);
       }
     } else {
-      // Match any pixel pitch that has the same viewing distance range
-      // Multiple pixel pitches can share the same range (e.g., P0.9 and P1.25 both have 0.9-1.5m)
+
       if (Math.abs(selectedMin - rangeMin) < 0.01 && Math.abs(selectedMax - rangeMax) < 0.01) {
         matchingPixelPitches.push(range.pixelPitch);
       }
     }
   });
 
-  // Remove duplicates and return unique pixel pitches
   return Array.from(new Set(matchingPixelPitches));
 }
 
@@ -345,9 +322,7 @@ export function getPixelPitchesForViewingDistance(distance: number, unit: 'meter
       minDistance = range.minFeet;
       maxDistance = range.maxFeet;
     }
-    
-    // Check if the selected distance falls within this pixel pitch range
-    // For ranges with max >= 999, treat as "and above"
+
     if (maxDistance >= 999) {
       if (distance >= minDistance) {
         matchingPixelPitches.push(range.pixelPitch);

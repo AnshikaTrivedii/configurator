@@ -38,7 +38,6 @@ class SalesAPI {
     };
   }
 
-  // Cache for user data to avoid repeated API calls
   private userCache: SalesUser | null = null;
   private cacheTimestamp: number = 0;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -59,12 +58,6 @@ class SalesAPI {
 
   async login(email: string, password: string): Promise<LoginResponse> {
     try {
-      console.log('🔐 ========== LOGIN ATTEMPT ==========');
-      console.log('🔐 API Base URL:', API_BASE_URL);
-      console.log('🔐 Full Login URL:', `${API_BASE_URL}/sales/login`);
-      console.log('📧 Email:', email);
-      console.log('🔐 Environment:', import.meta.env.MODE);
-      console.log('🔐 VITE_API_URL:', import.meta.env.VITE_API_URL);
 
       const response = await fetch(`${API_BASE_URL}/sales/login`, {
         method: 'POST',
@@ -74,42 +67,30 @@ class SalesAPI {
         body: JSON.stringify({ email, password })
       });
 
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response ok:', response.ok);
-      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
-
-      // Handle network errors (CORS, connection refused, etc.)
       if (!response.ok && response.status === 0) {
-        console.error('❌ Network error: Response status is 0');
+
         throw new Error('Failed to connect to server. Please check if the backend is running on port 3001.');
       }
 
-      // Read response as text first so we can use it for both JSON parsing and error messages
       const responseText = await response.text();
-      console.log('📄 Response text:', responseText);
 
       let data;
       try {
         data = JSON.parse(responseText);
-        console.log('📦 Response data:', data);
+
       } catch (jsonError) {
-        console.error('❌ JSON parse error:', jsonError);
-        console.error('📄 Response text that failed to parse:', responseText);
+
         throw new Error(`Invalid response from server (${response.status}). Please check if the backend is running and accessible.`);
       }
 
       if (!response.ok) {
-        console.error('❌ Login failed:', data);
-        // Provide more specific error messages
+
         if (response.status === 400) {
           throw new Error(data.message || 'Invalid email or password. Please check your credentials.');
         } else if (response.status === 401) {
           throw new Error(data.message || 'Authentication failed. Please check your credentials.');
         } else if (response.status === 502) {
-          // 502 Bad Gateway - backend is unreachable
-          console.error('❌ 502 Bad Gateway - Backend server is unreachable');
-          console.error('❌ API URL being used:', API_BASE_URL);
-          console.error('❌ VITE_API_URL env var:', import.meta.env.VITE_API_URL);
+
           throw new Error(
             `Backend server is unreachable (502 Bad Gateway).\n\n` +
             `This usually means:\n` +
@@ -130,36 +111,25 @@ class SalesAPI {
         }
       }
 
-      // Cache user data for faster subsequent access
       if (data.success && data.user) {
         this.setUserCache(data.user);
-        console.log('✅ Login successful for user:', data.user.email);
+
       }
 
       return data;
     } catch (error: any) {
-      console.error('❌ ========== LOGIN ERROR ==========');
-      console.error('❌ Error type:', error?.constructor?.name);
-      console.error('❌ Error message:', error?.message);
-      console.error('❌ Error stack:', error?.stack);
-      console.error('❌ Full error object:', error);
-      console.error('❌ API Base URL:', API_BASE_URL);
-      console.error('❌ =================================');
 
-      // Handle network errors (fetch failed completely - CORS, connection refused, etc.)
       if (error instanceof TypeError) {
         if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
-          console.error('❌ Network error detected - Backend server may not be running or accessible');
-          console.error('❌ Trying to connect to:', `${API_BASE_URL}/sales/login`);
+
           throw new Error('Cannot connect to backend server. Please ensure:\n1. Backend server is running on port 3001\n2. Backend URL is correct: ' + API_BASE_URL + '\n3. No firewall is blocking the connection\n4. Test backend: Open http://localhost:3001/health in browser');
         }
         if (error.message.includes('CORS')) {
-          console.error('❌ CORS error detected');
+
           throw new Error('CORS error: Backend server is not allowing requests from this origin. Please check CORS configuration in backend/server.js');
         }
       }
 
-      // Re-throw other errors with their original messages
       throw error;
     }
   }
@@ -197,7 +167,7 @@ class SalesAPI {
   }
 
   async getProfile(): Promise<{ success: boolean; user: SalesUser; mustChangePassword: boolean }> {
-    // Return cached data if available and valid
+
     if (this.isCacheValid() && this.userCache) {
       return {
         success: true,
@@ -217,7 +187,6 @@ class SalesAPI {
       throw new Error(data.message || 'Failed to get profile');
     }
 
-    // Cache the user data
     if (data.success && data.user) {
       this.setUserCache(data.user);
     }
@@ -225,7 +194,6 @@ class SalesAPI {
     return data;
   }
 
-  // Utility methods
   isLoggedIn(): boolean {
     return !!localStorage.getItem('salesToken');
   }
@@ -268,39 +236,23 @@ class SalesAPI {
   }
 
   async getSalesPersons(): Promise<{ success: boolean; salesPersons: any[]; stats: any }> {
-    console.log('🌐 Making API call to dashboard endpoint...');
-    console.log('🔗 API URL:', `${API_BASE_URL}/sales/dashboard`);
-    console.log('🔑 Auth headers:', this.getAuthHeaders());
 
-    // Add cache-busting parameter
     const url = `${API_BASE_URL}/sales/dashboard?t=${Date.now()}`;
-    console.log('🔗 Final URL:', url);
 
     const response = await fetch(url, {
       method: 'GET',
       headers: this.getAuthHeaders()
     });
 
-    console.log('📡 API Response status:', response.status);
-    console.log('📡 API Response ok:', response.ok);
-
     const data = await response.json();
-    console.log('📦 Raw API response data:', data);
 
     if (!response.ok) {
-      console.error('❌ API Error:', data);
+
       throw new Error(data.message || 'Failed to get sales persons data');
     }
 
-    // Use the stats directly from the API response
     const salesPersons = data.data || [];
     const apiStats = data.stats || {};
-    console.log('📊 API Stats received:', apiStats);
-    console.log('💰 API totalRevenue:', apiStats.totalRevenue);
-    console.log('💰 API totalRevenue type:', typeof apiStats.totalRevenue);
-    console.log('💰 API totalRevenue === 0:', apiStats.totalRevenue === 0);
-    console.log('💰 API totalRevenue == 0:', apiStats.totalRevenue == 0);
-    console.log('💰 API totalRevenue || 0:', apiStats.totalRevenue || 0);
 
     const stats = {
       totalSalesPersons: salesPersons.length,
@@ -312,9 +264,6 @@ class SalesAPI {
       quotationsByMonth: apiStats.quotationsByMonth || []
     };
 
-    console.log('🏁 Final stats object:', stats);
-    console.log('💰 Final totalRevenue:', stats.totalRevenue);
-
     return {
       success: true,
       salesPersons,
@@ -323,17 +272,6 @@ class SalesAPI {
   }
 
   async saveQuotation(quotationData: any): Promise<{ success: boolean; message: string; quotationId: string }> {
-    // PRODUCTION DEBUG: Log the exact payload being sent to backend
-    console.log('📤 API CALL - saveQuotation:', {
-      environment: import.meta.env.MODE,
-      apiBaseUrl: API_BASE_URL,
-      salesUserId: quotationData.salesUserId,
-      salesUserIdType: typeof quotationData.salesUserId,
-      salesUserName: quotationData.salesUserName,
-      quotationId: quotationData.quotationId,
-      payloadKeys: Object.keys(quotationData),
-      timestamp: new Date().toISOString()
-    });
 
     const response = await fetch(`${API_BASE_URL}/sales/quotation`, {
       method: 'POST',
@@ -357,31 +295,25 @@ class SalesAPI {
     totalQuotations: number;
     totalCustomers: number
   }> {
-    console.log('🌐 API Call: getSalesPersonDetails for ID:', salesPersonId);
 
-    // Add cache-busting parameter to ensure fresh data
     const url = `${API_BASE_URL}/sales/salesperson/${salesPersonId}?t=${Date.now()}`;
-    console.log('🔗 Final URL:', url);
 
     const response = await fetch(url, {
       method: 'GET',
       headers: this.getAuthHeaders()
     });
 
-    console.log('📡 API Response status:', response.status);
     const data = await response.json();
-    console.log('📊 API Response data:', data);
 
     if (!response.ok) {
       throw new Error(data.message || 'Failed to get sales person details');
     }
 
-    // Log specific quotation pricing from API response
     if (data.customers) {
       data.customers.forEach((customer: any, index: number) => {
-        console.log(`🔍 API Customer ${index + 1}: ${customer.customerName}`);
+
         customer.quotations?.forEach((quotation: any, qIndex: number) => {
-          console.log(`  📋 API Quotation ${qIndex + 1}: ${quotation.quotationId} - Price: ₹${quotation.totalPrice?.toLocaleString('en-IN')}`);
+
         });
       });
     }
@@ -436,7 +368,7 @@ class SalesAPI {
     message: string;
   }> {
     try {
-      // Convert blob to base64
+
       const pdfBase64 = await this.blobToBase64(pdfBlob);
 
       const response = await fetch(`${API_BASE_URL}/sales/quotation/${encodeURIComponent(quotationId)}/upload-pdf`, {
@@ -453,7 +385,7 @@ class SalesAPI {
 
       return data;
     } catch (error: any) {
-      console.error('Error uploading PDF to S3:', error);
+
       throw error;
     }
   }
@@ -466,7 +398,7 @@ class SalesAPI {
     pdfS3Url: string;
     pdfS3Key: string;
   }> {
-    // Add timestamp to prevent caching of the API response
+
     const response = await fetch(`${API_BASE_URL}/sales/quotation/${encodeURIComponent(quotationId)}/pdf-url?t=${Date.now()}`, {
       method: 'GET',
       headers: this.getAuthHeaders()
@@ -481,7 +413,6 @@ class SalesAPI {
     return data;
   }
 
-  // Update existing quotation (including PDF replacement)
   async updateQuotation(quotationId: string, updateData: any): Promise<{ success: boolean; message: string; quotation: any }> {
     const response = await fetch(`${API_BASE_URL}/sales/quotation/${encodeURIComponent(quotationId)}`, {
       method: 'PUT',
@@ -492,15 +423,13 @@ class SalesAPI {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('❌ Update failed with status:', response.status);
-      console.error('❌ Update error data:', data);
+
       throw new Error(data.message || 'Failed to update quotation');
     }
 
     return data;
   }
 
-  // Delete quotation (super admin only)
   async deleteQuotation(quotationId: string): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${API_BASE_URL}/sales/quotation/${encodeURIComponent(quotationId)}`, {
       method: 'DELETE',
@@ -510,8 +439,7 @@ class SalesAPI {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('❌ Delete failed with status:', response.status);
-      console.error('❌ Delete error data:', data);
+
       throw new Error(data.message || 'Failed to delete quotation');
     }
 

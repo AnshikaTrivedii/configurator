@@ -4,10 +4,6 @@ import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { getProcessorPrice } from './processorPrices';
 
-// For HTML to DOCX conversion, we'll use a browser-compatible approach
-// Using the existing docx library with HTML content processed for Word compatibility
-
-// Phone number mapping for sales team members
 const SALES_PHONE_MAPPING: Record<string, string> = {
   'ashoo.nitin@orion-led.com': '8826888023',
   'mukund.puranik@orion-led.com': '9701797731',
@@ -23,27 +19,20 @@ const SALES_PHONE_MAPPING: Record<string, string> = {
   'amisha@orion-led.com': '98391 77083',
 };
 
-// Default phone number fallback
 const DEFAULT_PHONE_NUMBER = '98391 77083';
 
-// Function to get the correct phone number for a sales user
 const getSalesPhoneNumber = (salesUser: { email: string; name: string; contactNumber: string; location: string } | null | undefined): string => {
   if (!salesUser) {
     return DEFAULT_PHONE_NUMBER;
   }
 
-  // Check if we have a specific mapping for this email
   const mappedPhone = SALES_PHONE_MAPPING[salesUser.email.toLowerCase()];
   if (mappedPhone) {
     return mappedPhone;
   }
 
-  // Fall back to the contact number from the user object, or default
   return salesUser.contactNumber || DEFAULT_PHONE_NUMBER;
 };
-//
-
-//
 
 /**
  * Generate DOCX file from HTML quotation document
@@ -86,7 +75,7 @@ export const generateConfigurationDocx = async (
   }
 ): Promise<Blob> => {
   try {
-    // Generate the HTML content using the same function as PDF export
+
     const htmlContent = generateConfigurationHtml(
       config,
       selectedProduct,
@@ -100,10 +89,6 @@ export const generateConfigurationDocx = async (
       exactPricingBreakdown
     );
 
-    // For browser-compatible DOCX export, we convert HTML pages to images
-    // and embed them in DOCX. This ensures pixel-perfect rendering.
-
-    // Create a temporary container to render the HTML
     const container = document.createElement('div');
     container.style.position = 'fixed';
     container.style.left = '-10000px';
@@ -113,7 +98,6 @@ export const generateConfigurationDocx = async (
     container.innerHTML = htmlContent;
     document.body.appendChild(container);
 
-    // Wait for images to load
     const allImages = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
     await Promise.all(
       allImages.map(img =>
@@ -126,10 +110,8 @@ export const generateConfigurationDocx = async (
       )
     );
 
-    // Small delay to ensure rendering is complete
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Get all page elements
     const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
 
     if (pages.length === 0) {
@@ -137,29 +119,22 @@ export const generateConfigurationDocx = async (
       throw new Error('No pages found in HTML content');
     }
 
-    // A4 dimensions conversion:
-    // - For images: Use EMU (English Metric Units), 1 inch = 914400 EMU
-    // - For page size: Use twips, 1 inch = 1440 twips
-    // A4: 210mm x 297mm = 8.2677" x 11.6929"
     const A4_WIDTH_INCHES = 210 / 25.4;
     const A4_HEIGHT_INCHES = 297 / 25.4;
 
-    // Image dimensions in EMU
     const A4_WIDTH_EMU = Math.round(A4_WIDTH_INCHES * 914400);
     const A4_HEIGHT_EMU = Math.round(A4_HEIGHT_INCHES * 914400);
 
-    // Page size in twips (1 inch = 1440 twips)
     const A4_WIDTH_TWIPS = Math.round(A4_WIDTH_INCHES * 1440);
     const A4_HEIGHT_TWIPS = Math.round(A4_HEIGHT_INCHES * 1440);
 
     const docChildren: (Paragraph)[] = [];
 
-    // Convert each page to an image and add to DOCX
     for (let i = 0; i < pages.length; i++) {
       const pageEl = pages[i];
 
       try {
-        // Convert page to canvas with high quality
+
         const canvas = await html2canvas(pageEl, {
           scale: 2, // Higher scale for better quality
           useCORS: true,
@@ -171,7 +146,6 @@ export const generateConfigurationDocx = async (
           windowHeight: pageEl.scrollHeight || 1123, // A4 height in pixels at 96 DPI
         });
 
-        // Convert canvas to blob
         const blob = await new Promise<Blob>((resolve, reject) => {
           canvas.toBlob((blob) => {
             if (blob) {
@@ -182,14 +156,9 @@ export const generateConfigurationDocx = async (
           }, 'image/png', 1.0); // Maximum quality
         });
 
-        // Convert blob to ArrayBuffer, then to Uint8Array
-        // docx library works with Uint8Array in browser environments
         const arrayBuffer = await blob.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
 
-        // Create image run with exact A4 dimensions in EMU
-        // docx library v9 expects data as Uint8Array and transformation in EMU
-        // @ts-expect-error - ImageRun type definition doesn't match actual usage
         const imageRun = new ImageRun({
           data: uint8Array,
           transformation: {
@@ -198,7 +167,6 @@ export const generateConfigurationDocx = async (
           },
         });
 
-        // Add paragraph with image
         docChildren.push(
           new Paragraph({
             children: [imageRun],
@@ -206,7 +174,6 @@ export const generateConfigurationDocx = async (
           })
         );
 
-        // Add page break after each page (except the last)
         if (i < pages.length - 1) {
           docChildren.push(
             new Paragraph({
@@ -216,15 +183,12 @@ export const generateConfigurationDocx = async (
           );
         }
       } catch (error) {
-        console.error(`Error converting page ${i + 1} to image:`, error);
-        // Continue with next page if one fails
+
       }
     }
 
-    // Remove temporary container
     document.body.removeChild(container);
 
-    // Create document with proper A4 dimensions in twips
     const doc = new Document({
       creator: 'ORION LED Configurator',
       title: 'Configuration Quotation',
@@ -248,11 +212,10 @@ export const generateConfigurationDocx = async (
       }],
     });
 
-    // Generate blob
     const blob = await Packer.toBlob(doc);
     return blob;
   } catch (error) {
-    console.error('Error generating DOCX from HTML:', error);
+
     throw new Error('Failed to generate DOCX file. Please try again.');
   }
 };
@@ -269,7 +232,6 @@ interface UserInfo {
   validity?: string;
 }
 
-// Function to generate HTML preview of the configuration
 export const generateConfigurationHtml = (
   config: DisplayConfig,
   selectedProduct: Product,
@@ -299,7 +261,7 @@ export const generateConfigurationHtml = (
     };
   }
 ): string => {
-  // Calculate display area
+
   const METERS_TO_FEET = 3.2808399;
   const toDisplayUnit = (mm: number, unit: string) => {
     const meters = mm / 1000;
@@ -313,19 +275,15 @@ export const generateConfigurationHtml = (
   const displayedHeight = parseFloat(toDisplayUnit(config.height, config.unit));
   void displayedWidth; void displayedHeight;
 
-  // Calculate diagonal
   const diagonalMeters = Math.sqrt(Math.pow(config.width / 1000, 2) + Math.pow(config.height / 1000, 2));
   void diagonalMeters;
 
-  // Calculate power consumption
   const avgPowerPerCabinet = selectedProduct.avgPowerConsumption || 91.7;
   const maxPowerPerCabinet = selectedProduct.maxPowerConsumption || (avgPowerPerCabinet * 3);
   void avgPowerPerCabinet; void maxPowerPerCabinet;
 
-  // Calculate total pixels
   void cabinetGrid; void selectedProduct;
 
-  // Normalize user type coming from UI/legacy flows to the values expected by pricing helpers
   const normalizeLegacyUserType = (
     userType: 'End User' | 'Reseller' | 'Channel' | 'SI/Channel Partner' | undefined
   ): 'End User' | 'Reseller' | 'Channel' => {
@@ -338,12 +296,11 @@ export const generateConfigurationHtml = (
     return 'End User';
   };
 
-  // Calculate pricing based on actual product data for HTML
   const getProductPriceForHtml = (product: Product, userType: 'End User' | 'Reseller' | 'Channel' | 'SI/Channel Partner' = 'End User'): number => {
     const normalizedUserType = normalizeLegacyUserType(userType);
-    // Handle different product types
+
     if (product.category?.toLowerCase().includes('rental') && product.prices) {
-      // For rental products, use cabinet pricing based on user type
+
       if (normalizedUserType === 'Reseller') {
         return product.prices.cabinet.reseller;
       } else if (normalizedUserType === 'Channel') {
@@ -353,7 +310,6 @@ export const generateConfigurationHtml = (
       }
     }
 
-    // For regular products, use the appropriate price field based on user type
     if (normalizedUserType === 'Reseller' && typeof product.resellerPrice === 'number') {
       return product.resellerPrice;
     } else if (normalizedUserType === 'Channel' && typeof product.siChannelPrice === 'number') {
@@ -361,105 +317,79 @@ export const generateConfigurationHtml = (
     } else if (typeof product.price === 'number') {
       return product.price;
     } else if (typeof product.price === 'string') {
-      // Handle string prices by converting to number
+
       const parsedPrice = parseFloat(product.price);
       return isNaN(parsedPrice) ? 5300 : parsedPrice;
     }
 
-    // Fallback to default pricing if no price available
     return 5300;
   };
 
   let unitPrice = getProductPriceForHtml(selectedProduct, userInfo?.userType);
 
-  // Check if product is Jumbo Series (prices already include controllers)
   const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') ||
     selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
     selectedProduct.name?.toLowerCase().includes('jumbo series');
 
-  // Calculate quantity based on product type
   let quantity: number;
   if (selectedProduct.category?.toLowerCase().includes('rental')) {
-    // For rental series, calculate quantity as number of cabinets
+
     quantity = cabinetGrid.columns * cabinetGrid.rows;
   } else if (isJumboSeries) {
-    // For Jumbo Series, use fixed area-based pricing
+
     const pixelPitch = selectedProduct.pixelPitch;
 
     if (pixelPitch === 4 || pixelPitch === 2.5) {
-      // P4 and P2.5: Fixed area = 7.34ft × 4.72ft = 34.64 sqft
+
       const widthInFeet = 7.34;
       const heightInFeet = 4.72;
       const fixedQuantity = widthInFeet * heightInFeet;
 
-      console.log('🎯 HTML Jumbo Series P4/P2.5 Fixed Pricing:', {
-        product: selectedProduct.name,
-        pixelPitch,
-        fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
-        quantity: fixedQuantity.toFixed(2) + ' sqft'
-      });
-
       quantity = Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
     } else if (pixelPitch === 3 || pixelPitch === 6) {
-      // P3 and P6: Fixed area = 6.92ft × 5.04ft = 34.88 sqft
+
       const widthInFeet = 6.92;
       const heightInFeet = 5.04;
       const fixedQuantity = widthInFeet * heightInFeet;
-
-      console.log('🎯 HTML Jumbo Series P3/P6 Fixed Pricing:', {
-        product: selectedProduct.name,
-        pixelPitch,
-        fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
-        quantity: fixedQuantity.toFixed(2) + ' sqft'
-      });
 
       quantity = Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
     } else {
       quantity = 1; // Fallback
     }
   } else {
-    // For other products, calculate quantity in square feet
+
     const widthInMeters = config.width / 1000;
     const heightInMeters = config.height / 1000;
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
     const rawQuantity = widthInFeet * heightInFeet;
 
-    // Round to 2 decimal places for consistency with calculation
     quantity = Math.round(rawQuantity * 100) / 100;
   }
 
-  // CRITICAL: If exactPricingBreakdown is provided (from saved quotation with discount),
-  // use those values instead of recalculating. This ensures discounted values appear in PDF.
   let totalProduct: number;
   let totalController: number;
   let totalStructure: number;
   let totalInstallation: number;
   let grandTotal: number;
 
-  // Calculate safeQuantity, subtotal, gstProduct, controllerPrice, gstController, and screenAreaSqFt for use in HTML template (needed regardless of discount path)
-  // Use let instead of const so we can update these when discount is applied
   let safeQuantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
   let subtotal = unitPrice * safeQuantity;
   let gstProduct = subtotal * 0.18;
 
-  // Controller pricing - use SAME LOGIC as quotation calculation
-  // Note: Skip controller price for Jumbo Series products as their prices already include controllers
   let controllerPrice = 0;
   if (processor && !isJumboSeries) {
-    // Use centralized processor pricing
+
     controllerPrice = getProcessorPrice(processor, userInfo?.userType || 'End User');
   }
   let gstController = controllerPrice * 0.18;
 
-  // Calculate screen area in square feet for Structure and Installation pricing (needed for HTML template)
   const widthInMeters = config.width / 1000;
   const heightInMeters = config.height / 1000;
   const widthInFeet = widthInMeters * METERS_TO_FEET;
   const heightInFeet = heightInMeters * METERS_TO_FEET;
   const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
 
-  // Calculate structure and installation base prices (needed for HTML template regardless of discount path)
   let structureBasePrice: number;
   let installationBasePrice: number;
 
@@ -467,53 +397,45 @@ export const generateConfigurationHtml = (
     structureBasePrice = customPricing.structurePrice;
     installationBasePrice = customPricing.installationPrice;
   } else {
-    // Structure Price: Indoor = ₹4000 per cabinet, Outdoor = ₹2500 per sq.ft
+
     const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
     if (normalizedEnv === 'indoor') {
-      // Indoor: ₹4000 per cabinet
+
       const numberOfCabinets = cabinetGrid.columns * cabinetGrid.rows;
       structureBasePrice = numberOfCabinets * 4000;
     } else {
-      // Outdoor: ₹2500 per sq.ft
+
       structureBasePrice = screenAreaSqFt * 2500;
     }
     installationBasePrice = screenAreaSqFt * 500;
   }
 
-  // Calculate GST on structure and installation (always 18%)
   const structureGST = structureBasePrice * 0.18;
   const installationGST = installationBasePrice * 0.18;
 
   if (exactPricingBreakdown) {
-    // ALWAYS use stored values if available to match the original PDF exactly
+
     if (exactPricingBreakdown.unitPrice !== undefined) unitPrice = exactPricingBreakdown.unitPrice;
     if (exactPricingBreakdown.quantity !== undefined) {
       quantity = exactPricingBreakdown.quantity;
       safeQuantity = quantity; // Update safeQuantity to match
     }
 
-    // Load base values from breakdown (prioritize stored values over current calculation)
     if (exactPricingBreakdown.subtotal !== undefined) subtotal = exactPricingBreakdown.subtotal;
-    // gstAmount in DB is usually the GST for the product
+
     if (exactPricingBreakdown.gstAmount !== undefined) gstProduct = exactPricingBreakdown.gstAmount;
 
     if (exactPricingBreakdown.processorPrice !== undefined) controllerPrice = exactPricingBreakdown.processorPrice;
     if (exactPricingBreakdown.processorGst !== undefined) gstController = exactPricingBreakdown.processorGst;
 
     if (exactPricingBreakdown.discount) {
-      // Use discounted values from saved quotation
-      // These values already have discount applied silently
+
       const discountedProductTotal = exactPricingBreakdown.discount.discountedProductTotal;
       const discountedProcessorTotal = exactPricingBreakdown.discount.discountedProcessorTotal;
       const discountedGrandTotal = exactPricingBreakdown.discount.discountedGrandTotal;
 
-      // CRITICAL: Recalculate base values from discounted totals for display in PDF
-      // When discount is on LED, recalculate subtotal and gstProduct from discounted total
       if (discountedProductTotal !== undefined) {
-        // Discount was applied to product total (which includes GST)
-        // Reverse calculate: discountedTotal = subtotal + gst, where gst = subtotal * 0.18
-        // So: discountedTotal = subtotal * 1.18
-        // Therefore: subtotal = discountedTotal / 1.18
+
         const originalSubtotal = subtotal;
         const originalGstProduct = gstProduct;
 
@@ -521,94 +443,56 @@ export const generateConfigurationHtml = (
         gstProduct = Math.round((subtotal * 0.18) * 100) / 100;
         totalProduct = discountedProductTotal;
 
-        console.log('💰 PDF - Discount on LED applied (recalculated base values):', {
-          originalSubtotal,
-          originalGstProduct,
-          originalTotalProduct: originalSubtotal + originalGstProduct,
-          discountedSubtotal: subtotal,
-          discountedGstProduct: gstProduct,
-          discountedTotalProduct: totalProduct
-        });
       } else {
         totalProduct = subtotal + gstProduct;
       }
 
-      // When discount is on controller, recalculate controllerPrice and gstController
       if (discountedProcessorTotal !== undefined) {
         const originalControllerPrice = controllerPrice;
         const originalGstController = gstController;
 
-        // Discount was applied to processor total (which includes GST)
         controllerPrice = Math.round((discountedProcessorTotal / 1.18) * 100) / 100;
         gstController = Math.round((controllerPrice * 0.18) * 100) / 100;
         totalController = discountedProcessorTotal;
 
-        console.log('💰 PDF - Discount on Controller applied (recalculated base values):', {
-          originalControllerPrice,
-          originalGstController,
-          originalTotalController: originalControllerPrice + originalGstController,
-          discountedControllerPrice: controllerPrice,
-          discountedGstController: gstController,
-          discountedTotalController: totalController
-        });
       } else {
         totalController = controllerPrice + gstController;
       }
 
       grandTotal = discountedGrandTotal || exactPricingBreakdown.grandTotal || 0;
 
-      console.log('💰 PDF using discounted values from exactPricingBreakdown:', {
-        subtotal,
-        gstProduct,
-        totalProduct,
-        controllerPrice,
-        gstController,
-        totalController,
-        grandTotal
-      });
     } else {
-      // No discount, but we have exact breakdown - use it directly
+
       totalProduct = subtotal + gstProduct;
       totalController = controllerPrice + gstController;
 
-      // If grandTotal is in breakdown, use it, otherwise calculate
-      // Note: structure/installation are added below if not in grandTotal
-      // Typically grandTotal in breakdown includes EVERYTHING
       if (exactPricingBreakdown.grandTotal) {
         grandTotal = exactPricingBreakdown.grandTotal;
       } else {
-        // Fallback calculation
+
         grandTotal = totalProduct + totalController + structureBasePrice + structureGST + installationBasePrice + installationGST;
       }
     }
 
-    // Structure and installation totals (independent of discount typically, unless grandTotal covered them)
-    // If grandTotal was taken from breakdown, it includes these.
-    // But for the individual section display (if needed), we calculate them:
     totalStructure = structureBasePrice + structureGST;
     totalInstallation = installationBasePrice + installationGST;
 
   } else {
-    // Calculate prices normally (no discount or exactPricingBreakdown not provided)
-    // safeQuantity, subtotal, gstProduct, controllerPrice, gstController, screenAreaSqFt, structureBasePrice, installationBasePrice, structureGST, and installationGST are already calculated above for use in HTML template
+
     totalProduct = subtotal + gstProduct;
     totalController = controllerPrice + gstController;
     totalStructure = structureBasePrice + structureGST;
     totalInstallation = installationBasePrice + installationGST;
 
-    // Update grand total to include Structure and Installation (separate, never combined)
     grandTotal = totalProduct + totalController + totalStructure + totalInstallation;
   }
 
-  // Format Indian number with clean formatting
   const formatIndianNumber = (x: number): string => {
-    // Round to whole numbers for cleaner display
+
     const rounded = Math.round(x);
 
-    // Convert to string
     const s = rounded.toString();
 
-    // Format with Indian numbering system (commas for thousands)
     if (s.length > 3) {
       const lastThree = s.slice(-3);
       const remaining = s.slice(0, s.length - 3);
@@ -1147,8 +1031,6 @@ export const generateConfigurationHtml = (
   return html;
 };
 
-
-// Generate a PDF by rendering the HTML report pages into an A4 PDF
 export const generateConfigurationPdf = async (
   config: DisplayConfig,
   selectedProduct: Product,
@@ -1192,7 +1074,6 @@ export const generateConfigurationPdf = async (
     exactPricingBreakdown
   );
 
-  // Create offscreen container to render HTML
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.left = '-10000px';
@@ -1203,11 +1084,8 @@ export const generateConfigurationPdf = async (
   document.body.appendChild(container);
 
   try {
-    // Wait for images to load to avoid blank canvases
-    // Use Promise.race with timeout to avoid long waits
-    // Increased timeout for production environments where images may load slower
+
     const allImages = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
-    console.log(`📸 Found ${allImages.length} images to load for PDF generation`);
 
     const imageLoadPromises = allImages.map((img, index) => {
       if (img.complete) {
@@ -1217,12 +1095,11 @@ export const generateConfigurationPdf = async (
       return Promise.race([
         new Promise<void>((resolve) => {
           img.onload = () => {
-            console.log(`✅ Image ${index + 1}/${allImages.length} loaded successfully`);
+
             resolve();
           };
           img.onerror = (error) => {
-            console.warn(`⚠️ Image ${index + 1}/${allImages.length} failed to load:`, img.src.substring(0, 100), error);
-            // Still resolve to continue PDF generation even if some images fail
+
             resolve();
           };
         }),
@@ -1232,9 +1109,9 @@ export const generateConfigurationPdf = async (
 
     try {
       await Promise.all(imageLoadPromises);
-      console.log('✅ All images processed for PDF generation');
+
     } catch (imageError) {
-      console.warn('⚠️ Some images may not have loaded, continuing with PDF generation:', imageError);
+
     }
 
     const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
@@ -1242,44 +1119,36 @@ export const generateConfigurationPdf = async (
     const pageWidthMM = 210;
     const pageHeightMM = 297;
 
-    // Process all pages with minimal delays
     for (let i = 0; i < pages.length; i++) {
       const pageEl = pages[i];
 
-      // Minimal delay only for first page to ensure initial layout, then process quickly
       if (i === 0) {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
 
-      // For page 6 (quotation page), ensure content fits within A4
       if (pageEl.classList.contains('page-bg') && pageEl.querySelector('.quotation-overlay')) {
         const overlay = pageEl.querySelector('.quotation-overlay') as HTMLElement;
         if (overlay) {
-          // Force a reflow to get accurate measurements
+
           void overlay.offsetHeight;
 
-          // Get the actual content height (including all children)
           const sections = overlay.querySelectorAll('.quotation-section');
           let totalContentHeight = 0;
           sections.forEach((section: Element) => {
             totalContentHeight += (section as HTMLElement).offsetHeight;
           });
 
-          // Add margins between sections
           const sectionMargin = 8; // 8px margin between sections
           totalContentHeight += (sections.length - 1) * sectionMargin;
 
           const availableHeight = overlay.clientHeight;
 
-          // If content overflows, calculate scale factor to fit
           if (totalContentHeight > availableHeight) {
             const scaleFactor = Math.min(0.98, availableHeight / totalContentHeight);
 
-            // Apply scaling to the overlay
             overlay.style.transform = `scale(${scaleFactor})`;
             overlay.style.transformOrigin = 'top left';
 
-            // Adjust dimensions to account for scaling
             const originalWidth = overlay.offsetWidth;
             const originalHeight = overlay.offsetHeight;
             overlay.style.width = `${originalWidth / scaleFactor}px`;
@@ -1288,9 +1157,6 @@ export const generateConfigurationPdf = async (
         }
       }
 
-      // Optimized html2canvas settings for faster processing
-      // Reduced scale from 2 to 1.5 for better performance while maintaining quality
-      // Production-friendly settings: useCORS and allowTaint for cross-origin images
       let canvas;
       try {
         canvas = await html2canvas(pageEl, {
@@ -1308,38 +1174,30 @@ export const generateConfigurationPdf = async (
           imageTimeout: 15000, // 15 second timeout for images
         });
       } catch (canvasError: any) {
-        console.error(`❌ html2canvas error on page ${i + 1}:`, canvasError);
+
         throw new Error(`Failed to render page ${i + 1} to canvas: ${canvasError?.message || 'Unknown error'}`);
       }
 
-      // Reduced JPEG quality from 0.95 to 0.85 for faster processing and smaller file size
-      // Quality 0.85 is still excellent for PDFs
       const imgData = canvas.toDataURL('image/jpeg', 0.85);
       if (i > 0) pdf.addPage();
 
-      // Always fit to A4 dimensions exactly (210mm x 297mm)
-      // This ensures no cropping or stretching
       pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'FAST');
     }
 
     const blob = pdf.output('blob');
 
-    // Clean up container
     if (container.parentNode) {
       document.body.removeChild(container);
     }
 
     return blob;
   } catch (error) {
-    // Clean up container on error
+
     if (container.parentNode) {
       document.body.removeChild(container);
     }
 
-    console.error('Error generating PDF:', error);
     throw new Error(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
-
-
 

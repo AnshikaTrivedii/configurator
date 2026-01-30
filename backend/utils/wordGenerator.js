@@ -275,9 +275,7 @@ const createPageSection = (pageNumber, imageBuffer, contentChildren = []) => {
     try {
       // Convert Buffer to Uint8Array for docx library compatibility
       const uint8Array = new Uint8Array(imageBuffer);
-      
-      console.log(`📷 Creating ImageRun for page ${pageNumber}, buffer size: ${imageBuffer.length} bytes`);
-      
+
       const imageRun = new ImageRun({
         data: uint8Array,
         transformation: {
@@ -323,7 +321,7 @@ const createPageSection = (pageNumber, imageBuffer, contentChildren = []) => {
       });
 
       children.push(backgroundTable);
-      console.log(`✅ Created full-page table with background image for page ${pageNumber}`);
+
     } catch (error) {
       console.error(`❌ Error creating ImageRun for page ${pageNumber}:`, error);
       console.error(`❌ Error stack:`, error.stack);
@@ -990,10 +988,6 @@ export const generateWordDocument = async (data) => {
       customPricing
     } = data;
 
-    console.log('📄 Generating Word document with DOCX template...');
-    console.log('📁 Template DOCX path:', TEMPLATE_DOCX_PATH);
-    console.log('📁 Template exists:', fs.existsSync(TEMPLATE_DOCX_PATH));
-    
     // NOTE: This file needs to be updated to extract pages from DOCX template
     // instead of using Pages-to-JPG folder
     // For now, we'll use placeholder logic
@@ -1020,7 +1014,7 @@ export const generateWordDocument = async (data) => {
       
       const section = createPageSection(i, imageBuffer, []);
       sections.push(section);
-      console.log(`✅ Created section for page ${i}`);
+
     }
 
     // Page 6: Dynamically generated quotation (NO background from template)
@@ -1042,24 +1036,18 @@ export const generateWordDocument = async (data) => {
     // The content will be added on top of the background image in the same table cell
     const page6Section = createPageSection(6, page6ImageBuffer, quotationContent);
     sections.push(page6Section);
-    
-    console.log(`✅ Created section for page 6 with background image and ${quotationContent.length} content children`);
 
     // Pages 7+: Extract from DOCX template (skip template page 6)
     // Template Page 7 → Final Page 7, Template Page 8 → Final Page 8, etc.
     // TODO: Implement DOCX page extraction for pages 7+
     // For now, this is a placeholder
     // Note: Template page 6 is skipped as it's replaced by dynamic quotation
-    console.log('⚠️ Pages 7+ extraction from DOCX template needs implementation');
 
     // Validate we have sections
     if (sections.length === 0) {
       throw new Error('No sections created for Word document');
     }
-    
-    console.log(`📄 Created ${sections.length} sections for Word document`);
-    console.log(`📄 Section breakdown: Pages 1-5 (${Math.min(5, sections.length)}), Page 6 (quotation), Pages 7-10 (${Math.max(0, sections.length - 6)})`);
-    
+
     // Create document with proper structure
     // Each section already has SectionType.NEXT_PAGE in its properties
     const doc = new Document({
@@ -1090,9 +1078,7 @@ export const generateWordDocument = async (data) => {
     if (!isValidDocx) {
       console.warn('⚠️ Generated buffer may not be a valid DOCX file (missing ZIP signature)');
     }
-    
-    console.log('✅ Word document generated successfully, size:', buffer.length, 'bytes');
-    
+
     return buffer;
 
   } catch (error) {

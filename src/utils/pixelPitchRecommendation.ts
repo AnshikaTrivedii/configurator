@@ -5,8 +5,6 @@
  * pitches that exist in the actual product catalog.
  */
 
-// Available pixel pitches in the product catalog that are allowed for guided mode
-// Only these pixel pitches should be considered for recommendations.
 export const AVAILABLE_PIXEL_PITCHES = [0.9, 1.25, 1.5, 1.8, 2.5, 3, 4, 6.6, 10];
 
 /**
@@ -15,11 +13,9 @@ export const AVAILABLE_PIXEL_PITCHES = [0.9, 1.25, 1.5, 1.8, 2.5, 3, 4, 6.6, 10]
  */
 export function normalize(pitch: string | number | null | undefined): number | null {
   if (pitch === null || pitch === undefined) return null;
-  
-  // If already a number, return it
+
   if (typeof pitch === 'number') return pitch;
-  
-  // Convert string to number
+
   const normalized = parseFloat(
     pitch.toString()
       .replace(/^P/i, '') // Remove leading P
@@ -50,10 +46,9 @@ export function getRecommendedPixelPitch(
   distance: number,
   unit: 'meters' | 'feet'
 ): number | null {
-  // Convert distance to meters
+
   const distanceInMeters = unit === 'feet' ? distance * 0.3048 : distance;
-  
-  // Determine ideal pixel pitch range based on distance
+
   let idealMin: number;
   let idealMax: number;
   
@@ -79,18 +74,15 @@ export function getRecommendedPixelPitch(
     idealMin = 4;
     idealMax = 10;
   }
-  
-  // Filter available pitches within the ideal range
+
   const valid = AVAILABLE_PIXEL_PITCHES.filter(p => p >= idealMin && p <= idealMax);
-  
-  // If none found, choose the closest overall to idealMin
+
   if (valid.length === 0) {
     return AVAILABLE_PIXEL_PITCHES.reduce((prev, curr) =>
       Math.abs(curr - idealMin) < Math.abs(prev - idealMin) ? curr : prev
     );
   }
-  
-  // Select the closest to mid-range
+
   const mid = (idealMin + idealMax) / 2;
   return valid.reduce((prev, curr) =>
     Math.abs(curr - mid) < Math.abs(prev - mid) ? curr : prev
@@ -109,7 +101,7 @@ export function getRecommendedPixelPitchForRange(
   distanceRange: string,
   unit: 'meters' | 'feet'
 ): number | null {
-  // Parse the range (format: "min-max")
+
   const [minStr, maxStr] = distanceRange.split('-');
   const selectedMin = parseFloat(minStr);
   const selectedMax = parseFloat(maxStr);
@@ -117,8 +109,7 @@ export function getRecommendedPixelPitchForRange(
   if (isNaN(selectedMin) || isNaN(selectedMax)) {
     return null;
   }
-  
-  // Use the midpoint of the range
+
   const midpoint = (selectedMin + selectedMax) / 2;
   
   return getRecommendedPixelPitch(midpoint, unit);

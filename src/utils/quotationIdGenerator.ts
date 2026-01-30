@@ -27,12 +27,11 @@ class QuotationIdGenerator {
     const year = now.getFullYear().toString();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const day = now.getDate().toString().padStart(2, '0');
-    
-    // Extract only the first name from the full name
+
     const firstName = username.trim().split(' ')[0].toUpperCase();
     
     try {
-      // Use the new backend endpoint for globally unique ID generation
+
       const response = await fetch('/api/sales/generate-quotation-id', {
         method: 'POST',
         headers: {
@@ -49,9 +48,7 @@ class QuotationIdGenerator {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.quotationId) {
-          console.log('✅ Generated globally unique quotation ID:', data.quotationId);
-          
-          // Store the generated ID
+
           this.storeQuotationId(data.quotationId, firstName);
           
           return data.quotationId;
@@ -63,14 +60,10 @@ class QuotationIdGenerator {
         throw new Error(errorData.error || 'Backend error generating quotation ID');
       }
     } catch (error) {
-      console.error('❌ Error generating quotation ID via backend:', error);
-      
-      // Fallback to local generation if backend fails
-      console.log('🔄 Falling back to local quotation ID generation...');
+
       const serial = await this.getNextSerialNumber(firstName, year, month, day);
       const quotationId = `ORION/${year}/${month}/${day}/${firstName}/${serial}`;
-      
-      // Store the generated ID
+
       this.storeQuotationId(quotationId, firstName);
       
       return quotationId;
@@ -83,8 +76,7 @@ class QuotationIdGenerator {
    */
   private static async getNextSerialNumber(firstName: string, year: string, month: string, day: string): Promise<string> {
     const storedIds = this.getStoredQuotationIds();
-    
-    // Filter IDs for the same user, year, month, and day
+
     const relevantIds = storedIds.filter(id => 
       id.username.toLowerCase() === firstName.toLowerCase() &&
       id.year === year &&
@@ -92,7 +84,6 @@ class QuotationIdGenerator {
       id.day === day
     );
 
-    // Extract serial numbers from localStorage and find the highest
     let maxSerial = 0;
     if (relevantIds.length > 0) {
       const serialNumbers = relevantIds.map(id => {
@@ -102,7 +93,6 @@ class QuotationIdGenerator {
       maxSerial = Math.max(...serialNumbers);
     }
 
-    // Also check database for the latest quotation ID
     const dbMaxSerial = await this.getLatestSerialFromDatabase(firstName, year, month, day);
     maxSerial = Math.max(maxSerial, dbMaxSerial);
 
@@ -121,9 +111,9 @@ class QuotationIdGenerator {
    */
   private static async getLatestSerialFromDatabase(firstName: string, year: string, month: string, day: string): Promise<number> {
     try {
-      // Check if we're in a browser environment with access to fetch
+
       if (typeof window !== 'undefined' && window.fetch) {
-        // Make API call to check latest quotation ID pattern in database
+
         const response = await fetch('/api/sales/check-latest-quotation-id', {
           method: 'POST',
           headers: {
@@ -143,7 +133,7 @@ class QuotationIdGenerator {
         }
       }
     } catch (error) {
-      console.warn('Failed to check database for latest serial:', error);
+
     }
     return 0;
   }
@@ -154,8 +144,7 @@ class QuotationIdGenerator {
   static storeQuotationId(quotationId: string, firstName: string): void {
     const storedIds = this.getStoredQuotationIds();
     const now = new Date();
-    
-    // Add the new ID
+
     const newId: StoredQuotationId = {
       id: quotationId,
       timestamp: Date.now(),
@@ -167,15 +156,13 @@ class QuotationIdGenerator {
 
     storedIds.push(newId);
 
-    // Clean up old entries (older than 2 years)
     const twoYearsAgo = Date.now() - (2 * 365 * 24 * 60 * 60 * 1000);
     const filteredIds = storedIds.filter(id => id.timestamp > twoYearsAgo);
 
-    // Store back to localStorage
     try {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(filteredIds));
     } catch (error) {
-      console.warn('Failed to store quotation ID to localStorage:', error);
+
     }
   }
 
@@ -187,7 +174,7 @@ class QuotationIdGenerator {
       const stored = localStorage.getItem(this.STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.warn('Failed to retrieve quotation IDs from localStorage:', error);
+
       return [];
     }
   }
@@ -224,11 +211,9 @@ class QuotationIdGenerator {
     const year = now.getFullYear().toString();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const day = now.getDate().toString().padStart(2, '0');
-    
-    // Extract only the first name from the full name
+
     const firstName = username.trim().split(' ')[0].toUpperCase();
-    
-    // Use random number for uniqueness
+
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     
     return `ORION/${year}/${month}/${day}/${firstName}/${random}`;
@@ -241,7 +226,7 @@ class QuotationIdGenerator {
     try {
       localStorage.removeItem(this.STORAGE_KEY);
     } catch (error) {
-      console.warn('Failed to reset quotation ID counter:', error);
+
     }
   }
 }

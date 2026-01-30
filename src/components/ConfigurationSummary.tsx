@@ -9,7 +9,6 @@ interface ConfigurationSummaryProps {
   mode?: string;
 }
 
-// Helper for Indian number formatting
 function formatIndianNumber(x: number): string {
   const s = x.toString();
   let afterFirst = s.length > 3 ? s.slice(0, s.length - 3) : '';
@@ -22,8 +21,6 @@ function formatIndianNumber(x: number): string {
   }
 }
 
-
-
 export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   config,
   cabinetGrid,
@@ -33,184 +30,57 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
 }) => {
   if (!selectedProduct) return null;
 
-  // Check if product is Jumbo Series (prices already include controllers)
-  const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
-                        selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
-                        selectedProduct.name?.toLowerCase().includes('jumbo series');
+  const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') ||
+    selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
+    selectedProduct.name?.toLowerCase().includes('jumbo series');
 
-  // Conversion constants - using exact values for precision
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
   const MM_TO_FEET = 1 / FEET_TO_MM;
 
-  // Convert mm to display unit with high precision
   const toDisplayUnit = (mm: number, unit: string) => {
     if (unit === 'ft') {
-      // Direct conversion from mm to ft for precision (matches wizard conversion)
+
       const feet = mm * MM_TO_FEET;
       return feet.toFixed(2);
     }
-    // Convert mm to meters
+
     const meters = mm / 1000;
     return meters.toFixed(2);
   };
-  
 
-  
-  // Calculate display area using displayed dimensions for consistency
   const displayedWidth = parseFloat(toDisplayUnit(config.width, config.unit));
   const displayedHeight = parseFloat(toDisplayUnit(config.height, config.unit));
   const displayAreaFeet = displayedWidth * displayedHeight;
-  
-  // Calculate display area in square display units
+
   const displayArea = (config.width * config.height) / 1000000; // mm² to m²
   const displayAreaInDisplayUnit = config.unit === 'ft' ? displayAreaFeet : displayArea;
-  
-  // Debug logging for area calculation
-  console.log('Area Calculation Debug:', {
-    configWidth: config.width,
-    configHeight: config.height,
-    displayAreaFeet: displayAreaFeet,
-    displayedWidth: displayedWidth,
-    displayedHeight: displayedHeight,
-    expectedAreaFromDisplayed: displayedWidth * displayedHeight,
-    MM_TO_FEET: MM_TO_FEET
-  });
-  
 
-  
-  // Calculate diagonal in display units
-  const diagonalMeters = Math.sqrt(Math.pow(config.width/1000, 2) + Math.pow(config.height/1000, 2));
-  // Convert diagonal to feet if needed using direct mm to ft conversion
-  const diagonalInDisplayUnit = config.unit === 'ft' 
+  const diagonalMeters = Math.sqrt(Math.pow(config.width / 1000, 2) + Math.pow(config.height / 1000, 2));
+
+  const diagonalInDisplayUnit = config.unit === 'ft'
     ? Math.sqrt(Math.pow(config.width * MM_TO_FEET, 2) + Math.pow(config.height * MM_TO_FEET, 2))
     : diagonalMeters;
-  
-  // Convert to inches for imperial display
+
   const diagonalInches = diagonalMeters * 39.3701;
   const feet = Math.floor(diagonalInches / 12);
   const inches = Math.round((diagonalInches % 12) * 16) / 16; // Round to nearest 1/16 inch
-  
-  // Calculate power consumption
+
   const avgPowerPerCabinet = selectedProduct.avgPowerConsumption || 91.7; // Default to 91.7W if not specified
   const maxPowerPerCabinet = selectedProduct.maxPowerConsumption || (avgPowerPerCabinet * 3); // Use actual max power or default to 3x avg
   const avgPower = (avgPowerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(2);
   const maxPower = (maxPowerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(2);
-  
-  // Debug logging for power consumption
-  console.log('Power Consumption Debug:', {
-    productName: selectedProduct.name,
-    productCategory: selectedProduct.category,
-    avgPowerPerCabinet: selectedProduct.avgPowerConsumption || 91.7,
-    maxPowerPerCabinet: selectedProduct.maxPowerConsumption || (selectedProduct.avgPowerConsumption || 91.7) * 3,
-    cabinetGrid: { columns: cabinetGrid.columns, rows: cabinetGrid.rows, total: cabinetGrid.columns * cabinetGrid.rows },
-    calculatedAvgPower: avgPower,
-    calculatedMaxPower: maxPower,
-    config: { width: config.width, height: config.height },
-    cabinetDimensions: selectedProduct.cabinetDimensions,
-    expectedAvgPower: selectedProduct.avgPowerConsumption || 91.7,
-    expectedMaxPower: selectedProduct.maxPowerConsumption || (selectedProduct.avgPowerConsumption || 91.7) * 3
-  });
-  
-  // Special debug for BETELGEUSE series
+
   if (selectedProduct.category?.toLowerCase().includes('betelgeuse')) {
-    console.log('BETELGEUSE Series Debug:', {
-      productName: selectedProduct.name,
-      avgPowerPerCabinet: selectedProduct.avgPowerConsumption,
-      maxPowerPerCabinet: selectedProduct.maxPowerConsumption,
-      cabinetGrid: { columns: cabinetGrid.columns, rows: cabinetGrid.rows, total: cabinetGrid.columns * cabinetGrid.rows },
-      calculatedAvgPower: avgPower,
-      calculatedMaxPower: maxPower,
-      expectedFor1Cabinet: {
-        avg: selectedProduct.avgPowerConsumption,
-        max: selectedProduct.maxPowerConsumption
-      }
-    });
+
   }
-  
-  // Special debug for FLEXIBLE series
+
   if (selectedProduct.category?.toLowerCase().includes('flexible')) {
-    console.log('FLEXIBLE Series Debug:', {
-      productName: selectedProduct.name,
-      avgPowerPerCabinet: selectedProduct.avgPowerConsumption,
-      maxPowerPerCabinet: selectedProduct.maxPowerConsumption,
-      cabinetGrid: { columns: cabinetGrid.columns, rows: cabinetGrid.rows, total: cabinetGrid.columns * cabinetGrid.rows },
-      calculatedAvgPower: avgPower,
-      calculatedMaxPower: maxPower,
-      expectedFor1Cabinet: {
-        avg: selectedProduct.avgPowerConsumption,
-        max: selectedProduct.maxPowerConsumption
-      }
-    });
+
   }
-  
-  // Special debug for RENTAL series
+
   if (selectedProduct.category?.toLowerCase().includes('rental')) {
-    console.log('RENTAL Series Debug:', {
-      productName: selectedProduct.name,
-      avgPowerPerCabinet: selectedProduct.avgPowerConsumption,
-      maxPowerPerCabinet: selectedProduct.maxPowerConsumption,
-      cabinetGrid: { columns: cabinetGrid.columns, rows: cabinetGrid.rows, total: cabinetGrid.columns * cabinetGrid.rows },
-      calculatedAvgPower: avgPower,
-      calculatedMaxPower: maxPower,
-      expectedFor1Cabinet: {
-        avg: selectedProduct.avgPowerConsumption,
-        max: selectedProduct.maxPowerConsumption
-      }
-    });
+
   }
-
-  // Calculate pixel density (pixels per meter)
-
-
-  // Calculate total price based on user type and area in square feet - Commented out for future use
-  // const totalCabinets = cabinetGrid.columns * cabinetGrid.rows;
-  // let pricePerSqFt = selectedProduct.price;
-  // // Remove Digital Standee Series override logic
-  // if (userType === 'siChannel') pricePerSqFt = selectedProduct.siChannelPrice;
-  // if (userType === 'reseller') pricePerSqFt = selectedProduct.resellerPrice;
-  // const totalPrice = pricePerSqFt ? displayAreaFeet * pricePerSqFt : undefined;
-
-  // Get processor price based on user type and selected processor - Commented out for future use
-  // let processorPrice = 0;
-  // if (processor && processorPrices[processor]) {
-  //   if (userType === 'siChannel') processorPrice = processorPrices[processor].siChannel;
-  //   else if (userType === 'reseller') processorPrice = processorPrices[processor].reseller;
-  //   else processorPrice = processorPrices[processor].endUser;
-  // }
-  
-  // Debug logging for processor price - Commented out for future use
-  // console.log('Processor Price Debug:', {
-  //   processor,
-  //   userType,
-  //   processorPrice,
-  //   availableProcessors: Object.keys(processorPrices),
-  //   processorFound: processor ? processorPrices[processor] : false
-  // });
-  
-  // const totalPriceWithProcessor = totalPrice !== undefined ? totalPrice + processorPrice : undefined;
-
-
-
-
-
-  // Show only the correct prices for the product type - Commented out for future use
-  // const showPrice = (type: 'endUser' | 'siChannel' | 'reseller') => {
-  //   if (productType === 'SMD' || productType === 'COB') {
-  //     if (type === 'endUser') return selectedProduct.price;
-  //     if (type === 'siChannel') return selectedProduct.siChannelPrice;
-  //     if (type === 'reseller') return selectedProduct.resellerPrice;
-  //   }
-  //   return undefined;
-  // };
-
-
-
-  // Helper to get price for rental series - Commented out for future use
-  // const getRentalPrice = () => {
-  //   if (!selectedProduct || !selectedProduct.prices || !selectedProduct.rentalOption) return null;
-  //   const option = selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet';
-  //   return selectedProduct.prices[option]?.[userTypeToPriceKey(currentUserType)] || null;
-  // };
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -274,17 +144,17 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Aspect Ratio</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-emerald-700 break-words">
                 {(() => {
-        // Show the selected aspect ratio label if available
-        if (config.aspectRatio && typeof config.aspectRatio === 'string') {
-          if (config.aspectRatio === '16:9' || config.aspectRatio === '4:3' || config.aspectRatio === '1:1') {
-            return config.aspectRatio;
-          }
-          if (config.aspectRatio === 'none') {
-            return 'None';
-          }
-        }
-        // Fallback to calculated ratio
-        return `${Math.round((config.width / config.height) * 9)}:9`;
+
+                  if (config.aspectRatio && typeof config.aspectRatio === 'string') {
+                    if (config.aspectRatio === '16:9' || config.aspectRatio === '4:3' || config.aspectRatio === '1:1') {
+                      return config.aspectRatio;
+                    }
+                    if (config.aspectRatio === 'none') {
+                      return 'None';
+                    }
+                  }
+
+                  return `${Math.round((config.width / config.height) * 9)}:9`;
                 })()}
               </p>
             </div>
@@ -301,7 +171,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Display Area</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-rose-700 break-words">
                 {displayAreaInDisplayUnit.toFixed(2)} {config.unit}²<br />
-          ({displayAreaFeet.toFixed(2)} ft²)
+                ({displayAreaFeet.toFixed(2)} ft²)
               </p>
             </div>
           </div>
@@ -324,16 +194,16 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
 
         {/* Total Pixels */}
         <div className="bg-cyan-50 p-3 sm:p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
-            <div className="flex items-start space-x-2 sm:space-x-3">
+          <div className="flex items-start space-x-2 sm:space-x-3">
             <div className="p-1.5 sm:p-2 rounded-lg bg-cyan-100 text-cyan-500 bg-opacity-50 flex-shrink-0">
               <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-              <div className="min-w-0">
+            </div>
+            <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Pixels</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-cyan-700 break-words">
                 {formatIndianNumber(selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows)}
-                </p>
-              </div>
+              </p>
+            </div>
           </div>
         </div>
 

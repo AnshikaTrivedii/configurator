@@ -7,10 +7,6 @@ import { applyDiscount, DiscountInfo } from '../utils/discountCalculator';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { Save as SaveIcon } from 'lucide-react';
 
-// NOTE: We display prices directly from the database (quotation.totalPrice)
-// This ensures the dashboard shows the exact same price as the PDF
-// Do NOT use pricingCalculator utilities for price display
-
 interface SalesPerson {
   _id: string;
   name: string;
@@ -33,7 +29,7 @@ interface Quotation {
   pdfS3Url?: string | null;
   userType?: string;
   userTypeDisplayName?: string;
-  // Exact quotation data as shown on the page
+
   exactPricingBreakdown?: {
     unitPrice: number;
     quantity: number;
@@ -96,7 +92,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [pdfHtmlContent, setPdfHtmlContent] = useState<string>('');
 
-  // Discount Editing State
   const [editingDiscountQuotationId, setEditingDiscountQuotationId] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<'led' | 'controller' | 'total' | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
@@ -108,8 +103,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
     }
   }, [isOpen, salesPersonId]);
 
-  // Component lifecycle
-
   const fetchSalesPersonDetails = async () => {
     if (!salesPersonId) return;
 
@@ -117,78 +110,49 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       setLoading(true);
       setError(null);
 
-      console.log('🔄 Fetching sales person details for ID:', salesPersonId);
-      // Add cache-busting parameter to ensure fresh data
       const response = await salesAPI.getSalesPersonDetails(salesPersonId + '?t=' + Date.now());
-
-      console.log('📊 Sales person details response:', response);
-      console.log('👥 Customers found:', response.customers?.length || 0);
-
-      // CRITICAL: Verify each quotation has unique ID and price
-      console.log('\n═══════════════════════════════════════════════════════════════');
-      console.log('🔍 QUOTATION UNIQUENESS VERIFICATION (Frontend)');
-      console.log('═══════════════════════════════════════════════════════════════');
 
       const allQuotationIds: string[] = [];
       const allQuotationPrices: number[] = [];
 
       response.customers?.forEach((customer, custIndex) => {
-        console.log(`\n📋 Customer ${custIndex + 1}: ${customer.customerName} (${customer.customerEmail})`);
-        console.log(`   Quotations: ${customer.quotations?.length || 0}`);
 
         customer.quotations?.forEach((quotation: Quotation, qIndex: number) => {
           allQuotationIds.push(quotation.quotationId);
           allQuotationPrices.push(quotation.totalPrice);
 
-          console.log(`   ${qIndex + 1}. ID: ${quotation.quotationId}`);
-          console.log(`      Price: ₹${quotation.totalPrice?.toLocaleString('en-IN') || 'N/A'}`);
-          console.log(`      Product: ${quotation.productName}`);
         });
       });
 
-      // Check for duplicates
       const uniqueIds = [...new Set(allQuotationIds)];
       if (allQuotationIds.length === uniqueIds.length) {
-        console.log(`\n✅ All ${allQuotationIds.length} quotation IDs are unique in API response`);
+
       } else {
-        console.error(`\n❌ CRITICAL: Found ${allQuotationIds.length - uniqueIds.length} duplicate quotation IDs in API response!`);
+
         const duplicates = allQuotationIds.filter((id, index) => allQuotationIds.indexOf(id) !== index);
-        console.error('Duplicate IDs:', [...new Set(duplicates)]);
+
       }
 
       const uniquePrices = [...new Set(allQuotationPrices)];
-      console.log(`Prices: ${allQuotationPrices.length} total, ${uniquePrices.length} unique`);
-
-      console.log('═══════════════════════════════════════════════════════════════\n');
 
       setSalesPerson(response.salesPerson);
       setCustomers(response.customers);
       setTotalQuotations(response.totalQuotations);
       setTotalCustomers(response.totalCustomers);
     } catch (err) {
-      console.error('Error fetching sales person details:', err);
+
       setError('Failed to load sales person details');
     } finally {
       setLoading(false);
     }
   };
 
-
-
-
   const handleViewPdf = async (quotation: Quotation) => {
     try {
       setSelectedQuotation(quotation);
 
-      // Priority 1: Check if PDF is stored in S3
-      // We explicitly skip opening S3 URL directly because we want to show the Modal interface
-      // which allows for "Save & Download" and ensures a consistent user experience.
-      // If needed, we can use the S3 URL for the download button inside the modal.
-
-      // Priority 2: Regenerate from stored data (PRIORITIZED to ensure discounted pricing is shown)
-      // We prioritize this over stored HTML to ensure the exact pricing breakdown (with potential discounts) is used
       if (quotation.exactPricingBreakdown && quotation.exactProductSpecs) {
-        console.log('📄 Viewing PDF: Regenerating from exact pricing breakdown');
+
         const productDetails = quotation.productDetails;
         const exactSpecs = quotation.exactProductSpecs;
         const product = productDetails?.product || productDetails;
@@ -247,19 +211,17 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         return;
       }
 
-      // Priority 3: If PDF HTML is stored, use it directly (Fallback)
       if (quotation.productDetails?.pdfPage6HTML) {
-        console.log('📄 Viewing PDF: Using stored HTML content');
+
         setPdfHtmlContent(quotation.productDetails.pdfPage6HTML);
         setIsPdfModalOpen(true);
         return;
       }
 
-      console.warn('⚠️ No PDF data available for quotation:', quotation.quotationId);
       alert('PDF data not available for this quotation.');
 
     } catch (error) {
-      console.error('Error viewing PDF:', error);
+
       alert('Failed to load PDF. Please try again.');
     }
   };
@@ -272,25 +234,15 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
     try {
       setIsUpdatingDiscount(true);
-      console.log('🔄 UPDATE: Applying discount and updating quotation...', {
-        quotationId: quotation.quotationId,
-        discountType,
-        discountPercent
-      });
 
-      // 1. Calculate new pricing
-      // We prioritize exactPricingBreakdown to ensure we start from the correct base
       let finalPricingResult: any = null;
 
-      // Construct pricing result from existing breakdown if available
-      // 0. Setup variables
       const productDetails = quotation.productDetails;
       const exactSpecs = (quotation.exactProductSpecs || {}) as any;
       const product = productDetails?.product || productDetails;
 
       let config = quotation.quotationData?.config;
 
-      // Fallback 1: Try exactSpecs
       if (!config && exactSpecs?.displaySize) {
         config = {
           width: (exactSpecs.displaySize.width * 1000) || 0,
@@ -299,7 +251,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         };
       }
 
-      // Fallback 2: Try productDetails directly
       if (!config && productDetails?.displaySize) {
         config = {
           width: (productDetails.displaySize.width * 1000) || 0,
@@ -308,23 +259,12 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         };
       }
 
-      console.log('📊 Discount Calculation Data:', {
-        hasProduct: !!product,
-        hasConfig: !!config,
-        configSource: quotation.quotationData?.config ? 'quotationData' : (exactSpecs?.displaySize ? 'exactSpecs' : 'productDetails'),
-        config,
-        productName: product?.name
-      });
-
-      // PRIORITY 0: RESTORE FROM originalPricingBreakdown (The Source of Truth)
-      // This guarantees we always start from the true 0% discount state
       let isRestoredFromOriginalBreakdown = false;
       if (quotation.originalPricingBreakdown) {
-        console.log('✅ Restoring from originalPricingBreakdown (Source of Truth)');
+
         isRestoredFromOriginalBreakdown = true;
         const ob = quotation.originalPricingBreakdown;
 
-        // Map original breakdown to PricingCalculationResult interface
         finalPricingResult = {
           unitPrice: ob.unitPrice || 0,
           quantity: ob.quantity || 0,
@@ -351,14 +291,11 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           isAvailable: true
         };
       }
-      // PRIORITY 1: Use existing breakdown directly (ONLY if clean/undiscounted)
-      // If a discount was previously applied, exactPricingBreakdown contains discounted values,
-      // so we CANNOT use it as the source of truth for the original price.
+
       else if (quotation.exactPricingBreakdown && !quotation.quotationData?.discountApplied) {
-        console.log('✅ Using existing exactPricingBreakdown as base for discount');
+
         const eb = quotation.exactPricingBreakdown as any;
 
-        // Map legacy breakdown to PricingCalculationResult interface
         finalPricingResult = {
           unitPrice: eb.unitPrice || 0,
           quantity: eb.quantity || 0,
@@ -380,7 +317,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
           grandTotal: eb.grandTotal || 0,
 
-          // Restoration of original values for preventing compounded discounts
           originalProductTotal: undefined,
           originalProcessorTotal: undefined,
           originalGrandTotal: undefined,
@@ -391,9 +327,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         };
       }
 
-      // PRIORITY 2: Recalculate if no clean breakdown available (Fallback)
       if (!finalPricingResult && product && config) {
-        console.log('⚠️ No clean breakdown found (or existing was tainted), attempting recalculation from product specs...');
+
         const userType = quotation.userTypeDisplayName === 'Reseller' ? 'reseller' : (quotation.userTypeDisplayName === 'SI/Channel Partner' ? 'siChannel' : 'endUser');
         const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
         const processor = exactSpecs.processor || productDetails?.processor || null;
@@ -409,21 +344,18 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         );
 
         if (pricingResult.isAvailable) {
-          console.log('✅ Recalculation successful - Generated clean original pricing');
+
           finalPricingResult = pricingResult;
         }
       }
 
-      // FALLBACK for Legacy Data: If Recalculation failed but we have a tainted breakdown
-      // Try to reverse-engineer the original price from the tainted one
       if (!finalPricingResult && quotation.exactPricingBreakdown && quotation.quotationData?.discountApplied) {
-        console.warn('⚠️ Recalculation failed. Attempting to reverse-engineer from tainted breakdown.');
+
         const eb = quotation.exactPricingBreakdown as any;
         const di = quotation.quotationData.discountInfo;
         const discountAmount = di?.amount || 0;
         const discountType = di?.type;
 
-        // Base tainted result
         finalPricingResult = {
           unitPrice: eb.unitPrice || 0,
           quantity: eb.quantity || 0,
@@ -450,18 +382,12 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           isAvailable: true
         };
 
-        // Reverse the discount to get "Original" state
         if (discountAmount > 0 && discountType) {
-          console.log(`🔄 Reversing ${discountType} discount of ${discountAmount} to restore original state`);
 
-          // Restore Grand Total
           finalPricingResult.grandTotal += discountAmount;
 
-          // Restore Component Totals
           if (discountType === 'led') {
-            // Reconstruct Product Total
-            // Note: We can't perfectly separate subtotal vs GST restoration without rate, 
-            // but typically we just add to the total for the 'base' pricing result.
+
             finalPricingResult.productTotal += discountAmount;
             finalPricingResult.productSubtotal += discountAmount; // Approximation
           } else if (discountType === 'controller') {
@@ -472,19 +398,16 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       }
 
       if (finalPricingResult && !isRestoredFromOriginalBreakdown) {
-        // If discount was already applied, we need to restore original values to prevent compounding
-        // Priority: 1. Use stored originalTotalPrice if available (New Schema)
-        // Priority: 2. Restore from discount amount (Backwards Compatibility)
+
         let restoredGrandTotal = 0;
         let restoreInfoFromDiscountData = false;
 
         if (quotation.originalTotalPrice && quotation.originalTotalPrice > 0) {
-          console.log('✅ Using stored originalTotalPrice:', quotation.originalTotalPrice);
+
           restoredGrandTotal = quotation.originalTotalPrice;
           (finalPricingResult as any).originalGrandTotal = restoredGrandTotal;
           finalPricingResult.grandTotal = restoredGrandTotal; // RESET grandTotal to original
 
-          // Even if we have stored originalTotalPrice, we might need to restore component totals if they were discounted
           if (quotation.quotationData?.discountApplied && quotation.quotationData.discountInfo) {
             restoreInfoFromDiscountData = true;
           }
@@ -497,16 +420,12 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           const amount = di.amount || 0;
           const type = di.type;
 
-          console.log('🔄 Restoring original price components from existing discount:', { type, amount });
-
-          // If we didn't get grandTotal from storage, calculate it
           if (!restoredGrandTotal) {
             restoredGrandTotal = (finalPricingResult.grandTotal || 0) + amount;
             (finalPricingResult as any).originalGrandTotal = restoredGrandTotal;
             finalPricingResult.grandTotal = restoredGrandTotal;
           }
 
-          // Restore other totals based on type
           if (type === 'led') {
             const originalProduct = (finalPricingResult.productTotal || 0) + amount;
             (finalPricingResult as any).originalProductTotal = originalProduct;
@@ -526,12 +445,10 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         throw new Error("Could not calculate base pricing. Missing configuration data and valid breakdown.");
       }
 
-      // CRITICAL: Capture original pricing breakdown BEFORE applying discount
-      // This ensures we always have a clean "Source of Truth" to revert to
       let newOriginalPricingBreakdown = quotation.originalPricingBreakdown;
 
       if (!newOriginalPricingBreakdown) {
-        console.log('📝 Capturing new Original Pricing Breakdown from Clean Result');
+
         newOriginalPricingBreakdown = {
           unitPrice: finalPricingResult.unitPrice,
           quantity: finalPricingResult.quantity,
@@ -547,10 +464,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           installationTotal: finalPricingResult.installationTotal,
           grandTotal: finalPricingResult.grandTotal
         };
-        console.log('📝 Captured Breakdown (Grand Total):', newOriginalPricingBreakdown.grandTotal);
+
       }
 
-      // Apply discount
       const discountInfo: DiscountInfo = {
         discountType,
         discountPercent
@@ -558,7 +474,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
       const discountedPricing = applyDiscount(finalPricingResult, discountInfo);
 
-      // Create new exactPricingBreakdown
       const newExactPricingBreakdown = {
         unitPrice: discountedPricing.unitPrice,
         quantity: discountedPricing.quantity,
@@ -575,13 +490,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         }
       };
 
-
-      // 2. Generate new PDF
-      // Variables already setup at step 0 so we don't need to re-declare
-
-
-
-      // Determine user type for PDF generation
       let userTypeForHtml = 'End User';
       if (quotation.userType === 'siChannel') {
         userTypeForHtml = 'SI/Channel Partner';
@@ -600,7 +508,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         phoneNumber: customer?.customerPhone || ''
       };
 
-      // Generate PDF Blob
       const pdfBlob = await generateConfigurationPdf(
         config,
         product,
@@ -619,7 +526,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         newExactPricingBreakdown
       );
 
-      // Convert PDF to base64
       const pdfBase64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -630,7 +536,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         reader.readAsDataURL(pdfBlob);
       });
 
-      // 3. Update Quotation
       const updateData = {
         totalPrice: discountedPricing.grandTotal,
         originalTotalPrice: discountedPricing.originalGrandTotal,
@@ -650,17 +555,15 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       };
 
       const result = await salesAPI.updateQuotation(quotation.quotationId, updateData);
-      console.log('✅ Update success:', result);
 
       setEditingDiscountQuotationId(null);
       setDiscountType(null);
       setDiscountPercent(0);
 
-      // Refresh list
       fetchSalesPersonDetails();
 
     } catch (error: any) {
-      console.error('❌ Discount update failed:', error);
+
       alert(`Failed to update discount: ${error.message}`);
     } finally {
       setIsUpdatingDiscount(false);
@@ -668,7 +571,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
   };
 
   const handleDeleteQuotation = async (quotationId: string) => {
-    // Permission check (extra safety, though UI should hide it)
+
     if (loggedInUser?.role !== 'super' && loggedInUser?.role !== 'super_admin') {
       alert('Only super admins can delete quotations.');
       return;
@@ -680,10 +583,10 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
     try {
       await salesAPI.deleteQuotation(quotationId);
-      // Refresh list
+
       fetchSalesPersonDetails();
     } catch (error: any) {
-      console.error('❌ Delete failed:', error);
+
       alert(`Failed to delete quotation: ${error.message}`);
     }
   };
@@ -828,13 +731,6 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                           </h5>
                           <div className="space-y-3">
                             {customer.quotations.map((quotation, quotationIndex) => {
-                              // Validation log to ensure each quotation has unique data
-                              console.log(`🔍 Rendering quotation ${quotationIndex + 1}:`, {
-                                quotationId: quotation.quotationId,
-                                totalPrice: quotation.totalPrice,
-                                productName: quotation.productName,
-                                customerEmail: customer.customerEmail
-                              });
 
                               return (
                                 <div key={quotation.quotationId} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
@@ -1005,19 +901,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                           <span className="text-gray-600">Total Price:</span>
                                           <div className="text-right">
                                             {(() => {
-                                              // CRITICAL: Use the exact stored price from the database
-                                              // This price was calculated using the same logic as the PDF when saved
-                                              // Do NOT recalculate - always display the stored value to match PDF
+
                                               const actualPrice = quotation.totalPrice || 0;
                                               const userTypeDisplayName = quotation.userTypeDisplayName || 'End User';
-
-                                              // Log for verification
-                                              console.log(`💰 Displaying price for ${quotation.quotationId}:`, {
-                                                storedPrice: actualPrice,
-                                                formatted: actualPrice.toLocaleString('en-IN'),
-                                                userType: userTypeDisplayName,
-                                                source: 'database (matches PDF)'
-                                              });
 
                                               return (
                                                 <div>
@@ -1091,11 +977,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                         {/* Super Admin Discount Controls */}
                                         {(() => {
                                           const hasPermission = loggedInUser?.role === 'super' || loggedInUser?.role === 'super_admin';
-                                          console.log(`🔍 Discount Check [${quotation.quotationId}]:`, {
-                                            loggedInRole: loggedInUser?.role,
-                                            hasPermission,
-                                            discountApplied: quotation.quotationData?.discountApplied
-                                          });
+
                                           return hasPermission;
                                         })() && (
                                             <div className="mt-4 pt-3 border-t border-gray-200">
@@ -1157,7 +1039,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                 <button
                                                   onClick={() => {
                                                     setEditingDiscountQuotationId(quotation.quotationId);
-                                                    // Pre-populate if existing discount
+
                                                     if (quotation.quotationData?.discountApplied) {
                                                       setDiscountType(quotation.quotationData.discountInfo?.type || null);
                                                       setDiscountPercent(quotation.quotationData.discountInfo?.percent || 0);
@@ -1281,7 +1163,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           }}
           htmlContent={pdfHtmlContent}
           onDownload={() => {
-            // Download handled by opening S3 URL or regenerating
+
             if (selectedQuotation.pdfS3Key) {
               salesAPI.getQuotationPdfUrl(selectedQuotation.quotationId)
                 .then(response => {

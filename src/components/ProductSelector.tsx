@@ -31,30 +31,25 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
   const [pendingRentalProduct, setPendingRentalProduct] = useState<ProductWithOptionalSize | null>(null);
   const [rentalOption, setRentalOption] = useState<'cabinet' | 'curve lock' | null>(null);
-  
-  // Viewing distance filter state
+
   const [viewingDistanceUnit, setViewingDistanceUnit] = useState<'meters' | 'feet'>('meters');
   const [viewingDistanceValue, setViewingDistanceValue] = useState<string>('');
-  
-  // Pixel pitch filter state
+
   const [selectedPixelPitch, setSelectedPixelPitch] = useState<string>('All');
 
   const hasEnvironmentInteraction = useRef(false);
   const hasViewingDistanceInteraction = useRef(false);
   const hasPixelPitchInteraction = useRef(false);
 
-  // Clear viewing distance and pixel pitch when selected product changes
   useEffect(() => {
     setViewingDistanceValue('');
     setSelectedPixelPitch('All');
   }, [selectedProduct]);
 
-  // Clear pixel pitch when viewing distance changes
   useEffect(() => {
     setSelectedPixelPitch('All');
   }, [viewingDistanceValue, viewingDistanceUnit]);
 
-  // Sync environment filter to global context when user interacts
   useEffect(() => {
     if (!hasEnvironmentInteraction.current) return;
     if (selectedFilter === 'Indoor') {
@@ -66,7 +61,6 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     }
   }, [selectedFilter, updateConfig]);
 
-  // Sync viewing distance filter
   useEffect(() => {
     if (!hasViewingDistanceInteraction.current) return;
     updateConfig({
@@ -75,7 +69,6 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     });
   }, [viewingDistanceValue, viewingDistanceUnit, updateConfig]);
 
-  // Sync pixel pitch filter
   useEffect(() => {
     if (!hasPixelPitchInteraction.current) return;
     if (selectedPixelPitch !== 'All') {
@@ -88,29 +81,26 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     }
   }, [selectedPixelPitch, updateConfig]);
 
-  // Normalize environment for comparison
   const normalizeEnv = (env: string) => env.trim().toLowerCase();
   const normalizeType = (type: string | undefined) => (type || '').toLowerCase();
 
-  // Helper to check SMD/COB type
   const getProductType = (product: Product) => {
-    // Check ledType property
+
     if (product.ledType) {
       if (normalizeType(product.ledType).includes('cob')) return 'COB';
       if (normalizeType(product.ledType).includes('smd')) return 'SMD';
     }
-    // Check pixelComposition property (for transparent series and similar)
+
     if (product.pixelComposition) {
       if (normalizeType(product.pixelComposition).includes('cob')) return 'COB';
       if (normalizeType(product.pixelComposition).includes('smd')) return 'SMD';
     }
-    // Check product name
+
     if (product.name.toLowerCase().includes('cob')) return 'COB';
     if (product.name.toLowerCase().includes('smd')) return 'SMD';
     return undefined;
   };
 
-  // Helper to check if product is rental series
   const isRentalSeries = (product: Product) =>
     product.category && product.category.toLowerCase().includes('rental');
 
@@ -588,7 +578,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   disabled={!rentalOption}
                   onClick={() => {
                     if (pendingRentalProduct && rentalOption) {
-                      // Optionally, you can pass the rental option as a property or handle it in parent
+
                       handleProductSelection({ ...pendingRentalProduct, rentalOption });
                       setPendingRentalProduct(null);
                       setRentalOption(null);

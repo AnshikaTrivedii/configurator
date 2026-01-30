@@ -29,7 +29,7 @@ type DataHubNodeData = {
 
 const DataHubNode = ({ data }: { data: DataHubNodeData }) => {
   const color = data.color || '#2563eb';
-  // Use color for border and gradient
+
   const gradient = `linear-gradient(135deg, ${color}22 0%, ${color}33 100%)`;
   return (
     <div
@@ -98,7 +98,6 @@ const DataCabinetNode = ({ data }: { data: DataCabinetNodeData }) => {
   );
 };
 
-// Add this custom node type for group backgrounds
 type GroupBackgroundNodeData = { width: number; height: number };
 const GroupBackgroundNode = ({ data }: { data: GroupBackgroundNodeData }) => (
   <div
@@ -115,7 +114,6 @@ const GroupBackgroundNode = ({ data }: { data: GroupBackgroundNodeData }) => (
   />
 );
 
-// Add corridor visualization nodes
 type CorridorNodeData = { corridorIndex: number; totalCorridors: number };
 const CorridorNode = ({ data }: { data: CorridorNodeData }) => (
   <div
@@ -133,16 +131,14 @@ const CorridorNode = ({ data }: { data: CorridorNodeData }) => (
   />
 );
 
-// --- Custom BendEdge for React Flow ---
 const BendEdge: React.FC<EdgeProps> = ({ id, sourceX, sourceY, targetX, targetY, style, markerEnd, data }) => {
-  // Corridor-based routing (aligns cleanly with the target handle to avoid diagonals)
+
   if (typeof data?.corridorX === 'number') {
     const corridorX = data.corridorX as number;
     const d = `M ${sourceX},${sourceY} L ${corridorX},${sourceY} L ${corridorX},${targetY} L ${targetX},${targetY}`;
     return <BaseEdge id={id} path={d} style={style} markerEnd={markerEnd} />;
   }
 
-  // Explicit bend points fallback
   const hasBendPoints = Array.isArray(data?.bendPoints) && data.bendPoints.length > 0;
   if (hasBendPoints) {
     let d = `M ${sourceX},${sourceY}`;
@@ -153,7 +149,6 @@ const BendEdge: React.FC<EdgeProps> = ({ id, sourceX, sourceY, targetX, targetY,
     return <BaseEdge id={id} path={d} style={style} markerEnd={markerEnd} />;
   }
 
-  // Default straight path
   const [edgePath] = getStraightPath({ sourceX, sourceY, targetX, targetY });
   return <BaseEdge id={id} path={edgePath} style={style} markerEnd={markerEnd} />;
 };
@@ -177,13 +172,13 @@ interface Props {
 }
 
 const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabled, onRedundancyChange, controllerSelection }) => {
-  // --- Export functionality ---
+
   const flowRef = useRef<HTMLDivElement>(null);
   const reactFlowInstanceRef = useRef<any>(null);
   
   const getFlowViewport = (): HTMLElement | null => {
     if (!flowRef.current) return null;
-    // Find the React Flow viewport element - it contains the full diagram SVG
+
     const viewport = flowRef.current.querySelector('.react-flow__viewport') as HTMLElement;
     return viewport || flowRef.current;
   };
@@ -191,39 +186,34 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
   const exportAsImage = async (format: 'png' | 'jpeg' | 'svg') => {
     const instance = reactFlowInstanceRef.current;
     if (!instance) {
-      console.error('React Flow instance not available');
+
       return;
     }
     
     const viewportElement = getFlowViewport();
     if (!viewportElement) {
-      console.error('Could not find React Flow viewport');
+
       return;
     }
-    
-    // Save current viewport state outside try block for error handling
+
     let currentViewport: any = null;
     
     try {
-      // Save current viewport state
+
       currentViewport = instance.getViewport();
-      
-      // Fit view to show entire diagram before export
+
       instance.fitView({ padding: 0.2, duration: 200 });
-      
-      // Wait for fitView animation to complete
+
       await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Use scrollWidth and scrollHeight to capture the full diagram
+
       const fullWidth = viewportElement.scrollWidth;
       const fullHeight = viewportElement.scrollHeight;
       
       if (fullWidth === 0 || fullHeight === 0) {
-        console.error('Invalid viewport dimensions');
+
         return;
       }
-      
-      // Capture the viewport with transform removed and full dimensions
+
       const options = {
         pixelRatio: 3,
         backgroundColor: 'white',
@@ -235,7 +225,7 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
           transformOrigin: 'top left',
         },
         filter: (node: any) => {
-          // Exclude controls, minimap, and export buttons from export
+
           if (!node || !node.className) return true;
           const className = typeof node.className === 'string' ? node.className : '';
           return !className.includes('react-flow__controls') && 
@@ -267,19 +257,17 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
           mimeType = 'image/svg+xml';
           break;
       }
-      
-      // Restore viewport after capture
+
       instance.setViewport(currentViewport);
       
       download(dataUrl, filename, mimeType);
     } catch (error) {
-      console.error('Error exporting image:', error);
-      // Try to restore viewport even on error
+
       if (reactFlowInstanceRef.current && currentViewport) {
         try {
           reactFlowInstanceRef.current.setViewport(currentViewport);
         } catch (e) {
-          // Ignore restore errors
+
         }
       }
     }
@@ -288,37 +276,32 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
   const exportAsPDF = async () => {
     const instance = reactFlowInstanceRef.current;
     if (!instance) {
-      console.error('React Flow instance not available');
+
       return;
     }
     
     const viewportElement = getFlowViewport();
     if (!viewportElement) {
-      console.error('Could not find React Flow viewport');
+
       return;
     }
-    
-    // Save current viewport state outside try block for error handling
+
     let currentViewport: any = null;
     
     try {
-      // Save current viewport state
+
       currentViewport = instance.getViewport();
-      
-      // Fit view to show entire diagram before export
+
       instance.fitView({ padding: 0.2, duration: 200 });
-      
-      // Wait for fitView animation to complete
+
       await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Get all nodes to calculate the actual bounding box
+
       const nodes = instance.getNodes();
       if (nodes.length === 0) {
-        console.error('No nodes found in diagram');
+
         return;
       }
-      
-      // Calculate the actual bounding box from all nodes
+
       let minX = Infinity;
       let minY = Infinity;
       let maxX = -Infinity;
@@ -332,26 +315,22 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
         maxX = Math.max(maxX, node.position.x + nodeWidth);
         maxY = Math.max(maxY, node.position.y + nodeHeight);
       });
-      
-      // Add padding around the diagram
+
       const padding = 100;
       const nodeBasedWidth = Math.ceil(maxX - minX + padding * 2);
       const nodeBasedHeight = Math.ceil(maxY - minY + padding * 2);
-      
-      // Also get viewport dimensions as fallback
+
       const viewportWidth = viewportElement.scrollWidth || viewportElement.clientWidth;
       const viewportHeight = viewportElement.scrollHeight || viewportElement.clientHeight;
-      
-      // Use the maximum of both to ensure we capture everything
+
       const fullWidth = Math.max(nodeBasedWidth, viewportWidth);
       const fullHeight = Math.max(nodeBasedHeight, viewportHeight);
       
       if (fullWidth === 0 || fullHeight === 0) {
-        console.error('Invalid diagram dimensions');
+
         return;
       }
-      
-      // Capture the viewport with transform removed and full dimensions
+
       const options = {
         pixelRatio: 3,
         backgroundColor: 'white',
@@ -363,7 +342,7 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
           transformOrigin: 'top left',
         },
         filter: (node: any) => {
-          // Exclude controls, minimap, and export buttons from export
+
           if (!node || !node.className) return true;
           const className = typeof node.className === 'string' ? node.className : '';
           return !className.includes('react-flow__controls') && 
@@ -373,20 +352,16 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
                  !node.classList?.contains('absolute');
         },
       };
-      
-      // Convert to PNG first
+
       const dataUrl = await toPng(viewportElement, options);
-      
-      // Restore viewport before PDF creation (so user sees normal view)
+
       instance.setViewport(currentViewport);
-      
-      // Create PDF in landscape orientation
+
       const pdf = new jsPDF('l', 'pt', 'a4');
       const imgProps = pdf.getImageProperties(dataUrl);
       const pdfPageWidth = pdf.internal.pageSize.getWidth();
       const pdfPageHeight = pdf.internal.pageSize.getHeight();
-      
-      // Calculate scaling to fit within page while maintaining aspect ratio
+
       const imgAspectRatio = imgProps.width / imgProps.height;
       const pdfAspectRatio = pdfPageWidth / pdfPageHeight;
       
@@ -394,43 +369,38 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
       let finalHeight: number;
       
       if (imgAspectRatio > pdfAspectRatio) {
-        // Image is wider - fit to page width
+
         finalWidth = pdfPageWidth;
         finalHeight = pdfPageWidth / imgAspectRatio;
       } else {
-        // Image is taller - fit to page height
+
         finalHeight = pdfPageHeight;
         finalWidth = pdfPageHeight * imgAspectRatio;
       }
-      
-      // Center the image on the page
+
       const xOffset = (pdfPageWidth - finalWidth) / 2;
       const yOffset = (pdfPageHeight - finalHeight) / 2;
       
       pdf.addImage(dataUrl, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
       pdf.save('data-wiring-diagram.pdf');
     } catch (error) {
-      console.error('Error exporting PDF:', error);
-      // Try to restore viewport even on error
+
       if (reactFlowInstanceRef.current && currentViewport) {
         try {
           reactFlowInstanceRef.current.setViewport(currentViewport);
         } catch (e) {
-          // Ignore restore errors
+
         }
       }
     }
   };
-  
-  // Calculate pixel count per cabinet
+
   const pixelPitch = product.pixelPitch; // in mm
   const cabinetWidth = product.cabinetDimensions.width; // in mm
   const cabinetHeight = product.cabinetDimensions.height; // mm
   const pixelCountPerCabinet = Math.round((cabinetWidth / pixelPitch) * (cabinetHeight / pixelPitch));
   const PIXEL_LIMIT = 655000;
 
-  // Color palette for Data Hub groups
-  // Generate a unique color for each Data Hub
   function getHubColor(index: number, total: number) {
     const hue = (index * 360) / total;
     return `hsl(${hue}, 70%, 50%)`;
@@ -439,23 +409,11 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
     const hue = (index * 360) / total;
     return `hsl(${hue}, 50%, 35%)`;
   }
-  // const neutralCabinetColor = '#2563eb';
 
-  // Generate a unique color for each cabinet
-  // function getCabinetColor(index: number, total: number) {
-  //   const hue = (index * 360) / total;
-  //   return `hsl(${hue}, 70%, 60%)`;
-  // }
-
-  // const [redundancyEnabled, setRedundancyEnabled] = useState(false);
-
-  // Calculate total pixels and data hub ports for controller selection
   const totalPixels = pixelCountPerCabinet * cabinetGrid.columns * cabinetGrid.rows;
-  
-  // Calculate number of data hub ports needed based on pixel limit
+
   const dataHubPorts = Math.ceil(totalPixels / PIXEL_LIMIT);
-  
-  // Use provided controller selection or fall back to hook
+
   const internalControllerSelection = controllerSelection || useControllerSelection(dataHubPorts, totalPixels, redundancyEnabled);
 
   const generateNodesAndEdges = useMemo(() => {
@@ -490,29 +448,23 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
     const edges: FlowEdge[] = [];
     const cabinetAssignments: { [cabinetId: string]: number } = {};
 
-    // Data Hub stacking
     const dataHubStartX = 50;
     const dataHubStartY = 50;
     const dataHubSpacingY = 220;
 
-    // Cabinet node layout
     const startX = 350;
     const startY = 150;
     const spacingX = 140;
     const spacingY = 120;
 
-    // Compute the right side of the cabinet grid, then place backup hubs to the right with a clear offset
     const gridRightX = startX + (cols - 1) * spacingX;
     const backupHubRightOffset = 320; // px offset from the grid's right edge
     const backupHubX = gridRightX + backupHubRightOffset;
-    
-    // const rightCorridorX = gridRightX + 40; // corridor for routing dashed backup edges
 
-    // Assign cabinets to hubs (serpentine order)
     let nodeId = 1;
     let cumulativePixels = 0;
     let currentHubIndex = 0;
-    // let nextHubThreshold = PIXEL_LIMIT;
+
     const hubFirstCabinet: number[] = [1]; // The first cabinet for each hub
 
     for (let row = 0; row < rows; row++) {
@@ -521,26 +473,24 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
       const rowEnd = isEven ? cols : -1;
       const step = isEven ? 1 : -1;
       for (let col = rowStart; col !== rowEnd; col += step) {
-        // Strictly enforce the pixel limit: if adding this cabinet would exceed the limit, start a new hub first
+
         if (cumulativePixels + pixelCountPerCabinet > PIXEL_LIMIT) {
           currentHubIndex++;
           cumulativePixels = 0;
           hubFirstCabinet.push(nodeId);
         }
         cabinetAssignments[`cabinet-${nodeId}`] = currentHubIndex;
-        // Debug log for hub assignment
+
         if (nodeId >= 7 && nodeId <= 18) {
-          console.log(`Cabinet ${nodeId} assigned to hub ${currentHubIndex}`);
+
         }
         cumulativePixels += pixelCountPerCabinet;
         nodeId++;
       }
     }
 
-    // --- Rebalance adjacent hubs to keep cabinet counts roughly equal while respecting pixel limit ---
     const totalHubs = currentHubIndex + 1;
-    
-    // Create multiple corridors for backup hub routing to avoid cabinet overlap
+
     const maxCorridors = Math.min(totalHubs, 4); // Limit to 4 corridors max
     const corridorSpacing = maxCorridors > 1 ? 120 : 80; // Increase spacing when multiple corridors
     const corridors: number[] = [];
@@ -550,13 +500,13 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
     
     if (totalHubs > 1) {
       const maxCabsPerHub = Math.max(1, Math.floor(PIXEL_LIMIT / pixelCountPerCabinet));
-      // Helper to get start and end indices (1-based) for a hub's contiguous block
+
       const getHubRange = (hubIdx: number) => {
         const start = hubFirstCabinet[hubIdx];
         const end = hubIdx + 1 < hubFirstCabinet.length ? hubFirstCabinet[hubIdx + 1] - 1 : totalCabinets;
         return { start, end };
       };
-      // Iterate over adjacent hub pairs and shift the boundary leftwards if needed
+
       for (let i = 0; i < totalHubs - 1; i++) {
         const leftRange = getHubRange(i);
         const rightRange = getHubRange(i + 1);
@@ -565,16 +515,16 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
         const desiredRight = Math.min(maxCabsPerHub, Math.ceil((leftCount + rightCount) / 2));
         if (rightCount < desiredRight && leftCount > 1) {
           const shift = Math.min(desiredRight - rightCount, leftCount - 1);
-          // New start for right hub by taking from the end of left hub
+
           const oldRightStart = hubFirstCabinet[i + 1];
           const newRightStart = Math.max(leftRange.start + 1, oldRightStart - shift);
           if (newRightStart < oldRightStart) {
-            // Reassign cabinets from [newRightStart .. oldRightStart-1] to right hub
+
             for (let cab = newRightStart; cab < oldRightStart; cab++) {
               cabinetAssignments[`cabinet-${cab}`] = i + 1;
             }
             hubFirstCabinet[i + 1] = newRightStart;
-            // Update counts for potential subsequent balancing
+
             leftCount -= (oldRightStart - newRightStart);
             rightCount += (oldRightStart - newRightStart);
           }
@@ -582,7 +532,6 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
       }
     }
 
-    // Add Data Hub nodes (vertical stacking)
     for (let i = 0; i < totalHubs; i++) {
       const color = getHubColor(i, totalHubs);
       nodes.push({
@@ -593,7 +542,6 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
       });
     }
 
-    // Backup hubs (mirrored) when redundancy is enabled
     if (redundancyEnabled) {
       for (let i = 0; i < totalHubs; i++) {
         const color = getBackupHubColor(i, totalHubs);
@@ -606,7 +554,6 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
       }
     }
 
-    // Add cabinet nodes (serpentine placement)
     nodeId = 1;
     for (let row = 0; row < rows; row++) {
       const isEven = row % 2 === 0;
@@ -614,7 +561,7 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
         const actualCol = isEven ? col : cols - 1 - col;
         const posX = startX + actualCol * spacingX;
         const posY = startY + row * spacingY;
-        // Assign the color of the respective Data Hub to each cabinet
+
         const hubIdx = cabinetAssignments[`cabinet-${nodeId}`];
         const color = getHubColor(hubIdx, totalHubs);
         nodes.push({
@@ -627,7 +574,6 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
       }
     }
 
-    // Group cabinets by Data Hub and add group background nodes
     const groupBackgroundNodes: FlowNode[] = [];
     const corridorNodes: FlowNode[] = [];
     const groups: { [hubIdx: number]: { x: number[]; y: number[] } } = {};
@@ -653,7 +599,7 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
       const maxX = Math.max(...coords.x) + 170;
       const minY = Math.min(...coords.y) - 20;
       const maxY = Math.max(...coords.y) + 100;
-      // Optionally, you could color the background with the hub color as well
+
       groupBackgroundNodes.push({
         id: `group-bg-${hubIdx}`,
         type: 'groupBackground',
@@ -665,7 +611,6 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
       });
     });
 
-    // Add corridor visualization nodes
     corridors.forEach((corridorX, index) => {
       corridorNodes.push({
         id: `corridor-${index}`,
@@ -678,15 +623,14 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
       });
     });
 
-    // Edges (serpentine wiring, no cross-hub connections)
     if (totalCabinets > 0) {
-      // Connect each Data Hub to the first cabinet in its range with a single step edge, using group color
+
       for (let i = 0; i < hubFirstCabinet.length; i++) {
         const hubId = `data-hub-${i + 1}`;
         const cabId = `cabinet-${hubFirstCabinet[i]}`;
         const color = getHubColor(i, totalHubs);
         if (i === 0) {
-          // Data Hub 1: direct connection (as is)
+
           edges.push({
             id: `hub${i + 1}-to-cab${hubFirstCabinet[i]}`,
             source: hubId,
@@ -697,14 +641,14 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
             markerEnd: { type: MarkerType.ArrowClosed, color },
           });
         } else {
-          // Data Hub 2+: route between rows using bend points
+
           const cabNode = nodes.find(n => n.id === cabId);
           const hubNode = nodes.find(n => n.id === hubId);
           if (cabNode && hubNode) {
-            // Find the row of the first cabinet in this hub
+
             const cabIdx = parseInt(cabId.split('-')[1], 10) - 1;
             const cabRow = Math.floor(cabIdx / cols);
-            // Y position between previous row and this row
+
             const betweenRowsY = cabRow > 0
               ? (startY + (cabRow - 1) * spacingY + startY + cabRow * spacingY) / 2
               : cabNode.position.y - spacingY / 2;
@@ -733,15 +677,13 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
         const thisCabHub = cabinetAssignments[`cabinet-${i}`];
         const nextCabHub = cabinetAssignments[`cabinet-${i + 1}`];
         const color = getHubColor(thisCabHub, totalHubs);
-      
-        // Avoid wiring across hubs
+
         if (thisCabHub !== nextCabHub) continue;
       
         const sourceRow = Math.floor((i - 1) / cols);
         const nextRow = Math.floor(i / cols);
         const isSourceRowEven = sourceRow % 2 === 0;
-      
-        // Correct vertical connection: end of row (i % cols === 0)
+
         const isVerticalConnection = i % cols === 0 && nextRow === sourceRow + 1;
       
         if (isVerticalConnection) {
@@ -758,8 +700,7 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
           });
           continue;
         }
-      
-        // Horizontal connection (step type)
+
         const sourceHandle = isSourceRowEven ? 'right-source' : 'left-source';
         const targetHandle = isSourceRowEven ? 'left-target' : 'right-target';
       
@@ -776,9 +717,8 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
         });
       }      
 
-      // Redundancy mirrored edges when enabled
       if (redundancyEnabled) {
-        // Backup hub connection to LAST cabinet in each hub's range
+
         for (let i = 0; i < hubFirstCabinet.length; i++) {
           const backupId = `backup-hub-${i + 1}`;
           const lastCabinetIdx = i + 1 < hubFirstCabinet.length ? hubFirstCabinet[i + 1] - 1 : totalCabinets;
@@ -788,21 +728,18 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
           const cabNode = nodes.find(n => n.id === lastCabId);
           const hubNode = nodes.find(n => n.id === backupId);
           if (cabNode && hubNode) {
-            // Use corridor-based routing with multiple levels to avoid cabinet overlap
+
             const corridorIndex = Math.min(i, corridors.length - 1);
             const corridorX = corridors[corridorIndex];
-            
-            // Calculate optimal connection point on the cabinet
+
             const cabIdx = parseInt(lastCabId.split('-')[1], 10) - 1;
             const cabRow = Math.floor(cabIdx / cols);
             const cabCol = cabIdx % cols;
-            
-            // Determine if this is a right-edge cabinet (last column)
+
             const isRightEdge = cabCol === cols - 1;
-            
-            // Route through corridor with smart connection points
+
             if (isRightEdge) {
-              // Right-edge cabinet: connect directly to right side through corridor
+
               edges.push({
                 id: `backup-hub${i + 1}-to-cab${lastCabinetIdx}`,
                 source: backupId,
@@ -814,8 +751,7 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
                 data: { corridorX: corridorX },
               });
             } else {
-              // Interior cabinet: route through corridor and connect from above/below
-              // Calculate optimal connection point to avoid cabinet overlap
+
               const cabinetCenterY = cabNode.position.y + 60; // Cabinet height is ~120px
               const connectionY = cabRow % 2 === 0 
                 ? Math.max(cabinetCenterY - 80, startY - 20) // Above cabinet, but not too high
@@ -842,14 +778,12 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
           }
         }
 
-        // Reversed cabinet-to-cabinet connections within each hub range (mirror serpentine logic)
         for (let i = 1; i < totalCabinets; i++) {
           const thisCabHub = cabinetAssignments[`cabinet-${i}`];
           const nextCabHub = cabinetAssignments[`cabinet-${i + 1}`];
           if (thisCabHub !== nextCabHub) continue;
           const color = getBackupHubColor(thisCabHub, totalHubs);
 
-          // For reverse direction, the source is cabinet-(i+1) and the target is cabinet-i
           const sourceRow = Math.floor(i / cols);           // row of cabinet-(i+1)
           const targetRow = Math.floor((i - 1) / cols);     // row of cabinet-i
           const isVerticalConnection = i % cols === 0 && sourceRow === targetRow + 1;
@@ -907,7 +841,6 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
           <input type="checkbox" checked={redundancyEnabled} onChange={(e) => onRedundancyChange(e.target.checked)} />
           <span style={{ fontSize: 13, color: '#111827', fontWeight: 600 }}>Redundancy</span>
         </label>
-        
 
       </div>
       

@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-
 // Lazy initialization variables
 let s3Client = null;
 let BUCKET_NAME = null;
@@ -27,12 +26,6 @@ const getS3Context = () => {
   BUCKET_NAME = process.env.ORION_S3_BUCKET_NAME || process.env.S3_BUCKET_NAME;
 
   // Log only once during initialization
-  console.log('🔧 S3 Configuration Check:', {
-    region: region,
-    bucketName: BUCKET_NAME ? '✅ SET' : '❌ NOT SET',
-    accessKeyId: accessKeyId ? '✅ SET' : '❌ NOT SET',
-    secretAccessKey: secretAccessKey ? '✅ SET' : '❌ NOT SET'
-  });
 
   if (!accessKeyId || !secretAccessKey) {
     console.warn('⚠️ AWS Credentials missing. S3 operations will fail.');
@@ -84,11 +77,6 @@ const sanitizeQuotationId = (quotationId) => {
   // Remove leading/trailing dashes
   sanitized = sanitized.replace(/^-+|-+$/g, '');
 
-  console.log('🔧 Sanitized quotation ID:', {
-    original: quotationId,
-    sanitized: sanitized
-  });
-
   return sanitized;
 };
 
@@ -102,13 +90,6 @@ const sanitizeQuotationId = (quotationId) => {
 export const uploadPdfToS3 = async (pdfBuffer, quotationId, salesUserId) => {
   // Initialize context on first use
   const { s3Client, BUCKET_NAME } = getS3Context();
-
-  console.log('📤 Starting S3 upload...', {
-    quotationId,
-    salesUserId,
-    bufferSize: pdfBuffer.length,
-    bucketName: BUCKET_NAME ? 'SET' : 'NOT SET'
-  });
 
   if (!BUCKET_NAME) {
     const error = 'ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set';
@@ -141,15 +122,6 @@ export const uploadPdfToS3 = async (pdfBuffer, quotationId, salesUserId) => {
   // This keeps it simple: quotations/pdfs/{userId}/{quotationId}.pdf
   const s3Key = `${PDF_FOLDER}/${salesUserId}/${sanitizedQuotationId}.pdf`;
 
-  console.log('📋 S3 Upload Details:', {
-    bucket: BUCKET_NAME,
-    s3Key: s3Key,
-    originalQuotationId: quotationId,
-    sanitizedQuotationId: sanitizedQuotationId,
-    salesUserId: salesUserId,
-    pdfSize: pdfBuffer.length
-  });
-
   const command = new PutObjectCommand({
     Bucket: BUCKET_NAME,
     Key: s3Key,
@@ -164,9 +136,9 @@ export const uploadPdfToS3 = async (pdfBuffer, quotationId, salesUserId) => {
   });
 
   try {
-    console.log('🔄 Sending upload command to S3...');
+
     await s3Client.send(command);
-    console.log(`✅ PDF uploaded to S3 successfully: ${s3Key}`);
+
     return s3Key;
   } catch (error) {
     console.error('❌ Error uploading PDF to S3:', error);
@@ -229,7 +201,7 @@ export const deletePdfFromS3 = async (s3Key) => {
 
   try {
     await s3Client.send(command);
-    console.log(`✅ PDF deleted from S3: ${s3Key}`);
+
   } catch (error) {
     console.error('❌ Error deleting PDF from S3:', error);
     throw new Error(`Failed to delete PDF from S3: ${error.message}`);

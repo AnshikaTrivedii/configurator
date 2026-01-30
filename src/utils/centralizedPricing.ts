@@ -12,19 +12,17 @@ import { Product } from '../types';
 import { getProcessorPrice } from './processorPrices';
 
 export interface PricingCalculationResult {
-  // Product pricing
+
   unitPrice: number;
   quantity: number;
   productSubtotal: number;
   productGST: number;
   productTotal: number;
 
-  // Processor pricing
   processorPrice: number;
   processorGST: number;
   processorTotal: number;
 
-  // Structure and Installation pricing (separate fields)
   structureCost: number;
   structureGST: number;
   structureTotal: number;
@@ -32,17 +30,14 @@ export interface PricingCalculationResult {
   installationGST: number;
   installationTotal: number;
 
-  // Grand total
   grandTotal: number;
 
-  // Metadata
   userType: string;
   productName: string;
   processorName?: string;
   cabinetGrid?: { columns: number; rows: number };
   displaySize?: { width: number; height: number };
 
-  // Price availability
   isAvailable: boolean; // false if price is NA
 }
 
@@ -61,7 +56,7 @@ function isJumboSeriesProduct(product: Product): boolean {
  */
 function getProductUnitPrice(product: Product, userType: string): number | null {
   try {
-    // Handle rental products
+
     if (product.category?.toLowerCase().includes('rental') && product.prices) {
       if (userType === 'Reseller') {
         const price = product.prices.cabinet.reseller;
@@ -75,7 +70,6 @@ function getProductUnitPrice(product: Product, userType: string): number | null 
       }
     }
 
-    // For regular products, use the appropriate price field based on user type
     let selectedPrice: any;
 
     if (userType === 'Reseller') {
@@ -86,27 +80,23 @@ function getProductUnitPrice(product: Product, userType: string): number | null 
       selectedPrice = product.price;
     }
 
-    // Check if price is NA
     if (selectedPrice === 'NA' || selectedPrice === 'N/A' || selectedPrice === null || selectedPrice === undefined) {
       return null;
     }
 
-    // Handle numeric prices
     if (typeof selectedPrice === 'number') {
       return selectedPrice;
     }
 
-    // Handle string prices
     if (typeof selectedPrice === 'string') {
       const parsedPrice = parseFloat(selectedPrice);
       return isNaN(parsedPrice) ? 5300 : parsedPrice;
     }
 
-    // Fallback to default pricing
     return 5300;
 
   } catch (error) {
-    console.error('Error getting product unit price:', error);
+
     return 5300;
   }
 }
@@ -123,60 +113,43 @@ function calculateQuantity(
     const METERS_TO_FEET = 3.2808399;
 
     if (product.category?.toLowerCase().includes('rental')) {
-      // For rental series, calculate quantity as number of cabinets
+
       return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
     } else if (isJumboSeriesProduct(product)) {
-      // For Jumbo Series, use fixed area-based pricing
+
       const pixelPitch = product.pixelPitch;
 
       if (pixelPitch === 4 || pixelPitch === 2.5) {
-        // P4 and P2.5: Fixed area = 7.34ft × 4.72ft = 34.64 sqft
+
         const widthInFeet = 7.34;
         const heightInFeet = 4.72;
         const fixedQuantity = widthInFeet * heightInFeet;
 
-        console.log('🎯 Jumbo Series P4/P2.5 Fixed Pricing:', {
-          product: product.name,
-          pixelPitch,
-          fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
-          quantity: fixedQuantity.toFixed(2) + ' sqft'
-        });
-
         return Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
       } else if (pixelPitch === 3 || pixelPitch === 6) {
-        // P3 and P6: Fixed area = 6.92ft × 5.04ft = 34.88 sqft
+
         const widthInFeet = 6.92;
         const heightInFeet = 5.04;
         const fixedQuantity = widthInFeet * heightInFeet;
 
-        console.log('🎯 Jumbo Series P3/P6 Fixed Pricing:', {
-          product: product.name,
-          pixelPitch,
-          fixedArea: `${widthInFeet}ft × ${heightInFeet}ft`,
-          quantity: fixedQuantity.toFixed(2) + ' sqft'
-        });
-
         return Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
       }
     } else {
-      // For other products, calculate quantity in square feet
+
       const widthInMeters = config.width / 1000;
       const heightInMeters = config.height / 1000;
       const widthInFeet = widthInMeters * METERS_TO_FEET;
       const heightInFeet = heightInMeters * METERS_TO_FEET;
       const quantity = widthInFeet * heightInFeet;
 
-      // Round to 2 decimal places for consistency
       const roundedQuantity = Math.round(quantity * 100) / 100;
 
-      // Ensure quantity is reasonable
       return isNaN(roundedQuantity) || roundedQuantity <= 0 ? 1 : Math.max(0.01, Math.min(roundedQuantity, 10000));
     }
 
-    // Fallback
     return 1;
   } catch (error) {
-    console.error('Error calculating quantity:', error);
+
     return 1;
   }
 }
@@ -196,11 +169,11 @@ export function calculateStructureCost(
   const normalizedEnv = environment?.toLowerCase().trim();
 
   if (normalizedEnv === 'indoor') {
-    // Indoor: ₹4000 per cabinet
+
     const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
     return Math.round((numberOfCabinets * 4000) * 100) / 100;
   } else {
-    // Outdoor: ₹2500 per sq.ft
+
     return Math.round((area * 2500) * 100) / 100;
   }
 }
@@ -248,7 +221,7 @@ export function calculateCentralizedPricing(
   }
 ): PricingCalculationResult {
   try {
-    // Convert userType to match processor pricing format
+
     let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
     if (userType === 'reseller') {
       pdfUserType = 'Reseller';
@@ -256,17 +229,9 @@ export function calculateCentralizedPricing(
       pdfUserType = 'Channel';
     }
 
-    // Get unit price
     const unitPrice = getProductUnitPrice(product, pdfUserType);
 
-    // Check if price is available
     if (unitPrice === null) {
-      // Price is NA - return "Not Available" result
-      console.log('⚠️ PRICE NOT AVAILABLE:', {
-        product: product.name,
-        userType: pdfUserType,
-        reason: 'Price is set to NA'
-      });
 
       return {
         unitPrice: 0,
@@ -296,17 +261,13 @@ export function calculateCentralizedPricing(
       };
     }
 
-    // Calculate quantity with proper rounding
     const quantity = calculateQuantity(product, cabinetGrid, config);
 
-    // Calculate product pricing with consistent rounding at each step
-    // CRITICAL: Round quantity to 2 decimal places first to match PDF calculation
     const roundedQuantity = Math.round(quantity * 100) / 100;
     const productSubtotal = Math.round((unitPrice * roundedQuantity) * 100) / 100;
     const productGST = Math.round((productSubtotal * 0.18) * 100) / 100;
     const productTotal = Math.round((productSubtotal + productGST) * 100) / 100;
 
-    // Calculate processor pricing (before GST) - ROUND TO 2 DECIMAL PLACES
     let processorPrice = 0;
     if (processor && !isJumboSeriesProduct(product)) {
       processorPrice = getProcessorPrice(processor, pdfUserType);
@@ -315,7 +276,6 @@ export function calculateCentralizedPricing(
     const processorGST = Math.round((processorPrice * 0.18) * 100) / 100;
     const processorTotal = Math.round((processorPrice + processorGST) * 100) / 100;
 
-    // Calculate screen area in square feet for Structure and Installation pricing
     const METERS_TO_FEET = 3.2808399;
     const widthInMeters = config.width / 1000;
     const heightInMeters = config.height / 1000;
@@ -323,36 +283,30 @@ export function calculateCentralizedPricing(
     const heightInFeet = heightInMeters * METERS_TO_FEET;
     const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
 
-    // Calculate Structure and Installation costs separately
     let structureBasePrice: number;
     let installationBasePrice: number;
 
     if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
-      // Use custom pricing (base prices without GST)
+
       structureBasePrice = customPricing.structurePrice;
-      // Check if installation is fixed or per sqft
+
       if (customPricing.installationType === 'fixed') {
         installationBasePrice = customPricing.installationPrice;
       } else {
         installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', customPricing.installationPrice);
       }
     } else {
-      // Default calculation: 
-      // Structure Price: Indoor = ₹4000 per cabinet, Outdoor = ₹2500 per sq.ft
-      // Installation Price: ₹500 per square foot
+
       structureBasePrice = calculateStructureCost(product.environment, cabinetGrid, screenAreaSqFt);
       installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 500);
     }
 
-    // Calculate GST on structure and installation (always 18%)
     const structureGST = Math.round((structureBasePrice * 0.18) * 100) / 100;
     const structureTotal = Math.round((structureBasePrice + structureGST) * 100) / 100;
 
     const installationGST = Math.round((installationBasePrice * 0.18) * 100) / 100;
     const installationTotal = Math.round((installationBasePrice + installationGST) * 100) / 100;
 
-    // Calculate Grand Total - ROUND TO NEAREST RUPEE
-    // Grand Total = Product Total + Processor Total + Structure Total + Installation Total
     const grandTotal = Math.round(productTotal + processorTotal + structureTotal + installationTotal);
 
     const result: PricingCalculationResult = {
@@ -382,48 +336,10 @@ export function calculateCentralizedPricing(
       isAvailable: true
     };
 
-    console.log('💰 CENTRALIZED PRICING CALCULATION:', {
-      product: product.name,
-      userType: pdfUserType,
-      unitPrice,
-      quantity: roundedQuantity,
-      productSubtotal,
-      productGST,
-      productTotal,
-      processorPrice,
-      processorGST,
-      processorTotal,
-      structureCost: structureBasePrice,
-      structureGST,
-      structureTotal,
-      installationCost: installationBasePrice,
-      installationGST,
-      installationTotal,
-      grandTotal,
-      breakdown: {
-        'Unit Price (per sq.ft)': unitPrice,
-        'Quantity (sq.ft)': roundedQuantity,
-        'Product Subtotal': productSubtotal,
-        'Product GST (18%)': productGST,
-        'Product Total (A)': productTotal,
-        'Processor Price': processorPrice,
-        'Processor GST (18%)': processorGST,
-        'Processor Total (B)': processorTotal,
-        'Structure Cost (Base)': structureBasePrice,
-        'Structure GST (18%)': structureGST,
-        'Structure Total': structureTotal,
-        'Installation Cost (Base)': installationBasePrice,
-        'Installation GST (18%)': installationGST,
-        'Installation Total': installationTotal,
-        'GRAND TOTAL (A+B+C+D) with GST': grandTotal
-      }
-    });
-
     return result;
 
   } catch (error) {
-    console.error('Error in centralized pricing calculation:', error);
-    // Return fallback pricing
+
     return {
       unitPrice: 5300,
       quantity: 1,
@@ -470,14 +386,6 @@ export function validatePriceConsistency(
       ? `✅ Price consistency verified: Stored (₹${storedPrice.toLocaleString('en-IN')}) matches calculation (₹${calculatedPrice.toLocaleString('en-IN')})`
       : `❌ Price mismatch detected: Stored (₹${storedPrice.toLocaleString('en-IN')}) vs Calculation (₹${calculatedPrice.toLocaleString('en-IN')}) - Difference: ₹${difference.toLocaleString('en-IN')}`;
 
-    console.log('🔍 Price Consistency Check:', {
-      storedPrice,
-      calculatedPrice,
-      difference,
-      isValid,
-      message
-    });
-
     return {
       isValid,
       calculatedPrice,
@@ -486,7 +394,7 @@ export function validatePriceConsistency(
     };
 
   } catch (error) {
-    console.error('Error validating price consistency:', error);
+
     return {
       isValid: false,
       calculatedPrice: 0,

@@ -5,12 +5,6 @@ import { config } from '../config/config.js';
 const router = express.Router();
 
 // Debug: Log environment variables on startup
-console.log('📧 Email Configuration Debug:');
-console.log('   RESEND_API_KEY:', process.env.RESEND_API_KEY ? 'SET (' + process.env.RESEND_API_KEY.substring(0, 10) + '...)' : 'NOT SET');
-console.log('   TO_EMAIL:', process.env.TO_EMAIL || 'NOT SET');
-console.log('   DEFAULT_FROM_EMAIL:', process.env.DEFAULT_FROM_EMAIL || 'NOT SET');
-console.log('   config.resendApiKey:', config.resendApiKey ? 'SET' : 'NOT SET');
-console.log('   config.toEmail:', config.toEmail || 'NOT SET');
 
 // Initialize Resend client with API key from environment variables
 // Use a dummy key in development if not provided (emails won't actually send)
@@ -44,17 +38,7 @@ export const handleQuoteRequest = async (req, res) => {
     if (!resend || !toEmail) {
       // If email service is not configured, log it and return success
       // This allows the application to work in development/local environments
-      console.log("📧 [WARNING] Email service not configured");
-      console.log("📧 [INFO] RESEND_API_KEY:", config.resendApiKey ? "SET" : "NOT SET");
-      console.log("📧 [INFO] TO_EMAIL:", toEmail || "NOT SET");
-      console.log("📧 [INFO] Quote request data:", {
-        productName: quoteData.product?.name,
-        customerName: quoteData.customerName,
-        customerEmail: quoteData.customerEmail,
-        customerPhone: quoteData.customerPhone
-      });
-      console.log("📧 [INFO] Email HTML preview:", emailHtml.substring(0, 200) + "...");
-      
+
       return res.json({ 
         success: true, 
         message: "Quote request received (email service not configured - logged to console)",

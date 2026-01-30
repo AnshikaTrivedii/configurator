@@ -13,6 +13,7 @@
     "@react-email/components": "^0.1.0",
     "@react-pdf/renderer": "^4.3.0",
     "@xyflow/react": "^12.7.1",
+    "axios": "^1.13.4",
     "docx": "^9.5.1",
     "docxtemplater": "^3.67.4",
     "downloadjs": "^1.4.7",

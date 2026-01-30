@@ -50,7 +50,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 
   const currentStepIndex = steps.findIndex(s => s.key === currentStep);
 
-  // Reset wizard when opened
   useEffect(() => {
     if (isOpen) {
       setCurrentStep('environment');
@@ -66,7 +65,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     }
   }, [isOpen]);
 
-  // Convert dimensions to mm with high precision
   const convertToMM = (value: number, fromUnit: 'mm' | 'cm' | 'm' | 'ft'): number => {
     switch (fromUnit) {
       case 'mm': return value;
@@ -76,8 +74,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       default: return value;
     }
   };
-  
-  // Convert mm back to original unit for verification
+
   const convertFromMM = (mm: number, toUnit: 'mm' | 'cm' | 'm' | 'ft'): number => {
     switch (toUnit) {
       case 'mm': return mm;
@@ -108,12 +105,10 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       const heightValue = parseFloat(height);
       const widthMM = convertToMM(widthValue, unit);
       const heightMM = convertToMM(heightValue, unit);
-      
-      // Verify conversion accuracy
+
       const widthBack = convertFromMM(widthMM, unit);
       const heightBack = convertFromMM(heightMM, unit);
-      
-      // Validate product matches wizard selections
+
       const productEnv = selectedProduct.environment?.toLowerCase().trim();
       const selectedEnv = environment?.toLowerCase().trim();
       const envMatch = !environment || productEnv === selectedEnv;
@@ -121,49 +116,13 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       const pitchMatch = pixelPitch === null || Math.abs(selectedProduct.pixelPitch - pixelPitch) < 0.3;
       
       if (!envMatch) {
-        console.warn('⚠️ Product environment mismatch:', {
-          selected: environment,
-          product: selectedProduct.environment,
-          productName: selectedProduct.name
-        });
+
       }
       
       if (!pitchMatch) {
-        console.warn('⚠️ Product pixel pitch mismatch:', {
-          selected: pixelPitch,
-          product: selectedProduct.pixelPitch,
-          productName: selectedProduct.name
-        });
+
       }
-      
-      console.log('🎯 Wizard Complete - Passing data:', {
-        dimensions: {
-        originalWidth: widthValue,
-        originalHeight: heightValue,
-        originalUnit: unit,
-        widthMM,
-        heightMM,
-        widthBack: widthBack.toFixed(4),
-        heightBack: heightBack.toFixed(4),
-        widthMatch: Math.abs(widthValue - widthBack) < 0.0001,
-        heightMatch: Math.abs(heightValue - heightBack) < 0.0001
-        },
-        filters: {
-          environment,
-          viewingDistance,
-          viewingDistanceUnit,
-          pixelPitch
-        },
-        product: {
-          id: selectedProduct.id,
-          name: selectedProduct.name,
-          environment: selectedProduct.environment,
-          pixelPitch: selectedProduct.pixelPitch,
-          envMatch,
-          pitchMatch
-        }
-      });
-      
+
       onComplete({
         width: widthMM,
         height: heightMM,
@@ -178,7 +137,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     }
   };
 
-  // Sync width/height with global context
   useEffect(() => {
     if (!isOpen) return;
     if (!width || !height) return;
@@ -192,7 +150,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     updateDimensions(widthMM, heightMM, unit);
   }, [width, height, unit, isOpen, updateDimensions]);
 
-  // Sync environment
   useEffect(() => {
     if (!isOpen) return;
     updateConfig({
@@ -200,7 +157,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     });
   }, [environment, isOpen, updateConfig]);
 
-  // Sync viewing distance selections
   useEffect(() => {
     if (!isOpen) return;
     updateConfig({
@@ -209,7 +165,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     });
   }, [viewingDistance, viewingDistanceUnit, isOpen, updateConfig]);
 
-  // Sync pixel pitch selection
   useEffect(() => {
     if (!isOpen) return;
     updateConfig({
@@ -234,26 +189,23 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     }
   };
 
-  // Get available pixel pitches based on viewing distance and environment
-  // Only show pitches from the allowed catalog that match environment
   const availablePixelPitches = (() => {
     let pitches: number[] = [];
     
     if (viewingDistance) {
-      // Get all recommended pitches for this viewing distance (can be multiple)
+
       pitches = getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit, environment as 'Indoor' | 'Outdoor' | null);
     } else {
-      // If no viewing distance, show all allowed pixel pitches
+
       pitches = getAvailablePixelPitches();
     }
-    
-    // Filter by environment if selected - only show pitches that have products in that environment
+
     if (environment && pitches.length > 0) {
       const envFilteredPitches = new Set<number>();
       const normalizedEnv = environment.toLowerCase().trim();
       
       pitches.forEach(pitch => {
-        // Check if any enabled product with this pitch matches the environment
+
         const hasMatchingProduct = products.some(product => {
           if (product.enabled === false) return false;
           const productEnv = product.environment?.toLowerCase().trim();
@@ -275,7 +227,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     return pitches;
       })();
 
-  // Calculate recommended pixel pitches from viewing distance (for guided mode filtering)
   const recommendedPixelPitches: number[] = (() => {
     if (viewingDistance && !hasSkippedPixelPitch) {
       return getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit, environment as 'Indoor' | 'Outdoor' | null);
@@ -283,31 +234,27 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     return [];
   })();
 
-  // Filter products based on selections (only enabled products)
   const filteredProducts = products.filter(product => {
-    // Only show enabled products
+
     if (product.enabled === false) return false;
-    // Normalize environment for comparison (case-insensitive)
+
     const productEnv = product.environment?.toLowerCase().trim();
     const selectedEnv = environment?.toLowerCase().trim();
-    
-    // Filter by environment if selected
+
     if (environment && productEnv !== selectedEnv) {
       return false;
     }
-    
-    // GUIDED MODE FILTERING LOGIC:
-    // If user explicitly selected a pixel pitch, use it
+
     if (pixelPitch !== null) {
       const productPitch = normalize(product.pixelPitch);
       const selectedPitch = normalize(pixelPitch);
       if (productPitch === null || selectedPitch === null) return false;
-      // Use strict matching with small tolerance (0.1mm) for exact matches
+
       if (Math.abs(productPitch - selectedPitch) >= 0.1) {
         return false;
       }
     } 
-    // If in guided mode and pixel pitch was not selected but not skipped, use recommended pitches
+
     else if (recommendedPixelPitches.length > 0 && !hasSkippedPixelPitch) {
       const productPitch = normalize(product.pixelPitch);
       if (productPitch === null) return false;
@@ -320,9 +267,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 
       if (!matchesRecommended) return false;
     }
-    // If user clicked "Skip - Show All Products", show all (no pixel pitch filtering)
-    // This is handled by the else condition above (no filtering when hasSkippedPixelPitch is true)
-    
+
     return true;
   });
 
@@ -487,12 +432,11 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {availablePixelPitches.map((pitch) => {
-                      // Count products matching this pitch and environment
-                      // Use strict matching (0.1mm tolerance) to match the filtering logic
+
                       const matchingProducts = products.filter(p => {
                         if (p.enabled === false) return false; // Only enabled products
                         const envMatch = !environment || p.environment?.toLowerCase().trim() === environment.toLowerCase().trim();
-                        // Use strict matching with 0.1mm tolerance (same as filtering logic)
+
                         const productPitch = normalize(p.pixelPitch);
                         const targetPitch = normalize(pitch);
                         if (productPitch === null || targetPitch === null) return false;
@@ -646,7 +590,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                               maxHeight: '100%'
                             }}
                             onError={(e) => {
-                              // Fallback if image fails to load
+
                               const target = e.target as HTMLImageElement;
                               target.style.display = 'none';
                               const parent = target.parentElement;
@@ -714,7 +658,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                     )}
                     <button
                       onClick={() => {
-                        // Go back to pixel pitch step to adjust
+
                         setCurrentStep('pixelPitch');
                       }}
                       className="px-6 py-3 text-gray-700 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"

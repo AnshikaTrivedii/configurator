@@ -18,7 +18,7 @@ export interface ProcessorPrice {
 }
 
 export const PROCESSOR_PRICES: Record<string, ProcessorPrice> = {
-  // Nova Products - Asynchronous
+
   'TB2': { 
     endUser: 35000, 
     reseller: 29800, 
@@ -34,8 +34,7 @@ export const PROCESSOR_PRICES: Record<string, ProcessorPrice> = {
     reseller: 55300, 
     channel: 58500 
   },
-  
-  // Nova Products - Synchronous
+
   'VX1': { 
     endUser: 35000, 
     reseller: 29800, 
@@ -87,7 +86,7 @@ export const PROCESSOR_PRICES: Record<string, ProcessorPrice> = {
 export function getProcessorPrice(processorName: string, userType: string): number {
   const processor = PROCESSOR_PRICES[processorName];
   if (!processor) {
-    console.warn(`⚠️ Processor "${processorName}" not found in pricing configuration`);
+
     return 0;
   }
 
@@ -99,15 +98,7 @@ export function getProcessorPrice(processorName: string, userType: string): numb
   } else {
     price = processor.endUser;
   }
-  
-  console.log('💰 Centralized Processor Price Lookup:', {
-    processorName,
-    userType,
-    foundProcessor: !!processor,
-    price,
-    allPrices: processor
-  });
-  
+
   return price;
 }
 

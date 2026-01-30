@@ -1,10 +1,7 @@
 import { Product } from '../types';
 
-// Define NA constant for products without pricing
-
 export const products: Product[] = [
 
-  // Orion P1.5 Flexible Series Indoor Display
   {
     id: "orion-p15-flexible-indoor",
     name: "Orion P1.5mm Flexible Series LED display",
@@ -22,7 +19,7 @@ export const products: Product[] = [
       cabinet: { endCustomer: 14167, siChannel: 12842, reseller: 12072 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
-    // Structure Cost: End Customer ₹700, SI Channel ₹700, Reseller ₹600
+
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160
@@ -47,7 +44,6 @@ export const products: Product[] = [
     pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P1.5.pdf"
   },
 
-  // Orion P1.8 Flexible Series Indoor Display  
   {
     id: "orion-p18-flexible-indoor",
     name: "Orion P1.8mm Flexible Series LED display",
@@ -65,7 +61,7 @@ export const products: Product[] = [
       cabinet: { endCustomer: 9700, siChannel: 8816, reseller: 8265 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
-    // Structure Cost: End Customer ₹700, SI Channel ₹700, Reseller ₹600
+
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160
@@ -90,7 +86,6 @@ export const products: Product[] = [
     pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P1.8.pdf"
   },
 
-  // Orion P2.5 Flexible Series Indoor Display
   {
     id: "orion-p25-flexible-indoor",
     name: "Orion P2.5mm Flexible Series LED display",
@@ -108,7 +103,7 @@ export const products: Product[] = [
       cabinet: { endCustomer: 6888, siChannel: 6227, reseller: 5841 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
-    // Structure Cost: End Customer ₹700, SI Channel ₹700, Reseller ₹600
+
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160
@@ -133,7 +128,6 @@ export const products: Product[] = [
     pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P2.5.pdf"
   },
 
-  // Orion P3 Flexible Series Indoor Display
   {
     id: "orion-p3-flexible-indoor",
     name: "Orion P3mm Flexible Series LED display",
@@ -151,7 +145,7 @@ export const products: Product[] = [
       cabinet: { endCustomer: 3193, siChannel: 2883, reseller: 2728 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
-    // Structure Cost: End Customer ₹700, SI Channel ₹700, Reseller ₹600
+
     cabinetDimensions: {
       width: 320, // Using module size as cabinet (flexible display)
       height: 160
@@ -176,7 +170,6 @@ export const products: Product[] = [
     pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P3.pdf"
   },
 
-  // Orion P4 Flexible Series Indoor Display
   {
     id: "orion-p4-flexible-indoor",
     name: "Orion P4mm Flexible Series LED display",
@@ -214,8 +207,6 @@ export const products: Product[] = [
     pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P4.pdf"
   },
 
-
-  // Bellatrix Series
   {
     id: 'bellatrix-indoor-cob-p0.9',
     name: 'Bellatrix Series Indoor COB P0.9',
@@ -626,7 +617,6 @@ export const products: Product[] = [
     resellerPrice: 5015,
   },
 
-  // Digital Standee Series
   {
     id: 'orion-p18-digital-standee',
     name: 'Orion P1.8 Indoor Standee Display',
@@ -745,8 +735,6 @@ export const products: Product[] = [
     resellerPrice: 81300,
   },
 
-  // Rigel Series
-  // Rigel Series Outdoor P2.5
   {
     id: 'rigel-p2.5-outdoor',
     name: 'Rigel Series Outdoor SMD P2.5_O_1_1',
@@ -771,7 +759,7 @@ export const products: Product[] = [
     siChannelPrice: 13860,
     resellerPrice: 13090,
   },
-  // Rigel Series Outdoor P3
+
   {
     id: 'rigel-p3-outdoor',
     name: 'Rigel Series Outdoor SMD P3_1_1',
@@ -796,7 +784,7 @@ export const products: Product[] = [
     siChannelPrice: 11880,
     resellerPrice: 11220,
   },
-  // Rigel Series Outdoor SMD P3_1_1_LH
+
   {
     id: 'rigel-p3-outdoor-lh',
     name: 'Rigel Series Outdoor SMD P3_1_1_LH',
@@ -821,7 +809,7 @@ export const products: Product[] = [
     siChannelPrice: 11880,
     resellerPrice: 11220,
   },
-  // Rigel Series Outdoor P4
+
   {
     id: 'rigel-p4-outdoor',
     name: 'Rigel Series Outdoor SMD P4_1_1',
@@ -846,7 +834,7 @@ export const products: Product[] = [
     siChannelPrice: 9270,
     resellerPrice: 8755,
   },
-  // Rigel Series Outdoor P6.6
+
   {
     id: 'rigel-p6.6-outdoor',
     name: 'Rigel Series Outdoor SMD P6.6_1_1',
@@ -871,7 +859,7 @@ export const products: Product[] = [
     siChannelPrice: 7470,
     resellerPrice: 7055,
   },
-  // Rigel Series Outdoor P10
+
   {
     id: 'rigel-p10-outdoor',
     name: 'Rigel Series Outdoor SMD P10_1_1',
@@ -896,7 +884,7 @@ export const products: Product[] = [
     siChannelPrice: 5940,
     resellerPrice: 5610,
   },
-  // Rigel Series P0.9 (COB)
+
   {
     id: 'rigel-cob-p0.9',
     name: 'Rigel Series Indoor COB P0.9',
@@ -921,8 +909,7 @@ export const products: Product[] = [
     siChannelPrice: 54000,
     resellerPrice: 51000,
   },
-  // Rigel Series SMD P0.9 (not present, skip)
-  // Rigel Series P1.25 (COB)
+
   {
     id: 'rigel-cob-p1.25',
     name: 'Rigel Series Indoor COB P1.25_16_9',
@@ -947,7 +934,7 @@ export const products: Product[] = [
     siChannelPrice: 25830,
     resellerPrice: 24395,
   },
-  // Rigel Series SMD P1.25
+
   {
     id: 'rigel-smd-p1.25',
     name: 'Rigel Series Indoor SMD P1.25_4_3',
@@ -972,7 +959,7 @@ export const products: Product[] = [
     siChannelPrice: 20880,
     resellerPrice: 19720,
   },
-  // Rigel Series Indoor SMD P1.25_16_9
+
   {
     id: 'rigel-smd-p1.25-16-9',
     name: 'Rigel Series Indoor SMD P1.25_16_9',
@@ -997,7 +984,7 @@ export const products: Product[] = [
     siChannelPrice: 23130,
     resellerPrice: 21845,
   },
-  // Rigel Series P1.5 (COB)
+
   {
     id: 'rigel-cob-p1.5',
     name: 'Rigel Series Indoor COB P1.5_16_9',
@@ -1022,7 +1009,7 @@ export const products: Product[] = [
     siChannelPrice: 24480,
     resellerPrice: 23120,
   },
-  // Rigel Series SMD P1.5
+
   {
     id: 'rigel-smd-p1.5',
     name: 'Rigel Series Indoor SMD P1.5_4_3',
@@ -1047,7 +1034,7 @@ export const products: Product[] = [
     siChannelPrice: 17910,
     resellerPrice: 16915,
   },
-  // Rigel Series Indoor SMD P1.5_16_9
+
   {
     id: 'rigel-smd-p1.5-16-9',
     name: 'Rigel Series Indoor SMD P1.5_16_9',
@@ -1072,7 +1059,7 @@ export const products: Product[] = [
     siChannelPrice: 17910,
     resellerPrice: 16915,
   },
-  // Rigel Series SMD P1.8
+
   {
     id: 'rigel-smd-p1.8',
     name: 'Rigel Series Indoor SMD P1.8_16_9',
@@ -1097,7 +1084,7 @@ export const products: Product[] = [
     siChannelPrice: 16920,
     resellerPrice: 15980,
   },
-  // Rigel Series Indoor SMD P1.8_4_3
+
   {
     id: 'rigel-smd-p1.8-4-3',
     name: 'Rigel Series Indoor SMD P1.8_4_3',
@@ -1122,7 +1109,7 @@ export const products: Product[] = [
     siChannelPrice: 13860,
     resellerPrice: 13090,
   },
-  // Rigel Series SMD P2.5
+
   {
     id: 'rigel-smd-p2.5',
     name: 'Rigel Series Indoor SMD P2.5_4_3',
@@ -1147,7 +1134,7 @@ export const products: Product[] = [
     siChannelPrice: 9900,
     resellerPrice: 9350,
   },
-  // Rigel Series Indoor SMD P2.5_RA_1_1
+
   {
     id: 'rigel-smd-p2.5-ra-1-1',
     name: 'Rigel Series Indoor SMD P2.5_RA_1_1',
@@ -1172,7 +1159,7 @@ export const products: Product[] = [
     siChannelPrice: 9900,
     resellerPrice: 9350,
   },
-  // Rigel Series Outdoor P2.5
+
   {
     id: 'rigel-p2.5-outdoor',
     name: 'Rigel Series Outdoor SMD P2.5_O_1_1',
@@ -1197,8 +1184,7 @@ export const products: Product[] = [
     siChannelPrice: 13860,
     resellerPrice: 13090,
   },
-  
-  // Betel Series Indoor SMD P1.25 (DISABLED)
+
   {
     id: 'betel-indoor-smd-p1.25',
     name: 'Betelgeuse Series Indoor SMD P1.25',
@@ -1238,7 +1224,7 @@ export const products: Product[] = [
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
   },
-  // Betel Series Indoor SMD P1.5 (DISABLED)
+
   {
     id: 'betel-indoor-smd-p1.5',
     name: 'Betelgeuse Series Indoor SMD P1.5',
@@ -1278,7 +1264,7 @@ export const products: Product[] = [
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
   },
-  // Betel Series Indoor COB P1.5_16_9
+
   {
     id: 'betel-indoor-cob-p1.5-16-9',
     name: 'Betelgeuse Series Indoor COB P1.5_16_9',
@@ -1318,7 +1304,7 @@ export const products: Product[] = [
     controller: 'Nova',
     cabinetMaterial: 'Die Cast',
   },
-  // Betel Series Indoor SMD P1.8
+
   {
     id: 'betel-indoor-smd-p1.8',
     name: 'Betelgeuse Series Indoor SMD P1.8_16_9',
@@ -1358,7 +1344,7 @@ export const products: Product[] = [
     siChannelPrice: 18810,
     resellerPrice: 17765,
   },
-  // Betel Series Indoor SMD P1.8_4_3
+
   {
     id: 'betel-indoor-smd-p1.8-4-3',
     name: 'Betelgeuse Series Indoor SMD P1.8_4_3',
@@ -1398,7 +1384,7 @@ export const products: Product[] = [
     siChannelPrice: 19170,
     resellerPrice: 18105,
   },
-  // Betel Series Indoor SMD P2.5
+
   {
     id: 'betel-indoor-smd-p2.5',
     name: 'Betelgeuse Series Indoor SMD P2.5_4_3',
@@ -1438,7 +1424,7 @@ export const products: Product[] = [
     siChannelPrice: 16560,
     resellerPrice: 15640,
   },
-  // Betel Series Indoor SMD P2.5_RA_1_1
+
   {
     id: 'betel-indoor-smd-p2.5-ra-1-1',
     name: 'Betelgeuse Series Indoor SMD P2.5_RA_1_1',
@@ -1478,7 +1464,7 @@ export const products: Product[] = [
     siChannelPrice: 16560,
     resellerPrice: 15640,
   },
-  // Betel Series Outdoor SMD P2.5
+
   {
     id: 'betel-outdoor-smd-p2.5',
     name: 'Betelgeuse Series Outdoor SMD P2.5_O_1_1',
@@ -1518,7 +1504,7 @@ export const products: Product[] = [
     siChannelPrice: 25110,
     resellerPrice: 23715,
   },
-  // Betel Series Outdoor SMD P3
+
   {
     id: 'betel-outdoor-smd-p3',
     name: 'Betelgeuse Series Outdoor SMD P3_1_1',
@@ -1558,7 +1544,7 @@ export const products: Product[] = [
     siChannelPrice: 16560,
     resellerPrice: 15640,
   },
-  // Betel Series Outdoor SMD P3_1_1_LH
+
   {
     id: 'betel-outdoor-smd-p3-1-1-lh',
     name: 'Betelgeuse Series Outdoor SMD P3_1_1_LH',
@@ -1598,7 +1584,7 @@ export const products: Product[] = [
     siChannelPrice: 16560,
     resellerPrice: 15640,
   },
-  // Betel Series Outdoor SMD P4
+
   {
     id: 'betel-outdoor-smd-p4',
     name: 'Betelgeuse Series Outdoor SMD P4_1_1',
@@ -1638,7 +1624,7 @@ export const products: Product[] = [
     siChannelPrice: 13860,
     resellerPrice: 13090,
   },
-  // Betel Series Outdoor SMD P6.6
+
   {
     id: 'betel-outdoor-smd-p6.6',
     name: 'Betelgeuse Series Outdoor SMD P6.6_1_1',
@@ -1678,7 +1664,7 @@ export const products: Product[] = [
     siChannelPrice: 8460,
     resellerPrice: 7990,
   },
-  // Betel Series Outdoor SMD P10
+
   {
     id: 'betel-outdoor-smd-p10',
     name: 'Betelgeuse Series Outdoor SMD P10_1_1',
@@ -1718,7 +1704,7 @@ export const products: Product[] = [
     siChannelPrice: 7290,
     resellerPrice: 6885,
   },
-  // Rental Series Indoor P2.6
+
   {
     id: 'rental-indoor-p2.6',
     name: 'Rental Series Indoor P2.6',
@@ -1757,7 +1743,7 @@ export const products: Product[] = [
       curveLock: { endCustomer: 1700, siChannel: 1600, reseller: 1500 }
     }
   },
-  // Rental Series Indoor P2.97
+
   {
     id: 'rental-indoor-p2.97',
     name: 'Rental Series Indoor P2.97',
@@ -1796,7 +1782,7 @@ export const products: Product[] = [
       curveLock: { endCustomer: 1700, siChannel: 1600, reseller: 1500 }
     }
   },
-  // Rental Series Outdoor P3.8
+
   {
     id: 'rental-outdoor-p3.8',
     name: 'Rental Series Outdoor P3.8',
@@ -1835,7 +1821,7 @@ export const products: Product[] = [
       curveLock: { endCustomer: 2100, siChannel: 1900, reseller: 1800 }
     }
   },
-  // Rental Series Outdoor P4.8
+
   {
     id: 'rental-outdoor-p4.8',
     name: 'Rental Series Outdoor P4.8',
@@ -1874,7 +1860,7 @@ export const products: Product[] = [
       curveLock: { endCustomer: 2100, siChannel: 1900, reseller: 1800 }
     }
   },
-  // Jumbo Series Outdoor P6
+
   {
     id: 'jumbo-outdoor-p6',
     name: 'Jumbo Series Outdoor P6',
@@ -1921,7 +1907,7 @@ export const products: Product[] = [
     siChannelPrice: 6000,
     resellerPrice: 5600,
   },
-  // Jumbo Series Outdoor P4
+
   {
     id: 'jumbo-outdoor-p4',
     name: 'Jumbo Series Outdoor P4',
@@ -1968,7 +1954,7 @@ export const products: Product[] = [
     siChannelPrice: 7200,
     resellerPrice: 6800,
   },
-  // Jumbo Series Outdoor P3
+
   {
     id: 'jumbo-outdoor-p3',
     name: 'Jumbo Series Outdoor P3',
@@ -2015,7 +2001,7 @@ export const products: Product[] = [
     siChannelPrice: 8500,
     resellerPrice: 8000,
   },
-  // Jumbo Series Outdoor P2.5
+
   {
     id: 'jumbo-indoor-p2.5',
     name: 'Jumbo Series Indoor P2.5',
@@ -2063,8 +2049,6 @@ export const products: Product[] = [
     resellerPrice: 10600,
   },
 
-  // Transparent Series
-  // Group 1: Transparent adhesive in front of glass
   {
     id: 'transparent-front-glass-p3.91',
     name: 'Transparent Adhesive in Front of Glass P3.91',
@@ -2144,7 +2128,6 @@ export const products: Product[] = [
     pixelComposition: 'SMD2121'
   },
 
-  // Group 2: Transparent adhesive behind glass
   {
     id: 'transparent-behind-glass-p6.5',
     name: 'Transparent Adhesive Behind Glass P6.5',
@@ -2185,7 +2168,6 @@ export const products: Product[] = [
     pixelComposition: 'SMD2020'
   },
 
-  // Group 3: Transparent adhesive rollable film behind glass
   {
     id: 'transparent-rollable-film-p5',
     name: 'Transparent Rollable Film Behind Glass P5',
@@ -2421,7 +2403,6 @@ export const products: Product[] = [
     pixelComposition: 'SMD1313'
   },
 
-  // Group 4: Standard transparent screen (indoor behind glass version)
   {
     id: 'transparent-standard-p3.91-7.82-256x128',
     name: 'Standard Transparent Screen P3.91-7.82 (256x128)',

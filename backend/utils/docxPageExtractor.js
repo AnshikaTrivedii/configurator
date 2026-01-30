@@ -60,9 +60,7 @@ export const extractDocxPagesAsHtml = async () => {
     
     // If no page breaks found, treat entire document as one page
     const pageContents = pages.length > 0 ? pages : [html];
-    
-    console.log(`📄 Extracted ${pageContents.length} pages from DOCX template`);
-    
+
     return pageContents;
     
   } catch (error) {

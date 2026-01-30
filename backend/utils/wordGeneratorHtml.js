@@ -488,26 +488,19 @@ const generateWordHtml = (data) => {
 // Main function to generate Word document using HTML approach
 export const generateWordDocument = async (data) => {
   try {
-    console.log('📄 Generating Word document using HTML approach...');
-    console.log('📁 Template DOCX path:', TEMPLATE_DOCX_PATH);
-    console.log('📁 Template exists:', fs.existsSync(TEMPLATE_DOCX_PATH));
-    
+
     // NOTE: This file needs to be updated to extract pages from DOCX template
     // instead of using Pages-to-JPG folder
 
     // Generate HTML content
     const htmlContent = generateWordHtml(data);
-    
-    console.log('📄 HTML content generated, length:', htmlContent.length);
-    
+
     // Convert HTML to DOCX using html-docx-js
     const docxBlob = await asBlob(htmlContent);
     
     // Convert blob to buffer
     const buffer = Buffer.from(await docxBlob.arrayBuffer());
-    
-    console.log('✅ Word document generated successfully, size:', buffer.length, 'bytes');
-    
+
     // Validate DOCX signature
     const zipSignature = Buffer.from([0x50, 0x4B]);
     const isValidDocx = buffer.slice(0, 2).equals(zipSignature);

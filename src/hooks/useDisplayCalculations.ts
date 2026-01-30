@@ -1,16 +1,12 @@
 import { useState, useMemo } from 'react';
 import { DisplayConfig, AspectRatio, CabinetGrid, Product } from '../types';
 
-// Predefined aspect ratios
 const aspectRatios: AspectRatio[] = [
   { label: '16:9', value: 16 / 9, name: '16:9' },
   { label: '4:3', value: 4 / 3, name: '4:3' },
   { label: '1:1', value: 1, name: '1:1' },
   { label: 'None', value: 0, name: 'None' }
 ];
-
-
-
 
 export const useDisplayCalculations = (selectedProduct?: Product) => {
   const defaultCabinet = { width: 600, height: 337.5 };
@@ -70,7 +66,7 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
 
   const updateUnit = (newUnit: 'm' | 'ft') => {
     setConfig(prev => {
-      // Keep the same physical dimensions, just change the unit
+
       return { ...prev, unit: newUnit };
     });
   };
@@ -84,24 +80,22 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
     const ratio = aspectRatios.find(r => r.name === aspectRatio)?.value || 1;
     const cabinet = getCabinetDimensions();
 
-    // Use the larger of current width or height as the base
     const base = Math.max(config.width, config.height);
     let newWidth, newHeight;
     if (aspectRatio === '1:1') {
-      // Square
+
       const sideCabinets = Math.max(1, Math.round(base / Math.max(cabinet.width, cabinet.height)));
       const side = sideCabinets * Math.max(cabinet.width, cabinet.height);
       newWidth = side;
       newHeight = side;
     } else {
-      // For other ratios
-      // Decide which dimension to use as base to maximize area
+
       if (base === config.width) {
-        // Use width as base
+
         newWidth = Math.max(1, Math.round(base / cabinet.width)) * cabinet.width;
         newHeight = Math.max(1, Math.round((newWidth / ratio) / cabinet.height)) * cabinet.height;
       } else {
-        // Use height as base
+
         newHeight = Math.max(1, Math.round(base / cabinet.height)) * cabinet.height;
         newWidth = Math.max(1, Math.round((newHeight * ratio) / cabinet.width)) * cabinet.width;
       }
@@ -114,16 +108,10 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
       unit: config.unit
     });
   };
-  
 
   const calculateCabinetGrid = (selectedProduct: Product | undefined): CabinetGrid => {
     const cabinet = selectedProduct?.cabinetDimensions || defaultCabinet;
 
-    // IMPORTANT RULE:
-    // Screen size must NOT exceed the requested size.
-    // - We calculate how many whole cabinets fit within the requested width/height
-    // - Use Math.floor so totalWidth/totalHeight are <= requested dimensions
-    // - Always enforce at least 1 cabinet in each direction (physical minimum)
     let columns = Math.floor(config.width / cabinet.width);
     let rows = Math.floor(config.height / cabinet.height);
 
@@ -141,7 +129,6 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
     };
   };
 
-  // Dynamically scale dimensions while keeping aspect ratio accurate
   const displayDimensions = useMemo(() => {
     const maxSize = 600;
     const minSize = 150;

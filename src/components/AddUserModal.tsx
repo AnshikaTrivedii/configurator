@@ -53,7 +53,7 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onU
             });
             onUserAdded();
             onClose();
-            // Reset form
+
             setFormData({
                 name: '',
                 email: '',
