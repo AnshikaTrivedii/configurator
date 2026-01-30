@@ -6,6 +6,7 @@ import { PdfViewModal } from './PdfViewModal';
 import { QuoteModal } from './QuoteModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
 import { Quotation } from '../types';
+import { products } from '../data/products';
 
 interface SalesPerson {
   _id: string;
@@ -51,7 +52,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
-  const [editingClientInfo, setEditingClientInfo] = useState<{ projectTitle?: string; location?: string } | null>(null);
+  const [editingClientInfo, setEditingClientInfo] = useState<{ name?: string; email?: string; phone?: string; projectTitle?: string; location?: string } | null>(null);
 
   useEffect(() => {
 
@@ -203,24 +204,40 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
       setEditingQuotation(quotation);
       
       // Fetch client info if clientId exists
+      let clientInfo = null;
       if (quotation.clientId) {
         try {
-          const clientResponse = await clientAPI.getClientById(quotation.clientId);
-          if (clientResponse.success && clientResponse.client) {
-            setEditingClientInfo({
-              projectTitle: clientResponse.client.projectTitle || '',
-              location: clientResponse.client.location || ''
-            });
+          // Convert clientId to string if needed
+          let clientIdString: string;
+          if (typeof quotation.clientId === 'string') {
+            clientIdString = quotation.clientId;
+          } else if (quotation.clientId.$oid) {
+            clientIdString = quotation.clientId.$oid;
+          } else if (quotation.clientId._id) {
+            clientIdString = String(quotation.clientId._id);
+          } else if (typeof quotation.clientId.toString === 'function') {
+            clientIdString = quotation.clientId.toString();
           } else {
-            setEditingClientInfo(null);
+            clientIdString = String(quotation.clientId);
+          }
+          
+          const clientResponse = await clientAPI.getClientById(clientIdString);
+          if (clientResponse.success && clientResponse.client) {
+            clientInfo = clientResponse.client;
           }
         } catch (error) {
-          console.error('Failed to fetch client info:', error);
-          setEditingClientInfo(null);
+          console.error('Failed to fetch client info for editing:', error);
         }
-      } else {
-        setEditingClientInfo(null);
       }
+      
+      // Store full client info for use in QuoteModal
+      setEditingClientInfo(clientInfo ? {
+        name: clientInfo.name,
+        email: clientInfo.email,
+        phone: clientInfo.phone,
+        projectTitle: clientInfo.projectTitle || '',
+        location: clientInfo.location || ''
+      } : null);
       
       setIsEditModalOpen(true);
     }
@@ -467,18 +484,50 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
       </div>
 
       {/* PDF View Modal */}
-      {selectedQuotation && (
-        <PdfViewModal
-          isOpen={isPdfModalOpen}
-          onClose={() => {
-            setIsPdfModalOpen(false);
-            setSelectedQuotation(null);
-            setPdfHtmlContent('');
-          }}
-          htmlContent={pdfHtmlContent}
-          onDownload={handleDownloadPdf}
-          fileName={`${selectedQuotation.quotationId}.pdf`}
-          selectedProduct={selectedQuotation.productDetails?.product || selectedQuotation.productDetails}
+      {selectedQuotation && (() => {
+        // Get full product with prices from products.ts
+        const productDetails = selectedQuotation.productDetails;
+        const productId = productDetails?.productId || productDetails?.product?.id || productDetails?.id;
+        let fullProduct = productId ? products.find(p => p.id === productId) : null;
+        
+        // If not found, fallback to productDetails
+        if (!fullProduct) {
+          fullProduct = productDetails?.product || productDetails;
+          // Ensure id is set for PdfViewModal lookup
+          if (fullProduct && !fullProduct.id && productId) {
+            fullProduct = { ...fullProduct, id: productId };
+          } else if (fullProduct && !fullProduct.id && fullProduct.productId) {
+            fullProduct = { ...fullProduct, id: fullProduct.productId };
+          }
+        } else {
+          // Merge: Start with product from products.ts (has prices), then add fields from productDetails
+          // But preserve price fields from products.ts to ensure they're not overwritten
+          const productFromDetails = productDetails?.product || productDetails;
+          fullProduct = {
+            ...fullProduct,
+            ...productFromDetails,
+            // Ensure price fields from products.ts are preserved
+            price: fullProduct.price ?? productFromDetails.price,
+            resellerPrice: fullProduct.resellerPrice ?? productFromDetails.resellerPrice,
+            siChannelPrice: fullProduct.siChannelPrice ?? productFromDetails.siChannelPrice,
+            prices: fullProduct.prices ?? productFromDetails.prices,
+            // Ensure id is set (use productFromList.id which is the canonical id)
+            id: fullProduct.id
+          };
+        }
+        
+        return (
+          <PdfViewModal
+            isOpen={isPdfModalOpen}
+            onClose={() => {
+              setIsPdfModalOpen(false);
+              setSelectedQuotation(null);
+              setPdfHtmlContent('');
+            }}
+            htmlContent={pdfHtmlContent}
+            onDownload={handleDownloadPdf}
+            fileName={`${selectedQuotation.quotationId}.pdf`}
+            selectedProduct={fullProduct}
           config={selectedQuotation.quotationData?.config || {
             width: selectedQuotation.productDetails?.width || 0,
             height: selectedQuotation.productDetails?.height || 0,
@@ -500,16 +549,41 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           } : null}
           userRole="sales"
           quotationId={selectedQuotation.quotationId}
+          clientId={selectedQuotation.clientId}
           exactPricingBreakdown={selectedQuotation.exactPricingBreakdown}
-        />
-      )}
+          />
+        );
+      })()}
 
       {/* Edit Quotation Modal */}
       {editingQuotation && (() => {
         // Extract configuration from exactProductSpecs (same as PDF viewing)
         const exactSpecs = editingQuotation.exactProductSpecs;
         const productDetails = editingQuotation.productDetails;
-        const product = productDetails?.product || productDetails;
+        
+        // Get product ID from productDetails
+        const productId = productDetails?.productId || productDetails?.product?.id || productDetails?.id;
+        
+        // Try to find the full product from products.ts with all price fields
+        let product = productId ? products.find(p => p.id === productId) : null;
+        
+        // If not found, fallback to productDetails
+        if (!product) {
+          product = productDetails?.product || productDetails;
+        } else {
+          // Merge: Start with product from products.ts (has prices), then add fields from productDetails
+          // But preserve price fields from products.ts to ensure they're not overwritten
+          const productFromDetails = productDetails?.product || productDetails;
+          product = {
+            ...product,
+            ...productFromDetails,
+            // Ensure price fields from products.ts are preserved
+            price: product.price ?? productFromDetails.price,
+            resellerPrice: product.resellerPrice ?? productFromDetails.resellerPrice,
+            siChannelPrice: product.siChannelPrice ?? productFromDetails.siChannelPrice,
+            prices: product.prices ?? productFromDetails.prices
+          };
+        }
 
         // Build config from exactProductSpecs.displaySize (convert meters to mm)
         let config = editingQuotation.quotationData?.config;
@@ -555,9 +629,10 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             mode={mode}
             userInfo={{
               userType: editingQuotation.userTypeDisplayName as any,
-              fullName: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerName || '',
-              email: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerEmail || '',
-              phoneNumber: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerPhone || '',
+              // Prioritize client info from Client collection (most up-to-date)
+              fullName: editingClientInfo?.name || customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerName || '',
+              email: editingClientInfo?.email || customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerEmail || '',
+              phoneNumber: editingClientInfo?.phone || customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerPhone || '',
               // Use client info if available (from Client collection), otherwise fallback to quotationData.userInfo
               projectTitle: editingClientInfo?.projectTitle || editingQuotation.quotationData?.userInfo?.projectTitle || '',
               address: editingClientInfo?.location || editingQuotation.quotationData?.userInfo?.address || '',

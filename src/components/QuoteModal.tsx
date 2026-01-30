@@ -669,7 +669,84 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           // Continue with quotation update even if client update fails
         }
 
+        // Generate PDF for update
+        try {
+          // Dynamic import to avoid loading heavy libraries initially
+          const { generateConfigurationPdf } = await import('../utils/docxGenerator');
+
+          // Prepare data for PDF generation
+          // We need to construct the full objects expected by the generator
+          const currentType = getUserType();
+          const pdfUserType = currentType === 'siChannel' ? 'Channel' :
+            (currentType === 'reseller' ? 'Reseller' : 'End User');
+
+          // Calculate aspect ratio for PDF if not present in config
+          const aspectRatio = calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height);
+
+          const configForPdf = {
+            ...configForCalc,
+            aspectRatio: aspectRatio,
+            unit: configForCalc.unit as "mm" | "m" | "ft"
+          };
+
+          // Use the breakdown we already calculated
+          const exactPricingBreakdownForPdf = {
+            unitPrice: breakdown.unitPrice,
+            quantity: breakdown.quantity,
+            subtotal: breakdown.productSubtotal,
+            gstAmount: breakdown.productGST,
+            processorPrice: breakdown.processorPrice,
+            processorGst: breakdown.processorGST,
+            grandTotal: breakdown.grandTotal,
+            discount: (breakdown as any).discount
+          };
+
+          const pdfBlob = await generateConfigurationPdf(
+            configForPdf,
+            selectedProduct,
+            (cabinetGrid || { columns: 1, rows: 1 }) as any,
+            processor,
+            mode,
+            {
+              fullName: customerName.trim(),
+              email: customerEmail.trim(),
+              phoneNumber: customerPhone.trim(),
+              projectTitle: userInfo?.projectTitle || '',
+              address: userInfo?.address || '',
+              userType: pdfUserType,
+              validity: userInfo?.validity,
+              paymentTerms: userInfo?.paymentTerms,
+              warranty: userInfo?.warranty
+            },
+            salesUser,
+            existingQuotation.quotationId,
+            customPricingObj,
+            exactPricingBreakdownForPdf
+          );
+
+          // Convert blob to base64
+          const pdfBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64String = (reader.result as string).split(',')[1];
+              resolve(base64String);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(pdfBlob);
+          });
+
+          // Add pdfBase64 to updateData
+          (updateData as any).pdfBase64 = pdfBase64;
+          console.log('✅ Generated PDF for update, size:', pdfBase64.length);
+
+        } catch (pdfError) {
+          console.error('⚠️ Failed to generate PDF during update:', pdfError);
+          // Continue with update even if PDF generation fails, but log it
+          alert('Warning: Failed to regenerate PDF. The quotation data will be updated but the PDF file might remain unchanged.');
+        }
+
         // Add clientId to update data if available
+
         if (finalClientId) {
           (updateData as any).clientId = finalClientId;
         }

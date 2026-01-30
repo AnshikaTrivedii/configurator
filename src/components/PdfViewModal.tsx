@@ -3,7 +3,7 @@ import { X, Download, Save } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { clientAPI } from '../api/clients';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
-
+import { products } from '../data/products';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 
 const triggerPdfDownload = (blob: Blob, fileName: string, setBlob?: (blob: Blob) => void, setUrl?: (url: string) => void) => {
@@ -115,6 +115,7 @@ interface PdfViewModalProps {
   salesUser?: any;
   userRole?: 'normal' | 'sales' | 'super' | 'super_admin' | 'partner';
   quotationId?: string;
+  clientId?: string;
   customPricing?: {
     enabled: boolean;
     structurePrice: number | null;
@@ -141,6 +142,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   salesUser,
   userRole,
   quotationId,
+  clientId: propClientId,
   customPricing,
   exactPricingBreakdown,
 
@@ -281,6 +283,69 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     setSaveError(null);
     setSaveSuccess(false);
 
+    // Get full product with prices from products.ts if needed
+    // Check both 'id' and 'productId' fields
+    const productId = selectedProduct?.id || selectedProduct?.productId;
+    let fullProduct = selectedProduct;
+    
+    if (productId) {
+      const productFromList = products.find(p => p.id === productId);
+      if (productFromList) {
+        // Merge: Start with productFromList (has prices), then add any additional fields from selectedProduct
+        // But preserve price fields from productFromList to ensure they're not overwritten
+        fullProduct = {
+          ...productFromList,
+          ...selectedProduct,
+          // Ensure price fields from products.ts are preserved (not overwritten by selectedProduct)
+          price: productFromList.price ?? selectedProduct.price,
+          resellerPrice: productFromList.resellerPrice ?? selectedProduct.resellerPrice,
+          siChannelPrice: productFromList.siChannelPrice ?? selectedProduct.siChannelPrice,
+          prices: productFromList.prices ?? selectedProduct.prices,
+          // Ensure id is set (use productFromList.id which is the canonical id)
+          id: productFromList.id
+        };
+        console.log('✅ Found full product from products.ts:', productId, 'Has prices:', {
+          price: fullProduct.price,
+          resellerPrice: fullProduct.resellerPrice,
+          siChannelPrice: fullProduct.siChannelPrice,
+          prices: fullProduct.prices
+        });
+      } else {
+        console.warn('⚠️ Product not found in products.ts:', productId, 'Using selectedProduct as-is');
+        console.warn('SelectedProduct prices:', {
+          price: selectedProduct?.price,
+          resellerPrice: selectedProduct?.resellerPrice,
+          siChannelPrice: selectedProduct?.siChannelPrice
+        });
+        // Ensure id is set even if product not found
+        if (!fullProduct.id && fullProduct.productId) {
+          fullProduct = { ...fullProduct, id: fullProduct.productId };
+        }
+      }
+    } else {
+      console.warn('⚠️ No productId found in selectedProduct. Product:', selectedProduct);
+      // Try to extract productId from nested structure
+      if (selectedProduct && typeof selectedProduct === 'object') {
+        const extractedId = (selectedProduct as any).product?.id || (selectedProduct as any).product?.productId;
+        if (extractedId) {
+          console.log('⚠️ Found productId in nested structure, trying lookup:', extractedId);
+          const productFromList = products.find(p => p.id === extractedId);
+          if (productFromList) {
+            fullProduct = {
+              ...productFromList,
+              ...selectedProduct,
+              price: productFromList.price ?? (selectedProduct as any).price,
+              resellerPrice: productFromList.resellerPrice ?? (selectedProduct as any).resellerPrice,
+              siChannelPrice: productFromList.siChannelPrice ?? (selectedProduct as any).siChannelPrice,
+              prices: productFromList.prices ?? (selectedProduct as any).prices,
+              id: productFromList.id
+            };
+            console.log('✅ Found product using nested productId');
+          }
+        }
+      }
+    }
+
     let pdfBlob: Blob | null = generatedPdfBlob || null;
     let pdfUrl: string | null = pdfDownloadUrl || null;
 
@@ -290,26 +355,67 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         const { generateConfigurationPdf } = await import('../utils/docxGenerator');
 
         const userTypeForCalc = getUserType();
-        const pricingResult = calculateCentralizedPricing(
-          selectedProduct,
-          cabinetGrid,
-          processor || null,
-          userTypeForCalc,
-          config || { width: 2400, height: 1010, unit: 'mm' },
-          customPricing
-        );
+        console.log('PDF Generation - quotationId:', quotationId, 'exactPricingBreakdown exists:', !!exactPricingBreakdown);
+        
+        // Use exactPricingBreakdown if available (when editing), otherwise calculate
+        let exactPricingBreakdownForPdf: any;
+        
+        // Always use exactPricingBreakdown if available (when editing/viewing existing quotation)
+        if (exactPricingBreakdown) {
+          // Use existing pricing breakdown when editing
+          console.log('✅ Using existing exactPricingBreakdown for PDF generation');
+          exactPricingBreakdownForPdf = {
+            unitPrice: exactPricingBreakdown.unitPrice,
+            quantity: exactPricingBreakdown.quantity,
+            subtotal: exactPricingBreakdown.subtotal || exactPricingBreakdown.productSubtotal,
+            gstAmount: exactPricingBreakdown.gstAmount || exactPricingBreakdown.productGST,
+            processorPrice: exactPricingBreakdown.processorPrice,
+            processorGst: exactPricingBreakdown.processorGst || exactPricingBreakdown.processorGST,
+            grandTotal: exactPricingBreakdown.grandTotal
+          };
+        } else {
+          // Calculate new pricing using full product with prices
+          console.log('⚠️ Calculating new pricing. Product:', {
+            id: fullProduct?.id,
+            name: fullProduct?.name,
+            price: fullProduct?.price,
+            resellerPrice: fullProduct?.resellerPrice,
+            siChannelPrice: fullProduct?.siChannelPrice,
+            prices: fullProduct?.prices,
+            userType: userTypeForCalc
+          });
+          
+          const pricingResult = calculateCentralizedPricing(
+            fullProduct,
+            cabinetGrid,
+            processor || null,
+            userTypeForCalc,
+            config || { width: 2400, height: 1010, unit: 'mm' },
+            customPricing
+          );
 
-        let finalPricingResult = pricingResult as any;
+          console.log('Pricing result:', {
+            isAvailable: pricingResult.isAvailable,
+            unitPrice: pricingResult.unitPrice,
+            grandTotal: pricingResult.grandTotal
+          });
 
-        const exactPricingBreakdownForPdf = {
-          unitPrice: finalPricingResult.unitPrice,
-          quantity: finalPricingResult.quantity,
-          subtotal: finalPricingResult.productSubtotal,
-          gstAmount: finalPricingResult.productGST,
-          processorPrice: finalPricingResult.processorPrice,
-          processorGst: finalPricingResult.processorGST,
-          grandTotal: finalPricingResult.grandTotal
-        };
+          if (!pricingResult.isAvailable) {
+            alert('❌ Price is not available for this product configuration. Please contact sales for pricing information.');
+            setIsSaving(false);
+            return;
+          }
+
+          exactPricingBreakdownForPdf = {
+            unitPrice: pricingResult.unitPrice,
+            quantity: pricingResult.quantity,
+            subtotal: pricingResult.productSubtotal,
+            gstAmount: pricingResult.productGST,
+            processorPrice: pricingResult.processorPrice,
+            processorGst: pricingResult.processorGST,
+            grandTotal: pricingResult.grandTotal
+          };
+        }
 
         const uiUserType: string | undefined = userInfo?.userType;
         const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
@@ -341,9 +447,13 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
     }
 
-    let finalQuotationId = quotationId;
+    // IMPORTANT: Preserve the original quotationId prop if it exists (for editing)
+    // Only generate a new ID if we're creating a new quotation (quotationId prop is undefined/empty)
+    let finalQuotationId = quotationId && quotationId.trim() !== '' ? quotationId : undefined;
+    
     if (!finalQuotationId) {
-
+      // Only generate new ID if we're creating (quotationId prop was not provided)
+      console.log('📝 Creating new quotation - generating quotation ID');
       const nameForId = isSuperAdmin && selectedSalesPersonId
         ? salesPersons.find(p => p._id === selectedSalesPersonId)?.name || salesUser?.name
         : salesUser?.name;
@@ -364,6 +474,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         setIsSaving(false);
         return;
       }
+    } else {
+      console.log('🔄 Editing existing quotation - using quotationId:', finalQuotationId);
     }
 
     let finalSalesUserId: string | undefined;
@@ -414,34 +526,36 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     let saveSuccessful = false;
 
     const comprehensiveProductDetails = {
-
-      productId: selectedProduct.id,
-      productName: selectedProduct.name,
-
+      productId: fullProduct.id,
+      productName: fullProduct.name,
+      price: fullProduct.price,
+      resellerPrice: fullProduct.resellerPrice,
+      siChannelPrice: fullProduct.siChannelPrice,
+      prices: fullProduct.prices,
       config: config || { width: 2400, height: 1010, unit: 'mm' },
-      category: selectedProduct.category,
+      category: fullProduct.category,
 
-      pixelPitch: selectedProduct.pixelPitch,
-      resolution: selectedProduct.resolution,
-      cabinetDimensions: selectedProduct.cabinetDimensions,
-      moduleDimensions: selectedProduct.moduleDimensions,
-      moduleResolution: selectedProduct.moduleResolution,
-      moduleQuantity: selectedProduct.moduleQuantity,
-      pixelDensity: selectedProduct.pixelDensity,
-      brightness: selectedProduct.brightness,
-      refreshRate: selectedProduct.refreshRate,
-      environment: selectedProduct.environment,
-      maxPowerConsumption: selectedProduct.maxPowerConsumption,
-      avgPowerConsumption: selectedProduct.avgPowerConsumption,
-      weightPerCabinet: selectedProduct.weightPerCabinet,
+      pixelPitch: fullProduct.pixelPitch,
+      resolution: fullProduct.resolution,
+      cabinetDimensions: fullProduct.cabinetDimensions,
+      moduleDimensions: fullProduct.moduleDimensions,
+      moduleResolution: fullProduct.moduleResolution,
+      moduleQuantity: fullProduct.moduleQuantity,
+      pixelDensity: fullProduct.pixelDensity,
+      brightness: fullProduct.brightness,
+      refreshRate: fullProduct.refreshRate,
+      environment: fullProduct.environment,
+      maxPowerConsumption: fullProduct.maxPowerConsumption,
+      avgPowerConsumption: fullProduct.avgPowerConsumption,
+      weightPerCabinet: fullProduct.weightPerCabinet,
 
       cabinetGrid: cabinetGrid,
-      displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
-        width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
-        height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+      displaySize: fullProduct.cabinetDimensions && cabinetGrid ? {
+        width: Number((fullProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
+        height: Number((fullProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
       } : undefined,
-      aspectRatio: selectedProduct.resolution ?
-        calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
+      aspectRatio: fullProduct.resolution ?
+        calculateAspectRatio(fullProduct.resolution.width, fullProduct.resolution.height) : undefined,
       processor: processor,
       mode: mode,
 
@@ -455,14 +569,15 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     let finalPricingResult: any;
     let finalTotalPrice: number;
 
-    if (quotationId && exactPricingBreakdown) {
-
+    // Always use exactPricingBreakdown if available (when editing/viewing existing quotation)
+    if (exactPricingBreakdown) {
+      console.log('✅ Using existing exactPricingBreakdown for save');
       finalPricingResult = exactPricingBreakdown;
       finalTotalPrice = exactPricingBreakdown.grandTotal;
     } else {
-
+      console.log('⚠️ No exactPricingBreakdown, calculating new pricing for save');
       const correctTotalPrice = calculateCorrectTotalPrice(
-        selectedProduct,
+        fullProduct,
         cabinetGrid,
         processor || null,
         userTypeForCalc,
@@ -471,13 +586,22 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       );
 
       if (correctTotalPrice === null) {
+        console.error('❌ calculateCorrectTotalPrice returned null. Product:', {
+          id: fullProduct?.id,
+          name: fullProduct?.name,
+          price: fullProduct?.price,
+          resellerPrice: fullProduct?.resellerPrice,
+          siChannelPrice: fullProduct?.siChannelPrice,
+          prices: fullProduct?.prices,
+          userType: userTypeForCalc
+        });
         alert('❌ Price is not available for this product configuration. Please contact sales for pricing information.');
         setIsSaving(false);
         return;
       }
 
       const pricingResult = calculateCentralizedPricing(
-        selectedProduct,
+        fullProduct,
         cabinetGrid,
         processor || null,
         userTypeForCalc,
@@ -497,13 +621,41 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
     const finalHtmlContent = htmlContent;
 
-    const exactQuotationData = {
+    // Extract customer info from userInfo (handles both formats)
+    const customerName = userInfo?.fullName?.trim() || userInfo?.customerName?.trim() || '';
+    const customerEmail = userInfo?.email?.trim() || userInfo?.customerEmail?.trim() || '';
+    const customerPhone = userInfo?.phoneNumber?.trim() || userInfo?.customerPhone?.trim() || '';
+    const productName = selectedProduct?.name || selectedProduct?.productName || 'Unknown Product';
 
-      quotationId: finalQuotationId,
-      customerName: userInfo.fullName.trim(),
-      customerEmail: userInfo.email.trim(),
-      customerPhone: userInfo.phoneNumber.trim(),
-      productName: selectedProduct.name,
+    // Validate required fields
+    if (!finalQuotationId) {
+      setSaveError('Missing quotation ID. Please try again.');
+      setIsSaving(false);
+      return;
+    }
+    if (!customerName) {
+      setSaveError('Missing customer name. Please ensure customer information is provided.');
+      setIsSaving(false);
+      return;
+    }
+    if (!customerEmail) {
+      setSaveError('Missing customer email. Please ensure customer information is provided.');
+      setIsSaving(false);
+      return;
+    }
+    if (!productName || productName === 'Unknown Product') {
+      setSaveError('Missing product name. Please ensure product information is available.');
+      setIsSaving(false);
+      return;
+    }
+
+    const exactQuotationData = {
+      // When editing, use the original quotationId prop; when creating, use the generated finalQuotationId
+      quotationId: (quotationId && quotationId.trim() !== '') ? quotationId : finalQuotationId,
+      customerName: customerName,
+      customerEmail: customerEmail,
+      customerPhone: customerPhone,
+      productName: productName,
       message: 'Quotation saved from PDF view',
       userType: userTypeForCalc,
       userTypeDisplayName: getUserTypeDisplayName(userTypeForCalc),
@@ -531,7 +683,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       },
 
       exactProductSpecs: {
-        productName: selectedProduct.name,
+        productName: productName,
         category: selectedProduct.category,
         pixelPitch: selectedProduct.pixelPitch,
         resolution: selectedProduct.resolution,
@@ -620,23 +772,58 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
       exactQuotationData.pdfBase64 = pdfBase64;
 
-      // ✅ Create or find client before saving quotation
+      // ✅ Create or find/update client before saving quotation
       let clientId: string | undefined;
       try {
         const clientData = {
-          name: userInfo.fullName.trim(),
-          email: userInfo.email.trim(),
-          phone: userInfo.phoneNumber.trim(),
-          projectTitle: userInfo.projectTitle?.trim() || '',
-          location: userInfo.address?.trim() || '',
+          name: customerName.trim(),
+          email: customerEmail.trim(),
+          phone: customerPhone.trim(),
+          projectTitle: userInfo?.projectTitle?.trim() || '',
+          location: userInfo?.address?.trim() || '',
           company: '',
           notes: ''
         };
 
-        const clientResponse = await clientAPI.findOrCreateClient(clientData);
-        if (clientResponse.success && clientResponse.client) {
-          clientId = clientResponse.client._id;
-          console.log('✅ Client created/found from PDF save:', clientResponse.client._id);
+        // If updating an existing quotation and it has a clientId, update the client
+        if (finalQuotationId && quotationId && propClientId) {
+          // Update existing client
+          try {
+            // Convert clientId to string if needed
+            let clientIdString: string;
+            if (typeof propClientId === 'string') {
+              clientIdString = propClientId;
+            } else if (propClientId.$oid) {
+              clientIdString = propClientId.$oid;
+            } else if (propClientId._id) {
+              clientIdString = String(propClientId._id);
+            } else if (typeof propClientId.toString === 'function') {
+              clientIdString = propClientId.toString();
+            } else {
+              clientIdString = String(propClientId);
+            }
+            
+            const updateResponse = await clientAPI.updateClient(clientIdString, clientData);
+            if (updateResponse.success && updateResponse.client) {
+              clientId = updateResponse.client._id;
+              console.log('✅ Client updated from PDF save:', clientId);
+            }
+          } catch (updateError: any) {
+            console.error('⚠️ Failed to update client from PDF save:', updateError);
+            // Fallback to findOrCreate
+            const clientResponse = await clientAPI.findOrCreateClient(clientData);
+            if (clientResponse.success && clientResponse.client) {
+              clientId = clientResponse.client._id;
+              console.log('✅ Client found/created (fallback) from PDF save:', clientId);
+            }
+          }
+        } else {
+          // Creating new quotation or no clientId, find or create client
+          const clientResponse = await clientAPI.findOrCreateClient(clientData);
+          if (clientResponse.success && clientResponse.client) {
+            clientId = clientResponse.client._id;
+            console.log('✅ Client created/found from PDF save:', clientId);
+          }
         }
       } catch (clientError: any) {
         console.error('⚠️ Failed to create/find client from PDF save:', clientError);
@@ -648,7 +835,22 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         (exactQuotationData as any).clientId = clientId;
       }
 
-      const saveResult = await salesAPI.saveQuotation(exactQuotationData);
+      // If quotationId prop exists (passed from parent), update the existing quotation; otherwise create a new one
+      // The quotationId prop indicates we're editing an existing quotation
+      // IMPORTANT: Use the original quotationId prop (not finalQuotationId) to determine if we're editing
+      let saveResult;
+      const isEditing = quotationId && quotationId.trim() !== '';
+      
+      if (isEditing) {
+        // Update existing quotation (quotationId prop was passed, meaning we're editing)
+        console.log('🔄 Updating existing quotation. quotationId prop:', quotationId, 'finalQuotationId:', finalQuotationId);
+        // Use the original quotationId prop for the update, not finalQuotationId
+        saveResult = await salesAPI.updateQuotation(quotationId, exactQuotationData);
+      } else {
+        // Create new quotation (no quotationId prop or empty string, meaning we're creating)
+        console.log('➕ Creating new quotation. finalQuotationId:', finalQuotationId);
+        saveResult = await salesAPI.saveQuotation(exactQuotationData);
+      }
 
       setSaveSuccess(true);
       saveSuccessful = true;

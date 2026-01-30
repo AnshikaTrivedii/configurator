@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import fs from 'fs';
 import SalesUser from '../models/SalesUser.js';
 import Quotation from '../models/Quotation.js';
+import Client from '../models/Client.js';
 import { authenticateToken, generateToken } from '../middleware/auth.js';
 import { validateLogin, validateSetPassword, validateChangePassword } from '../middleware/validation.js';
 import { uploadPdfToS3, getPdfPresignedUrl } from '../utils/s3Service.js';
@@ -1540,18 +1541,56 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
       .lean();
 
     // Group quotations by customer
+    // First, collect all unique clientIds
+    const clientIds = [...new Set(quotations.map(q => q.clientId).filter(id => id))];
+    
+    // Fetch all clients in one query
+    const clientsMap = new Map();
+    if (clientIds.length > 0) {
+      const clients = await Client.find({ _id: { $in: clientIds } }).lean();
+      clients.forEach(client => {
+        clientsMap.set(client._id.toString(), client);
+      });
+    }
+
     const customerMap = new Map();
 
     let totalRevenue = 0;
 
     quotations.forEach(quotation => {
-      const customerKey = `${quotation.customerEmail}-${quotation.customerName}`;
+      // Use clientId as key if available, otherwise use email-name combination
+      let customerKey;
+      let customerName, customerEmail, customerPhone;
+      
+      if (quotation.clientId) {
+        const clientIdStr = quotation.clientId.toString();
+        const client = clientsMap.get(clientIdStr);
+        if (client) {
+          // Use client data from Client collection (most up-to-date)
+          customerKey = clientIdStr;
+          customerName = client.name || quotation.customerName;
+          customerEmail = client.email || quotation.customerEmail;
+          customerPhone = client.phone || quotation.customerPhone;
+        } else {
+          // Client not found, fallback to quotation data
+          customerKey = `${quotation.customerEmail}-${quotation.customerName}`;
+          customerName = quotation.customerName;
+          customerEmail = quotation.customerEmail;
+          customerPhone = quotation.customerPhone;
+        }
+      } else {
+        // No clientId, use quotation data
+        customerKey = `${quotation.customerEmail}-${quotation.customerName}`;
+        customerName = quotation.customerName;
+        customerEmail = quotation.customerEmail;
+        customerPhone = quotation.customerPhone;
+      }
 
       if (!customerMap.has(customerKey)) {
         customerMap.set(customerKey, {
-          customerName: quotation.customerName,
-          customerEmail: quotation.customerEmail,
-          customerPhone: quotation.customerPhone,
+          customerName: customerName,
+          customerEmail: customerEmail,
+          customerPhone: customerPhone,
           userType: quotation.userType,
           userTypeDisplayName: quotation.userTypeDisplayName,
           quotations: []
@@ -1653,16 +1692,54 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
       .lean();
 
     // Group quotations by customer
+    // First, collect all unique clientIds
+    const clientIds = [...new Set(quotations.map(q => q.clientId).filter(id => id))];
+    
+    // Fetch all clients in one query
+    const clientsMap = new Map();
+    if (clientIds.length > 0) {
+      const clients = await Client.find({ _id: { $in: clientIds } }).lean();
+      clients.forEach(client => {
+        clientsMap.set(client._id.toString(), client);
+      });
+    }
+
     const customerMap = new Map();
 
     quotations.forEach(quotation => {
-      const customerKey = `${quotation.customerEmail}-${quotation.customerName}`;
+      // Use clientId as key if available, otherwise use email-name combination
+      let customerKey;
+      let customerName, customerEmail, customerPhone;
+      
+      if (quotation.clientId) {
+        const clientIdStr = quotation.clientId.toString();
+        const client = clientsMap.get(clientIdStr);
+        if (client) {
+          // Use client data from Client collection (most up-to-date)
+          customerKey = clientIdStr;
+          customerName = client.name || quotation.customerName;
+          customerEmail = client.email || quotation.customerEmail;
+          customerPhone = client.phone || quotation.customerPhone;
+        } else {
+          // Client not found, fallback to quotation data
+          customerKey = `${quotation.customerEmail}-${quotation.customerName}`;
+          customerName = quotation.customerName;
+          customerEmail = quotation.customerEmail;
+          customerPhone = quotation.customerPhone;
+        }
+      } else {
+        // No clientId, use quotation data
+        customerKey = `${quotation.customerEmail}-${quotation.customerName}`;
+        customerName = quotation.customerName;
+        customerEmail = quotation.customerEmail;
+        customerPhone = quotation.customerPhone;
+      }
 
       if (!customerMap.has(customerKey)) {
         customerMap.set(customerKey, {
-          customerName: quotation.customerName,
-          customerEmail: quotation.customerEmail,
-          customerPhone: quotation.customerPhone,
+          customerName: customerName,
+          customerEmail: customerEmail,
+          customerPhone: customerPhone,
           userType: quotation.userType,
           userTypeDisplayName: quotation.userTypeDisplayName,
           quotations: []

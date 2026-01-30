@@ -1304,7 +1304,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           userInfo={userInfo ? { ...userInfo, userType: userInfo.userType || 'End User' } : undefined}
           salesUser={salesUser}
           userRole={userRole}
-          quotationId={quotationId}
+          quotationId={isEditMode ? quotationId : undefined}
         />
       )}
 
