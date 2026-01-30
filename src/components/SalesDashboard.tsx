@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, FileText, Package, Calendar, RefreshCw, LogOut, MessageSquare, Plus, Eye, Edit } from 'lucide-react';
+import { X, User, Mail, Phone, FileText, Package, RefreshCw, LogOut, Plus, Eye, Edit, Search, Clock, MapPin } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { clientAPI } from '../api/clients';
 import { PdfViewModal } from './PdfViewModal';
@@ -53,6 +53,20 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
   const [editingClientInfo, setEditingClientInfo] = useState<{ name?: string; email?: string; phone?: string; projectTitle?: string; location?: string } | null>(null);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter filtered customers based on search query
+  const filteredCustomers = customers.filter(customer => {
+    const query = searchQuery.toLowerCase();
+    return (
+      customer.customerName?.toLowerCase().includes(query) ||
+      customer.customerEmail?.toLowerCase().includes(query) ||
+      customer.customerPhone?.includes(query) ||
+      customer.quotations.some(q => q.quotationId.toLowerCase().includes(query))
+    );
+  });
 
   useEffect(() => {
 
@@ -202,25 +216,28 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
       onEditQuotation(quotation);
     } else {
       setEditingQuotation(quotation);
-      
+
       // Fetch client info if clientId exists
       let clientInfo = null;
       if (quotation.clientId) {
         try {
           // Convert clientId to string if needed
           let clientIdString: string;
-          if (typeof quotation.clientId === 'string') {
-            clientIdString = quotation.clientId;
-          } else if (quotation.clientId.$oid) {
-            clientIdString = quotation.clientId.$oid;
-          } else if (quotation.clientId._id) {
-            clientIdString = String(quotation.clientId._id);
-          } else if (typeof quotation.clientId.toString === 'function') {
-            clientIdString = quotation.clientId.toString();
+          // Use 'any' cast to handle various potential shapes of clientId from MongoDB/Mongoose
+          const cId = quotation.clientId as any;
+
+          if (typeof cId === 'string') {
+            clientIdString = cId;
+          } else if (cId?.$oid) {
+            clientIdString = cId.$oid;
+          } else if (cId?._id) {
+            clientIdString = String(cId._id);
+          } else if (typeof cId?.toString === 'function') {
+            clientIdString = cId.toString();
           } else {
-            clientIdString = String(quotation.clientId);
+            clientIdString = String(cId);
           }
-          
+
           const clientResponse = await clientAPI.getClientById(clientIdString);
           if (clientResponse.success && clientResponse.client) {
             clientInfo = clientResponse.client;
@@ -229,7 +246,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           console.error('Failed to fetch client info for editing:', error);
         }
       }
-      
+
       // Store full client info for use in QuoteModal
       setEditingClientInfo(clientInfo ? {
         name: clientInfo.name,
@@ -238,7 +255,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
         projectTitle: clientInfo.projectTitle || '',
         location: clientInfo.location || ''
       } : null);
-      
+
       setIsEditModalOpen(true);
     }
   };
@@ -305,176 +322,245 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-black text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-xl sm:text-2xl font-bold">Sales Dashboard</h1>
-              {lastRefreshTime && (
-                <span className="text-sm text-gray-300">
-                  Last updated: {lastRefreshTime.toLocaleTimeString()}
-                </span>
-              )}
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
+      {/* Modern Header with Gradient */}
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg relative overflow-hidden">
+        {/* Abstract Background Design */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500 opacity-10 rounded-full blur-2xl transform -translate-x-1/4 translate-y-1/4"></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="p-1.5 bg-blue-500/20 rounded-lg backdrop-blur-sm">
+                  <Package size={20} className="text-blue-200" />
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight">Sales Dashboard</h1>
+              </div>
+              <p className="text-gray-300 text-sm flex items-center gap-2">
+                Welcome back, <span className="text-white font-medium">{salesPerson?.name || 'Sales Partner'}</span>
+                {lastRefreshTime && (
+                  <span className="flex items-center gap-1 text-xs bg-black/20 px-2 py-0.5 rounded-full ml-2">
+                    <Clock size={10} />
+                    Updated {lastRefreshTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => fetchDashboardData(true)}
+                className="px-4 py-2 bg-white/10 text-white text-sm font-medium rounded-lg hover:bg-white/20 transition-all flex items-center gap-2 backdrop-blur-sm border border-white/10"
+                title="Refresh Data"
+              >
+                <RefreshCw size={16} />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
               <button
                 onClick={onBack}
-                className="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                title="Create New Quotation"
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-500 transition-all flex items-center gap-2 shadow-lg shadow-blue-900/20 active:transform active:scale-95"
               >
-                <Plus size={16} />
+                <Plus size={18} />
                 New Quotation
               </button>
               <button
-                onClick={() => fetchDashboardData(true)}
-                className="px-3 py-2 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-                title="Refresh"
-              >
-                <RefreshCw size={16} />
-                Refresh
-              </button>
-              <button
                 onClick={onLogout}
-                className="px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-red-500/10 text-red-200 text-sm font-medium rounded-lg hover:bg-red-500/20 hover:text-red-100 transition-all flex items-center gap-2 border border-red-500/20"
+                title="Logout"
               >
                 <LogOut size={16} />
-                Logout
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Quotations</p>
-                <p className="text-2xl font-bold text-gray-900">{totalQuotations}</p>
-              </div>
-              <FileText className="text-blue-600" size={32} />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Performance Stats Cards - Modern Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="p-3 bg-indigo-50 rounded-lg">
+              <FileText className="text-indigo-600" size={24} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Total Quotations</p>
+              <p className="text-2xl font-bold text-gray-900">{totalQuotations}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Customers</p>
-                <p className="text-2xl font-bold text-gray-900">{totalCustomers}</p>
-              </div>
-              <User className="text-green-600" size={32} />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="p-3 bg-emerald-50 rounded-lg">
+              <User className="text-emerald-600" size={24} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Active Customers</p>
+              <p className="text-2xl font-bold text-gray-900">{totalCustomers}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">User Info</p>
-                <p className="text-lg font-semibold text-gray-900">{salesPerson?.name || 'N/A'}</p>
-              </div>
-              <User className="text-indigo-600" size={32} />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <MapPin className="text-blue-600" size={24} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Your Location</p>
+              <p className="text-lg font-bold text-gray-900 truncate max-w-[150px]" title={salesPerson?.location || 'N/A'}>
+                {salesPerson?.location || 'N/A'}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Customers List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">My Customers & Quotations</h2>
+        {/* Dashboard Main Content */}
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <User size={20} className="text-gray-500" />
+              Customers & Quotations
+            </h2>
+
+            {/* Search Bar */}
+            <div className="relative w-full sm:w-80">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search size={16} className="text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search customers, emails, or quotes..."
+                className="pl-10 pr-4 py-2.5 w-full bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
 
-          {customers.length === 0 ? (
-            <div className="p-12 text-center">
-              <Package className="mx-auto text-gray-400 mb-4" size={48} />
-              <p className="text-gray-600 text-lg">No customers or quotations yet</p>
-              <p className="text-gray-500 text-sm mt-2">Start creating quotations to see them here</p>
+          {filteredCustomers.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-sm border border-dashed border-gray-300 p-12 text-center">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search className="text-gray-400" size={24} />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">No customers found</h3>
+              <p className="text-gray-500 text-sm mb-6">
+                {searchQuery ? `No results matching "${searchQuery}"` : "Get started by creating your first quotation."}
+              </p>
+              {!searchQuery && (
+                <button
+                  onClick={onBack}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                >
+                  <Plus size={16} />
+                  Create Quotation
+                </button>
+              )}
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
-              {customers.map((customer, customerIndex) => (
-                <div key={customerIndex} className="p-6">
-                  <div className="flex items-start justify-between mb-4">
+            <div className="grid grid-cols-1 gap-6">
+              {filteredCustomers.map((customer, customerIndex) => (
+                <div key={customerIndex} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+                  {/* Customer Header */}
+                  <div className="bg-gray-50/50 px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{customer.customerName}</h3>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <Mail size={16} />
-                          <span>{customer.customerEmail}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Phone size={16} />
-                          <span>{customer.customerPhone}</span>
-                        </div>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg font-bold text-gray-900">{customer.customerName}</h3>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${customer.userType === 'reseller' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                          customer.userType === 'siChannel' ? 'bg-orange-50 text-orange-700 border-orange-100' :
+                            'bg-blue-50 text-blue-700 border-blue-100'
+                          }`}>
                           {customer.userTypeDisplayName}
                         </span>
                       </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                          <Mail size={14} />
+                          <span>{customer.customerEmail}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Phone size={14} />
+                          <span>{customer.customerPhone}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right hidden sm:block">
+                      <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Total Quotes</p>
+                      <p className="text-xl font-bold text-gray-900">{customer.quotations.length}</p>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    {customer.quotations.map((quotation, qIndex) => (
-                      <div key={qIndex} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Package size={16} className="text-gray-500" />
-                              <span className="font-semibold text-gray-900">{quotation.productName}</span>
-                              <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
-                                {quotation.quotationId}
+                  {/* Quotations Grid */}
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {customer.quotations.map((quotation, qIndex) => (
+                        <div
+                          key={qIndex}
+                          className="group bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all relative"
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                #{quotation.quotationId.split('/').pop()}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                {formatDate(quotation.createdAt)}
                               </span>
                             </div>
-                            {quotation.message && (
-                              <p className="text-sm text-gray-600 mb-2 flex items-start gap-2">
-                                <MessageSquare size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                                <span>{quotation.message}</span>
-                              </p>
-                            )}
-                            <div className="flex items-center gap-4 text-xs text-gray-500">
-                              <div className="flex items-center gap-1">
-                                <Calendar size={14} />
-                                <span>{formatDate(quotation.createdAt)}</span>
-                              </div>
-                              <span className="px-2 py-1 bg-green-100 text-green-800 rounded font-medium">
-                                {quotation.userTypeDisplayName}
-                              </span>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditQuotation({
+                                    ...quotation,
+                                    customerName: customer.customerName,
+                                    customerEmail: customer.customerEmail,
+                                    customerPhone: customer.customerPhone,
+                                    userType: customer.userType,
+                                    userTypeDisplayName: customer.userTypeDisplayName
+                                  });
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                title="Edit Quote"
+                              >
+                                <Edit size={14} />
+                              </button>
                             </div>
                           </div>
-                          <div className="text-right ml-4 flex flex-col items-end gap-2">
+
+                          <div className="mb-4">
+                            <h4 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-1" title={quotation.productName}>
+                              {quotation.productName}
+                            </h4>
+                            <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2">
+                              {quotation.exactProductSpecs?.cabinetGrid && (
+                                <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                                  {quotation.exactProductSpecs.cabinetGrid.columns}x{quotation.exactProductSpecs.cabinetGrid.rows}
+                                </span>
+                              )}
+                              {quotation.exactProductSpecs?.displaySize && (
+                                <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                                  {quotation.exactProductSpecs.displaySize.width?.toFixed(2)}m x {quotation.exactProductSpecs.displaySize.height?.toFixed(2)}m
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600 line-clamp-2 min-h-[2.5rem]">
+                              {quotation.message || "No additional notes."}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-auto">
                             <p className="text-lg font-bold text-gray-900">
                               {formatCurrency(quotation.totalPrice)}
                             </p>
                             <button
                               onClick={() => handleViewPdf(quotation)}
-                              className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
-                              title="View PDF"
+                              className="px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-md hover:bg-black transition-colors flex items-center gap-1.5"
                             >
-                              <Eye size={14} />
+                              <Eye size={12} />
                               View PDF
-                            </button>
-                            <button
-                              onClick={() => handleEditQuotation({
-                                ...quotation,
-                                customerName: customer.customerName,
-                                customerEmail: customer.customerEmail,
-                                customerPhone: customer.customerPhone,
-                                userType: customer.userType, // Ensure userType is passed from customer if missing
-                                userTypeDisplayName: customer.userTypeDisplayName
-                              })}
-                              className="px-3 py-1.5 bg-gray-600 text-white text-xs font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1"
-                              title="Edit Quote"
-                            >
-                              <Edit size={14} />
-                              Edit
                             </button>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -487,22 +573,22 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
       {selectedQuotation && (() => {
         // Get full product with prices from products.ts
         const productDetails = selectedQuotation.productDetails;
-        const productId = productDetails?.productId || productDetails?.product?.id || productDetails?.id;
+        const productId = productDetails?.productId || (productDetails as any)?.product?.id || productDetails?.id;
         let fullProduct = productId ? products.find(p => p.id === productId) : null;
-        
+
         // If not found, fallback to productDetails
         if (!fullProduct) {
-          fullProduct = productDetails?.product || productDetails;
+          fullProduct = (productDetails as any)?.product || productDetails;
           // Ensure id is set for PdfViewModal lookup
           if (fullProduct && !fullProduct.id && productId) {
             fullProduct = { ...fullProduct, id: productId };
-          } else if (fullProduct && !fullProduct.id && fullProduct.productId) {
-            fullProduct = { ...fullProduct, id: fullProduct.productId };
+          } else if (fullProduct && !fullProduct.id && (fullProduct as any).productId) {
+            fullProduct = { ...fullProduct, id: (fullProduct as any).productId };
           }
         } else {
           // Merge: Start with product from products.ts (has prices), then add fields from productDetails
           // But preserve price fields from products.ts to ensure they're not overwritten
-          const productFromDetails = productDetails?.product || productDetails;
+          const productFromDetails = (productDetails as any)?.product || productDetails;
           fullProduct = {
             ...fullProduct,
             ...productFromDetails,
@@ -515,7 +601,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             id: fullProduct.id
           };
         }
-        
+
         return (
           <PdfViewModal
             isOpen={isPdfModalOpen}
@@ -527,30 +613,30 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             htmlContent={pdfHtmlContent}
             onDownload={handleDownloadPdf}
             fileName={`${selectedQuotation.quotationId}.pdf`}
-            selectedProduct={fullProduct}
-          config={selectedQuotation.quotationData?.config || {
-            width: selectedQuotation.productDetails?.width || 0,
-            height: selectedQuotation.productDetails?.height || 0,
-            unit: selectedQuotation.productDetails?.unit || 'mm'
-          }}
-          cabinetGrid={selectedQuotation.productDetails?.cabinetGrid || selectedQuotation.quotationData?.cabinetGrid}
-          processor={selectedQuotation.productDetails?.processor || selectedQuotation.quotationData?.processor || null}
-          userInfo={{
-            userType: selectedQuotation.userTypeDisplayName,
-            customerName: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerName || '',
-            customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerEmail || '',
-            customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerPhone || ''
-          }}
-          salesUser={salesPerson ? {
-            _id: salesPerson._id,
-            name: salesPerson.name,
-            email: salesPerson.email,
-            role: salesPerson.role
-          } : null}
-          userRole="sales"
-          quotationId={selectedQuotation.quotationId}
-          clientId={selectedQuotation.clientId}
-          exactPricingBreakdown={selectedQuotation.exactPricingBreakdown}
+            selectedProduct={fullProduct as any}
+            config={selectedQuotation.quotationData?.config || {
+              width: selectedQuotation.productDetails?.width || 0,
+              height: selectedQuotation.productDetails?.height || 0,
+              unit: selectedQuotation.productDetails?.unit || 'mm'
+            }}
+            cabinetGrid={selectedQuotation.productDetails?.cabinetGrid || selectedQuotation.quotationData?.cabinetGrid}
+            processor={selectedQuotation.productDetails?.processor || selectedQuotation.quotationData?.processor || null}
+            userInfo={{
+              userType: selectedQuotation.userTypeDisplayName,
+              customerName: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerName || '',
+              customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerEmail || '',
+              customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerPhone || ''
+            }}
+            salesUser={salesPerson ? {
+              _id: salesPerson._id,
+              name: salesPerson.name,
+              email: salesPerson.email,
+              role: salesPerson.role
+            } : null}
+            userRole="sales"
+            quotationId={selectedQuotation.quotationId}
+            clientId={selectedQuotation.clientId as string | undefined} // Fix type error here if clientId is object
+            exactPricingBreakdown={selectedQuotation.exactPricingBreakdown}
           />
         );
       })()}
@@ -560,24 +646,22 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
         // Extract configuration from exactProductSpecs (same as PDF viewing)
         const exactSpecs = editingQuotation.exactProductSpecs;
         const productDetails = editingQuotation.productDetails;
-        
+
         // Get product ID from productDetails
-        const productId = productDetails?.productId || productDetails?.product?.id || productDetails?.id;
-        
+        const productId = productDetails?.productId || (productDetails as any)?.product?.id || productDetails?.id;
+
         // Try to find the full product from products.ts with all price fields
         let product = productId ? products.find(p => p.id === productId) : null;
-        
+
         // If not found, fallback to productDetails
         if (!product) {
-          product = productDetails?.product || productDetails;
+          product = (productDetails as any)?.product || productDetails;
         } else {
-          // Merge: Start with product from products.ts (has prices), then add fields from productDetails
-          // But preserve price fields from products.ts to ensure they're not overwritten
-          const productFromDetails = productDetails?.product || productDetails;
+          // Merge logic...
+          const productFromDetails = (productDetails as any)?.product || productDetails;
           product = {
             ...product,
             ...productFromDetails,
-            // Ensure price fields from products.ts are preserved
             price: product.price ?? productFromDetails.price,
             resellerPrice: product.resellerPrice ?? productFromDetails.resellerPrice,
             siChannelPrice: product.siChannelPrice ?? productFromDetails.siChannelPrice,
@@ -596,8 +680,8 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
         } else if (!config) {
           // Fallback to quotationData or productDetails
           config = {
-            width: productDetails?.width || productDetails?.displaySize?.width || 0,
-            height: productDetails?.height || productDetails?.displaySize?.height || 0,
+            width: productDetails?.width || (productDetails as any)?.displaySize?.width || 0,
+            height: productDetails?.height || (productDetails as any)?.displaySize?.height || 0,
             unit: productDetails?.unit || 'mm'
           };
         }
@@ -607,22 +691,36 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
         const processor = exactSpecs?.processor || productDetails?.processor || editingQuotation.quotationData?.processor || null;
         const mode = exactSpecs?.mode || productDetails?.mode || editingQuotation.quotationData?.mode;
 
+        // Fix clientId type for QuoteModal
+        let cleanClientId: string | undefined = undefined;
+        if (editingQuotation.clientId) {
+          const cId = editingQuotation.clientId as any;
+          if (typeof cId === 'string') {
+            cleanClientId = cId;
+          } else if (cId?.$oid) {
+            cleanClientId = cId.$oid;
+          } else if (cId?._id) {
+            cleanClientId = String(cId._id);
+          } else if (typeof cId?.toString === 'function') {
+            cleanClientId = cId.toString();
+          }
+        }
+
         return (
           <QuoteModal
             isOpen={isEditModalOpen}
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setEditingQuotation(null);
-            setEditingClientInfo(null);
-          }}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setEditingQuotation(null);
+              setEditingClientInfo(null);
+            }}
             onSubmit={() => {
-
               fetchDashboardData(true);
               setIsEditModalOpen(false);
               setEditingQuotation(null);
               setEditingClientInfo(null);
             }}
-            selectedProduct={product}
+            selectedProduct={product || undefined}
             config={config}
             cabinetGrid={cabinetGrid}
             processor={processor}
@@ -640,7 +738,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
               paymentTerms: editingQuotation.quotationData?.userInfo?.paymentTerms,
               warranty: editingQuotation.quotationData?.userInfo?.warranty
             }}
-            clientId={editingQuotation.clientId}
+            clientId={cleanClientId}
             salesUser={salesPerson ? {
               _id: salesPerson._id,
               name: salesPerson.name,
@@ -648,7 +746,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
               role: salesPerson.role as 'sales' | 'super' | 'super_admin' | 'partner',
               location: salesPerson.location,
               contactNumber: salesPerson.contactNumber,
-              allowedCustomerTypes: [] // Add missing required property
+              allowedCustomerTypes: []
             } : null}
             userRole="sales"
             existingQuotation={{
