@@ -109,6 +109,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
 
   useEffect(() => {
     if (initialData) {
+      console.log('UserInfoForm: initialData updated:', initialData);
       setFormData(initialData);
     }
   }, [initialData]);

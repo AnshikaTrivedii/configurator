@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, FileText, Package, Calendar, RefreshCw, LogOut, MessageSquare, Plus, Eye, Edit } from 'lucide-react';
 import { salesAPI } from '../api/sales';
+import { clientAPI } from '../api/clients';
 import { PdfViewModal } from './PdfViewModal';
 import { QuoteModal } from './QuoteModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
@@ -50,6 +51,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
+  const [editingClientInfo, setEditingClientInfo] = useState<{ projectTitle?: string; location?: string } | null>(null);
 
   useEffect(() => {
 
@@ -194,12 +196,32 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     }
   };
 
-  const handleEditQuotation = (quotation: Quotation) => {
+  const handleEditQuotation = async (quotation: Quotation) => {
     if (onEditQuotation) {
       onEditQuotation(quotation);
     } else {
-
       setEditingQuotation(quotation);
+      
+      // Fetch client info if clientId exists
+      if (quotation.clientId) {
+        try {
+          const clientResponse = await clientAPI.getClientById(quotation.clientId);
+          if (clientResponse.success && clientResponse.client) {
+            setEditingClientInfo({
+              projectTitle: clientResponse.client.projectTitle || '',
+              location: clientResponse.client.location || ''
+            });
+          } else {
+            setEditingClientInfo(null);
+          }
+        } catch (error) {
+          console.error('Failed to fetch client info:', error);
+          setEditingClientInfo(null);
+        }
+      } else {
+        setEditingClientInfo(null);
+      }
+      
       setIsEditModalOpen(true);
     }
   };
@@ -483,55 +505,89 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
       )}
 
       {/* Edit Quotation Modal */}
-      {editingQuotation && (
-        <QuoteModal
-          isOpen={isEditModalOpen}
+      {editingQuotation && (() => {
+        // Extract configuration from exactProductSpecs (same as PDF viewing)
+        const exactSpecs = editingQuotation.exactProductSpecs;
+        const productDetails = editingQuotation.productDetails;
+        const product = productDetails?.product || productDetails;
+
+        // Build config from exactProductSpecs.displaySize (convert meters to mm)
+        let config = editingQuotation.quotationData?.config;
+        if (!config && exactSpecs?.displaySize) {
+          config = {
+            width: (exactSpecs.displaySize.width * 1000) || 0,
+            height: (exactSpecs.displaySize.height * 1000) || 0,
+            unit: 'mm'
+          };
+        } else if (!config) {
+          // Fallback to quotationData or productDetails
+          config = {
+            width: productDetails?.width || productDetails?.displaySize?.width || 0,
+            height: productDetails?.height || productDetails?.displaySize?.height || 0,
+            unit: productDetails?.unit || 'mm'
+          };
+        }
+
+        // Use exactProductSpecs first, then fallback to quotationData/productDetails
+        const cabinetGrid = exactSpecs?.cabinetGrid || productDetails?.cabinetGrid || editingQuotation.quotationData?.cabinetGrid;
+        const processor = exactSpecs?.processor || productDetails?.processor || editingQuotation.quotationData?.processor || null;
+        const mode = exactSpecs?.mode || productDetails?.mode || editingQuotation.quotationData?.mode;
+
+        return (
+          <QuoteModal
+            isOpen={isEditModalOpen}
           onClose={() => {
             setIsEditModalOpen(false);
             setEditingQuotation(null);
+            setEditingClientInfo(null);
           }}
-          onSubmit={() => {
+            onSubmit={() => {
 
-            fetchDashboardData(true);
-            setIsEditModalOpen(false);
-            setEditingQuotation(null);
-          }}
-          selectedProduct={editingQuotation.productDetails?.product || editingQuotation.productDetails}
-          config={editingQuotation.quotationData?.config || {
-            width: editingQuotation.productDetails?.width || 0,
-            height: editingQuotation.productDetails?.height || 0,
-            unit: editingQuotation.productDetails?.unit || 'mm'
-          }}
-          cabinetGrid={editingQuotation.productDetails?.cabinetGrid || editingQuotation.quotationData?.cabinetGrid}
-          processor={editingQuotation.productDetails?.processor || editingQuotation.quotationData?.processor || null}
-          mode={editingQuotation.productDetails?.mode || editingQuotation.quotationData?.mode}
-          userInfo={{
-            userType: editingQuotation.userTypeDisplayName as any,
-            fullName: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerName || '',
-            email: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerEmail || '',
-            phoneNumber: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerPhone || ''
-          }}
-          salesUser={salesPerson ? {
-            _id: salesPerson._id,
-            name: salesPerson.name,
-            email: salesPerson.email,
-            role: salesPerson.role as 'sales' | 'super' | 'super_admin' | 'partner',
-            location: salesPerson.location,
-            contactNumber: salesPerson.contactNumber,
-            allowedCustomerTypes: [] // Add missing required property
-          } : null}
-          userRole="sales"
-          existingQuotation={{
-            quotationId: editingQuotation.quotationId,
-            customerName: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerName || '',
-            customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerEmail || '',
-            customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerPhone || '',
-            message: editingQuotation.message || '',
-            userType: (editingQuotation.userType === 'siChannel' ? 'SI/Channel Partner' : editingQuotation.userType === 'reseller' ? 'Reseller' : 'End User')
-          }}
-          customPricing={editingQuotation.quotationData?.customPricing}
-        />
-      )}
+              fetchDashboardData(true);
+              setIsEditModalOpen(false);
+              setEditingQuotation(null);
+              setEditingClientInfo(null);
+            }}
+            selectedProduct={product}
+            config={config}
+            cabinetGrid={cabinetGrid}
+            processor={processor}
+            mode={mode}
+            userInfo={{
+              userType: editingQuotation.userTypeDisplayName as any,
+              fullName: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerName || '',
+              email: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerEmail || '',
+              phoneNumber: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerPhone || '',
+              // Use client info if available (from Client collection), otherwise fallback to quotationData.userInfo
+              projectTitle: editingClientInfo?.projectTitle || editingQuotation.quotationData?.userInfo?.projectTitle || '',
+              address: editingClientInfo?.location || editingQuotation.quotationData?.userInfo?.address || '',
+              validity: editingQuotation.quotationData?.userInfo?.validity,
+              paymentTerms: editingQuotation.quotationData?.userInfo?.paymentTerms,
+              warranty: editingQuotation.quotationData?.userInfo?.warranty
+            }}
+            clientId={editingQuotation.clientId}
+            salesUser={salesPerson ? {
+              _id: salesPerson._id,
+              name: salesPerson.name,
+              email: salesPerson.email,
+              role: salesPerson.role as 'sales' | 'super' | 'super_admin' | 'partner',
+              location: salesPerson.location,
+              contactNumber: salesPerson.contactNumber,
+              allowedCustomerTypes: [] // Add missing required property
+            } : null}
+            userRole="sales"
+            existingQuotation={{
+              quotationId: editingQuotation.quotationId,
+              customerName: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerName || '',
+              customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerEmail || '',
+              customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerPhone || '',
+              message: editingQuotation.message || '',
+              userType: (editingQuotation.userType === 'siChannel' ? 'SI/Channel Partner' : editingQuotation.userType === 'reseller' ? 'Reseller' : 'End User')
+            }}
+            customPricing={editingQuotation.quotationData?.customPricing}
+          />
+        );
+      })()}
     </div>
   );
 };

@@ -137,43 +137,91 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         return 'End User';
       };
 
-      let extractedUserInfo: any = null;
-      const qUserInfo = activeQuotation.quotationData?.userInfo;
+      // Fetch client info if clientId exists
+      const fetchClientInfo = async () => {
+        let clientProjectTitle = '';
+        let clientLocation = '';
 
-      if (activeQuotation.customerName) {
-        extractedUserInfo = {
-          fullName: activeQuotation.customerName,
-          email: activeQuotation.customerEmail,
-          phoneNumber: activeQuotation.customerPhone,
-          projectTitle: qUserInfo?.projectTitle || activeQuotation.quotationData?.projectTitle || '',
-          address: qUserInfo?.address || activeQuotation.quotationData?.address || '',
-          userType: getUserType(activeQuotation.userType),
-          validity: qUserInfo?.validity,
-          paymentTerms: qUserInfo?.paymentTerms,
-          warranty: qUserInfo?.warranty
-        };
-      } else if (qUserInfo) {
-
-        extractedUserInfo = {
-          fullName: qUserInfo.fullName || qUserInfo.customerName || '',
-          email: qUserInfo.email || qUserInfo.customerEmail || '',
-          phoneNumber: qUserInfo.phoneNumber || qUserInfo.customerPhone || '',
-          projectTitle: qUserInfo.projectTitle || '',
-          address: qUserInfo.address || '',
-          userType: getUserType(qUserInfo.userType || activeQuotation.userType)
-        };
-      }
-
-      if (extractedUserInfo && extractedUserInfo.fullName) {
-
-        setUserInfo(extractedUserInfo);
-        setIsMandatoryFormSubmitted(true);
-      } else {
-
-        if (extractedUserInfo) {
-          setUserInfo(extractedUserInfo);
+        // Handle clientId in various formats (string, ObjectId, MongoDB extended JSON)
+        const rawClientId = activeQuotation.clientId;
+        console.log('Raw clientId from quotation:', rawClientId, 'Type:', typeof rawClientId);
+        let clientIdString: string | null = null;
+        
+        if (rawClientId) {
+          if (typeof rawClientId === 'string') {
+            clientIdString = rawClientId;
+          } else if (rawClientId.$oid) {
+            // MongoDB extended JSON format: {"$oid": "..."}
+            clientIdString = rawClientId.$oid;
+          } else if (rawClientId._id) {
+            clientIdString = String(rawClientId._id);
+          } else if (typeof rawClientId.toString === 'function') {
+            clientIdString = rawClientId.toString();
+          } else {
+            clientIdString = String(rawClientId);
+          }
         }
-      }
+        
+        if (clientIdString) {
+          try {
+            console.log('Fetching client info for clientId:', clientIdString, 'Original:', rawClientId);
+            const clientResponse = await clientAPI.getClientById(clientIdString);
+            if (clientResponse.success && clientResponse.client) {
+              clientProjectTitle = clientResponse.client.projectTitle || '';
+              clientLocation = clientResponse.client.location || '';
+              console.log('Client info fetched:', { projectTitle: clientProjectTitle, location: clientLocation });
+            } else {
+              console.warn('Client fetch response not successful:', clientResponse);
+            }
+          } catch (error) {
+            console.error('Failed to fetch client info:', error);
+          }
+        } else {
+          console.log('No clientId found in quotation. Raw clientId value:', rawClientId);
+        }
+
+        let extractedUserInfo: any = null;
+        const qUserInfo = activeQuotation.quotationData?.userInfo;
+
+        if (activeQuotation.customerName) {
+          extractedUserInfo = {
+            fullName: activeQuotation.customerName,
+            email: activeQuotation.customerEmail,
+            phoneNumber: activeQuotation.customerPhone,
+            // Use client info if available, otherwise fallback to quotationData
+            projectTitle: clientProjectTitle || qUserInfo?.projectTitle || activeQuotation.quotationData?.projectTitle || '',
+            address: clientLocation || qUserInfo?.address || activeQuotation.quotationData?.address || '',
+            userType: getUserType(activeQuotation.userType),
+            validity: qUserInfo?.validity,
+            paymentTerms: qUserInfo?.paymentTerms,
+            warranty: qUserInfo?.warranty
+          };
+        } else if (qUserInfo) {
+
+          extractedUserInfo = {
+            fullName: qUserInfo.fullName || qUserInfo.customerName || '',
+            email: qUserInfo.email || qUserInfo.customerEmail || '',
+            phoneNumber: qUserInfo.phoneNumber || qUserInfo.customerPhone || '',
+            // Use client info if available, otherwise fallback to quotationData
+            projectTitle: clientProjectTitle || qUserInfo.projectTitle || '',
+            address: clientLocation || qUserInfo.address || '',
+            userType: getUserType(qUserInfo.userType || activeQuotation.userType)
+          };
+        }
+
+        if (extractedUserInfo && extractedUserInfo.fullName) {
+          console.log('Setting userInfo with client data:', extractedUserInfo);
+          setUserInfo(extractedUserInfo);
+          setIsMandatoryFormSubmitted(true);
+        } else {
+          if (extractedUserInfo) {
+            console.log('Setting userInfo (no fullName):', extractedUserInfo);
+            setUserInfo(extractedUserInfo);
+          }
+        }
+      };
+
+      fetchClientInfo();
 
       if (activeQuotation.quotationData?.customPricing) {
         setCustomPricing(activeQuotation.quotationData.customPricing);
@@ -359,7 +407,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setUserInfo(userData);
     setIsUserInfoFormOpen(false);
 
-    // Create or find client when user info is submitted (for sales/partner users)
+    // Update existing client or create/find client when user info is submitted (for sales/partner users)
     if (userRole === 'sales' || userRole === 'partner') {
       try {
         const clientData = {
@@ -372,13 +420,37 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           notes: ''
         };
 
-        const clientResponse = await clientAPI.findOrCreateClient(clientData);
-        if (clientResponse.success && clientResponse.client) {
-          console.log('✅ Client created/found from UserInfoForm:', clientResponse.client._id);
+        // If editing and clientId exists, update the existing client
+        if (isEditMode && activeQuotation?.clientId) {
+          // Convert clientId to string if it's an object (handle MongoDB extended JSON format)
+          const rawClientId = activeQuotation.clientId;
+          let clientIdString: string;
+          if (typeof rawClientId === 'string') {
+            clientIdString = rawClientId;
+          } else if (rawClientId.$oid) {
+            // MongoDB extended JSON format: {"$oid": "..."}
+            clientIdString = rawClientId.$oid;
+          } else if (rawClientId._id) {
+            clientIdString = String(rawClientId._id);
+          } else if (typeof rawClientId.toString === 'function') {
+            clientIdString = rawClientId.toString();
+          } else {
+            clientIdString = String(rawClientId);
+          }
+          const updateResponse = await clientAPI.updateClient(clientIdString, clientData);
+          if (updateResponse.success && updateResponse.client) {
+            console.log('✅ Client updated from UserInfoForm:', updateResponse.client._id);
+          }
+        } else {
+          // Otherwise, create or find client
+          const clientResponse = await clientAPI.findOrCreateClient(clientData);
+          if (clientResponse.success && clientResponse.client) {
+            console.log('✅ Client created/found from UserInfoForm:', clientResponse.client._id);
+          }
         }
       } catch (clientError: any) {
-        console.error('⚠️ Failed to create/find client from UserInfoForm:', clientError);
-        // Continue even if client creation fails
+        console.error('⚠️ Failed to update/create client from UserInfoForm:', clientError);
+        // Continue even if client update/creation fails
       }
     }
 

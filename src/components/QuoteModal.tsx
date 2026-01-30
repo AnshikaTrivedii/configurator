@@ -211,6 +211,7 @@ type QuoteModalProps = {
     structurePrice: number | null;
     installationPrice: number | null;
   }) => void;
+  clientId?: string; // Client ID for updating existing client
 };
 
 const gcd = (a: number, b: number): number => {
@@ -262,7 +263,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   quotationId,
   customPricing: externalCustomPricing,
   onCustomPricingChange,
-  config
+  config,
+  clientId
 }) => {
   const effectiveTitle = title || (existingQuotation ? 'Edit Quote' : 'Get a Quote');
   const effectiveSubmitButtonText = submitButtonText || (existingQuotation ? 'Update Quote' : 'Submit Quote Request');
@@ -634,8 +636,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           }
         };
 
-        // Create or update client when updating quotation
-        let clientId: string | undefined;
+        // Update existing client or create/find new client when updating quotation
+        let finalClientId: string | undefined = clientId; // Use existing clientId if provided
         try {
           const clientData = {
             name: customerName.trim(),
@@ -647,19 +649,29 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             notes: message.trim() || ''
           };
 
-          const clientResponse = await clientAPI.findOrCreateClient(clientData);
-          if (clientResponse.success && clientResponse.client) {
-            clientId = clientResponse.client._id;
-            console.log('✅ Client created/found for update:', clientResponse.client._id);
+          if (clientId) {
+            // Update existing client
+            const updateResponse = await clientAPI.updateClient(clientId, clientData);
+            if (updateResponse.success && updateResponse.client) {
+              finalClientId = updateResponse.client._id;
+              console.log('✅ Client updated:', updateResponse.client._id);
+            }
+          } else {
+            // Create or find new client
+            const clientResponse = await clientAPI.findOrCreateClient(clientData);
+            if (clientResponse.success && clientResponse.client) {
+              finalClientId = clientResponse.client._id;
+              console.log('✅ Client created/found for update:', clientResponse.client._id);
+            }
           }
         } catch (clientError: any) {
-          console.error('⚠️ Failed to create/find client during update:', clientError);
-          // Continue with quotation update even if client creation fails
+          console.error('⚠️ Failed to update/create client during update:', clientError);
+          // Continue with quotation update even if client update fails
         }
 
         // Add clientId to update data if available
-        if (clientId) {
-          (updateData as any).clientId = clientId;
+        if (finalClientId) {
+          (updateData as any).clientId = finalClientId;
         }
 
         await salesAPI.updateQuotation(existingQuotation.quotationId, updateData);
