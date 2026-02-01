@@ -112,6 +112,15 @@ export const clientAPI = {
         return response.data;
     },
 
+    // Get client leads (unassigned)
+    async getLeads(): Promise<{ success: boolean; leads: Client[] }> {
+        const response = await axios.get(
+            `${API_URL}/clients/leads`,
+            { headers: createAuthHeaders() }
+        );
+        return response.data;
+    },
+
     // Find or create client
     async findOrCreateClient(data: CreateClientRequest): Promise<ClientResponse> {
         try {

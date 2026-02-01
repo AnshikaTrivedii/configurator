@@ -772,6 +772,137 @@ router.post('/test-quotation', async (req, res) => {
   }
 });
 
+
+// Public route for Clients to request quotes (No Auth)
+router.post('/public/quotation', async (req, res) => {
+  try {
+    const {
+      customerName,
+      customerEmail,
+      customerPhone,
+      customerProject,
+      customerLocation,
+      productName,
+      productDetails,
+      message,
+      quotationData,
+      totalPrice,
+      originalTotalPrice,
+      exactPricingBreakdown,
+      originalPricingBreakdown,
+      exactProductSpecs,
+      pdfBase64
+    } = req.body;
+
+    // Validate required fields
+    if (!customerName || !customerEmail || !productName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, email, and product information are required'
+      });
+    }
+
+    // 1. Find or Create Client
+    let client = await Client.findOne({ email: customerEmail.toLowerCase().trim() });
+
+    if (!client) {
+      client = new Client({
+        name: customerName.trim(),
+        email: customerEmail.toLowerCase().trim(),
+        phone: customerPhone?.trim() || '',
+        projectTitle: customerProject?.trim() || '',
+        location: customerLocation?.trim() || '',
+        company: '',
+        notes: 'Created via Public Quote Request'
+      });
+      await client.save();
+    } else {
+      // Update client info if provided
+      if (customerProject) client.projectTitle = customerProject.trim();
+      if (customerLocation) client.location = customerLocation.trim();
+      if (customerPhone) client.phone = customerPhone.trim();
+      await client.save();
+    }
+
+    // 2. Generate Quotation ID
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const count = await Quotation.countDocuments({
+      createdAt: {
+        $gte: new Date(new Date().setHours(0, 0, 0, 0)),
+        $lt: new Date(new Date().setHours(23, 59, 59, 999))
+      }
+    });
+    const quotationId = `Q-${dateStr}-${(count + 1).toString().padStart(3, '0')}`;
+
+    // 3. Handle PDF Upload
+    let pdfS3Key = null;
+    let pdfS3Url = null;
+
+    if (pdfBase64) {
+      try {
+        const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+        pdfS3Key = await uploadPdfToS3(pdfBuffer, quotationId, 'unassigned');
+        pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
+      } catch (s3Error) {
+        console.error('Error uploading public PDF to S3:', s3Error);
+      }
+    }
+
+    // 4. Create Quotation with salesUserId: null
+    const quotation = new Quotation({
+      quotationId,
+      salesUserId: null,
+      salesUserName: 'Unassigned',
+      clientId: client._id,
+      customerName: client.name,
+      customerEmail: client.email,
+      customerPhone: client.phone,
+      productName,
+      productDetails,
+      message: message || 'Web Request',
+      userType: 'endUser',
+      userTypeDisplayName: 'End User',
+      totalPrice: totalPrice || 0,
+      originalTotalPrice: originalTotalPrice || 0,
+      exactPricingBreakdown,
+      originalPricingBreakdown,
+      exactProductSpecs,
+      quotationData: quotationData || {
+        exactPricingBreakdown,
+        exactProductSpecs,
+        config: productDetails?.config || null,
+        createdAt: new Date().toISOString(),
+        savedAt: new Date().toISOString()
+      },
+      pdfPage6HTML: req.body.pdfPage6HTML || null,
+      pdfS3Key,
+      pdfS3Url
+    });
+
+    await quotation.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Quote request submitted successfully',
+      quotation: {
+        quotationId: quotation.quotationId,
+        client: {
+          name: client.name,
+          email: client.email
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in public quote request:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error processing quote request',
+      error: error.message
+    });
+  }
+});
+
 // POST /api/sales/quotation (save quotation to database)
 router.post('/quotation', authenticateToken, async (req, res) => {
   const startTime = Date.now();
@@ -1543,7 +1674,7 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
     // Group quotations by customer
     // First, collect all unique clientIds
     const clientIds = [...new Set(quotations.map(q => q.clientId).filter(id => id))];
-    
+
     // Fetch all clients in one query
     const clientsMap = new Map();
     if (clientIds.length > 0) {
@@ -1561,7 +1692,7 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
       // Use clientId as key if available, otherwise use email-name combination
       let customerKey;
       let customerName, customerEmail, customerPhone;
-      
+
       if (quotation.clientId) {
         const clientIdStr = quotation.clientId.toString();
         const client = clientsMap.get(clientIdStr);
@@ -1694,7 +1825,7 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
     // Group quotations by customer
     // First, collect all unique clientIds
     const clientIds = [...new Set(quotations.map(q => q.clientId).filter(id => id))];
-    
+
     // Fetch all clients in one query
     const clientsMap = new Map();
     if (clientIds.length > 0) {
@@ -1710,7 +1841,7 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
       // Use clientId as key if available, otherwise use email-name combination
       let customerKey;
       let customerName, customerEmail, customerPhone;
-      
+
       if (quotation.clientId) {
         const clientIdStr = quotation.clientId.toString();
         const client = clientsMap.get(clientIdStr);
@@ -1934,6 +2065,54 @@ router.post('/check-latest-quotation-id', async (req, res) => {
       success: false,
       error: 'Failed to check latest quotation ID',
       details: error.message
+    });
+  }
+});
+
+// Assign client/quotations to sales person
+router.post('/assign', authenticateToken, async (req, res) => {
+  try {
+    const { clientId, salesUserId } = req.body;
+
+    if (!clientId || !salesUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Client ID and Sales User ID are required'
+      });
+    }
+
+    // Validate Sales User
+    const salesUser = await SalesUser.findById(salesUserId);
+    if (!salesUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sales User not found'
+      });
+    }
+
+    // Update all unassigned quotations for this client
+    const result = await Quotation.updateMany(
+      { clientId: clientId, salesUserId: null },
+      {
+        $set: {
+          salesUserId: salesUser._id,
+          salesUserName: salesUser.name
+        }
+      }
+    );
+
+    res.json({
+      success: true,
+      message: `Successfully assigned ${result.modifiedCount} quotations to ${salesUser.name}`,
+      result
+    });
+
+  } catch (error) {
+    console.error('Error assigning leads:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error assigning leads',
+      error: error.message
     });
   }
 });

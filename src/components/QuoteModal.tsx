@@ -266,8 +266,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   config,
   clientId
 }) => {
-  const effectiveTitle = title || (existingQuotation ? 'Edit Quote' : 'Get a Quote');
-  const effectiveSubmitButtonText = submitButtonText || (existingQuotation ? 'Update Quote' : 'Submit Quote Request');
+  const isSuperAdminUser = userRole === 'super' || userRole === 'super_admin';
+  const isPublicUser = !salesUser && !isSuperAdminUser && !userRole;
+
+  const effectiveTitle = title || (existingQuotation ? 'Edit Quote' : (isPublicUser ? 'Request a Quote' : 'Get a Quote'));
+  const effectiveSubmitButtonText = submitButtonText || (existingQuotation ? 'Update Quote' : (isPublicUser ? 'Request Quote' : 'Generate Quotation'));
 
   const [message, setMessage] = useState(userInfo?.fullName ? '' : (existingQuotation?.message || ''));
   const [customerName, setCustomerName] = useState(userInfo?.fullName || existingQuotation?.customerName || '');
@@ -766,25 +769,28 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
       let finalQuotationId = quotationId;
       const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
+      const isPublicRequest = !salesUser && !isSuperAdmin && !userRole;
 
-      if (isSuperAdmin && !salesUser && !selectedSalesPersonId) {
-        alert('Please select a sales person to assign this quotation to');
-        setIsSubmitting(false);
-        return;
-      }
-
-      if ((salesUser || isSuperAdmin) && !quotationId) {
-
-        const nameForId = isSuperAdmin && selectedSalesPersonId
-          ? salesPersons.find(p => p._id === selectedSalesPersonId)?.name || salesUser?.name
-          : salesUser?.name;
-        if (nameForId) {
-          finalQuotationId = await QuotationIdGenerator.generateQuotationId(nameForId);
-
-        } else {
-          alert('Unable to generate quotation ID - missing sales person name');
+      if (!isPublicRequest) {
+        if (isSuperAdmin && !salesUser && !selectedSalesPersonId) {
+          alert('Please select a sales person to assign this quotation to');
           setIsSubmitting(false);
           return;
+        }
+
+        if ((salesUser || isSuperAdmin) && !quotationId) {
+
+          const nameForId = isSuperAdmin && selectedSalesPersonId
+            ? salesPersons.find(p => p._id === selectedSalesPersonId)?.name || salesUser?.name
+            : salesUser?.name;
+          if (nameForId) {
+            finalQuotationId = await QuotationIdGenerator.generateQuotationId(nameForId);
+
+          } else {
+            alert('Unable to generate quotation ID - missing sales person name');
+            setIsSubmitting(false);
+            return;
+          }
         }
       }
 
@@ -826,7 +832,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
       }
 
-      if ((salesUser || isSuperAdmin) && finalQuotationId && finalSalesUserId && finalSalesUserName) {
+      const shouldGenerateQuotation = isPublicRequest || ((salesUser || isSuperAdmin) && finalQuotationId && finalSalesUserId && finalSalesUserName);
+
+      if (shouldGenerateQuotation) {
         let exactQuotationData: any = null;
 
         try {
@@ -1041,27 +1049,29 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             createdAt: new Date().toISOString()
           };
 
-          // Create or find client before saving quotation
+          // Create or find client before saving quotation (Skip for public requests as backend handles it)
           let clientId: string | undefined;
-          try {
-            const clientData = {
-              name: customerName.trim(),
-              email: customerEmail.trim(),
-              phone: customerPhone.trim(),
-              projectTitle: userInfo?.projectTitle || '',
-              location: userInfo?.address || '',
-              company: '', // Can be added to userInfo form later if needed
-              notes: message.trim() || ''
-            };
+          if (!isPublicRequest) {
+            try {
+              const clientData = {
+                name: customerName.trim(),
+                email: customerEmail.trim(),
+                phone: customerPhone.trim(),
+                projectTitle: userInfo?.projectTitle || '',
+                location: userInfo?.address || '',
+                company: '', // Can be added to userInfo form later if needed
+                notes: message.trim() || ''
+              };
 
-            const clientResponse = await clientAPI.findOrCreateClient(clientData);
-            if (clientResponse.success && clientResponse.client) {
-              clientId = clientResponse.client._id;
-              console.log('✅ Client created/found:', clientResponse.client._id);
+              const clientResponse = await clientAPI.findOrCreateClient(clientData);
+              if (clientResponse.success && clientResponse.client) {
+                clientId = clientResponse.client._id;
+                console.log('✅ Client created/found:', clientResponse.client._id);
+              }
+            } catch (clientError: any) {
+              console.error('⚠️ Failed to create/find client:', clientError);
+              // Continue with quotation save even if client creation fails
             }
-          } catch (clientError: any) {
-            console.error('⚠️ Failed to create/find client:', clientError);
-            // Continue with quotation save even if client creation fails
           }
 
           // Add clientId to quotation data if available
@@ -1069,13 +1079,23 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             exactQuotationData.clientId = clientId;
           }
 
-          const saveResult = await salesAPI.saveQuotation(exactQuotationData);
-
-          alert('Quotation saved successfully to database!');
+          if (isPublicRequest) {
+            // Public Request Submission
+            await salesAPI.createPublicQuotation({
+              ...exactQuotationData,
+              customerProject: userInfo?.projectTitle || '',
+              customerLocation: userInfo?.address || ''
+            });
+            alert('Quote request submitted successfully! Our team will contact you shortly.');
+          } else {
+            // Internal Sales Submission
+            const saveResult = await salesAPI.saveQuotation(exactQuotationData);
+            alert('Quotation saved successfully to database!');
+          }
 
         } catch (dbError: any) {
 
-          if (dbError.message && dbError.message.includes('already exists')) {
+          if (dbError.message && dbError.message.includes('already exists') && !isPublicRequest) {
 
             try {
               const fallbackQuotationId = QuotationIdGenerator.generateFallbackQuotationId(
@@ -1101,9 +1121,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
             alert(`Failed to save quotation to database: ${dbError.message}`);
           }
-
         }
-      } else {
 
       }
 

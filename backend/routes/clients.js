@@ -57,6 +57,33 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 });
 
+// Get client leads (clients with unassigned quotations)
+router.get('/leads', authenticateToken, async (req, res) => {
+    try {
+        const Quotation = (await import('../models/Quotation.js')).default;
+
+        // Find all quotations with no salesUserId
+        const unassignedQuotations = await Quotation.find({ salesUserId: null });
+
+        // Extract unique client IDs
+        const clientIds = [...new Set(unassignedQuotations.map(q => q.clientId).filter(id => id))];
+
+        // Fetch clients
+        const leads = await Client.find({ _id: { $in: clientIds } }).sort({ createdAt: -1 });
+
+        res.json({
+            success: true,
+            leads
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching leads',
+            error: error.message
+        });
+    }
+});
+
 // Get all clients with pagination
 router.get('/', authenticateToken, async (req, res) => {
     try {

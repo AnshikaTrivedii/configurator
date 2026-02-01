@@ -10,7 +10,7 @@ const quotationSchema = new mongoose.Schema({
   salesUserId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'SalesUser',
-    required: true
+    required: false // Optional for public leads
   },
   salesUserName: {
     type: String,

@@ -463,6 +463,40 @@ class SalesAPI {
 
     return data;
   }
+
+  async createPublicQuotation(quoteData: any): Promise<{ success: boolean; message: string; quotation: any }> {
+    const response = await fetch(`${API_BASE_URL}/sales/public/quotation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(quoteData)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to submit quote request');
+    }
+
+    return data;
+  }
+
+  async assignLeads(clientId: string, salesUserId: string): Promise<{ success: boolean; message: string; result: any }> {
+    const response = await fetch(`${API_BASE_URL}/sales/assign`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ clientId, salesUserId })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to assign leads');
+    }
+
+    return data;
+  }
 }
 
 export const salesAPI = new SalesAPI();
