@@ -3,6 +3,7 @@ import { X, Mail, User, Phone, MessageSquare, Package, ChevronDown } from 'lucid
 import { submitQuoteRequest, QuoteRequest } from '../api/quote';
 import { salesAPI } from '../api/sales';
 import { clientAPI } from '../api/clients';
+import { leadsAPI } from '../api/leads';
 import { Product, SalesUser } from '../types';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
@@ -1081,10 +1082,15 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
           if (isPublicRequest) {
             // Public Request Submission
-            await salesAPI.createPublicQuotation({
-              ...exactQuotationData,
+            await leadsAPI.createPublicLead({
+              customerName,
+              customerEmail,
+              customerPhone,
               customerProject: userInfo?.projectTitle || '',
-              customerLocation: userInfo?.address || ''
+              customerLocation: userInfo?.address || '',
+              message,
+              productName: selectedProduct.name,
+              productDetails: exactQuotationData.productDetails
             });
             alert('Quote request submitted successfully! Our team will contact you shortly.');
           } else {

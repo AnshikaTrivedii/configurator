@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Users, FileText, MapPin, Download, RefreshCw, Briefcase, Mail, Phone, Calendar, UserCheck } from 'lucide-react';
 import { salesAPI } from '../api/sales';
-import { clientAPI } from '../api/clients';
+import { leadsAPI, Lead } from '../api/leads';
 import { SalesPersonDetailsModal } from './SalesPersonDetailsModal';
 import { AddUserModal } from './AddUserModal';
-import { Client } from '../types';
 
 interface SalesPerson {
   _id: string;
@@ -61,10 +60,10 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
 
   // Leads Management State
   const [activeTab, setActiveTab] = useState<'team' | 'leads'>('team');
-  const [leads, setLeads] = useState<Client[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<Client | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [assignSalesPersonId, setAssignSalesPersonId] = useState<string>('');
 
   useEffect(() => {
@@ -75,7 +74,7 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
   const fetchLeads = async () => {
     try {
       setLoadingLeads(true);
-      const response = await clientAPI.getLeads();
+      const response = await leadsAPI.getLeads();
       if (response.success) {
         setLeads(response.leads);
       }
@@ -91,7 +90,7 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
 
     try {
       setLoading(true);
-      await salesAPI.assignLeads(selectedLead._id, assignSalesPersonId);
+      await leadsAPI.assignLead(selectedLead._id, assignSalesPersonId);
       alert('Lead assigned successfully');
       setAssignModalOpen(false);
       setSelectedLead(null);
@@ -174,7 +173,7 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
     window.URL.revokeObjectURL(url);
   };
 
-  const openAssignModal = (lead: Client) => {
+  const openAssignModal = (lead: Lead) => {
     setSelectedLead(lead);
     setAssignModalOpen(true);
   };
@@ -471,8 +470,8 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="px-4 py-5 border-b border-gray-200 sm:px-6 bg-gray-50 flex justify-between items-center">
               <div>
-                <h3 className="text-lg leading-6 font-medium text-gray-900">Unassigned Client Leads</h3>
-                <p className="mt-1 text-sm text-gray-500">Clients who requested quotes publicly and need assignment.</p>
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Client Leads</h3>
+                <p className="mt-1 text-sm text-gray-500">Manage and assign client leads.</p>
               </div>
               <button onClick={() => fetchLeads()} className="p-2 bg-white rounded-full hover:bg-gray-100">
                 <RefreshCw className={`w-5 h-5 text-gray-500 ${loadingLeads ? 'animate-spin' : ''}`} />
@@ -492,9 +491,9 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project / Location</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product / Interest</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status / Assigned To</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                     </tr>
@@ -508,13 +507,23 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.email}</div>
+                          <div className="flex items-center mt-1"><Phone className="w-3 h-3 mr-1" /> {lead.phone}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.phone}</div>
+                          <div className="font-medium text-gray-900">{lead.productName}</div>
+                          {lead.projectTitle && <div className="text-xs text-gray-500">Proj: {lead.projectTitle}</div>}
+                          {lead.location && <div className="flex items-center mt-1 text-xs"><MapPin className="w-3 h-3 mr-1" /> {lead.location}</div>}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div>{lead.projectTitle || 'N/A'}</div>
-                          <div className="flex items-center mt-1 text-xs"><MapPin className="w-3 h-3 mr-1" /> {lead.location || 'Unknown'}</div>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full mb-1 ${lead.status === 'New' ? 'bg-blue-100 text-blue-800' :
+                              lead.status === 'Assigned' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                            }`}>
+                            {lead.status}
+                          </span>
+                          <div className="text-sm text-gray-900 font-medium">
+                            {lead.assignedSalesUserName || 'Unassigned'}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(lead.createdAt).toLocaleDateString()}</div>
@@ -524,7 +533,7 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
                             onClick={() => openAssignModal(lead)}
                             className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                           >
-                            <UserCheck className="w-3 h-3 mr-1" /> Assign
+                            <UserCheck className="w-3 h-3 mr-1" /> {lead.assignedSalesUserName ? 'Reassign' : 'Assign'}
                           </button>
                         </td>
                       </tr>

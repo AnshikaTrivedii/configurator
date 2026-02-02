@@ -8,6 +8,7 @@ import salesRoutes from './routes/sales.js';
 import productsRoutes from './routes/products.js';
 import emailRoutes from './routes/email.js';
 import clientRoutes from './routes/clients.js';
+import leadRoutes from './routes/leads.js';
 import { runPartnerCreation } from './scripts/runPartnerCreation.js';
 
 // Load environment variables
@@ -88,6 +89,7 @@ app.use('/api/sales', salesRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/clients', clientRoutes);
+app.use('/api/leads', leadRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
