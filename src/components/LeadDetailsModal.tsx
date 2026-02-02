@@ -8,12 +8,56 @@ interface LeadDetailsModalProps {
     lead: Lead | null;
 }
 
+// Recursive helper to render object details
+const renderObjectDetails = (obj: any, depth = 0): React.ReactNode => {
+    if (!obj || typeof obj !== 'object') return null;
+
+    return Object.entries(obj).map(([key, value]) => {
+        // Skip technical or empty fields
+        if (key === '_id' || key === '__v' || key === 'id' || value === null || value === undefined) return null;
+
+        // Skip empty objects
+        if (typeof value === 'object' && Object.keys(value as object).length === 0) return null;
+
+        const label = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim();
+        const isObject = typeof value === 'object' && !Array.isArray(value);
+        const isArray = Array.isArray(value);
+
+        return (
+            <div key={key} className={`border-b border-gray-100 last:border-0 ${depth > 0 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                <div className={`px-4 py-3 grid grid-cols-3 gap-4 ${depth > 0 ? 'pl-8' : ''}`}>
+                    <dt className="text-sm font-medium text-gray-500 capitalize flex items-center">
+                        {label}
+                    </dt>
+                    <dd className="text-sm text-gray-900 col-span-2 break-words">
+                        {isObject ? (
+                            <div className="mt-2 border-l-2 border-gray-200">
+                                {renderObjectDetails(value, depth + 1)}
+                            </div>
+                        ) : isArray ? (
+                            <ul className="list-disc list-inside">
+                                {(value as any[]).map((item, idx) => (
+                                    <li key={idx} className="text-sm text-gray-900">
+                                        {typeof item === 'object' ? JSON.stringify(item) : String(item)}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            String(value)
+                        )}
+                    </dd>
+                </div>
+            </div>
+        );
+    });
+};
+
 export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({ isOpen, onClose, lead }) => {
     if (!isOpen || !lead) return null;
 
     // Helper to safely access nested properties
     const config = lead.productDetails?.config || {};
-    const specs = lead.productDetails || {};
+
 
     return (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center backdrop-blur-sm">
@@ -70,13 +114,15 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({ isOpen, onCl
                         </div>
                     </div>
 
-                    {/* Detailed Configuration */}
+                    {/* Detailed Configuration & Specs */}
                     <div>
                         <h4 className="flex items-center text-lg font-semibold text-gray-900 mb-3">
                             <Box className="w-5 h-5 mr-2 text-gray-500" />
                             Configuration Details
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                             {/* Display Config Dimensions if available */}
                             {config.width && config.height ? (
                                 <div className="border rounded-lg p-4 bg-gray-50">
@@ -120,23 +166,14 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({ isOpen, onCl
                             ) : null}
                         </div>
 
-                        {/* Render any other interesting details from productDetails */}
-                        <div className="mt-4 border rounded-lg overflow-hidden">
+                        {/* Full Specs Renderer */}
+                        <div className="border rounded-lg overflow-hidden">
                             <div className="px-4 py-2 bg-gray-100 border-b border-gray-200 text-sm font-semibold text-gray-700">
-                                Additional Specifications
+                                Full Specifications
                             </div>
-                            <dl className="grid grid-cols-1 divide-y divide-gray-200">
-                                {Object.entries(specs).map(([key, value]) => {
-                                    // Skip complex objects we already handled or don't want to show raw
-                                    if (key === 'config' || key === 'prices' || typeof value === 'object') return null;
-                                    return (
-                                        <div key={key} className="px-4 py-3 grid grid-cols-3 gap-4 hover:bg-gray-50">
-                                            <dt className="text-sm font-medium text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</dt>
-                                            <dd className="text-sm text-gray-900 col-span-2">{String(value)}</dd>
-                                        </div>
-                                    );
-                                })}
-                            </dl>
+                            <div className="divide-y divide-gray-200">
+                                {renderObjectDetails(lead.productDetails)}
+                            </div>
                         </div>
                     </div>
                 </div>

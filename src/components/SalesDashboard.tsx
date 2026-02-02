@@ -544,6 +544,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client ID</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product / Interest</th>
@@ -555,6 +556,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                   <tbody className="bg-white divide-y divide-gray-200">
                     {assignedLeads.map((lead) => (
                       <tr key={lead._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <code className="text-xs text-gray-500 bg-gray-50 px-1 py-0.5 rounded">{lead._id}</code>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{lead.name}</div>
                           {lead.company && <div className="text-xs text-gray-500">{lead.company}</div>}
