@@ -267,7 +267,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   clientId
 }) => {
   const isSuperAdminUser = userRole === 'super' || userRole === 'super_admin';
-  const isPublicUser = !salesUser && !isSuperAdminUser && !userRole;
+  const isPublicUser = !salesUser && !isSuperAdminUser && (!userRole || userRole === 'normal');
 
   const effectiveTitle = title || (existingQuotation ? 'Edit Quote' : (isPublicUser ? 'Request a Quote' : 'Get a Quote'));
   const effectiveSubmitButtonText = submitButtonText || (existingQuotation ? 'Update Quote' : (isPublicUser ? 'Request Quote' : 'Generate Quotation'));
@@ -769,7 +769,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
       let finalQuotationId = quotationId;
       const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
-      const isPublicRequest = !salesUser && !isSuperAdmin && !userRole;
+      const isPublicRequest = !salesUser && !isSuperAdmin && (!userRole || userRole === 'normal');
 
       if (!isPublicRequest) {
         if (isSuperAdmin && !salesUser && !selectedSalesPersonId) {
