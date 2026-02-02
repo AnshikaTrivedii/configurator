@@ -62,5 +62,17 @@ export const leadsAPI = {
             { headers }
         );
         return response.data;
+    },
+
+    // Update lead status
+    async updateStatus(leadId: string, status: string): Promise<{ success: boolean; message: string; lead: Lead }> {
+        const token = localStorage.getItem('salesToken');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        const response = await axios.put(`${API_URL}/leads/${leadId}/status`,
+            { status },
+            { headers }
+        );
+        return response.data;
     }
 };

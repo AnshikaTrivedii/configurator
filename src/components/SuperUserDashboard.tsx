@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, FileText, MapPin, Download, RefreshCw, Briefcase, Mail, Phone, Calendar, UserCheck, Eye } from 'lucide-react';
+import { Users, FileText, MapPin, Download, RefreshCw, Briefcase, Mail, Phone, Calendar, UserCheck, Eye, Edit } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { leadsAPI, Lead } from '../api/leads';
 import { SalesPersonDetailsModal } from './SalesPersonDetailsModal';
 import { AddUserModal } from './AddUserModal';
 import { LeadDetailsModal } from './LeadDetailsModal';
+import { LeadStatusModal } from './LeadStatusModal';
 
 interface SalesPerson {
   _id: string;
@@ -67,6 +68,8 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedDetailLead, setSelectedDetailLead] = useState<Lead | null>(null);
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [selectedStatusLead, setSelectedStatusLead] = useState<Lead | null>(null);
   const [assignSalesPersonId, setAssignSalesPersonId] = useState<string>('');
 
   useEffect(() => {
@@ -184,6 +187,11 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
   const openDetailModal = (lead: Lead) => {
     setSelectedDetailLead(lead);
     setDetailModalOpen(true);
+  };
+
+  const openStatusModal = (lead: Lead) => {
+    setSelectedStatusLead(lead);
+    setStatusModalOpen(true);
   };
 
   if (loading && !salesPersons.length) {
@@ -549,6 +557,12 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
                           >
                             <Eye className="w-3 h-3 mr-1" /> View
                           </button>
+                          <button
+                            onClick={() => openStatusModal(lead)}
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ml-2"
+                          >
+                            <Edit className="w-3 h-3 mr-1" /> Status
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -583,6 +597,14 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
         lead={selectedDetailLead}
+      />
+
+      {/* Lead Status Modal */}
+      <LeadStatusModal
+        isOpen={statusModalOpen}
+        onClose={() => setStatusModalOpen(false)}
+        lead={selectedStatusLead}
+        onStatusUpdated={() => fetchLeads()}
       />
 
       {/* Assign Lead Modal */}
