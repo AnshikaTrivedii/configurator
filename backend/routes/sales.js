@@ -1341,16 +1341,31 @@ router.delete('/quotation/:quotationId', authenticateToken, async (req, res) => 
       });
     }
 
-    // Check permissions - only super admin can delete (as per user request)
-    // We can also allow owner, but user specifically asked for "super admin to delete"
+    // Check permissions:
+    // 1. Super admin can delete any quotation
+    // 2. Sales users can delete only their own quotations
     const isSuperAdmin = ['super', 'super_admin', 'superadmin', 'admin'].includes(req.user.role);
+    const userId = req.user._id || req.user.id;
 
     if (!isSuperAdmin) {
+      // For sales users: check if quotation belongs to them
+      if (!quotation.salesUserId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. Quotation ownership cannot be verified.'
+        });
+      }
 
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Only super admin can delete quotations.'
-      });
+      // Convert both to strings for comparison
+      const quotationOwnerId = quotation.salesUserId.toString();
+      const currentUserId = userId.toString();
+
+      if (quotationOwnerId !== currentUserId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You can only delete your own quotations.'
+        });
+      }
     }
 
     // Delete the quotation

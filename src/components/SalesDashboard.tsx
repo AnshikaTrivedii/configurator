@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, FileText, Package, RefreshCw, LogOut, Plus, Eye, Edit, Search, Clock, MapPin } from 'lucide-react';
+import { X, User, Mail, Phone, FileText, Package, RefreshCw, LogOut, Plus, Eye, Edit, Search, Clock, MapPin, Trash2 } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { clientAPI } from '../api/clients';
 import { PdfViewModal } from './PdfViewModal';
 import { QuoteModal } from './QuoteModal';
+import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
 import { Quotation } from '../types';
 import { products } from '../data/products';
@@ -53,6 +54,11 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
   const [editingClientInfo, setEditingClientInfo] = useState<{ name?: string; email?: string; phone?: string; projectTitle?: string; location?: string } | null>(null);
+  const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string | null>(null);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,20 +77,20 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
   useEffect(() => {
 
     fetchDashboardData();
-
+    
   }, []);
 
   const fetchDashboardData = async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
-
+      
       const response = await salesAPI.getMyDashboard();
-
+      
       if (!response || !response.success) {
         throw new Error('Invalid response from server');
       }
-
+      
       setSalesPerson(response.salesPerson);
       setCustomers(response.customers || []);
       setTotalQuotations(response.totalQuotations || 0);
@@ -118,19 +124,19 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
   const handleViewPdf = async (quotation: Quotation) => {
     try {
       setSelectedQuotation(quotation);
-
+      
       if (quotation.pdfS3Key || quotation.pdfS3Url) {
         try {
 
           const pdfUrlResponse = await salesAPI.getQuotationPdfUrl(quotation.quotationId);
-
+          
           window.open(pdfUrlResponse.pdfS3Url, '_blank');
           return;
         } catch (s3Error) {
 
         }
       }
-
+      
       if (quotation.pdfPage6HTML) {
         setPdfHtmlContent(quotation.pdfPage6HTML);
         setIsPdfModalOpen(true);
@@ -140,9 +146,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
       if (quotation.exactPricingBreakdown && quotation.exactProductSpecs) {
         const productDetails = quotation.productDetails;
         const exactSpecs = quotation.exactProductSpecs;
-
+        
         const product = productDetails?.product || productDetails;
-
+        
         let config = quotation.quotationData?.config;
         if (!config && exactSpecs.displaySize) {
 
@@ -159,29 +165,29 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             unit: productDetails?.unit || 'mm'
           };
         }
-
+        
         const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
         const processor = exactSpecs.processor || productDetails?.processor || null;
         const mode = exactSpecs.mode || productDetails?.mode || undefined;
-
-        const customer = customers.find(c =>
+        
+        const customer = customers.find(c => 
           c.quotations.some(q => q.quotationId === quotation.quotationId)
         );
-
+        
         let userTypeForHtml: 'End User' | 'Reseller' | 'Channel' = 'End User';
         if (quotation.userType === 'siChannel') {
           userTypeForHtml = 'Channel';
         } else if (quotation.userType === 'reseller') {
           userTypeForHtml = 'Reseller';
         }
-
+        
         const userInfo = {
           userType: userTypeForHtml,
           fullName: customer?.customerName || '',
           email: customer?.customerEmail || '',
           phoneNumber: customer?.customerPhone || ''
         };
-
+        
         const htmlContent = generateConfigurationHtml(
           config,
           product,
@@ -199,7 +205,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           undefined, // customPricing
           quotation.exactPricingBreakdown // CRITICAL: Use exact pricing breakdown
         );
-
+        
         setPdfHtmlContent(htmlContent);
         setIsPdfModalOpen(true);
       } else {
@@ -260,19 +266,66 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     }
   };
 
+  const handleDeleteQuotation = (quotation: Quotation) => {
+    setQuotationToDelete(quotation);
+    setIsDeleteModalOpen(true);
+    setDeleteSuccessMessage(null);
+    setDeleteErrorMessage(null);
+  };
+
+  const confirmDeleteQuotation = async () => {
+    if (!quotationToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      setDeleteErrorMessage(null);
+
+      await salesAPI.deleteQuotation(quotationToDelete.quotationId);
+
+      // Show success message
+      setDeleteSuccessMessage('Quotation deleted successfully');
+
+      // Remove quotation from UI immediately
+      setCustomers(prevCustomers => {
+        return prevCustomers.map(customer => ({
+          ...customer,
+          quotations: customer.quotations.filter(
+            q => q.quotationId !== quotationToDelete.quotationId
+          )
+        })).filter(customer => customer.quotations.length > 0); // Remove customers with no quotations
+      });
+
+      // Update totals
+      setTotalQuotations(prev => Math.max(0, prev - 1));
+      setTotalRevenue(prev => Math.max(0, prev - (quotationToDelete.totalPrice || 0)));
+
+      // Close modal after a short delay
+      setTimeout(() => {
+        setIsDeleteModalOpen(false);
+        setQuotationToDelete(null);
+        setDeleteSuccessMessage(null);
+      }, 1500);
+    } catch (err: any) {
+      console.error('Error deleting quotation:', err);
+      setDeleteErrorMessage(err.message || 'Failed to delete quotation');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleDownloadPdf = async () => {
     if (!selectedQuotation || !pdfHtmlContent) return;
-
+    
     try {
 
       const html2pdf = (await import('html2pdf.js')).default;
-
+      
       const element = document.createElement('div');
       element.innerHTML = pdfHtmlContent;
       element.style.position = 'absolute';
       element.style.left = '-9999px';
       document.body.appendChild(element);
-
+      
       const opt = {
         margin: [10, 10, 10, 10],
         filename: `${selectedQuotation.quotationId}.pdf`,
@@ -280,9 +333,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
-
+      
       await html2pdf().set(opt).from(element).save();
-
+      
       document.body.removeChild(element);
     } catch (error) {
 
@@ -340,12 +393,12 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
               </div>
               <p className="text-gray-300 text-sm flex items-center gap-2">
                 Welcome back, <span className="text-white font-medium">{salesPerson?.name || 'Sales Partner'}</span>
-                {lastRefreshTime && (
+              {lastRefreshTime && (
                   <span className="flex items-center gap-1 text-xs bg-black/20 px-2 py-0.5 rounded-full ml-2">
                     <Clock size={10} />
                     Updated {lastRefreshTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                )}
+                </span>
+              )}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -383,9 +436,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             <div className="p-3 bg-indigo-50 rounded-lg">
               <FileText className="text-indigo-600" size={24} />
             </div>
-            <div>
+              <div>
               <p className="text-sm font-medium text-gray-500">Total Quotations</p>
-              <p className="text-2xl font-bold text-gray-900">{totalQuotations}</p>
+                <p className="text-2xl font-bold text-gray-900">{totalQuotations}</p>
             </div>
           </div>
 
@@ -393,9 +446,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             <div className="p-3 bg-emerald-50 rounded-lg">
               <User className="text-emerald-600" size={24} />
             </div>
-            <div>
+              <div>
               <p className="text-sm font-medium text-gray-500">Active Customers</p>
-              <p className="text-2xl font-bold text-gray-900">{totalCustomers}</p>
+                <p className="text-2xl font-bold text-gray-900">{totalCustomers}</p>
             </div>
           </div>
 
@@ -403,7 +456,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             <div className="p-3 bg-blue-50 rounded-lg">
               <MapPin className="text-blue-600" size={24} />
             </div>
-            <div>
+              <div>
               <p className="text-sm font-medium text-gray-500">Your Location</p>
               <p className="text-lg font-bold text-gray-900 truncate max-w-[150px]" title={salesPerson?.location || 'N/A'}>
                 {salesPerson?.location || 'N/A'}
@@ -490,7 +543,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                   {/* Quotations Grid */}
                   <div className="p-6">
                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {customer.quotations.map((quotation, qIndex) => (
+                    {customer.quotations.map((quotation, qIndex) => (
                         <div
                           key={qIndex}
                           className="group bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all relative"
@@ -522,6 +575,16 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                               >
                                 <Edit size={14} />
                               </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteQuotation(quotation);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                title="Delete Quote"
+                              >
+                                <Trash2 size={14} />
+                              </button>
                             </div>
                           </div>
 
@@ -538,7 +601,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                               {quotation.exactProductSpecs?.displaySize && (
                                 <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
                                   {quotation.exactProductSpecs.displaySize.width?.toFixed(2)}m x {quotation.exactProductSpecs.displaySize.height?.toFixed(2)}m
-                                </span>
+                              </span>
                               )}
                             </div>
                             <p className="text-sm text-gray-600 line-clamp-2 min-h-[2.5rem]">
@@ -560,7 +623,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                           </div>
                         </div>
                       ))}
-                    </div>
+                      </div>
                   </div>
                 </div>
               ))}
@@ -603,38 +666,38 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
         }
 
         return (
-          <PdfViewModal
-            isOpen={isPdfModalOpen}
-            onClose={() => {
-              setIsPdfModalOpen(false);
-              setSelectedQuotation(null);
-              setPdfHtmlContent('');
-            }}
-            htmlContent={pdfHtmlContent}
-            onDownload={handleDownloadPdf}
-            fileName={`${selectedQuotation.quotationId}.pdf`}
+        <PdfViewModal
+          isOpen={isPdfModalOpen}
+          onClose={() => {
+            setIsPdfModalOpen(false);
+            setSelectedQuotation(null);
+            setPdfHtmlContent('');
+          }}
+          htmlContent={pdfHtmlContent}
+          onDownload={handleDownloadPdf}
+          fileName={`${selectedQuotation.quotationId}.pdf`}
             selectedProduct={fullProduct as any}
-            config={selectedQuotation.quotationData?.config || {
-              width: selectedQuotation.productDetails?.width || 0,
-              height: selectedQuotation.productDetails?.height || 0,
-              unit: selectedQuotation.productDetails?.unit || 'mm'
-            }}
-            cabinetGrid={selectedQuotation.productDetails?.cabinetGrid || selectedQuotation.quotationData?.cabinetGrid}
-            processor={selectedQuotation.productDetails?.processor || selectedQuotation.quotationData?.processor || null}
-            userInfo={{
-              userType: selectedQuotation.userTypeDisplayName,
-              customerName: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerName || '',
-              customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerEmail || '',
-              customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerPhone || ''
-            }}
-            salesUser={salesPerson ? {
-              _id: salesPerson._id,
-              name: salesPerson.name,
-              email: salesPerson.email,
-              role: salesPerson.role
-            } : null}
-            userRole="sales"
-            quotationId={selectedQuotation.quotationId}
+          config={selectedQuotation.quotationData?.config || {
+            width: selectedQuotation.productDetails?.width || 0,
+            height: selectedQuotation.productDetails?.height || 0,
+            unit: selectedQuotation.productDetails?.unit || 'mm'
+          }}
+          cabinetGrid={selectedQuotation.productDetails?.cabinetGrid || selectedQuotation.quotationData?.cabinetGrid}
+          processor={selectedQuotation.productDetails?.processor || selectedQuotation.quotationData?.processor || null}
+          userInfo={{
+            userType: selectedQuotation.userTypeDisplayName,
+            customerName: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerName || '',
+            customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerEmail || '',
+            customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerPhone || ''
+          }}
+          salesUser={salesPerson ? {
+            _id: salesPerson._id,
+            name: salesPerson.name,
+            email: salesPerson.email,
+            role: salesPerson.role
+          } : null}
+          userRole="sales"
+          quotationId={selectedQuotation.quotationId}
             clientId={selectedQuotation.clientId as string | undefined} // Fix type error here if clientId is object
             exactPricingBreakdown={selectedQuotation.exactPricingBreakdown}
           />
@@ -761,6 +824,44 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           />
         );
       })()}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!isDeleting) {
+            setIsDeleteModalOpen(false);
+            setQuotationToDelete(null);
+            setDeleteErrorMessage(null);
+            setDeleteSuccessMessage(null);
+          }
+        }}
+        onConfirm={confirmDeleteQuotation}
+        title="Delete Quotation"
+        message={quotationToDelete 
+          ? `Are you sure you want to delete quotation "${quotationToDelete.quotationId}"? This action cannot be undone.`
+          : 'Are you sure you want to delete this quotation? This action cannot be undone.'
+        }
+        loading={isDeleting}
+      />
+
+      {/* Success/Error Messages */}
+      {deleteSuccessMessage && (
+        <div className="fixed top-4 right-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2">
+          <span>{deleteSuccessMessage}</span>
+        </div>
+      )}
+      {deleteErrorMessage && (
+        <div className="fixed top-4 right-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2">
+          <span>{deleteErrorMessage}</span>
+          <button
+            onClick={() => setDeleteErrorMessage(null)}
+            className="text-red-600 hover:text-red-800"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
