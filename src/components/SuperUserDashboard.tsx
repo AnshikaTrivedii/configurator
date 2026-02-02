@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, FileText, MapPin, Download, RefreshCw, Briefcase, Mail, Phone, Calendar, UserCheck } from 'lucide-react';
+import { Users, FileText, MapPin, Download, RefreshCw, Briefcase, Mail, Phone, Calendar, UserCheck, Eye } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { leadsAPI, Lead } from '../api/leads';
 import { SalesPersonDetailsModal } from './SalesPersonDetailsModal';
 import { AddUserModal } from './AddUserModal';
+import { LeadDetailsModal } from './LeadDetailsModal';
 
 interface SalesPerson {
   _id: string;
@@ -64,6 +65,8 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedDetailLead, setSelectedDetailLead] = useState<Lead | null>(null);
   const [assignSalesPersonId, setAssignSalesPersonId] = useState<string>('');
 
   useEffect(() => {
@@ -176,6 +179,11 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
   const openAssignModal = (lead: Lead) => {
     setSelectedLead(lead);
     setAssignModalOpen(true);
+  };
+
+  const openDetailModal = (lead: Lead) => {
+    setSelectedDetailLead(lead);
+    setDetailModalOpen(true);
   };
 
   if (loading && !salesPersons.length) {
@@ -516,8 +524,8 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full mb-1 ${lead.status === 'New' ? 'bg-blue-100 text-blue-800' :
-                              lead.status === 'Assigned' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-gray-100 text-gray-800'
+                            lead.status === 'Assigned' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
                             }`}>
                             {lead.status}
                           </span>
@@ -534,6 +542,12 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
                             className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                           >
                             <UserCheck className="w-3 h-3 mr-1" /> {lead.assignedSalesUserName ? 'Reassign' : 'Assign'}
+                          </button>
+                          <button
+                            onClick={() => openDetailModal(lead)}
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ml-2"
+                          >
+                            <Eye className="w-3 h-3 mr-1" /> View
                           </button>
                         </td>
                       </tr>
@@ -562,6 +576,13 @@ export const SuperUserDashboard: React.FC<SuperUserDashboardProps> = ({ onBack, 
           fetchDashboardData(true);
           setIsAddUserModalOpen(false);
         }}
+      />
+
+      {/* Lead Details Modal */}
+      <LeadDetailsModal
+        isOpen={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        lead={selectedDetailLead}
       />
 
       {/* Assign Lead Modal */}

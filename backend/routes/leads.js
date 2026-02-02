@@ -146,6 +146,48 @@ router.post('/assign', authenticateToken, async (req, res) => {
     }
 });
 
+// Update lead status
+router.put('/:id/status', authenticateToken, async (req, res) => {
+    try {
+        const { status } = req.body;
+        const validStatuses = ['New', 'Assigned', 'Contacted', 'Converted', 'Lost'];
+
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid status'
+            });
+        }
+
+        const lead = await Lead.findByIdAndUpdate(
+            req.params.id,
+            { status },
+            { new: true }
+        );
+
+        if (!lead) {
+            return res.status(404).json({
+                success: false,
+                message: 'Lead not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Lead status updated successfully',
+            lead
+        });
+
+    } catch (error) {
+        console.error('Error updating lead status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update lead status',
+            error: error.message
+        });
+    }
+});
+
 // Delete a lead (Admin only, or maybe just for cleanup)
 router.delete('/:id', authenticateToken, async (req, res) => {
     try {
