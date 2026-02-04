@@ -17,13 +17,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartConfiguration, 
         {/* Login Buttons (top-right, aligned to viewport edge) */}
         <div className="absolute top-4 right-4 z-50">
           <div className="flex items-center gap-3">
-            <button
+            {/* <button
               type="button"
               onClick={onPartnerLogin}
               className="px-4 py-2 bg-slate-800/80 text-cyan-400 text-sm font-semibold rounded-lg hover:bg-slate-700/80 transition-all border border-cyan-500/20 hover:border-cyan-500/40 shadow-lg backdrop-blur-sm"
             >
               Partner Login
-            </button>
+            </button> */}
             <button
               type="button"
               onClick={onSalesLogin}
