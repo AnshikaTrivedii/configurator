@@ -74,6 +74,11 @@ export const PROCESSOR_PRICES: Record<string, ProcessorPrice> = {
     endUser: 290000, 
     reseller: 246500, 
     channel: 261000 
+  },
+  '4K Prime': { 
+    endUser: 290000, 
+    reseller: 246500, 
+    channel: 261000 
   }
 };
 

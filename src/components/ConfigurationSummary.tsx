@@ -21,6 +21,26 @@ function formatIndianNumber(x: number): string {
   }
 }
 
+/** GCD for integers; used to simplify aspect ratio from pixel dimensions. */
+function gcd(a: number, b: number): number {
+  a = Math.round(Math.abs(a)) || 1;
+  b = Math.round(Math.abs(b)) || 1;
+  while (b) {
+    const t = b;
+    b = a % b;
+    a = t;
+  }
+  return a;
+}
+
+/** Aspect ratio from total pixel dimensions: width/height as simplified ratio (e.g. 2880×2700 → 16:15). */
+function aspectRatioFromPixels(widthPx: number, heightPx: number): string {
+  const w = Math.round(widthPx) || 1;
+  const h = Math.round(heightPx) || 1;
+  const g = gcd(w, h);
+  return `${w / g}:${h / g}`;
+}
+
 export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   config,
   cabinetGrid,
@@ -144,17 +164,14 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Aspect Ratio</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-emerald-700 break-words">
                 {(() => {
-
                   if (config.aspectRatio && typeof config.aspectRatio === 'string') {
                     if (config.aspectRatio === '16:9' || config.aspectRatio === '4:3' || config.aspectRatio === '1:1') {
                       return config.aspectRatio;
                     }
-                    if (config.aspectRatio === 'none') {
-                      return 'None';
-                    }
                   }
-
-                  return `${Math.round((config.width / config.height) * 9)}:9`;
+                  const totalWidthPx = selectedProduct.resolution.width * cabinetGrid.columns;
+                  const totalHeightPx = selectedProduct.resolution.height * cabinetGrid.rows;
+                  return aspectRatioFromPixels(totalWidthPx, totalHeightPx);
                 })()}
               </p>
             </div>

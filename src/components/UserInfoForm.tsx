@@ -109,10 +109,16 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
 
   useEffect(() => {
     if (initialData) {
-      console.log('UserInfoForm: initialData updated:', initialData);
       setFormData(initialData);
     }
   }, [initialData]);
+
+  // When modal opens, sync form from initialData so T&C and other fields are always current (e.g. after async load)
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setFormData(initialData);
+    }
+  }, [isOpen, initialData]);
 
   const allUserTypeOptions: Array<{ value: 'End User' | 'Reseller' | 'SI/Channel Partner'; label: string; internalValue: string }> = [
     { value: 'End User', label: 'End User', internalValue: 'endUser' },

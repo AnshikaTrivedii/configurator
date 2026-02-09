@@ -1712,11 +1712,11 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
         const clientIdStr = quotation.clientId.toString();
         const client = clientsMap.get(clientIdStr);
         if (client) {
-          // Use client data from Client collection (most up-to-date)
+          // Prefer quotation's customer details (matches what user entered on the quote)
           customerKey = clientIdStr;
-          customerName = client.name || quotation.customerName;
-          customerEmail = client.email || quotation.customerEmail;
-          customerPhone = client.phone || quotation.customerPhone;
+          customerName = quotation.customerName || client.name;
+          customerEmail = quotation.customerEmail || client.email;
+          customerPhone = quotation.customerPhone || client.phone;
         } else {
           // Client not found, fallback to quotation data
           customerKey = `${quotation.customerEmail}-${quotation.customerName}`;
@@ -1861,11 +1861,11 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
         const clientIdStr = quotation.clientId.toString();
         const client = clientsMap.get(clientIdStr);
         if (client) {
-          // Use client data from Client collection (most up-to-date)
+          // Prefer quotation's customer details (matches what user entered on the quote)
           customerKey = clientIdStr;
-          customerName = client.name || quotation.customerName;
-          customerEmail = client.email || quotation.customerEmail;
-          customerPhone = client.phone || quotation.customerPhone;
+          customerName = quotation.customerName || client.name;
+          customerEmail = quotation.customerEmail || client.email;
+          customerPhone = quotation.customerPhone || client.phone;
         } else {
           // Client not found, fallback to quotation data
           customerKey = `${quotation.customerEmail}-${quotation.customerName}`;

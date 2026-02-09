@@ -205,7 +205,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             // Use client info if available, otherwise fallback to quotationData
             projectTitle: clientProjectTitle || qUserInfo.projectTitle || '',
             address: clientLocation || qUserInfo.address || '',
-            userType: getUserType(qUserInfo.userType || activeQuotation.userType)
+            userType: getUserType(qUserInfo.userType || activeQuotation.userType),
+            validity: qUserInfo.validity,
+            paymentTerms: qUserInfo.paymentTerms,
+            warranty: qUserInfo.warranty
           };
         }
 
@@ -299,40 +302,38 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const cabinetGrid = calculateCabinetGrid(selectedProduct);
 
+  // Allowed processors only (names and capacities). Suggested = smallest that can handle required pixels.
+  const ALLOWED_PROCESSORS = [
+    { name: 'TB2', type: 'asynchronous' as const, portCount: 1, pixelCapacity: 0.65 },
+    { name: 'TB40', type: 'asynchronous' as const, portCount: 2, pixelCapacity: 1.3 },
+    { name: 'TB60', type: 'asynchronous' as const, portCount: 4, pixelCapacity: 2.3 },
+    { name: 'VX1', type: 'synchronous' as const, portCount: 2, pixelCapacity: 1.3 },
+    { name: 'VX400', type: 'synchronous' as const, portCount: 4, pixelCapacity: 2.6 },
+    { name: 'VX600', type: 'synchronous' as const, portCount: 6, pixelCapacity: 3.9 },
+    { name: 'VX1000', type: 'synchronous' as const, portCount: 10, pixelCapacity: 6.5 },
+    { name: '4K Prime', type: 'synchronous' as const, portCount: 16, pixelCapacity: 13 },
+  ];
+
   const createControllerSelection = () => {
     if (!selectedProduct) return null;
 
     const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
     const totalPixelsMillion = totalPixels / 1_000_000;
 
-    const controllerMapping = [
-      { max: 0.65, name: 'TB2', type: 'asynchronous', portCount: 1, pixelCapacity: 0.65 },
-      { max: 1.3, name: 'TB40', type: 'asynchronous', portCount: 2, pixelCapacity: 1.3 },
-      { max: 2.3, name: 'TB60', type: 'asynchronous', portCount: 4, pixelCapacity: 2.3 },
-      { max: 1.3, name: 'VX1', type: 'synchronous', portCount: 2, pixelCapacity: 1.3 },
-      { max: 2.6, name: 'VX400', type: 'synchronous', portCount: 4, pixelCapacity: 2.6 },
-      { max: 2.6, name: 'VX400 Pro', type: 'synchronous', portCount: 4, pixelCapacity: 2.6 },
-      { max: 3.9, name: 'VX600', type: 'synchronous', portCount: 6, pixelCapacity: 3.9 },
-      { max: 3.9, name: 'VX600 Pro', type: 'synchronous', portCount: 6, pixelCapacity: 3.9 },
-      { max: 6.5, name: 'VX1000', type: 'synchronous', portCount: 10, pixelCapacity: 6.5 },
-      { max: 6.5, name: 'VX1000 Pro', type: 'synchronous', portCount: 10, pixelCapacity: 6.5 },
-      { max: 13, name: '4K PRIME', type: 'synchronous', portCount: 16, pixelCapacity: 13 },
-    ];
-
-    let selectedController = controllerMapping[controllerMapping.length - 1]; // Default to 4K PRIME
-    for (const mapping of controllerMapping) {
-      if (totalPixelsMillion <= mapping.max) {
-        selectedController = mapping;
-        break;
-      }
-    }
+    // Only processors whose pixel capacity (in pixels) is >= required total pixels
+    const availableProcessors = ALLOWED_PROCESSORS
+      .filter((p) => p.pixelCapacity * 1_000_000 >= totalPixels)
+      .sort((a, b) => a.pixelCapacity - b.pixelCapacity);
+    const suggestedName = availableProcessors[0]?.name ?? '4K Prime';
+    const effectiveName = availableProcessors.some((p) => p.name === selectedController) ? selectedController : suggestedName;
+    const resolved = ALLOWED_PROCESSORS.find((p) => p.name === effectiveName) ?? ALLOWED_PROCESSORS[ALLOWED_PROCESSORS.length - 1];
 
     return {
       selectedController: {
-        name: selectedController.name,
-        type: selectedController.type,
-        portCount: selectedController.portCount,
-        pixelCapacity: selectedController.pixelCapacity
+        name: resolved.name,
+        type: resolved.type,
+        portCount: resolved.portCount,
+        pixelCapacity: resolved.pixelCapacity
       },
       requiredPorts: Math.ceil(totalPixels / 655000),
       dataHubPorts: Math.ceil(totalPixels / 655000),
@@ -344,30 +345,23 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const controllerSelection = createControllerSelection() || undefined;
 
+  // For dropdown: processors with capacity >= totalPixels, suggested first, then higher capacity only
+  const totalPixelsForProcessor = selectedProduct
+    ? selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows
+    : 0;
+  const processorDropdownOptions = selectedProduct
+    ? ALLOWED_PROCESSORS
+        .filter((p) => p.pixelCapacity * 1_000_000 >= totalPixelsForProcessor)
+        .sort((a, b) => a.pixelCapacity - b.pixelCapacity)
+        .map((p) => p.name)
+    : [];
+
   const getAutoSelectedController = (product: Product, grid: CabinetGrid) => {
     const totalPixels = product.resolution.width * grid.columns * product.resolution.height * grid.rows;
-    const totalPixelsMillion = totalPixels / 1_000_000;
-
-    const controllerMapping = [
-      { max: 0.65, name: 'TB2' },
-      { max: 1.3, name: 'TB40' },
-      { max: 2.3, name: 'TB60' },
-      { max: 1.3, name: 'VX1' },
-      { max: 2.6, name: 'VX400' },
-      { max: 2.6, name: 'VX400 Pro' },
-      { max: 3.9, name: 'VX600' },
-      { max: 3.9, name: 'VX600 Pro' },
-      { max: 6.5, name: 'VX1000' },
-      { max: 6.5, name: 'VX1000 Pro' },
-      { max: 13, name: '4K PRIME' },
-    ];
-
-    for (const mapping of controllerMapping) {
-      if (totalPixelsMillion <= mapping.max) {
-        return mapping.name;
-      }
-    }
-    return '4K PRIME';
+    const available = ALLOWED_PROCESSORS
+      .filter((p) => p.pixelCapacity * 1_000_000 >= totalPixels)
+      .sort((a, b) => a.pixelCapacity - b.pixelCapacity);
+    return available[0]?.name ?? '4K Prime';
   };
 
   useEffect(() => {
@@ -876,6 +870,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             onControllerChange={setSelectedController}
             onModeChange={setSelectedMode}
             controllerSelection={controllerSelection}
+            processorDropdownOptions={processorDropdownOptions}
             onRedundancyChange={setRedundancyEnabled}
             redundancyEnabled={redundancyEnabled}
           />
@@ -1308,7 +1303,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         />
       )}
 
-      {/* User Info Form Modal */}
+      {/* User Info Form Modal - merge T&C from quotation so they always pre-fill when editing */}
       <UserInfoForm
         isOpen={isUserInfoFormOpen}
         onClose={() => {
@@ -1319,7 +1314,28 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         onSubmit={handleUserInfoSubmit}
         title={isEditMode ? 'Edit Client Details' : (pendingAction === 'quote' ? 'Get a Quote' : 'View Document')}
         submitButtonText={isEditMode ? 'Update & Regenerate' : (pendingAction === 'quote' ? 'Submit Quote Request' : 'View Document')}
-        initialData={userInfo}
+        initialData={(() => {
+          const qUser = activeQuotation?.quotationData?.userInfo;
+          const base = userInfo ? { ...userInfo } : undefined;
+          if (!base && !qUser) return undefined;
+          if (!base) return qUser ? {
+            fullName: qUser.fullName || qUser.customerName || '',
+            email: qUser.email || qUser.customerEmail || '',
+            phoneNumber: qUser.phoneNumber || qUser.customerPhone || '',
+            projectTitle: qUser.projectTitle || '',
+            address: qUser.address || '',
+            userType: (qUser.userType === 'Reseller' ? 'Reseller' : qUser.userType === 'SI/Channel Partner' || qUser.userType === 'Channel' ? 'SI/Channel Partner' : 'End User') as 'End User' | 'Reseller' | 'SI/Channel Partner',
+            validity: qUser.validity,
+            paymentTerms: qUser.paymentTerms,
+            warranty: qUser.warranty
+          } : undefined;
+          return {
+            ...base,
+            validity: base.validity ?? qUser?.validity,
+            paymentTerms: base.paymentTerms ?? qUser?.paymentTerms,
+            warranty: base.warranty ?? qUser?.warranty
+          };
+        })()}
         isEditMode={isEditMode}
         salesUser={salesUser}
         allowedCustomerTypes={salesUser?.allowedCustomerTypes}

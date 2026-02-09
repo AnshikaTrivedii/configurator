@@ -23,6 +23,8 @@ interface ProductSidebarProps {
     backupPorts?: number;
     isRedundancyMode?: boolean;
   };
+  /** Processor names for dropdown (suggested first, then higher capacity). When provided with onControllerChange, shows dropdown instead of fixed text. */
+  processorDropdownOptions?: string[];
 }
 
 export const ProductSidebar: React.FC<ProductSidebarProps> = ({
@@ -35,7 +37,8 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   onModeChange,
   onRedundancyChange,
   redundancyEnabled = false,
-  controllerSelection
+  controllerSelection,
+  processorDropdownOptions
 }) => {
   const [activeTab, setActiveTab] = useState<'dimensions' | 'processing'>('dimensions');
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
@@ -43,7 +46,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const totalPixels = selectedProduct ? (selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows) : 0;
   const totalPixelsMillion = totalPixels / 1_000_000;
 
-  const selectedController = controllerSelection?.selectedController?.name || '4K PRIME';
+  const selectedController = controllerSelection?.selectedController?.name || '4K Prime';
 
   const isSyncAsyncSelectable = selectedController === 'TB40' || selectedController === 'TB60';
   React.useEffect(() => {
@@ -234,9 +237,21 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center">
                 Selected Processor
               </label>
-              <div className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 font-semibold text-xs sm:text-sm">
-                {selectedController}
-              </div>
+              {onControllerChange && processorDropdownOptions && processorDropdownOptions.length > 0 ? (
+                <select
+                  value={selectedController}
+                  onChange={(e) => onControllerChange(e.target.value)}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 font-semibold text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-black/20 focus:border-gray-400"
+                >
+                  {processorDropdownOptions.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 font-semibold text-xs sm:text-sm">
+                  {selectedController}
+                </div>
+              )}
               <div className="text-xs text-gray-500 mt-1">Total Pixels: {totalPixels.toLocaleString()} ({totalPixelsMillion.toFixed(2)} million)</div>
             </div>
 
