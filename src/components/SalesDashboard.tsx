@@ -308,11 +308,35 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
         userTypeForHtml = 'Reseller';
       }
 
+      // Fetch client data if clientId exists
+      let clientProjectTitle = '';
+      let clientLocation = '';
+      if (quotation.clientId) {
+        try {
+          const clientIdString = typeof quotation.clientId === 'string' 
+            ? quotation.clientId 
+            : (quotation.clientId as any)?._id || (quotation.clientId as any)?.toString();
+          
+          if (clientIdString) {
+            const clientResponse = await clientAPI.getClientById(clientIdString);
+            if (clientResponse.success && clientResponse.client) {
+              clientProjectTitle = clientResponse.client.projectTitle || '';
+              clientLocation = clientResponse.client.location || '';
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch client info for alternate PDF:', error);
+          // Continue without client data
+        }
+      }
+
       const userInfo = {
         userType: userTypeForHtml,
         fullName: customer?.customerName || '',
         email: customer?.customerEmail || '',
-        phoneNumber: customer?.customerPhone || ''
+        phoneNumber: customer?.customerPhone || '',
+        projectTitle: quotation.quotationData?.userInfo?.projectTitle || clientProjectTitle || '',
+        address: quotation.quotationData?.userInfo?.address || clientLocation || ''
       };
 
       // Generate alternate PDF with only pages 1, 6, and 7
