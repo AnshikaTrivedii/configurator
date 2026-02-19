@@ -710,7 +710,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
     try {
 
-      let pdfBlob: Blob;
+
+      // Ensure pdfBlob is clean for generation
+      // pdfBlob = null; 
+
       try {
         const { generateConfigurationPdf } = await import('../utils/docxGenerator');
 
@@ -730,6 +733,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             ? 'Channel'
             : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
 
+        // Assign to OUTER pdfBlob
         pdfBlob = await generateConfigurationPdf(
           config || { width: 2400, height: 1010, unit: 'mm' },
           selectedProduct,
@@ -762,6 +766,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         return;
       }
 
+      if (!pdfBlob) {
+        throw new Error('PDF Blob generation failed unexpectedly.');
+      }
+
       const pdfBase64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -769,7 +777,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           resolve(base64String);
         };
         reader.onerror = reject;
-        reader.readAsDataURL(pdfBlob);
+        reader.readAsDataURL(pdfBlob!); // pdfBlob is guaranteed not null here due to check above
       });
 
       exactQuotationData.pdfBase64 = pdfBase64;
