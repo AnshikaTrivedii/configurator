@@ -114,27 +114,6 @@ class QuotationIdGenerator {
   private static async getLatestSerialFromDatabase(firstName: string, year: string, month: string, day: string): Promise<number> {
     try {
 
-<<<<<<< HEAD
-      if (typeof window !== 'undefined') {
-
-        const response = await fetch('/api/sales/check-latest-quotation-id', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            firstName,
-            year,
-            month,
-            day
-          })
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          return data.latestSerial || 0;
-        }
-=======
       const response = await fetch(`${API_URL}/sales/check-latest-quotation-id`, {
         method: 'POST',
         headers: {
@@ -151,7 +130,6 @@ class QuotationIdGenerator {
       if (response.ok) {
         const data = await response.json();
         return data.latestSerial || 0;
->>>>>>> dev
       }
     } catch (error) {
 
