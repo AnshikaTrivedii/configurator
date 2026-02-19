@@ -1,6 +1,7 @@
 import React from 'react';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { Ruler, Zap, Move3d, Monitor, Boxes, Square, Maximize2 } from 'lucide-react';
+import { getControllerPdfUrl } from '../utils/controllerPdfMap';
 
 // Processor specifications - matches DisplayConfigurator.tsx
 const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
@@ -409,6 +410,31 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
                   <div className="font-medium text-gray-900 text-xs sm:text-sm">{PROCESSOR_SPECS[processor].pixelCapacity!.toFixed(1)}M</div>
                 </div>
               )}
+            </div>
+          )}
+          {processor && (
+            <div style={{ marginTop: '15px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const pdfUrl = getControllerPdfUrl(processor);
+                  if (!pdfUrl) {
+                    alert('Controller PDF not available.');
+                    return;
+                  }
+                  window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                }}
+                style={{
+                  padding: '10px 18px',
+                  backgroundColor: '#3B71F3',
+                  color: '#fff',
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                View Controller PDF
+              </button>
             </div>
           )}
         </div>
