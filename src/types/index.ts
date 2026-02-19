@@ -109,6 +109,9 @@ export interface Controller {
   pixelCapacity: number; // in millions
   type: 'asynchronous' | 'synchronous';
   minPortsForRedundancy: number; // minimum ports needed when redundancy is enabled
+  inputs?: number; // number of input connectors
+  outputs?: number; // number of output connectors
+  maxResolution?: string; // maximum resolution supported
 }
 
 export interface ControllerSelection {

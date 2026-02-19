@@ -189,9 +189,9 @@ function getProcessorPrice(processorName, userType = 'End User') {
         channel: 31500
       },
       'TB60': {
-        endUser: 65000,
-        reseller: 55300,
-        channel: 58500
+        endUser: 51000,
+        reseller: 43350,
+        channel: 45900
       },
       'VX1': {
         endUser: 35000,
@@ -199,40 +199,60 @@ function getProcessorPrice(processorName, userType = 'End User') {
         channel: 31500
       },
       'VX400': {
-        endUser: 100000,
-        reseller: 85000,
-        channel: 90000
+        endUser: 90000,
+        reseller: 76500,
+        channel: 81000
       },
       'VX400 Pro': {
-        endUser: 110000,
-        reseller: 93500,
-        channel: 99000
+        endUser: 98000,
+        reseller: 83300,
+        channel: 88200
       },
       'VX600': {
-        endUser: 120000,
-        reseller: 102000,
-        channel: 108000
+        endUser: 105000,
+        reseller: 89250,
+        channel: 94500
       },
       'VX600 Pro': {
-        endUser: 130000,
-        reseller: 110500,
-        channel: 117000
+        endUser: 115000,
+        reseller: 97750,
+        channel: 103500
       },
       'VX1000': {
-        endUser: 150000,
-        reseller: 127500,
-        channel: 135000
+        endUser: 157500,
+        reseller: 133875,
+        channel: 141750
       },
       'VX1000 Pro': {
-        endUser: 160000,
-        reseller: 136000,
-        channel: 144000
+        endUser: 168000,
+        reseller: 142800,
+        channel: 151200
       },
-      '4K PRIME': {
-        endUser: 290000,
-        reseller: 246500,
-        channel: 261000
-      }
+      'VX16S': {
+        endUser: 315000,
+        reseller: 267750,
+        channel: 283500
+      },
+      'VX2000pro': {
+        endUser: 337500,
+        reseller: 286875,
+        channel: 303750
+      },
+      'TU15PRO': {
+        endUser: 51000,
+        reseller: 43350,
+        channel: 45900
+      },
+      'TU20PRO': {
+        endUser: 72000,
+        reseller: 61200,
+        channel: 64800
+      },
+      'TU4k pro': {
+        endUser: 290500,
+        reseller: 246925,
+        channel: 261450
+      },
     };
 
     const processor = processorPrices[processorName];

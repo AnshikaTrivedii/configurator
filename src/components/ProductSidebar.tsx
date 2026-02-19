@@ -46,7 +46,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const totalPixels = selectedProduct ? (selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows) : 0;
   const totalPixelsMillion = totalPixels / 1_000_000;
 
-  const selectedController = controllerSelection?.selectedController?.name || '4K Prime';
+  const selectedController = controllerSelection?.selectedController?.name || 'TU4k pro';
 
   const isSyncAsyncSelectable = selectedController === 'TB40' || selectedController === 'TB60';
   React.useEffect(() => {
@@ -259,10 +259,14 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
             {controllerSelection && (
               <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
                 <div className="text-xs text-blue-800 space-y-1">
-                  <div><strong>Ports:</strong> {controllerSelection.requiredPorts} / {controllerSelection.selectedController.portCount}</div>
-                  <div><strong>Data Hub Ports:</strong> {controllerSelection.dataHubPorts}</div>
-                  {controllerSelection.isRedundancyMode && (
-                    <div><strong>Backup Ports:</strong> {controllerSelection.backupPorts}</div>
+                  {controllerSelection.selectedController.inputs !== undefined && controllerSelection.selectedController.inputs > 0 && (
+                    <div><strong>Input Connectors:</strong> {controllerSelection.selectedController.inputs}</div>
+                  )}
+                  {controllerSelection.selectedController.outputs !== undefined && controllerSelection.selectedController.outputs > 0 && (
+                    <div><strong>Output Connectors:</strong> {controllerSelection.selectedController.outputs}</div>
+                  )}
+                  {controllerSelection.selectedController.maxResolution && (
+                    <div><strong>Max Resolution:</strong> {controllerSelection.selectedController.maxResolution}</div>
                   )}
                   <div><strong>Pixel Capacity:</strong> {controllerSelection.selectedController.pixelCapacity.toFixed(1)}M</div>
                 </div>

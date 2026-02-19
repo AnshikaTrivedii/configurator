@@ -30,9 +30,9 @@ export const PROCESSOR_PRICES: Record<string, ProcessorPrice> = {
     channel: 31500 
   },
   'TB60': { 
-    endUser: 65000, 
-    reseller: 55300, 
-    channel: 58500 
+    endUser: 51000, 
+    reseller: 43350, 
+    channel: 45900 
   },
 
   'VX1': { 
@@ -41,45 +41,60 @@ export const PROCESSOR_PRICES: Record<string, ProcessorPrice> = {
     channel: 31500 
   },
   'VX400': { 
-    endUser: 100000, 
-    reseller: 85000, 
-    channel: 90000 
+    endUser: 90000, 
+    reseller: 76500, 
+    channel: 81000 
   },
   'VX400 Pro': { 
-    endUser: 110000, 
-    reseller: 93500, 
-    channel: 99000 
+    endUser: 98000, 
+    reseller: 83300, 
+    channel: 88200 
   },
   'VX600': { 
-    endUser: 120000, 
-    reseller: 102000, 
-    channel: 108000 
+    endUser: 105000, 
+    reseller: 89250, 
+    channel: 94500 
   },
   'VX600 Pro': { 
-    endUser: 130000, 
-    reseller: 110500, 
-    channel: 117000 
+    endUser: 115000, 
+    reseller: 97750, 
+    channel: 103500 
   },
   'VX1000': { 
-    endUser: 150000, 
-    reseller: 127500, 
-    channel: 135000 
+    endUser: 157500, 
+    reseller: 133875, 
+    channel: 141750 
   },
   'VX1000 Pro': { 
-    endUser: 160000, 
-    reseller: 136000, 
-    channel: 144000 
+    endUser: 168000, 
+    reseller: 142800, 
+    channel: 151200 
   },
-  '4K PRIME': { 
-    endUser: 290000, 
-    reseller: 246500, 
-    channel: 261000 
+  'VX16S': { 
+    endUser: 315000, 
+    reseller: 267750, 
+    channel: 283500 
   },
-  '4K Prime': { 
-    endUser: 290000, 
-    reseller: 246500, 
-    channel: 261000 
-  }
+  'VX2000pro': { 
+    endUser: 337500, 
+    reseller: 286875, 
+    channel: 303750 
+  },
+  'TU15PRO': { 
+    endUser: 51000, 
+    reseller: 43350, 
+    channel: 45900 
+  },
+  'TU20PRO': { 
+    endUser: 72000, 
+    reseller: 61200, 
+    channel: 64800 
+  },
+  'TU4k pro': { 
+    endUser: 290500, 
+    reseller: 246925, 
+    channel: 261450 
+  },
 };
 
 /**
@@ -113,7 +128,8 @@ export function getProcessorPrice(processorName: string, userType: string): numb
 export function validateProcessorPricing(): { isValid: boolean; missing: string[] } {
   const requiredProcessors = [
     'TB2', 'TB40', 'TB60', 'VX1', 'VX400', 'VX400 Pro', 
-    'VX600', 'VX600 Pro', 'VX1000', 'VX1000 Pro', '4K PRIME'
+    'VX600', 'VX600 Pro', 'VX1000', 'VX1000 Pro', 'VX16S', 
+    'VX2000pro', 'TU15PRO', 'TU20PRO', 'TU4k pro'
   ];
   
   const missing = requiredProcessors.filter(processor => !PROCESSOR_PRICES[processor]);

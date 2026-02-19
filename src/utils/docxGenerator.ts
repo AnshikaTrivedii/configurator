@@ -4,6 +4,24 @@ import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { getProcessorPrice } from './processorPrices';
 
+// Processor specifications - matches DisplayConfigurator.tsx
+const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
+  'TB40': { inputs: 1, outputs: 3, maxResolution: '1920×1080@60Hz', pixelCapacity: 1.3 },
+  'TB60': { inputs: 1, outputs: 5, maxResolution: '1920×1080@60Hz', pixelCapacity: 2.3 },
+  'VX1': { inputs: 5, outputs: 2, maxResolution: '1920×1080@60Hz', pixelCapacity: 1.3 },
+  'VX400': { inputs: 5, outputs: 4, maxResolution: '1920×1200@60Hz', pixelCapacity: 2.6 },
+  'VX400 Pro': { inputs: 5, outputs: 4, maxResolution: '4096×2160@60Hz (4K)', pixelCapacity: 2.6 },
+  'VX600': { inputs: 5, outputs: 6, maxResolution: '1920×1200@60Hz', pixelCapacity: 3.9 },
+  'VX600 Pro': { inputs: 5, outputs: 6, maxResolution: '4096×2160@60Hz (4K)', pixelCapacity: 3.9 },
+  'VX1000': { inputs: 6, outputs: 10, maxResolution: '3840×2160@30Hz', pixelCapacity: 6.5 },
+  'VX1000 Pro': { inputs: 5, outputs: 10, maxResolution: '4096×2160@60Hz (True 4K@60)', pixelCapacity: 6.5 },
+  'VX16S': { inputs: 7, outputs: 16, maxResolution: '3840×2160@60Hz', pixelCapacity: 10 },
+  'VX2000pro': { inputs: 10, outputs: 25, maxResolution: '4096×2160@60Hz (4K)', pixelCapacity: 13 },
+  'TU15PRO': { inputs: 2, outputs: 5, maxResolution: '2048×1152@60Hz', pixelCapacity: 2.6 },
+  'TU20PRO': { inputs: 2, outputs: 7, maxResolution: '2048×1152@60Hz', pixelCapacity: 3.9 },
+  'TU4k pro': { inputs: 3, outputs: 23, maxResolution: '4096×2160@60Hz', pixelCapacity: 13 },
+};
+
 const SALES_PHONE_MAPPING: Record<string, string> = {
   'ashoo.nitin@orion-led.com': '8826888023',
   'mukund.puranik@orion-led.com': '9701797731',
