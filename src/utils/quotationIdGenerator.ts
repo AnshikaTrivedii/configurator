@@ -29,7 +29,7 @@ class QuotationIdGenerator {
     const day = now.getDate().toString().padStart(2, '0');
 
     const firstName = username.trim().split(' ')[0].toUpperCase();
-    
+
     try {
 
       const response = await fetch('/api/sales/generate-quotation-id', {
@@ -44,13 +44,13 @@ class QuotationIdGenerator {
           day
         })
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.quotationId) {
 
           this.storeQuotationId(data.quotationId, firstName);
-          
+
           return data.quotationId;
         } else {
           throw new Error(data.error || 'Failed to generate quotation ID');
@@ -65,7 +65,7 @@ class QuotationIdGenerator {
       const quotationId = `ORION/${year}/${month}/${day}/${firstName}/${serial}`;
 
       this.storeQuotationId(quotationId, firstName);
-      
+
       return quotationId;
     }
   }
@@ -77,7 +77,7 @@ class QuotationIdGenerator {
   private static async getNextSerialNumber(firstName: string, year: string, month: string, day: string): Promise<string> {
     const storedIds = this.getStoredQuotationIds();
 
-    const relevantIds = storedIds.filter(id => 
+    const relevantIds = storedIds.filter(id =>
       id.username.toLowerCase() === firstName.toLowerCase() &&
       id.year === year &&
       id.month === month &&
@@ -112,7 +112,7 @@ class QuotationIdGenerator {
   private static async getLatestSerialFromDatabase(firstName: string, year: string, month: string, day: string): Promise<number> {
     try {
 
-      if (typeof window !== 'undefined' && window.fetch) {
+      if (typeof window !== 'undefined') {
 
         const response = await fetch('/api/sales/check-latest-quotation-id', {
           method: 'POST',
@@ -126,7 +126,7 @@ class QuotationIdGenerator {
             day
           })
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           return data.latestSerial || 0;
@@ -187,9 +187,9 @@ class QuotationIdGenerator {
     const year = now.getFullYear().toString();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const day = now.getDate().toString().padStart(2, '0');
-    
+
     const storedIds = this.getStoredQuotationIds();
-    const relevantIds = storedIds.filter(id => 
+    const relevantIds = storedIds.filter(id =>
       id.username.toLowerCase() === firstName.toLowerCase() &&
       id.year === year &&
       id.month === month &&
@@ -215,7 +215,7 @@ class QuotationIdGenerator {
     const firstName = username.trim().split(' ')[0].toUpperCase();
 
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    
+
     return `ORION/${year}/${month}/${day}/${firstName}/${random}`;
   }
 

@@ -160,6 +160,7 @@ export const generateConfigurationDocx = async (
         const uint8Array = new Uint8Array(arrayBuffer);
 
         const imageRun = new ImageRun({
+          type: "png",
           data: uint8Array,
           transformation: {
             width: A4_WIDTH_EMU,

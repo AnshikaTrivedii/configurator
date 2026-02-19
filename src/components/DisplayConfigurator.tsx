@@ -146,22 +146,22 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         const rawClientId = activeQuotation.clientId;
         console.log('Raw clientId from quotation:', rawClientId, 'Type:', typeof rawClientId);
         let clientIdString: string | null = null;
-        
+
         if (rawClientId) {
           if (typeof rawClientId === 'string') {
             clientIdString = rawClientId;
-          } else if (rawClientId.$oid) {
+          } else if (typeof rawClientId === 'object' && '$oid' in rawClientId) {
             // MongoDB extended JSON format: {"$oid": "..."}
             clientIdString = rawClientId.$oid;
-          } else if (rawClientId._id) {
+          } else if (typeof rawClientId === 'object' && '_id' in rawClientId) {
             clientIdString = String(rawClientId._id);
-          } else if (typeof rawClientId.toString === 'function') {
+          } else if (typeof rawClientId === 'object' && typeof rawClientId.toString === 'function') {
             clientIdString = rawClientId.toString();
           } else {
             clientIdString = String(rawClientId);
           }
         }
-        
+
         if (clientIdString) {
           try {
             console.log('Fetching client info for clientId:', clientIdString, 'Original:', rawClientId);
@@ -427,12 +427,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           let clientIdString: string;
           if (typeof rawClientId === 'string') {
             clientIdString = rawClientId;
-          } else if (rawClientId.$oid) {
+          } else if (typeof rawClientId === 'object' && '$oid' in rawClientId) {
             // MongoDB extended JSON format: {"$oid": "..."}
             clientIdString = rawClientId.$oid;
-          } else if (rawClientId._id) {
+          } else if (typeof rawClientId === 'object' && '_id' in rawClientId) {
             clientIdString = String(rawClientId._id);
-          } else if (typeof rawClientId.toString === 'function') {
+          } else if (typeof rawClientId === 'object' && typeof rawClientId.toString === 'function') {
             clientIdString = rawClientId.toString();
           } else {
             clientIdString = String(rawClientId);
