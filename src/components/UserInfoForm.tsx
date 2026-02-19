@@ -49,6 +49,10 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   onCustomPricingChange
 }) => {
 
+  const DEFAULT_VALIDITY = '• Offer shall remain valid for period of 30 days from the date of quotation made.\n• The current offer is based on USD=INR 88. Any increase in exchange rate beyond 1% at the time of placement of order will lead to increase in INR price';
+  const DEFAULT_PAYMENT_TERMS = '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation';
+  const DEFAULT_WARRANTY = 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier. Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.';
+
   const getDefaultUserType = (): 'End User' | 'Reseller' | 'SI/Channel Partner' => {
     if (initialData?.userType) {
       return initialData.userType;
@@ -68,18 +72,30 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     return 'End User';
   };
 
-  const [formData, setFormData] = useState<UserInfo>(
-    initialData || {
-      fullName: '',
-      email: '',
-      phoneNumber: '',
-      projectTitle: '',
-      address: '',
-      userType: getDefaultUserType(),
-      validity: '• Offer shall remain valid for period of 30 days from the date of quotation made.\n• The current offer is based on USD=INR 88. Any increase in exchange rate beyond 1% at the time of placement of order will lead to increase in INR price',
-      paymentTerms: '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation',
-      warranty: 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier. Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.'
+  const mergeInitialDataWithDefaults = (data: UserInfo | undefined): UserInfo => {
+    if (!data) {
+      return {
+        fullName: '',
+        email: '',
+        phoneNumber: '',
+        projectTitle: '',
+        address: '',
+        userType: getDefaultUserType(),
+        validity: DEFAULT_VALIDITY,
+        paymentTerms: DEFAULT_PAYMENT_TERMS,
+        warranty: DEFAULT_WARRANTY
+      };
     }
+    return {
+      ...data,
+      validity: (data.validity?.trim() || '') || DEFAULT_VALIDITY,
+      paymentTerms: (data.paymentTerms?.trim() || '') || DEFAULT_PAYMENT_TERMS,
+      warranty: (data.warranty?.trim() || '') || DEFAULT_WARRANTY
+    };
+  };
+
+  const [formData, setFormData] = useState<UserInfo>(
+    mergeInitialDataWithDefaults(initialData)
   );
   const [errors, setErrors] = useState<Partial<UserInfo>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,10 +125,16 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
 
   useEffect(() => {
     if (initialData) {
-      console.log('UserInfoForm: initialData updated:', initialData);
-      setFormData(initialData);
+      setFormData(mergeInitialDataWithDefaults(initialData));
     }
   }, [initialData]);
+
+  // When modal opens, sync form from initialData so T&C and other fields are always current (e.g. after async load)
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setFormData(mergeInitialDataWithDefaults(initialData));
+    }
+  }, [isOpen, initialData]);
 
   const allUserTypeOptions: Array<{ value: 'End User' | 'Reseller' | 'SI/Channel Partner'; label: string; internalValue: string }> = [
     { value: 'End User', label: 'End User', internalValue: 'endUser' },

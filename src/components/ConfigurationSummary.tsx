@@ -1,6 +1,26 @@
 import React from 'react';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { Ruler, Zap, Move3d, Monitor, Boxes, Square, Maximize2 } from 'lucide-react';
+import { getControllerPdfUrl } from '../utils/controllerPdfMap';
+
+// Processor specifications - matches DisplayConfigurator.tsx
+const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
+  'TB40': { inputs: 1, outputs: 3, maxResolution: '1920×1080@60Hz', pixelCapacity: 1.3 },
+  'TB60': { inputs: 1, outputs: 5, maxResolution: '1920×1080@60Hz', pixelCapacity: 2.3 },
+  'VX1': { inputs: 5, outputs: 2, maxResolution: '1920×1080@60Hz', pixelCapacity: 1.3 },
+  'VX400': { inputs: 5, outputs: 4, maxResolution: '1920×1200@60Hz', pixelCapacity: 2.6 },
+  'VX400 Pro': { inputs: 5, outputs: 4, maxResolution: '4096×2160@60Hz (4K)', pixelCapacity: 2.6 },
+  'VX600': { inputs: 5, outputs: 6, maxResolution: '1920×1200@60Hz', pixelCapacity: 3.9 },
+  'VX600 Pro': { inputs: 5, outputs: 6, maxResolution: '4096×2160@60Hz (4K)', pixelCapacity: 3.9 },
+  'VX1000': { inputs: 6, outputs: 10, maxResolution: '3840×2160@30Hz', pixelCapacity: 6.5 },
+  'VX1000 Pro': { inputs: 5, outputs: 10, maxResolution: '4096×2160@60Hz (True 4K@60)', pixelCapacity: 6.5 },
+  'VX16S': { inputs: 7, outputs: 16, maxResolution: '3840×2160@60Hz', pixelCapacity: 10 },
+  'VX2000pro': { inputs: 10, outputs: 25, maxResolution: '4096×2160@60Hz (4K)', pixelCapacity: 13 },
+  'TU15PRO': { inputs: 2, outputs: 5, maxResolution: '2048×1152@60Hz', pixelCapacity: 2.6 },
+  'TU20PRO': { inputs: 2, outputs: 7, maxResolution: '2048×1152@60Hz', pixelCapacity: 3.9 },
+  'TU4k pro': { inputs: 3, outputs: 23, maxResolution: '4096×2160@60Hz', pixelCapacity: 13 },
+};
+
 interface ConfigurationSummaryProps {
   config: DisplayConfig;
   cabinetGrid: CabinetGrid;
@@ -19,6 +39,26 @@ function formatIndianNumber(x: number): string {
   } else {
     return lastThree;
   }
+}
+
+/** GCD for integers; used to simplify aspect ratio from pixel dimensions. */
+function gcd(a: number, b: number): number {
+  a = Math.round(Math.abs(a)) || 1;
+  b = Math.round(Math.abs(b)) || 1;
+  while (b) {
+    const t = b;
+    b = a % b;
+    a = t;
+  }
+  return a;
+}
+
+/** Aspect ratio from total pixel dimensions: width/height as simplified ratio (e.g. 2880×2700 → 16:15). */
+function aspectRatioFromPixels(widthPx: number, heightPx: number): string {
+  const w = Math.round(widthPx) || 1;
+  const h = Math.round(heightPx) || 1;
+  const g = gcd(w, h);
+  return `${w / g}:${h / g}`;
 }
 
 export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
@@ -144,17 +184,14 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Aspect Ratio</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-emerald-700 break-words">
                 {(() => {
-
                   if (config.aspectRatio && typeof config.aspectRatio === 'string') {
                     if (config.aspectRatio === '16:9' || config.aspectRatio === '4:3' || config.aspectRatio === '1:1') {
                       return config.aspectRatio;
                     }
-                    if (config.aspectRatio === 'none') {
-                      return 'None';
-                    }
                   }
-
-                  return `${Math.round((config.width / config.height) * 9)}:9`;
+                  const totalWidthPx = selectedProduct.resolution.width * cabinetGrid.columns;
+                  const totalHeightPx = selectedProduct.resolution.height * cabinetGrid.rows;
+                  return aspectRatioFromPixels(totalWidthPx, totalHeightPx);
                 })()}
               </p>
             </div>
@@ -346,6 +383,60 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
               </div>
             )}
           </div>
+          {/* Processor Specifications */}
+          {processor && PROCESSOR_SPECS[processor] && (
+            <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              {PROCESSOR_SPECS[processor].inputs !== undefined && PROCESSOR_SPECS[processor].inputs! > 0 && (
+                <div className="bg-white rounded-lg p-2 sm:p-3">
+                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Input Connectors</div>
+                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{PROCESSOR_SPECS[processor].inputs}</div>
+                </div>
+              )}
+              {PROCESSOR_SPECS[processor].outputs !== undefined && PROCESSOR_SPECS[processor].outputs! > 0 && (
+                <div className="bg-white rounded-lg p-2 sm:p-3">
+                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Output Connectors</div>
+                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{PROCESSOR_SPECS[processor].outputs}</div>
+                </div>
+              )}
+              {PROCESSOR_SPECS[processor].maxResolution && (
+                <div className="bg-white rounded-lg p-2 sm:p-3">
+                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Max Resolution</div>
+                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{PROCESSOR_SPECS[processor].maxResolution}</div>
+                </div>
+              )}
+              {PROCESSOR_SPECS[processor].pixelCapacity !== undefined && (
+                <div className="bg-white rounded-lg p-2 sm:p-3">
+                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Pixel Capacity</div>
+                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{PROCESSOR_SPECS[processor].pixelCapacity!.toFixed(1)}M</div>
+                </div>
+              )}
+            </div>
+          )}
+          {processor && (
+            <div style={{ marginTop: '15px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const pdfUrl = getControllerPdfUrl(processor);
+                  if (!pdfUrl) {
+                    alert('Controller PDF not available.');
+                    return;
+                  }
+                  window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                }}
+                style={{
+                  padding: '10px 18px',
+                  backgroundColor: '#3B71F3',
+                  color: '#fff',
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                View Controller PDF
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

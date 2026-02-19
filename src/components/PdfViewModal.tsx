@@ -115,7 +115,8 @@ interface PdfViewModalProps {
   salesUser?: any;
   userRole?: 'normal' | 'sales' | 'super' | 'super_admin' | 'partner';
   quotationId?: string;
-  clientId?: string;
+  isEditing?: boolean;
+  clientId?: string | { $oid: string } | { _id: string } | Record<string, any>;
   customPricing?: {
     enabled: boolean;
     structurePrice: number | null;
@@ -142,6 +143,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   salesUser,
   userRole,
   quotationId,
+  isEditing: isEditingProp,
   clientId: propClientId,
   customPricing,
   exactPricingBreakdown,
@@ -287,7 +289,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     // Check both 'id' and 'productId' fields
     const productId = selectedProduct?.id || selectedProduct?.productId;
     let fullProduct = selectedProduct;
-    
+
     if (productId) {
       const productFromList = products.find(p => p.id === productId);
       if (productFromList) {
@@ -356,10 +358,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
         const userTypeForCalc = getUserType();
         console.log('PDF Generation - quotationId:', quotationId, 'exactPricingBreakdown exists:', !!exactPricingBreakdown);
-        
+
         // Use exactPricingBreakdown if available (when editing), otherwise calculate
         let exactPricingBreakdownForPdf: any;
-        
+
         // Always use exactPricingBreakdown if available (when editing/viewing existing quotation)
         if (exactPricingBreakdown) {
           // Use existing pricing breakdown when editing
@@ -384,7 +386,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             prices: fullProduct?.prices,
             userType: userTypeForCalc
           });
-          
+
           const pricingResult = calculateCentralizedPricing(
             fullProduct,
             cabinetGrid,
@@ -450,7 +452,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     // IMPORTANT: Preserve the original quotationId prop if it exists (for editing)
     // Only generate a new ID if we're creating a new quotation (quotationId prop is undefined/empty)
     let finalQuotationId = quotationId && quotationId.trim() !== '' ? quotationId : undefined;
-    
+
     if (!finalQuotationId) {
       // Only generate new ID if we're creating (quotationId prop was not provided)
       console.log('📝 Creating new quotation - generating quotation ID');
@@ -708,7 +710,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
     try {
 
-      let pdfBlob: Blob;
+
+      // Ensure pdfBlob is clean for generation
+      // pdfBlob = null; 
+
       try {
         const { generateConfigurationPdf } = await import('../utils/docxGenerator');
 
@@ -728,6 +733,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             ? 'Channel'
             : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
 
+        // Assign to OUTER pdfBlob
         pdfBlob = await generateConfigurationPdf(
           config || { width: 2400, height: 1010, unit: 'mm' },
           selectedProduct,
@@ -760,6 +766,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         return;
       }
 
+      if (!pdfBlob) {
+        throw new Error('PDF Blob generation failed unexpectedly.');
+      }
+
       const pdfBase64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -767,7 +777,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           resolve(base64String);
         };
         reader.onerror = reject;
-        reader.readAsDataURL(pdfBlob);
+        reader.readAsDataURL(pdfBlob!); // pdfBlob is guaranteed not null here due to check above
       });
 
       exactQuotationData.pdfBase64 = pdfBase64;
@@ -793,16 +803,16 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             let clientIdString: string;
             if (typeof propClientId === 'string') {
               clientIdString = propClientId;
-            } else if (propClientId.$oid) {
+            } else if ('$oid' in propClientId && propClientId.$oid) {
               clientIdString = propClientId.$oid;
-            } else if (propClientId._id) {
+            } else if ('_id' in propClientId && propClientId._id) {
               clientIdString = String(propClientId._id);
             } else if (typeof propClientId.toString === 'function') {
               clientIdString = propClientId.toString();
             } else {
               clientIdString = String(propClientId);
             }
-            
+
             const updateResponse = await clientAPI.updateClient(clientIdString, clientData);
             if (updateResponse.success && updateResponse.client) {
               clientId = updateResponse.client._id;
@@ -839,13 +849,13 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       // The quotationId prop indicates we're editing an existing quotation
       // IMPORTANT: Use the original quotationId prop (not finalQuotationId) to determine if we're editing
       let saveResult;
-      const isEditing = quotationId && quotationId.trim() !== '';
-      
+      const isEditing = isEditingProp === true;
+
       if (isEditing) {
         // Update existing quotation (quotationId prop was passed, meaning we're editing)
         console.log('🔄 Updating existing quotation. quotationId prop:', quotationId, 'finalQuotationId:', finalQuotationId);
         // Use the original quotationId prop for the update, not finalQuotationId
-        saveResult = await salesAPI.updateQuotation(quotationId, exactQuotationData);
+        saveResult = await salesAPI.updateQuotation(quotationId ?? finalQuotationId!, exactQuotationData);
       } else {
         // Create new quotation (no quotationId prop or empty string, meaning we're creating)
         console.log('➕ Creating new quotation. finalQuotationId:', finalQuotationId);
@@ -871,76 +881,22 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     } catch (error: any) {
 
       if (error.message && error.message.includes('already exists')) {
-
         try {
-
-          const now = new Date();
-          const timestamp = now.getTime().toString().slice(-6); // Last 6 digits for uniqueness
-          const nameForId = isSuperAdmin && selectedSalesPersonId
-            ? salesPersons.find(p => p._id === selectedSalesPersonId)?.name || salesUser?.name || 'Admin'
-            : salesUser?.name || 'Admin';
-          const firstName = nameForId.trim().split(' ')[0].toUpperCase();
-          const fallbackQuotationId = `ORION/${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${firstName}/${timestamp}`;
-
-          const fallbackQuotationData = {
-            ...exactQuotationData,
-            quotationId: fallbackQuotationId
-          };
-
-          const fallbackResult = await salesAPI.saveQuotation(fallbackQuotationData);
+          console.log('⚠️ Quotation already exists, attempting update instead...', finalQuotationId);
+          // Use the finalQuotationId (which is what we tried to save) for the update
+          await salesAPI.updateQuotation(finalQuotationId!, exactQuotationData);
 
           setSaveSuccess(true);
           saveSuccessful = true;
 
-          if (saveSuccessful) {
+          if (pdfBlob) {
+            setGeneratedPdfBlob(pdfBlob);
+            const url = window.URL.createObjectURL(pdfBlob);
+            setPdfDownloadUrl(url);
 
-            try {
-              const { generateConfigurationPdf } = await import('../utils/docxGenerator');
-
-              const exactPricingBreakdownForPdf = {
-                unitPrice: finalPricingResult.unitPrice,
-                quantity: finalPricingResult.quantity,
-                subtotal: finalPricingResult.productSubtotal,
-                gstAmount: finalPricingResult.productGST,
-                processorPrice: finalPricingResult.processorPrice,
-                processorGst: finalPricingResult.processorGST,
-                grandTotal: finalTotalPrice
-              };
-
-              const blob = await generateConfigurationPdf(
-                config || { width: 2400, height: 1010, unit: 'mm' },
-                selectedProduct,
-                cabinetGrid,
-                processor,
-                mode,
-                userInfo,
-                salesUser,
-                quotationId,
-                customPricing,
-                exactPricingBreakdownForPdf
-              );
-
-              setGeneratedPdfBlob(blob);
-              const url = window.URL.createObjectURL(blob);
-              setPdfDownloadUrl(url);
-
-              triggerPdfDownload(blob, fileName, setGeneratedPdfBlob, setPdfDownloadUrl);
-            } catch (pdfError: any) {
-
-              let errorMessage = 'Failed to generate PDF. Please try again.';
-              if (pdfError?.message) {
-                if (pdfError.message.includes('canvas') || pdfError.message.includes('html2canvas')) {
-                  errorMessage = 'Failed to render PDF. This may be due to image loading issues. Please check your connection and try again.';
-                } else if (pdfError.message.includes('timeout')) {
-                  errorMessage = 'PDF generation timed out. Please try again.';
-                } else {
-                  errorMessage = `PDF error: ${pdfError.message}`;
-                }
-              }
-
-              alert(errorMessage);
-
-              onDownload();
+            // If save/update was successful, trigger the download with the CURRENT blob (no need to regenerate)
+            if (saveSuccessful) {
+              triggerPdfDownload(pdfBlob, fileName, setGeneratedPdfBlob, setPdfDownloadUrl);
             }
           }
 
@@ -948,9 +904,9 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             setSaveSuccess(false);
           }, 3000);
 
-        } catch (fallbackError: any) {
-
-          setSaveError(fallbackError.message || 'Failed to save quotation even with fallback ID');
+        } catch (updateError: any) {
+          console.error('Update after save failed:', updateError);
+          alert(`Failed to update existing quotation: ${updateError.message}`);
         }
       } else {
         setSaveError(error.message || 'Failed to save quotation');

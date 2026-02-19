@@ -109,6 +109,9 @@ export interface Controller {
   pixelCapacity: number; // in millions
   type: 'asynchronous' | 'synchronous';
   minPortsForRedundancy: number; // minimum ports needed when redundancy is enabled
+  inputs?: number; // number of input connectors
+  outputs?: number; // number of output connectors
+  maxResolution?: string; // maximum resolution supported
 }
 
 export interface ControllerSelection {
@@ -168,7 +171,11 @@ export interface Quotation {
   salesUserId: string;
   salesUserName: string;
   // New: Client reference
+<<<<<<< HEAD
   clientId?: string | { $oid: string } | { _id: string } | Record<string, any>;
+=======
+  clientId?: string | Record<string, any>;
+>>>>>>> dev
   client?: Client;
   // Old fields: Keep for backward compatibility
   customerName: string;

@@ -267,6 +267,118 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     }
   };
 
+  const handleAlternatePdf = async (quotation: Quotation) => {
+    try {
+      if (!quotation.exactPricingBreakdown || !quotation.exactProductSpecs) {
+        alert('PDF data not available for this quotation. The quotation may have been created before PDF storage was implemented. Please contact support.');
+        return;
+      }
+
+      const productDetails = quotation.productDetails;
+      const exactSpecs = quotation.exactProductSpecs;
+      const product = productDetails?.product || productDetails;
+
+      let config = quotation.quotationData?.config;
+      if (!config && exactSpecs.displaySize) {
+        config = {
+          width: (exactSpecs.displaySize.width * 1000) || 0,
+          height: (exactSpecs.displaySize.height * 1000) || 0,
+          unit: 'mm'
+        };
+      } else if (!config) {
+        config = {
+          width: productDetails?.width || productDetails?.displaySize?.width || 0,
+          height: productDetails?.height || productDetails?.displaySize?.height || 0,
+          unit: productDetails?.unit || 'mm'
+        };
+      }
+
+      const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
+      const processor = exactSpecs.processor || productDetails?.processor || null;
+      const mode = exactSpecs.mode || productDetails?.mode || undefined;
+
+      const customer = customers.find(c =>
+        c.quotations.some(q => q.quotationId === quotation.quotationId)
+      );
+
+      let userTypeForHtml: 'End User' | 'Reseller' | 'Channel' = 'End User';
+      if (quotation.userType === 'siChannel') {
+        userTypeForHtml = 'Channel';
+      } else if (quotation.userType === 'reseller') {
+        userTypeForHtml = 'Reseller';
+      }
+
+      // Fetch client data if clientId exists
+      let clientProjectTitle = '';
+      let clientLocation = '';
+      if (quotation.clientId) {
+        try {
+          const clientIdString = typeof quotation.clientId === 'string' 
+            ? quotation.clientId 
+            : (quotation.clientId as any)?._id || (quotation.clientId as any)?.toString();
+          
+          if (clientIdString) {
+            const clientResponse = await clientAPI.getClientById(clientIdString);
+            if (clientResponse.success && clientResponse.client) {
+              clientProjectTitle = clientResponse.client.projectTitle || '';
+              clientLocation = clientResponse.client.location || '';
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch client info for alternate PDF:', error);
+          // Continue without client data
+        }
+      }
+
+      const userInfo = {
+        userType: userTypeForHtml,
+        fullName: customer?.customerName || '',
+        email: customer?.customerEmail || '',
+        phoneNumber: customer?.customerPhone || '',
+        projectTitle: quotation.quotationData?.userInfo?.projectTitle || clientProjectTitle || '',
+        address: quotation.quotationData?.userInfo?.address || clientLocation || ''
+      };
+
+      // Generate alternate PDF with only pages 1, 6, and 7
+      const { generateAlternatePdf } = await import('../utils/docxGenerator');
+      
+      const pdfBlob = await generateAlternatePdf(
+        config,
+        product,
+        cabinetGrid,
+        processor,
+        mode,
+        userInfo,
+        salesPerson ? {
+          email: salesPerson.email,
+          name: salesPerson.name,
+          contactNumber: salesPerson.contactNumber,
+          location: salesPerson.location
+        } : null,
+        quotation.quotationId,
+        undefined, // customPricing
+        quotation.exactPricingBreakdown
+      );
+
+      // Trigger download
+      const url = window.URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${quotation.quotationId}-alternate.pdf`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    } catch (error: any) {
+      console.error('Error generating alternate PDF:', error);
+      alert(`Failed to generate alternate PDF: ${error.message || 'Unknown error'}. Please try again or contact support.`);
+    }
+  };
+
   const handleEditQuotation = async (quotation: Quotation) => {
     if (onEditQuotation) {
       onEditQuotation(quotation);
@@ -759,13 +871,23 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                             <p className="text-lg font-bold text-gray-900">
                               {formatCurrency(quotation.totalPrice)}
                             </p>
-                            <button
-                              onClick={() => handleViewPdf(quotation)}
-                              className="px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-md hover:bg-black transition-colors flex items-center gap-1.5"
-                            >
-                              <Eye size={12} />
-                              View PDF
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleViewPdf(quotation)}
+                                className="px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-md hover:bg-black transition-colors flex items-center gap-1.5"
+                              >
+                                <Eye size={12} />
+                                View PDF
+                              </button>
+                              <button
+                                onClick={() => handleAlternatePdf(quotation)}
+                                className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors flex items-center gap-1.5"
+                                title="Download shorter PDF (pages 1, 6, 7)"
+                              >
+                                <FileText size={12} />
+                                Alternate PDF
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}

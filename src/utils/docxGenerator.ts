@@ -4,6 +4,24 @@ import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { getProcessorPrice } from './processorPrices';
 
+// Processor specifications - matches DisplayConfigurator.tsx
+const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
+  'TB40': { inputs: 1, outputs: 3, maxResolution: '1920×1080@60Hz', pixelCapacity: 1.3 },
+  'TB60': { inputs: 1, outputs: 5, maxResolution: '1920×1080@60Hz', pixelCapacity: 2.3 },
+  'VX1': { inputs: 5, outputs: 2, maxResolution: '1920×1080@60Hz', pixelCapacity: 1.3 },
+  'VX400': { inputs: 5, outputs: 4, maxResolution: '1920×1200@60Hz', pixelCapacity: 2.6 },
+  'VX400 Pro': { inputs: 5, outputs: 4, maxResolution: '4096×2160@60Hz (4K)', pixelCapacity: 2.6 },
+  'VX600': { inputs: 5, outputs: 6, maxResolution: '1920×1200@60Hz', pixelCapacity: 3.9 },
+  'VX600 Pro': { inputs: 5, outputs: 6, maxResolution: '4096×2160@60Hz (4K)', pixelCapacity: 3.9 },
+  'VX1000': { inputs: 6, outputs: 10, maxResolution: '3840×2160@30Hz', pixelCapacity: 6.5 },
+  'VX1000 Pro': { inputs: 5, outputs: 10, maxResolution: '4096×2160@60Hz (True 4K@60)', pixelCapacity: 6.5 },
+  'VX16S': { inputs: 7, outputs: 16, maxResolution: '3840×2160@60Hz', pixelCapacity: 10 },
+  'VX2000pro': { inputs: 10, outputs: 25, maxResolution: '4096×2160@60Hz (4K)', pixelCapacity: 13 },
+  'TU15PRO': { inputs: 2, outputs: 5, maxResolution: '2048×1152@60Hz', pixelCapacity: 2.6 },
+  'TU20PRO': { inputs: 2, outputs: 7, maxResolution: '2048×1152@60Hz', pixelCapacity: 3.9 },
+  'TU4k pro': { inputs: 3, outputs: 23, maxResolution: '4096×2160@60Hz', pixelCapacity: 13 },
+};
+
 const SALES_PHONE_MAPPING: Record<string, string> = {
   'ashoo.nitin@orion-led.com': '8826888023',
   'mukund.puranik@orion-led.com': '9701797731',
@@ -1199,6 +1217,181 @@ export const generateConfigurationPdf = async (
     }
 
     throw new Error(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+/**
+ * Generate alternate PDF with only pages 1, 6, and 7
+ * This is a shorter version of the full quotation PDF
+ */
+export const generateAlternatePdf = async (
+  config: DisplayConfig,
+  selectedProduct: Product,
+  cabinetGrid: CabinetGrid,
+  processor?: string,
+  mode?: string,
+  userInfo?: UserInfo,
+  salesUser?: { email: string; name: string; contactNumber: string; location: string } | null,
+  quotationId?: string,
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  },
+  exactPricingBreakdown?: {
+    unitPrice?: number;
+    quantity?: number;
+    subtotal?: number;
+    gstAmount?: number;
+    processorPrice?: number;
+    processorGst?: number;
+    grandTotal?: number;
+    discount?: {
+      discountedProductTotal?: number;
+      discountedProcessorTotal?: number;
+      discountedGrandTotal?: number;
+      discountAmount?: number;
+    };
+  }
+): Promise<Blob> => {
+  const html = generateConfigurationHtml(
+    config,
+    selectedProduct,
+    cabinetGrid,
+    processor,
+    mode,
+    userInfo,
+    salesUser,
+    quotationId,
+    customPricing,
+    exactPricingBreakdown
+  );
+
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-10000px';
+  container.style.top = '0';
+  container.style.width = '210mm';
+  container.style.background = '#ffffff';
+  container.innerHTML = html;
+  document.body.appendChild(container);
+
+  try {
+    const allImages = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
+
+    const imageLoadPromises = allImages.map((img, index) => {
+      if (img.complete) {
+        return Promise.resolve();
+      }
+
+      return Promise.race([
+        new Promise<void>((resolve) => {
+          img.onload = () => {
+            resolve();
+          };
+          img.onerror = (error) => {
+            resolve();
+          };
+        }),
+        new Promise<void>((resolve) => setTimeout(resolve, 5000))
+      ]);
+    });
+
+    try {
+      await Promise.all(imageLoadPromises);
+    } catch (imageError) {
+      // Continue even if some images fail to load
+    }
+
+    const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidthMM = 210;
+    const pageHeightMM = 297;
+
+    // Pages to include: 1 (index 0), 6 (index 5), 7 (index 6)
+    const pagesToInclude = [0, 5, 6];
+
+    for (const pageIndex of pagesToInclude) {
+      if (pageIndex >= pages.length) {
+        console.warn(`Page ${pageIndex + 1} not found, skipping...`);
+        continue;
+      }
+
+      const pageEl = pages[pageIndex];
+
+      if (pageIndex === 0) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      if (pageEl.classList.contains('page-bg') && pageEl.querySelector('.quotation-overlay')) {
+        const overlay = pageEl.querySelector('.quotation-overlay') as HTMLElement;
+        if (overlay) {
+          void overlay.offsetHeight;
+
+          const sections = overlay.querySelectorAll('.quotation-section');
+          let totalContentHeight = 0;
+          sections.forEach((section: Element) => {
+            totalContentHeight += (section as HTMLElement).offsetHeight;
+          });
+
+          const sectionMargin = 8;
+          totalContentHeight += (sections.length - 1) * sectionMargin;
+
+          const availableHeight = overlay.clientHeight;
+
+          if (totalContentHeight > availableHeight) {
+            const scaleFactor = Math.min(0.98, availableHeight / totalContentHeight);
+
+            overlay.style.transform = `scale(${scaleFactor})`;
+            overlay.style.transformOrigin = 'top left';
+
+            const originalWidth = overlay.offsetWidth;
+            const originalHeight = overlay.offsetHeight;
+            overlay.style.width = `${originalWidth / scaleFactor}px`;
+            overlay.style.height = `${originalHeight / scaleFactor}px`;
+          }
+        }
+      }
+
+      let canvas;
+      try {
+        canvas = await html2canvas(pageEl, {
+          scale: 1.5,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          windowWidth: pageEl.offsetWidth,
+          windowHeight: pageEl.offsetHeight,
+          height: pageEl.offsetHeight,
+          width: pageEl.offsetWidth,
+          allowTaint: true,
+          removeContainer: false,
+          foreignObjectRendering: false,
+          imageTimeout: 15000,
+        });
+      } catch (canvasError: any) {
+        throw new Error(`Failed to render page ${pageIndex + 1} to canvas: ${canvasError?.message || 'Unknown error'}`);
+      }
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      if (pageIndex !== pagesToInclude[0]) pdf.addPage();
+
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'FAST');
+    }
+
+    const blob = pdf.output('blob');
+
+    if (container.parentNode) {
+      document.body.removeChild(container);
+    }
+
+    return blob;
+  } catch (error) {
+    if (container.parentNode) {
+      document.body.removeChild(container);
+    }
+
+    throw new Error(`Failed to generate alternate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 

@@ -21,7 +21,7 @@ interface ConfigurationWizardProps {
   }) => void;
 }
 
-type Step = 'dimensions' | 'viewingDistance' | 'environment' | 'pixelPitch' | 'product';
+type Step = 'dimensions' | 'viewingDistance' | 'environment' | 'pixelPitch' | 'warranty' | 'product';
 
 export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   isOpen,
@@ -37,6 +37,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   const [viewingDistanceUnit, setViewingDistanceUnit] = useState<'meters' | 'feet'>('meters');
   const [environment, setEnvironment] = useState<'Indoor' | 'Outdoor' | ''>('');
   const [pixelPitch, setPixelPitch] = useState<number | null>(null);
+  const [selectedWarranty, setSelectedWarranty] = useState<number | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [hasSkippedPixelPitch, setHasSkippedPixelPitch] = useState<boolean>(false);
 
@@ -45,6 +46,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     { key: 'viewingDistance', label: 'Viewing Distance' },
     { key: 'pixelPitch', label: 'Pixel Pitch' },
     { key: 'dimensions', label: 'Dimensions' },
+    { key: 'warranty', label: 'Warranty' },
     { key: 'product', label: 'Product' }
   ];
 
@@ -60,6 +62,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       setViewingDistanceUnit('meters');
       setEnvironment('');
       setPixelPitch(null);
+      setSelectedWarranty(null);
       setSelectedProduct(null);
       setHasSkippedPixelPitch(false);
     }
@@ -83,6 +86,36 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       case 'ft': return mm / 304.8; // Exact conversion: 1 ft = 304.8 mm
       default: return mm;
     }
+  };
+
+  /**
+   * Map warranty years to product series
+   * Betelgeuse Series → 5 Years
+   * Rigel Series → 3 Years
+   * Bellatrix Series → 2 Years
+   */
+  const getSeriesForWarranty = (warrantyYears: number): string[] => {
+    switch (warrantyYears) {
+      case 5:
+        return ['Betelgeuse Series'];
+      case 3:
+        return ['Rigel Series'];
+      case 2:
+        return ['Bellatrix Series'];
+      default:
+        return [];
+    }
+  };
+
+  /**
+   * Check if a product belongs to a specific warranty
+   */
+  const productMatchesWarranty = (product: Product, warrantyYears: number | null): boolean => {
+    if (warrantyYears === null) return true;
+    const allowedSeries = getSeriesForWarranty(warrantyYears);
+    if (allowedSeries.length === 0) return true;
+    const productCategory = (product.category || '').trim();
+    return allowedSeries.some(series => productCategory.includes(series));
   };
 
   const handleNext = () => {
@@ -172,6 +205,16 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     });
   }, [pixelPitch, isOpen, updateConfig]);
 
+  // Reset product selection when warranty changes
+  useEffect(() => {
+    if (selectedWarranty !== null && selectedProduct !== null) {
+      // Check if current product matches the new warranty
+      if (!productMatchesWarranty(selectedProduct, selectedWarranty)) {
+        setSelectedProduct(null);
+      }
+    }
+  }, [selectedWarranty, selectedProduct]);
+
   const canProceed = () => {
     switch (currentStep) {
       case 'dimensions':
@@ -182,6 +225,8 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
         return environment !== '';
       case 'pixelPitch':
         return true; // Pixel pitch is optional, can proceed without selection
+      case 'warranty':
+        return selectedWarranty !== null;
       case 'product':
         return selectedProduct !== null;
       default:
@@ -266,6 +311,11 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       });
 
       if (!matchesRecommended) return false;
+    }
+
+    // Filter by warranty (series-based)
+    if (!productMatchesWarranty(product, selectedWarranty)) {
+      return false;
     }
 
     return true;
@@ -541,7 +591,89 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
             </div>
           )}
 
-          {/* Step 5: Product Selection */}
+          {/* Step 5: Warranty */}
+          {currentStep === 'warranty' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Select Warranty</h3>
+                <p className="text-gray-600">Choose your preferred warranty period</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {([5, 3, 2] as const).map((years) => {
+                  const seriesName = years === 5 ? 'Betelgeuse' : years === 3 ? 'Rigel' : 'Bellatrix';
+                  
+                  // Calculate matching products with all previous filters + warranty
+                  const matchingProducts = products.filter(p => {
+                    if (p.enabled === false) return false;
+
+                    // Environment filter
+                    const productEnv = p.environment?.toLowerCase().trim();
+                    const selectedEnv = environment?.toLowerCase().trim();
+                    if (environment && productEnv !== selectedEnv) {
+                      return false;
+                    }
+
+                    // Pixel pitch filter
+                    if (pixelPitch !== null) {
+                      const productPitch = normalize(p.pixelPitch);
+                      const selectedPitch = normalize(pixelPitch);
+                      if (productPitch === null || selectedPitch === null) return false;
+                      if (Math.abs(productPitch - selectedPitch) >= 0.1) {
+                        return false;
+                      }
+                    } else if (recommendedPixelPitches.length > 0 && !hasSkippedPixelPitch) {
+                      const productPitch = normalize(p.pixelPitch);
+                      if (productPitch === null) return false;
+                      const matchesRecommended = recommendedPixelPitches.some(pitch => {
+                        const target = normalize(pitch);
+                        if (target === null) return false;
+                        return Math.abs(productPitch - target) < 0.1;
+                      });
+                      if (!matchesRecommended) return false;
+                    }
+
+                    // Warranty filter (series-based)
+                    const productCategory = (p.category || '').trim();
+                    if (!productCategory.includes(seriesName + ' Series')) {
+                      return false;
+                    }
+
+                    return true;
+                  });
+                  
+                  return (
+                    <button
+                      key={years}
+                      onClick={() => setSelectedWarranty(years)}
+                      className={`p-6 rounded-xl border-2 transition-all text-left ${
+                        selectedWarranty === years
+                          ? 'border-blue-600 bg-blue-50 shadow-lg'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-2xl font-bold mb-2">{years} Years</div>
+                      <div className="text-sm text-gray-600 mb-2">
+                        {seriesName} Series
+                      </div>
+                      {matchingProducts.length > 0 && (
+                        <div className="text-xs text-blue-600 mt-1 font-medium">
+                          {matchingProducts.length} product{matchingProducts.length !== 1 ? 's' : ''} available
+                        </div>
+                      )}
+                      {matchingProducts.length === 0 && (
+                        <div className="text-xs text-gray-400 mt-1">
+                          No products match filters
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Step 6: Product Selection */}
           {currentStep === 'product' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <div>
@@ -549,11 +681,12 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                 <p className="text-gray-600">
                   Choose from available products matching your criteria
                 </p>
-                {(environment || pixelPitch !== null || viewingDistance) && (
+                {(environment || pixelPitch !== null || viewingDistance || selectedWarranty !== null) && (
                   <div className="mt-2 text-sm text-blue-600">
                     Filters: {environment && <span className="font-medium">{environment}</span>}
                     {pixelPitch !== null && <span className="ml-2 font-medium">P{pixelPitch}mm</span>}
                     {viewingDistance && <span className="ml-2 font-medium">{viewingDistance} {viewingDistanceUnit}</span>}
+                    {selectedWarranty !== null && <span className="ml-2 font-medium">{selectedWarranty} Years Warranty</span>}
                   </div>
                 )}
               </div>
@@ -643,6 +776,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                   <div className="text-sm text-gray-400 mb-6">
                     Current filters: {environment || 'Any'} environment, {pixelPitch !== null ? `P${pixelPitch}mm` : 'Any pixel pitch'}
                     {viewingDistance && `, ${viewingDistance} ${viewingDistanceUnit}`}
+                    {selectedWarranty !== null && `, ${selectedWarranty} Years Warranty`}
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     {pixelPitch !== null && (

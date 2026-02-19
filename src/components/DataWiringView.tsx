@@ -854,15 +854,19 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
             <strong>Selected:</strong> {internalControllerSelection.selectedController.name}
           </div>
 
-          <div style={{ marginBottom: '4px' }}>
-            <strong>Ports:</strong> {internalControllerSelection.requiredPorts} / {internalControllerSelection.selectedController.portCount}
-          </div>
-          <div style={{ marginBottom: '4px' }}>
-            <strong>Data Hub Ports:</strong> {internalControllerSelection.dataHubPorts}
-          </div>
-          {internalControllerSelection.isRedundancyMode && (
+          {internalControllerSelection.selectedController.inputs !== undefined && internalControllerSelection.selectedController.inputs > 0 && (
             <div style={{ marginBottom: '4px' }}>
-              <strong>Backup Ports:</strong> {internalControllerSelection.backupPorts}
+              <strong>Input Connectors:</strong> {internalControllerSelection.selectedController.inputs}
+            </div>
+          )}
+          {internalControllerSelection.selectedController.outputs !== undefined && internalControllerSelection.selectedController.outputs > 0 && (
+            <div style={{ marginBottom: '4px' }}>
+              <strong>Output Connectors:</strong> {internalControllerSelection.selectedController.outputs}
+            </div>
+          )}
+          {internalControllerSelection.selectedController.maxResolution && (
+            <div style={{ marginBottom: '4px' }}>
+              <strong>Max Resolution:</strong> {internalControllerSelection.selectedController.maxResolution}
             </div>
           )}
           <div style={{ marginBottom: '4px' }}>

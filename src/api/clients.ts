@@ -121,7 +121,9 @@ export const clientAPI = {
         return response.data;
     },
 
-    // Find or create client
+    // Find or create client. When an existing client is found by email, we update
+    // their name/phone/etc. so the Client record reflects the latest quotation's details
+    // (fixes dashboard showing wrong client name when same email used with different name).
     async findOrCreateClient(data: CreateClientRequest): Promise<ClientResponse> {
         try {
             // Try to find existing client by email
@@ -133,10 +135,22 @@ export const clientAPI = {
                 );
 
                 if (existingClient) {
+                    const clientId = typeof existingClient._id === 'string'
+                        ? existingClient._id
+                        : (existingClient._id as any)?.toString?.() || String(existingClient._id);
+                    const updateResponse = await this.updateClient(clientId, {
+                        name: data.name,
+                        email: data.email,
+                        phone: data.phone,
+                        projectTitle: data.projectTitle,
+                        location: data.location,
+                        company: data.company,
+                        notes: data.notes
+                    });
                     return {
                         success: true,
-                        client: existingClient,
-                        message: 'Existing client found'
+                        client: updateResponse.client,
+                        message: 'Existing client updated with latest details'
                     };
                 }
             }

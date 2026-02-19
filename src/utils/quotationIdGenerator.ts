@@ -1,3 +1,5 @@
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 interface QuotationIdData {
   year: string;
   month: string;
@@ -32,7 +34,7 @@ class QuotationIdGenerator {
 
     try {
 
-      const response = await fetch('/api/sales/generate-quotation-id', {
+      const response = await fetch(`${API_URL}/sales/generate-quotation-id`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,6 +114,7 @@ class QuotationIdGenerator {
   private static async getLatestSerialFromDatabase(firstName: string, year: string, month: string, day: string): Promise<number> {
     try {
 
+<<<<<<< HEAD
       if (typeof window !== 'undefined') {
 
         const response = await fetch('/api/sales/check-latest-quotation-id', {
@@ -131,6 +134,24 @@ class QuotationIdGenerator {
           const data = await response.json();
           return data.latestSerial || 0;
         }
+=======
+      const response = await fetch(`${API_URL}/sales/check-latest-quotation-id`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName,
+          year,
+          month,
+          day
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.latestSerial || 0;
+>>>>>>> dev
       }
     } catch (error) {
 
