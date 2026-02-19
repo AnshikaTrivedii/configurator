@@ -873,76 +873,22 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     } catch (error: any) {
 
       if (error.message && error.message.includes('already exists')) {
-
         try {
-
-          const now = new Date();
-          const timestamp = now.getTime().toString().slice(-6); // Last 6 digits for uniqueness
-          const nameForId = isSuperAdmin && selectedSalesPersonId
-            ? salesPersons.find(p => p._id === selectedSalesPersonId)?.name || salesUser?.name || 'Admin'
-            : salesUser?.name || 'Admin';
-          const firstName = nameForId.trim().split(' ')[0].toUpperCase();
-          const fallbackQuotationId = `ORION/${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${firstName}/${timestamp}`;
-
-          const fallbackQuotationData = {
-            ...exactQuotationData,
-            quotationId: fallbackQuotationId
-          };
-
-          const fallbackResult = await salesAPI.saveQuotation(fallbackQuotationData);
+          console.log('⚠️ Quotation already exists, attempting update instead...', finalQuotationId);
+          // Use the finalQuotationId (which is what we tried to save) for the update
+          await salesAPI.updateQuotation(finalQuotationId!, exactQuotationData);
 
           setSaveSuccess(true);
           saveSuccessful = true;
 
-          if (saveSuccessful) {
+          if (pdfBlob) {
+            setGeneratedPdfBlob(pdfBlob);
+            const url = window.URL.createObjectURL(pdfBlob);
+            setPdfDownloadUrl(url);
 
-            try {
-              const { generateConfigurationPdf } = await import('../utils/docxGenerator');
-
-              const exactPricingBreakdownForPdf = {
-                unitPrice: finalPricingResult.unitPrice,
-                quantity: finalPricingResult.quantity,
-                subtotal: finalPricingResult.productSubtotal,
-                gstAmount: finalPricingResult.productGST,
-                processorPrice: finalPricingResult.processorPrice,
-                processorGst: finalPricingResult.processorGST,
-                grandTotal: finalTotalPrice
-              };
-
-              const blob = await generateConfigurationPdf(
-                config || { width: 2400, height: 1010, unit: 'mm' },
-                selectedProduct,
-                cabinetGrid,
-                processor,
-                mode,
-                userInfo,
-                salesUser,
-                quotationId,
-                customPricing,
-                exactPricingBreakdownForPdf
-              );
-
-              setGeneratedPdfBlob(blob);
-              const url = window.URL.createObjectURL(blob);
-              setPdfDownloadUrl(url);
-
-              triggerPdfDownload(blob, fileName, setGeneratedPdfBlob, setPdfDownloadUrl);
-            } catch (pdfError: any) {
-
-              let errorMessage = 'Failed to generate PDF. Please try again.';
-              if (pdfError?.message) {
-                if (pdfError.message.includes('canvas') || pdfError.message.includes('html2canvas')) {
-                  errorMessage = 'Failed to render PDF. This may be due to image loading issues. Please check your connection and try again.';
-                } else if (pdfError.message.includes('timeout')) {
-                  errorMessage = 'PDF generation timed out. Please try again.';
-                } else {
-                  errorMessage = `PDF error: ${pdfError.message}`;
-                }
-              }
-
-              alert(errorMessage);
-
-              onDownload();
+            // If save/update was successful, trigger the download with the CURRENT blob (no need to regenerate)
+            if (saveSuccessful) {
+              triggerPdfDownload(pdfBlob, fileName, setGeneratedPdfBlob, setPdfDownloadUrl);
             }
           }
 
@@ -950,9 +896,9 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             setSaveSuccess(false);
           }, 3000);
 
-        } catch (fallbackError: any) {
-
-          setSaveError(fallbackError.message || 'Failed to save quotation even with fallback ID');
+        } catch (updateError: any) {
+          console.error('Update after save failed:', updateError);
+          alert(`Failed to update existing quotation: ${updateError.message}`);
         }
       } else {
         setSaveError(error.message || 'Failed to save quotation');
