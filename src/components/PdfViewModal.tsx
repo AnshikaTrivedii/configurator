@@ -115,7 +115,8 @@ interface PdfViewModalProps {
   salesUser?: any;
   userRole?: 'normal' | 'sales' | 'super' | 'super_admin' | 'partner';
   quotationId?: string;
-  clientId?: string;
+  isEditing?: boolean;
+  clientId?: string | { $oid: string } | { _id: string } | Record<string, any>;
   customPricing?: {
     enabled: boolean;
     structurePrice: number | null;
@@ -142,6 +143,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   salesUser,
   userRole,
   quotationId,
+  isEditing: isEditingProp,
   clientId: propClientId,
   customPricing,
   exactPricingBreakdown,
@@ -287,7 +289,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     // Check both 'id' and 'productId' fields
     const productId = selectedProduct?.id || selectedProduct?.productId;
     let fullProduct = selectedProduct;
-    
+
     if (productId) {
       const productFromList = products.find(p => p.id === productId);
       if (productFromList) {
@@ -356,10 +358,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
         const userTypeForCalc = getUserType();
         console.log('PDF Generation - quotationId:', quotationId, 'exactPricingBreakdown exists:', !!exactPricingBreakdown);
-        
+
         // Use exactPricingBreakdown if available (when editing), otherwise calculate
         let exactPricingBreakdownForPdf: any;
-        
+
         // Always use exactPricingBreakdown if available (when editing/viewing existing quotation)
         if (exactPricingBreakdown) {
           // Use existing pricing breakdown when editing
@@ -384,7 +386,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             prices: fullProduct?.prices,
             userType: userTypeForCalc
           });
-          
+
           const pricingResult = calculateCentralizedPricing(
             fullProduct,
             cabinetGrid,
@@ -450,7 +452,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     // IMPORTANT: Preserve the original quotationId prop if it exists (for editing)
     // Only generate a new ID if we're creating a new quotation (quotationId prop is undefined/empty)
     let finalQuotationId = quotationId && quotationId.trim() !== '' ? quotationId : undefined;
-    
+
     if (!finalQuotationId) {
       // Only generate new ID if we're creating (quotationId prop was not provided)
       console.log('📝 Creating new quotation - generating quotation ID');
@@ -793,16 +795,16 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             let clientIdString: string;
             if (typeof propClientId === 'string') {
               clientIdString = propClientId;
-            } else if (propClientId.$oid) {
+            } else if ('$oid' in propClientId && propClientId.$oid) {
               clientIdString = propClientId.$oid;
-            } else if (propClientId._id) {
+            } else if ('_id' in propClientId && propClientId._id) {
               clientIdString = String(propClientId._id);
             } else if (typeof propClientId.toString === 'function') {
               clientIdString = propClientId.toString();
             } else {
               clientIdString = String(propClientId);
             }
-            
+
             const updateResponse = await clientAPI.updateClient(clientIdString, clientData);
             if (updateResponse.success && updateResponse.client) {
               clientId = updateResponse.client._id;
@@ -839,13 +841,13 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       // The quotationId prop indicates we're editing an existing quotation
       // IMPORTANT: Use the original quotationId prop (not finalQuotationId) to determine if we're editing
       let saveResult;
-      const isEditing = quotationId && quotationId.trim() !== '';
-      
+      const isEditing = isEditingProp === true;
+
       if (isEditing) {
         // Update existing quotation (quotationId prop was passed, meaning we're editing)
         console.log('🔄 Updating existing quotation. quotationId prop:', quotationId, 'finalQuotationId:', finalQuotationId);
         // Use the original quotationId prop for the update, not finalQuotationId
-        saveResult = await salesAPI.updateQuotation(quotationId, exactQuotationData);
+        saveResult = await salesAPI.updateQuotation(quotationId ?? finalQuotationId!, exactQuotationData);
       } else {
         // Create new quotation (no quotationId prop or empty string, meaning we're creating)
         console.log('➕ Creating new quotation. finalQuotationId:', finalQuotationId);

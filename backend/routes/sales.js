@@ -1208,7 +1208,128 @@ router.post('/quotation', authenticateToken, async (req, res) => {
   }
 });
 
-// PUT /api/sales/quotation/:quotationId (Update existing quotation)
+// POST /api/sales/quotation/update (Update existing quotation - uses body for quotationId to avoid slash encoding issues)
+router.post('/quotation/update', authenticateToken, async (req, res) => {
+  const startTime = Date.now();
+
+  try {
+    const { quotationId, ...updateData } = req.body;
+
+    if (!quotationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'quotationId is required in request body'
+      });
+    }
+
+    // Find the existing quotation
+    const quotation = await Quotation.findOne({ quotationId });
+
+    if (!quotation) {
+      console.error('❌ Quotation not found for update:', quotationId);
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+
+    // Check permissions - only the owner or super admin can update
+    const isOwner = quotation.salesUserId.toString() === req.user._id.toString();
+    const isSuperAdmin = ['super', 'super_admin', 'superadmin', 'admin'].includes(req.user.role);
+
+    if (!isOwner && !isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only quotation owner or super admin can update this quotation.'
+      });
+    }
+
+    // Handle PDF upload/replacement if new PDF data is provided
+    let pdfS3Key = quotation.pdfS3Key;
+    let pdfS3Url = quotation.pdfS3Url;
+
+    if (updateData.pdfBase64) {
+      try {
+        const pdfBuffer = Buffer.from(updateData.pdfBase64, 'base64');
+        pdfS3Key = await uploadPdfToS3(
+          pdfBuffer,
+          quotationId,
+          quotation.salesUserId.toString()
+        );
+        pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
+      } catch (s3Error) {
+        console.error('❌ Error updating PDF in S3:', s3Error);
+      }
+    }
+
+    // Update fields
+    if (updateData.totalPrice !== undefined) quotation.totalPrice = updateData.totalPrice;
+    if (updateData.originalTotalPrice !== undefined) quotation.originalTotalPrice = updateData.originalTotalPrice;
+    if (updateData.exactPricingBreakdown !== undefined) quotation.exactPricingBreakdown = updateData.exactPricingBreakdown;
+    if (updateData.originalPricingBreakdown !== undefined) quotation.originalPricingBreakdown = updateData.originalPricingBreakdown;
+    if (updateData.exactProductSpecs !== undefined) quotation.exactProductSpecs = updateData.exactProductSpecs;
+
+    if (updateData.customerName !== undefined) quotation.customerName = updateData.customerName;
+    if (updateData.customerEmail !== undefined) quotation.customerEmail = updateData.customerEmail;
+    if (updateData.customerPhone !== undefined) quotation.customerPhone = updateData.customerPhone;
+    if (updateData.message !== undefined) quotation.message = updateData.message;
+    if (updateData.userType !== undefined) quotation.userType = updateData.userType;
+    if (updateData.userTypeDisplayName !== undefined) quotation.userTypeDisplayName = updateData.userTypeDisplayName;
+
+    if (updateData.clientId !== undefined) {
+      if (updateData.clientId) {
+        if (!mongoose.Types.ObjectId.isValid(updateData.clientId)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid clientId format. Must be a valid MongoDB ObjectId.'
+          });
+        }
+        quotation.clientId = new mongoose.Types.ObjectId(updateData.clientId);
+      } else {
+        quotation.clientId = null;
+      }
+    }
+
+    if (updateData.quotationData !== undefined) {
+      quotation.quotationData = {
+        ...quotation.quotationData,
+        ...updateData.quotationData,
+        updatedAt: new Date().toISOString()
+      };
+    }
+
+    if (updateData.pdfBase64) {
+      quotation.pdfS3Key = pdfS3Key;
+      quotation.pdfS3Url = pdfS3Url;
+      if (updateData.pdfPage6HTML) quotation.pdfPage6HTML = updateData.pdfPage6HTML;
+    }
+
+    const savedQuotation = await quotation.save();
+
+    res.json({
+      success: true,
+      message: 'Quotation updated successfully',
+      quotation: {
+        quotationId: savedQuotation.quotationId,
+        totalPrice: savedQuotation.totalPrice,
+        pdfS3Url: savedQuotation.pdfS3Url
+      }
+    });
+
+    const endTime = Date.now();
+    console.log(`✅ Quotation updated in ${endTime - startTime}ms:`, quotationId);
+
+  } catch (error) {
+    console.error('❌ Error updating quotation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update quotation',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// PUT /api/sales/quotation/:quotationId (Update existing quotation - legacy route)
 router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
   const startTime = Date.now();
 
@@ -1976,70 +2097,36 @@ router.post('/generate-quotation-id', async (req, res) => {
         throw new Error('Missing required fields: firstName, year, month, day');
       }
 
-      // Step 1: Get the highest serial number ever used in ANY quotation ID
-      const latestQuotation = await Quotation.findOne({
-        quotationId: { $regex: /^ORION\/\d{4}\/\d{2}\/\d{2}\/[A-Z]+\/\d{3}$/ }
-      }).sort({ quotationId: -1 }).session(session);
+      const upperFirstName = firstName.toUpperCase();
 
-      let nextSerial = 1; // Default to 001 if no quotations exist
+      // Step 1: Find ALL quotations matching this specific user + date prefix
+      const prefix = `ORION/${year}/${month}/${day}/${upperFirstName}/`;
+      const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existingQuotations = await Quotation.find({
+        quotationId: { $regex: new RegExp(`^${escapedPrefix}\\d{3}$`) }
+      }).select('quotationId').session(session).lean();
 
-      if (latestQuotation && latestQuotation.quotationId) {
-        // Extract the serial number from the latest quotation ID
-        const parts = latestQuotation.quotationId.split('/');
+      // Step 2: Extract serial numbers numerically and find the max
+      let maxSerial = 0;
+      existingQuotations.forEach(q => {
+        const parts = q.quotationId.split('/');
         if (parts.length === 6) {
-          const lastSerial = parseInt(parts[5], 10) || 0;
-          nextSerial = lastSerial + 1;
+          const serialNum = parseInt(parts[5], 10) || 0;
+          maxSerial = Math.max(maxSerial, serialNum);
         }
+      });
 
-      } else {
-
-      }
-
-      // Step 2: Generate the new quotation ID
+      const nextSerial = maxSerial + 1; // 001 if none exist, otherwise max + 1
       const serial = nextSerial.toString().padStart(3, '0');
-      const quotationId = `ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/${serial}`;
+      const quotationId = `ORION/${year}/${month}/${day}/${upperFirstName}/${serial}`;
 
-      // Step 3: Safety check - verify the new ID doesn't already exist
-      const existingQuotation = await Quotation.findOne({ quotationId }).session(session);
-      if (existingQuotation) {
-        // If ID exists, find the next available serial number
-
-        // Get all quotations with the same prefix (ORION/YYYY/MM/DD/FIRSTNAME/)
-        const prefix = `ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/`;
-        const existingQuotations = await Quotation.find({
-          quotationId: { $regex: new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\d{3}$`) }
-        }).sort({ quotationId: -1 }).session(session);
-
-        let maxSerial = 0;
-        existingQuotations.forEach(q => {
-          const parts = q.quotationId.split('/');
-          if (parts.length === 6) {
-            const serialNum = parseInt(parts[5], 10) || 0;
-            maxSerial = Math.max(maxSerial, serialNum);
-          }
-        });
-
-        nextSerial = maxSerial + 1;
-        const newSerial = nextSerial.toString().padStart(3, '0');
-        const newQuotationId = `ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/${newSerial}`;
-
-        res.json({
-          success: true,
-          quotationId: newQuotationId,
-          serial: newSerial,
-          isGloballyUnique: true,
-          message: 'Globally unique quotation ID generated successfully'
-        });
-      } else {
-
-        res.json({
-          success: true,
-          quotationId,
-          serial,
-          isGloballyUnique: true,
-          message: 'Globally unique quotation ID generated successfully'
-        });
-      }
+      res.json({
+        success: true,
+        quotationId,
+        serial,
+        isGloballyUnique: true,
+        message: 'Quotation ID generated successfully (scoped to user + date)'
+      });
     });
 
   } catch (error) {

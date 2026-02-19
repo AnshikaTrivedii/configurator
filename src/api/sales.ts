@@ -414,10 +414,10 @@ class SalesAPI {
   }
 
   async updateQuotation(quotationId: string, updateData: any): Promise<{ success: boolean; message: string; quotation: any }> {
-    const response = await fetch(`${API_BASE_URL}/sales/quotation/${encodeURIComponent(quotationId)}`, {
-      method: 'PUT',
+    const response = await fetch(`${API_BASE_URL}/sales/quotation/update`, {
+      method: 'POST',
       headers: this.getAuthHeaders(),
-      body: JSON.stringify(updateData)
+      body: JSON.stringify({ ...updateData, quotationId })
     });
 
     const data = await response.json();

@@ -171,7 +171,7 @@ export interface Quotation {
   salesUserId: string;
   salesUserName: string;
   // New: Client reference
-  clientId?: string;
+  clientId?: string | Record<string, any>;
   client?: Client;
   // Old fields: Keep for backward compatibility
   customerName: string;

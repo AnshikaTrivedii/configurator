@@ -146,7 +146,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         const rawClientId = activeQuotation.clientId;
         console.log('Raw clientId from quotation:', rawClientId, 'Type:', typeof rawClientId);
         let clientIdString: string | null = null;
-        
+
         if (rawClientId) {
           if (typeof rawClientId === 'string') {
             clientIdString = rawClientId;
@@ -161,7 +161,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             clientIdString = String(rawClientId);
           }
         }
-        
+
         if (clientIdString) {
           try {
             console.log('Fetching client info for clientId:', clientIdString, 'Original:', rawClientId);
@@ -361,9 +361,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     : 0;
   const processorDropdownOptions = selectedProduct
     ? ALLOWED_PROCESSORS
-        .filter((p) => p.pixelCapacity * 1_000_000 >= totalPixelsForProcessor)
-        .sort((a, b) => a.pixelCapacity - b.pixelCapacity)
-        .map((p) => p.name)
+      .filter((p) => p.pixelCapacity * 1_000_000 >= totalPixelsForProcessor)
+      .sort((a, b) => a.pixelCapacity - b.pixelCapacity)
+      .map((p) => p.name)
     : [];
 
   const getAutoSelectedController = (product: Product, grid: CabinetGrid) => {
@@ -1309,7 +1309,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           userInfo={userInfo ? { ...userInfo, userType: userInfo.userType || 'End User' } : undefined}
           salesUser={salesUser}
           userRole={userRole}
-          quotationId={isEditMode ? quotationId : undefined}
+          quotationId={quotationId || undefined}
+          isEditing={!!activeQuotation}
         />
       )}
 
