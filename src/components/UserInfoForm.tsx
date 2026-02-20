@@ -97,7 +97,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   const [formData, setFormData] = useState<UserInfo>(
     mergeInitialDataWithDefaults(initialData)
   );
-  const [errors, setErrors] = useState<Partial<UserInfo>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof UserInfo, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUserTypeDropdownOpen, setIsUserTypeDropdownOpen] = useState(false);
 
@@ -171,7 +171,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   }, [isPartner, partnerAllowedTypes, userTypeOptions, formData.userType]);
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<UserInfo> = {};
+    const newErrors: Partial<Record<keyof UserInfo, string>> = {};
 
     if (!formData.fullName.trim()) {
       newErrors.fullName = 'Full name is required';

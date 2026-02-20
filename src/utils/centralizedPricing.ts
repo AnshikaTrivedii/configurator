@@ -217,7 +217,6 @@ export function calculateCentralizedPricing(
     enabled: boolean;
     structurePrice: number | null;
     installationPrice: number | null;
-    installationType?: 'fixed' | 'per_sqft';
   }
 ): PricingCalculationResult {
   try {
@@ -289,12 +288,8 @@ export function calculateCentralizedPricing(
     if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
 
       structureBasePrice = customPricing.structurePrice;
-
-      if (customPricing.installationType === 'fixed') {
-        installationBasePrice = customPricing.installationPrice;
-      } else {
-        installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', customPricing.installationPrice);
-      }
+      // Custom installation price is always a flat total amount (GST added separately)
+      installationBasePrice = customPricing.installationPrice;
     } else {
 
       structureBasePrice = calculateStructureCost(product.environment, cabinetGrid, screenAreaSqFt);
