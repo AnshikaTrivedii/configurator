@@ -97,7 +97,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   const [formData, setFormData] = useState<UserInfo>(
     mergeInitialDataWithDefaults(initialData)
   );
-  const [errors, setErrors] = useState<Partial<UserInfo>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof UserInfo, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUserTypeDropdownOpen, setIsUserTypeDropdownOpen] = useState(false);
 
@@ -158,8 +158,8 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     if (isPartner && partnerAllowedTypes.length > 0) {
 
       const currentInternalValue = formData.userType === 'End User' ? 'endUser' :
-                                   formData.userType === 'Reseller' ? 'reseller' :
-                                   formData.userType === 'SI/Channel Partner' ? 'siChannel' : null;
+        formData.userType === 'Reseller' ? 'reseller' :
+          formData.userType === 'SI/Channel Partner' ? 'siChannel' : null;
 
       if (currentInternalValue && !partnerAllowedTypes.includes(currentInternalValue)) {
         const firstAllowedOption = userTypeOptions[0];
@@ -171,7 +171,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   }, [isPartner, partnerAllowedTypes, userTypeOptions, formData.userType]);
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<UserInfo> = {};
+    const newErrors: Partial<Record<keyof UserInfo, string>> = {};
 
     if (!formData.fullName.trim()) {
       newErrors.fullName = 'Full name is required';
@@ -207,25 +207,25 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     setIsSubmitting(true);
-    
+
     try {
       await onSubmit(formData);
 
       if (!isEditMode) {
 
         const defaultUserType = userTypeOptions.length > 0 ? userTypeOptions[0].value : 'End User';
-        setFormData({ 
-          fullName: '', 
-          email: '', 
-          phoneNumber: '', 
-          projectTitle: '', 
-          address: '', 
+        setFormData({
+          fullName: '',
+          email: '',
+          phoneNumber: '',
+          projectTitle: '',
+          address: '',
           userType: defaultUserType,
           paymentTerms: '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation',
           warranty: 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier. Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.'
@@ -287,296 +287,290 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
         {/* Scrollable Form Content */}
         <div className="flex-1 overflow-y-auto min-h-0">
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Client Name Field */}
-          <div>
-            <label htmlFor="fullName" className="block text-sm font-semibold text-gray-700 mb-2">
-              Client Name <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                id="fullName"
-                value={formData.fullName}
-                onChange={(e) => handleInputChange('fullName', e.target.value)}
-                placeholder="Enter client name"
-                className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                  errors.fullName ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                }`}
-              />
-            </div>
-            {errors.fullName && (
-              <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
-            )}
-          </div>
-
-          {/* Email Field */}
-          <div>
-            <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-              Email Address <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="email"
-                id="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="Enter your email address"
-                className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                  errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                }`}
-              />
-            </div>
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-            )}
-          </div>
-
-          {/* Phone Number Field */}
-          <div>
-            <label htmlFor="phoneNumber" className="block text-sm font-semibold text-gray-700 mb-2">
-              Phone Number <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Phone className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="tel"
-                id="phoneNumber"
-                value={formData.phoneNumber}
-                onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                placeholder="Enter your phone number"
-                className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                  errors.phoneNumber ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                }`}
-              />
-            </div>
-            {errors.phoneNumber && (
-              <p className="mt-1 text-sm text-red-600">{errors.phoneNumber}</p>
-            )}
-          </div>
-
-          {/* Project Title Field */}
-          <div>
-            <label htmlFor="projectTitle" className="block text-sm font-semibold text-gray-700 mb-2">
-              Project Title <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FileText className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                id="projectTitle"
-                value={formData.projectTitle}
-                onChange={(e) => handleInputChange('projectTitle', e.target.value)}
-                placeholder="Enter project title"
-                className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                  errors.projectTitle ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                }`}
-              />
-            </div>
-            {errors.projectTitle && (
-              <p className="mt-1 text-sm text-red-600">{errors.projectTitle}</p>
-            )}
-          </div>
-
-          {/* Address Field */}
-          <div>
-            <label htmlFor="address" className="block text-sm font-semibold text-gray-700 mb-2">
-              Address <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute top-3 left-0 pl-3 flex items-start pointer-events-none">
-                <MapPin className="h-5 w-5 text-gray-400" />
-              </div>
-              <textarea
-                id="address"
-                value={formData.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
-                placeholder="Enter address"
-                rows={3}
-                className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none ${
-                  errors.address ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                }`}
-              />
-            </div>
-            {errors.address && (
-              <p className="mt-1 text-sm text-red-600">{errors.address}</p>
-            )}
-          </div>
-
-          {/* User Type Field */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              User Type <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsUserTypeDropdownOpen(!isUserTypeDropdownOpen)}
-                className={`w-full pl-3 pr-10 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-left ${
-                  errors.userType ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                }`}
-              >
-                <span className={formData.userType ? 'text-gray-900' : 'text-gray-500'}>
-                  {formData.userType || 'Select user type'}
-                </span>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              </button>
-              
-              {isUserTypeDropdownOpen && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
-                  {userTypeOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleUserTypeSelect(option.value)}
-                      className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none first:rounded-t-lg last:rounded-b-lg"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+            {/* Client Name Field */}
+            <div>
+              <label htmlFor="fullName" className="block text-sm font-semibold text-gray-700 mb-2">
+                Client Name <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-gray-400" />
                 </div>
+                <input
+                  type="text"
+                  id="fullName"
+                  value={formData.fullName}
+                  onChange={(e) => handleInputChange('fullName', e.target.value)}
+                  placeholder="Enter client name"
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.fullName ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                />
+              </div>
+              {errors.fullName && (
+                <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
               )}
             </div>
-            {errors.userType && (
-              <p className="mt-1 text-sm text-red-600">{errors.userType}</p>
-            )}
-          </div>
 
-          {/* Custom Pricing Toggle - Only for sales users */}
-          {salesUser && (
-            <div className="pt-4 border-t border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <label htmlFor="customPricing" className="flex items-center text-sm font-semibold text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    id="customPricing"
-                    checked={customPricingEnabled}
-                    onChange={(e) => {
-                      const enabled = e.target.checked;
-                      updateCustomPricing(
-                        enabled,
-                        enabled ? customStructurePrice : null,
-                        enabled ? customInstallationPrice : null
-                      );
-                    }}
-                    disabled={isSubmitting}
-                    className="w-4 h-4 text-gray-600 border-gray-300 rounded focus:ring-blue-500 mr-3"
-                  />
-                  <span>Do you want to enter custom structure & installation pricing?</span>
-                </label>
+            {/* Email Field */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                Email Address <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="email"
+                  id="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  placeholder="Enter your email address"
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                />
               </div>
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+              )}
+            </div>
 
-              {customPricingEnabled && (
-                <div className="space-y-4 pl-7">
-                  <div>
-                    <label htmlFor="customStructurePrice" className="block text-sm font-semibold text-gray-700 mb-2">
-                      Custom Structure Price (₹)
-                    </label>
+            {/* Phone Number Field */}
+            <div>
+              <label htmlFor="phoneNumber" className="block text-sm font-semibold text-gray-700 mb-2">
+                Phone Number <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Phone className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="tel"
+                  id="phoneNumber"
+                  value={formData.phoneNumber}
+                  onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                  placeholder="Enter your phone number"
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.phoneNumber ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                />
+              </div>
+              {errors.phoneNumber && (
+                <p className="mt-1 text-sm text-red-600">{errors.phoneNumber}</p>
+              )}
+            </div>
+
+            {/* Project Title Field */}
+            <div>
+              <label htmlFor="projectTitle" className="block text-sm font-semibold text-gray-700 mb-2">
+                Project Title <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FileText className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  id="projectTitle"
+                  value={formData.projectTitle}
+                  onChange={(e) => handleInputChange('projectTitle', e.target.value)}
+                  placeholder="Enter project title"
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.projectTitle ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                />
+              </div>
+              {errors.projectTitle && (
+                <p className="mt-1 text-sm text-red-600">{errors.projectTitle}</p>
+              )}
+            </div>
+
+            {/* Address Field */}
+            <div>
+              <label htmlFor="address" className="block text-sm font-semibold text-gray-700 mb-2">
+                Address <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute top-3 left-0 pl-3 flex items-start pointer-events-none">
+                  <MapPin className="h-5 w-5 text-gray-400" />
+                </div>
+                <textarea
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => handleInputChange('address', e.target.value)}
+                  placeholder="Enter address"
+                  rows={3}
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none ${errors.address ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                />
+              </div>
+              {errors.address && (
+                <p className="mt-1 text-sm text-red-600">{errors.address}</p>
+              )}
+            </div>
+
+            {/* User Type Field */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                User Type <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsUserTypeDropdownOpen(!isUserTypeDropdownOpen)}
+                  className={`w-full pl-3 pr-10 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-left ${errors.userType ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                >
+                  <span className={formData.userType ? 'text-gray-900' : 'text-gray-500'}>
+                    {formData.userType || 'Select user type'}
+                  </span>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                </button>
+
+                {isUserTypeDropdownOpen && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
+                    {userTypeOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handleUserTypeSelect(option.value)}
+                        className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none first:rounded-t-lg last:rounded-b-lg"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {errors.userType && (
+                <p className="mt-1 text-sm text-red-600">{errors.userType}</p>
+              )}
+            </div>
+
+            {/* Custom Pricing Toggle - Only for sales users */}
+            {salesUser && (
+              <div className="pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <label htmlFor="customPricing" className="flex items-center text-sm font-semibold text-gray-700 cursor-pointer">
                     <input
-                      type="number"
-                      id="customStructurePrice"
-                      min="0"
-                      step="0.01"
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                        customPricingEnabled ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-300'
-                      }`}
-                      placeholder="Enter custom structure price"
-                      value={customStructurePrice ?? ''}
+                      type="checkbox"
+                      id="customPricing"
+                      checked={customPricingEnabled}
                       onChange={(e) => {
-                        const value = e.target.value === '' ? null : parseFloat(e.target.value);
-                        const newValue = value && !isNaN(value) ? value : null;
-                        updateCustomPricing(customPricingEnabled, newValue, customInstallationPrice);
+                        const enabled = e.target.checked;
+                        updateCustomPricing(
+                          enabled,
+                          enabled ? customStructurePrice : null,
+                          enabled ? customInstallationPrice : null
+                        );
                       }}
                       disabled={isSubmitting}
+                      className="w-4 h-4 text-gray-600 border-gray-300 rounded focus:ring-blue-500 mr-3"
+                    />
+                    <span>Do you want to enter custom structure & installation pricing?</span>
+                  </label>
+                </div>
+
+                {customPricingEnabled && (
+                  <div className="space-y-4 pl-7">
+                    <div>
+                      <label htmlFor="customStructurePrice" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Custom Structure Price (₹)
+                      </label>
+                      <input
+                        type="number"
+                        id="customStructurePrice"
+                        min="0"
+                        step="0.01"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${customPricingEnabled ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-300'
+                          }`}
+                        placeholder="Enter custom structure price"
+                        value={customStructurePrice ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                          // Allow 0 as valid value
+                          const newValue = value !== null && !isNaN(value) ? value : null;
+                          updateCustomPricing(customPricingEnabled, newValue, customInstallationPrice);
+                        }}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="customInstallationPrice" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Custom Installation Price (₹)
+                      </label>
+                      <input
+                        type="number"
+                        id="customInstallationPrice"
+                        min="0"
+                        step="0.01"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${customPricingEnabled ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-300'
+                          }`}
+                        placeholder="Enter custom installation price"
+                        value={customInstallationPrice ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                          // Allow 0 as valid value
+                          const newValue = value !== null && !isNaN(value) ? value : null;
+                          updateCustomPricing(customPricingEnabled, customStructurePrice, newValue);
+                        }}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Terms and Conditions Fields - Only for sales users */}
+            {salesUser && (
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Terms & Conditions</h3>
+
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="validity" className="block text-sm font-semibold text-gray-700 mb-2">
+                      Validity
+                    </label>
+                    <textarea
+                      id="validity"
+                      value={formData.validity || ''}
+                      onChange={(e) => handleInputChange('validity', e.target.value)}
+                      placeholder="Enter validity terms"
+                      rows={3}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="customInstallationPrice" className="block text-sm font-semibold text-gray-700 mb-2">
-                      Custom Installation Price (₹)
+                    <label htmlFor="paymentTerms" className="block text-sm font-semibold text-gray-700 mb-2">
+                      Payment Terms
                     </label>
-                    <input
-                      type="number"
-                      id="customInstallationPrice"
-                      min="0"
-                      step="0.01"
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                        customPricingEnabled ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-gray-300'
-                      }`}
-                      placeholder="Enter custom installation price"
-                      value={customInstallationPrice ?? ''}
-                      onChange={(e) => {
-                        const value = e.target.value === '' ? null : parseFloat(e.target.value);
-                        const newValue = value && !isNaN(value) ? value : null;
-                        updateCustomPricing(customPricingEnabled, customStructurePrice, newValue);
-                      }}
-                      disabled={isSubmitting}
+                    <textarea
+                      id="paymentTerms"
+                      value={formData.paymentTerms || ''}
+                      onChange={(e) => handleInputChange('paymentTerms', e.target.value)}
+                      placeholder="Enter payment terms"
+                      rows={3}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="warranty" className="block text-sm font-semibold text-gray-700 mb-2">
+                      Warranty
+                    </label>
+                    <textarea
+                      id="warranty"
+                      value={formData.warranty || ''}
+                      onChange={(e) => handleInputChange('warranty', e.target.value)}
+                      placeholder="Enter warranty details"
+                      rows={4}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
                     />
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Terms and Conditions Fields - Only for sales users */}
-          {salesUser && (
-            <div className="pt-4 border-t border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">Terms & Conditions</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="validity" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Validity
-                  </label>
-                  <textarea
-                    id="validity"
-                    value={formData.validity || ''}
-                    onChange={(e) => handleInputChange('validity', e.target.value)}
-                    placeholder="Enter validity terms"
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="paymentTerms" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Payment Terms
-                  </label>
-                  <textarea
-                    id="paymentTerms"
-                    value={formData.paymentTerms || ''}
-                    onChange={(e) => handleInputChange('paymentTerms', e.target.value)}
-                    placeholder="Enter payment terms"
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="warranty" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Warranty
-                  </label>
-                  <textarea
-                    id="warranty"
-                    value={formData.warranty || ''}
-                    onChange={(e) => handleInputChange('warranty', e.target.value)}
-                    placeholder="Enter warranty details"
-                    rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
-                  />
-                </div>
               </div>
-            </div>
-          )}
+            )}
 
             {/* Submit Button */}
             <button

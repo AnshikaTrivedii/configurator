@@ -90,20 +90,17 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
 
   const displayedWidth = parseFloat(toDisplayUnit(config.width, config.unit));
   const displayedHeight = parseFloat(toDisplayUnit(config.height, config.unit));
-  const displayAreaFeet = displayedWidth * displayedHeight;
 
-  const displayArea = (config.width * config.height) / 1000000; // mm² to m²
-  const displayAreaInDisplayUnit = config.unit === 'ft' ? displayAreaFeet : displayArea;
+  // Display Area: ft² derived from the rounded/displayed m² value
+  const rawAreaM2 = (config.width / 1000) * (config.height / 1000);
+  const areaM2 = parseFloat(rawAreaM2.toFixed(2));
+  const areaFt2 = areaM2 * 10.764;
 
-  const diagonalMeters = Math.sqrt(Math.pow(config.width / 1000, 2) + Math.pow(config.height / 1000, 2));
-
-  const diagonalInDisplayUnit = config.unit === 'ft'
-    ? Math.sqrt(Math.pow(config.width * MM_TO_FEET, 2) + Math.pow(config.height * MM_TO_FEET, 2))
-    : diagonalMeters;
-
-  const diagonalInches = diagonalMeters * 39.3701;
-  const feet = Math.floor(diagonalInches / 12);
-  const inches = Math.round((diagonalInches % 12) * 16) / 16; // Round to nearest 1/16 inch
+  // Display Diagonal: from width/height in meters, then feet
+  const width = config.width / 1000;  // mm to m
+  const height = config.height / 1000; // mm to m
+  const diagonalM = Math.sqrt(width * width + height * height);
+  const diagonalFt = diagonalM * 3.28084;
 
   const avgPowerPerCabinet = selectedProduct.avgPowerConsumption || 91.7; // Default to 91.7W if not specified
   const maxPowerPerCabinet = selectedProduct.maxPowerConsumption || (avgPowerPerCabinet * 3); // Use actual max power or default to 3x avg
@@ -207,8 +204,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Display Area</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-rose-700 break-words">
-                {displayAreaInDisplayUnit.toFixed(2)} {config.unit}²<br />
-                ({displayAreaFeet.toFixed(2)} ft²)
+                {areaM2.toFixed(4)} m²<br />
+                ({areaFt2.toFixed(4)} ft²)
               </p>
             </div>
           </div>
@@ -223,7 +220,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Display Diagonal</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-indigo-700 break-words">
-                {diagonalInDisplayUnit.toFixed(2)} {config.unit} ({feet > 0 ? `${feet}′ ` : ''}{inches}″)
+                {diagonalM.toFixed(2)} m ({diagonalFt.toFixed(2)} ft)
               </p>
             </div>
           </div>
@@ -253,7 +250,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Pixel Density</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-green-700 break-words">
-                {selectedProduct.pixelDensity} px²/m²
+                {selectedProduct.pixelDensity} px/m²
               </p>
             </div>
           </div>

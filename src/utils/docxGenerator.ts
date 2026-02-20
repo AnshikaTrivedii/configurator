@@ -922,11 +922,17 @@ export const generateConfigurationHtml = (
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Base Cost:</span>
-                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(structureBasePrice)}</span>
+                                <span class="quotation-value" style="font-weight: 700;">${(customPricing?.enabled && structureBasePrice === 0)
+      ? "In Client Scope"
+      : "₹" + formatIndianNumber(structureBasePrice)
+    }</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">GST (18%):</span>
-                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(structureGST)}</span>
+                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">${(customPricing?.enabled && structureBasePrice === 0)
+      ? "N/A"
+      : "₹" + formatIndianNumber(structureGST)
+    }</span>
                             </div>
                         </div>
                     </div>
@@ -941,11 +947,17 @@ export const generateConfigurationHtml = (
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Base Cost:</span>
-                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(installationBasePrice)}</span>
+                                <span class="quotation-value" style="font-weight: 700;">${(customPricing?.enabled && installationBasePrice === 0)
+      ? "In Client Scope"
+      : "₹" + formatIndianNumber(installationBasePrice)
+    }</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">GST (18%):</span>
-                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(installationGST)}</span>
+                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">${(customPricing?.enabled && installationBasePrice === 0)
+      ? "N/A"
+      : "₹" + formatIndianNumber(installationGST)
+    }</span>
                             </div>
                         </div>
                     </div>
