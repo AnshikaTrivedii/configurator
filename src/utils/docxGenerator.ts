@@ -85,6 +85,13 @@ export const generateConfigurationDocx = async (
     processorPrice?: number;
     processorGst?: number;
     grandTotal?: number;
+    structureCost?: number;
+    installationCost?: number;
+    customPricing?: {
+      enabled: boolean;
+      structurePrice: number | null;
+      installationPrice: number | null;
+    };
     discount?: {
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
@@ -273,6 +280,13 @@ export const generateConfigurationHtml = (
     processorPrice?: number;
     processorGst?: number;
     grandTotal?: number;
+    structureCost?: number;
+    installationCost?: number;
+    customPricing?: {
+      enabled: boolean;
+      structurePrice: number | null;
+      installationPrice: number | null;
+    };
     discount?: {
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
@@ -429,15 +443,15 @@ export const generateConfigurationHtml = (
     installationBasePrice = screenAreaSqFt * 500;
   }
 
-  const structureGST = structureBasePrice * 0.18;
-  const installationGST = installationBasePrice * 0.18;
+  let structureGST = structureBasePrice * 0.18;
+  let installationGST = installationBasePrice * 0.18;
 
   if (exactPricingBreakdown) {
 
     if (exactPricingBreakdown.unitPrice !== undefined) unitPrice = exactPricingBreakdown.unitPrice;
     if (exactPricingBreakdown.quantity !== undefined) {
       quantity = exactPricingBreakdown.quantity;
-      safeQuantity = quantity; // Update safeQuantity to match
+      safeQuantity = quantity;
     }
 
     if (exactPricingBreakdown.subtotal !== undefined) subtotal = exactPricingBreakdown.subtotal;
@@ -446,6 +460,27 @@ export const generateConfigurationHtml = (
 
     if (exactPricingBreakdown.processorPrice !== undefined) controllerPrice = exactPricingBreakdown.processorPrice;
     if (exactPricingBreakdown.processorGst !== undefined) gstController = exactPricingBreakdown.processorGst;
+
+    if (exactPricingBreakdown.structureCost !== undefined) {
+      structureBasePrice = exactPricingBreakdown.structureCost;
+    } else if (exactPricingBreakdown.customPricing?.enabled &&
+               exactPricingBreakdown.customPricing.structurePrice !== null) {
+      structureBasePrice = exactPricingBreakdown.customPricing.structurePrice;
+    }
+
+    if (exactPricingBreakdown.installationCost !== undefined) {
+      installationBasePrice = exactPricingBreakdown.installationCost;
+    } else if (exactPricingBreakdown.customPricing?.enabled &&
+               exactPricingBreakdown.customPricing.installationPrice !== null) {
+      installationBasePrice = exactPricingBreakdown.customPricing.installationPrice;
+    }
+
+    structureGST = structureBasePrice * 0.18;
+    installationGST = installationBasePrice * 0.18;
+
+    if (!customPricing && exactPricingBreakdown.customPricing?.enabled) {
+      customPricing = exactPricingBreakdown.customPricing;
+    }
 
     if (exactPricingBreakdown.discount) {
 
@@ -1084,6 +1119,13 @@ export const generateConfigurationPdf = async (
     processorPrice?: number;
     processorGst?: number;
     grandTotal?: number;
+    structureCost?: number;
+    installationCost?: number;
+    customPricing?: {
+      enabled: boolean;
+      structurePrice: number | null;
+      installationPrice: number | null;
+    };
     discount?: {
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
@@ -1258,6 +1300,13 @@ export const generateAlternatePdf = async (
     processorPrice?: number;
     processorGst?: number;
     grandTotal?: number;
+    structureCost?: number;
+    installationCost?: number;
+    customPricing?: {
+      enabled: boolean;
+      structurePrice: number | null;
+      installationPrice: number | null;
+    };
     discount?: {
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;

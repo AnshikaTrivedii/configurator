@@ -373,7 +373,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             gstAmount: exactPricingBreakdown.gstAmount || exactPricingBreakdown.productGST,
             processorPrice: exactPricingBreakdown.processorPrice,
             processorGst: exactPricingBreakdown.processorGst || exactPricingBreakdown.processorGST,
-            grandTotal: exactPricingBreakdown.grandTotal
+            structureCost: exactPricingBreakdown.structureCost,
+            installationCost: exactPricingBreakdown.installationCost,
+            grandTotal: exactPricingBreakdown.grandTotal,
+            customPricing: exactPricingBreakdown.customPricing || (customPricing?.enabled ? {
+              enabled: true,
+              structurePrice: customPricing.structurePrice,
+              installationPrice: customPricing.installationPrice
+            } : undefined)
           };
         } else {
           // Calculate new pricing using full product with prices
@@ -415,7 +422,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             gstAmount: pricingResult.productGST,
             processorPrice: pricingResult.processorPrice,
             processorGst: pricingResult.processorGST,
-            grandTotal: pricingResult.grandTotal
+            structureCost: pricingResult.structureCost,
+            installationCost: pricingResult.installationCost,
+            grandTotal: pricingResult.grandTotal,
+            customPricing: customPricing?.enabled ? {
+              enabled: true,
+              structurePrice: customPricing.structurePrice,
+              installationPrice: customPricing.installationPrice
+            } : undefined
           };
         }
 
@@ -681,7 +695,27 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         gstAmount: finalPricingResult.productGST,
         processorPrice: finalPricingResult.processorPrice,
         processorGst: finalPricingResult.processorGST,
-        grandTotal: finalTotalPrice
+        structureCost: finalPricingResult.structureCost,
+        structureGST: finalPricingResult.structureGST,
+        structureTotal: finalPricingResult.structureTotal,
+        installationCost: finalPricingResult.installationCost,
+        installationGST: finalPricingResult.installationGST,
+        installationTotal: finalPricingResult.installationTotal,
+        grandTotal: finalTotalPrice,
+        customPricing: customPricing?.enabled ? {
+          enabled: true,
+          structurePrice: customPricing.structurePrice,
+          installationPrice: customPricing.installationPrice
+        } : undefined
+      },
+
+      quotationData: {
+        config: config || { width: 2400, height: 1010, unit: 'mm' },
+        customPricing: customPricing?.enabled ? {
+          enabled: true,
+          structurePrice: customPricing.structurePrice,
+          installationPrice: customPricing.installationPrice
+        } : undefined
       },
 
       exactProductSpecs: {
@@ -724,7 +758,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           gstAmount: finalPricingResult.productGST,
           processorPrice: finalPricingResult.processorPrice,
           processorGst: finalPricingResult.processorGST,
-          grandTotal: finalTotalPrice
+          structureCost: finalPricingResult.structureCost,
+          installationCost: finalPricingResult.installationCost,
+          grandTotal: finalTotalPrice,
+          customPricing: customPricing?.enabled ? {
+            enabled: true,
+            structurePrice: customPricing.structurePrice,
+            installationPrice: customPricing.installationPrice
+          } : undefined
         };
 
         const uiUserType: string | undefined = userInfo?.userType;
@@ -1018,7 +1059,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                         gstAmount: finalPricingResult.productGST,
                         processorPrice: finalPricingResult.processorPrice,
                         processorGst: finalPricingResult.processorGST,
-                        grandTotal: finalPricingResult.grandTotal
+                        structureCost: finalPricingResult.structureCost,
+                        installationCost: finalPricingResult.installationCost,
+                        grandTotal: finalPricingResult.grandTotal,
+                        customPricing: customPricing?.enabled ? {
+                          enabled: true,
+                          structurePrice: customPricing.structurePrice,
+                          installationPrice: customPricing.installationPrice
+                        } : undefined
                       };
 
                       const uiUserType: string | undefined = userInfo?.userType;
