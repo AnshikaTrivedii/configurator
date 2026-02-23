@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Product, CabinetGrid } from '../types';
+import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
 
 interface ProductSidebarProps {
   selectedProduct: Product | undefined;
@@ -259,12 +260,16 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
             {controllerSelection && (
               <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
                 <div className="text-xs text-blue-800 space-y-1">
-                  {controllerSelection.selectedController.inputs !== undefined && controllerSelection.selectedController.inputs > 0 && (
-                    <div><strong>Input Connectors:</strong> {controllerSelection.selectedController.inputs}</div>
-                  )}
-                  {controllerSelection.selectedController.outputs !== undefined && controllerSelection.selectedController.outputs > 0 && (
-                    <div><strong>Output Connectors:</strong> {controllerSelection.selectedController.outputs}</div>
-                  )}
+                  {(() => {
+                    const desc = getConnectorDescriptions(controllerSelection.selectedController.name);
+                    return (<>
+                      <div><strong>Input Connectors:</strong> {desc.inputConnectors}</div>
+                      <div><strong>Ethernet Output:</strong> {desc.ethernetOutput}</div>
+                      {desc.opticalFiberOutput && (
+                        <div><strong>Optical Fiber Output:</strong> {desc.opticalFiberOutput}</div>
+                      )}
+                    </>);
+                  })()}
                   {controllerSelection.selectedController.maxResolution && (
                     <div><strong>Max Resolution:</strong> {controllerSelection.selectedController.maxResolution}</div>
                   )}

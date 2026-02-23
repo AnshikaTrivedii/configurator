@@ -1578,15 +1578,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                             <span className="text-sm font-medium text-gray-600">Product Price:</span>
                             <span className="font-semibold text-gray-900 text-sm">₹{getPriceForUserType()?.toLocaleString('en-IN')}</span>
                           </div>
-                          {processor && processorPrices[processor] && (
+                          {processor && (
                             <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
                               <span className="text-sm font-medium text-gray-600">Processor Price:</span>
-                              <span className="font-semibold text-gray-900 text-sm">₹{(() => {
-                                const userType = getUserType();
-                                if (userType === 'siChannel') return processorPrices[processor].siChannel;
-                                if (userType === 'reseller') return processorPrices[processor].reseller;
-                                return processorPrices[processor].endUser;
-                              })().toLocaleString('en-IN')}</span>
+                              <span className="font-semibold text-gray-900 text-sm">₹{getProcessorPrice(processor, getUserType()).toLocaleString('en-IN')}</span>
                             </div>
                           )}
                           {totalPrice && (

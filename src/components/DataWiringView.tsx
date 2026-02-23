@@ -15,6 +15,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Product, CabinetGrid } from '../types';
 import { useControllerSelection } from '../hooks/useControllersSelection';
+import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
 import { toPng, toJpeg, toSvg } from 'html-to-image';
 import download from 'downloadjs';
 import jsPDF from 'jspdf';
@@ -854,16 +855,22 @@ const DataWiringView: React.FC<Props> = ({ product, cabinetGrid, redundancyEnabl
             <strong>Selected:</strong> {internalControllerSelection.selectedController.name}
           </div>
 
-          {internalControllerSelection.selectedController.inputs !== undefined && internalControllerSelection.selectedController.inputs > 0 && (
-            <div style={{ marginBottom: '4px' }}>
-              <strong>Input Connectors:</strong> {internalControllerSelection.selectedController.inputs}
-            </div>
-          )}
-          {internalControllerSelection.selectedController.outputs !== undefined && internalControllerSelection.selectedController.outputs > 0 && (
-            <div style={{ marginBottom: '4px' }}>
-              <strong>Output Connectors:</strong> {internalControllerSelection.selectedController.outputs}
-            </div>
-          )}
+          {(() => {
+            const desc = getConnectorDescriptions(internalControllerSelection.selectedController.name);
+            return (<>
+              <div style={{ marginBottom: '4px' }}>
+                <strong>Input Connectors:</strong> {desc.inputConnectors}
+              </div>
+              <div style={{ marginBottom: '4px' }}>
+                <strong>Ethernet Output:</strong> {desc.ethernetOutput}
+              </div>
+              {desc.opticalFiberOutput && (
+                <div style={{ marginBottom: '4px' }}>
+                  <strong>Optical Fiber Output:</strong> {desc.opticalFiberOutput}
+                </div>
+              )}
+            </>);
+          })()}
           {internalControllerSelection.selectedController.maxResolution && (
             <div style={{ marginBottom: '4px' }}>
               <strong>Max Resolution:</strong> {internalControllerSelection.selectedController.maxResolution}

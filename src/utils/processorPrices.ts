@@ -5,121 +5,146 @@
  * All files MUST import from this configuration to ensure price consistency
  * between PDF generation, database storage, and dashboard display.
  * 
- * Prices are based on the official pricing spreadsheet provided.
+ * Prices are based on the official pricing spreadsheet (Feb 2026).
+ * 
+ * User type mapping:
+ *   "End User"           → endUser
+ *   "SI/Channel Partner"  → si
+ *   "Reseller"           → reseller
  * 
  * DO NOT modify processor prices anywhere else in the codebase.
  * All changes must be made here only.
  */
 
 export interface ProcessorPrice {
+  pixelCapacity: string;
   endUser: number;
+  si: number;
   reseller: number;
-  channel: number;
 }
 
 export const PROCESSOR_PRICES: Record<string, ProcessorPrice> = {
-
-  'TB2': { 
-    endUser: 35000, 
-    reseller: 29800, 
-    channel: 31500 
+  'VX1': {
+    pixelCapacity: '1.3M',
+    endUser: 35000,
+    si: 33200,
+    reseller: 31600,
   },
-  'TB40': { 
-    endUser: 35000, 
-    reseller: 29800, 
-    channel: 31500 
+  'TB40': {
+    pixelCapacity: '1.3M',
+    endUser: 35000,
+    si: 33200,
+    reseller: 31600,
   },
-  'TB60': { 
-    endUser: 51000, 
-    reseller: 43350, 
-    channel: 45900 
+  'TB60': {
+    pixelCapacity: '2.3M',
+    endUser: 51000,
+    si: 48400,
+    reseller: 46000,
   },
-
-  'VX1': { 
-    endUser: 35000, 
-    reseller: 29800, 
-    channel: 31500 
+  'VX400': {
+    pixelCapacity: '2.6M',
+    endUser: 90000,
+    si: 85500,
+    reseller: 81200,
   },
-  'VX400': { 
-    endUser: 90000, 
-    reseller: 76500, 
-    channel: 81000 
+  'VX400 Pro': {
+    pixelCapacity: '2.6M',
+    endUser: 98000,
+    si: 93100,
+    reseller: 88400,
   },
-  'VX400 Pro': { 
-    endUser: 98000, 
-    reseller: 83300, 
-    channel: 88200 
+  'VX600': {
+    pixelCapacity: '3.9M',
+    endUser: 105000,
+    si: 99700,
+    reseller: 94800,
   },
-  'VX600': { 
-    endUser: 105000, 
-    reseller: 89250, 
-    channel: 94500 
+  'VX600 Pro': {
+    pixelCapacity: '3.9M',
+    endUser: 115000,
+    si: 109200,
+    reseller: 103800,
   },
-  'VX600 Pro': { 
-    endUser: 115000, 
-    reseller: 97750, 
-    channel: 103500 
+  'VX1000': {
+    pixelCapacity: '6.5M',
+    endUser: 157500,
+    si: 149600,
+    reseller: 142100,
   },
-  'VX1000': { 
-    endUser: 157500, 
-    reseller: 133875, 
-    channel: 141750 
+  'VX1000 Pro': {
+    pixelCapacity: '6.5M',
+    endUser: 168000,
+    si: 159600,
+    reseller: 151600,
   },
-  'VX1000 Pro': { 
-    endUser: 168000, 
-    reseller: 142800, 
-    channel: 151200 
+  'VX16S': {
+    pixelCapacity: '10M',
+    endUser: 315000,
+    si: 299200,
+    reseller: 284300,
   },
-  'VX16S': { 
-    endUser: 315000, 
-    reseller: 267750, 
-    channel: 283500 
+  'VX2000 Pro': {
+    pixelCapacity: '13M',
+    endUser: 337500,
+    si: 320600,
+    reseller: 304600,
   },
-  'VX2000pro': { 
-    endUser: 337500, 
-    reseller: 286875, 
-    channel: 303750 
+  'TU15 Pro': {
+    pixelCapacity: '2.6M',
+    endUser: 51000,
+    si: 48400,
+    reseller: 46000,
   },
-  'TU15PRO': { 
-    endUser: 51000, 
-    reseller: 43350, 
-    channel: 45900 
+  'TU20 Pro': {
+    pixelCapacity: '3.9M',
+    endUser: 72000,
+    si: 68400,
+    reseller: 65000,
   },
-  'TU20PRO': { 
-    endUser: 72000, 
-    reseller: 61200, 
-    channel: 64800 
-  },
-  'TU4k pro': { 
-    endUser: 290500, 
-    reseller: 246925, 
-    channel: 261450 
+  'TU4K Pro': {
+    pixelCapacity: '13M',
+    endUser: 290500,
+    si: 276000,
+    reseller: 262200,
   },
 };
 
+const normalize = (name: string): string => name.toLowerCase().replace(/\s+/g, '');
+
+const normalizedPriceMap: Record<string, ProcessorPrice> = Object.fromEntries(
+  Object.entries(PROCESSOR_PRICES).map(([key, value]) => [normalize(key), value])
+);
+
 /**
- * Get processor price based on user type
+ * Get processor price based on user type.
+ * Uses case-insensitive, space-agnostic lookup.
+ * 
  * @param processorName - The processor model name
- * @param userType - The user type ('End User', 'Reseller', 'Channel')
+ * @param userType - 'End User', 'Reseller', 'Channel', 'SI', or 'SI/Channel Partner'
  * @returns The processor price for the given user type, or 0 if not found
  */
 export function getProcessorPrice(processorName: string, userType: string): number {
-  const processor = PROCESSOR_PRICES[processorName];
+  const processor = normalizedPriceMap[normalize(processorName)];
   if (!processor) {
-
+    console.warn(`Processor price not found for: "${processorName}"`);
     return 0;
   }
 
-  let price = 0;
-  if (userType === 'Reseller') {
-    price = processor.reseller;
-  } else if (userType === 'Channel') {
-    price = processor.channel;
-  } else {
-    price = processor.endUser;
-  }
+  const normalizedType = userType.toLowerCase().trim();
 
-  return price;
+  if (normalizedType === 'reseller') {
+    return processor.reseller;
+  } else if (
+    normalizedType === 'channel' ||
+    normalizedType === 'si' ||
+    normalizedType === 'si/channel partner' ||
+    normalizedType === 'si/channel'
+  ) {
+    return processor.si;
+  } else {
+    return processor.endUser;
+  }
 }
 
 /**
@@ -127,13 +152,13 @@ export function getProcessorPrice(processorName: string, userType: string): numb
  */
 export function validateProcessorPricing(): { isValid: boolean; missing: string[] } {
   const requiredProcessors = [
-    'TB2', 'TB40', 'TB60', 'VX1', 'VX400', 'VX400 Pro', 
-    'VX600', 'VX600 Pro', 'VX1000', 'VX1000 Pro', 'VX16S', 
-    'VX2000pro', 'TU15PRO', 'TU20PRO', 'TU4k pro'
+    'TB40', 'TB60', 'VX1', 'VX400', 'VX400 Pro',
+    'VX600', 'VX600 Pro', 'VX1000', 'VX1000 Pro', 'VX16S',
+    'VX2000 Pro', 'TU15 Pro', 'TU20 Pro', 'TU4K Pro'
   ];
-  
-  const missing = requiredProcessors.filter(processor => !PROCESSOR_PRICES[processor]);
-  
+
+  const missing = requiredProcessors.filter(p => !normalizedPriceMap[normalize(p)]);
+
   return {
     isValid: missing.length === 0,
     missing

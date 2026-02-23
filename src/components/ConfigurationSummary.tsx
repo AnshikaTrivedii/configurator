@@ -2,6 +2,7 @@ import React from 'react';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { Ruler, Zap, Move3d, Monitor, Boxes, Square, Maximize2 } from 'lucide-react';
 import { getControllerPdfUrl } from '../utils/controllerPdfMap';
+import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
 
 // Processor specifications - matches DisplayConfigurator.tsx
 const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
@@ -381,18 +382,22 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             )}
           </div>
           {/* Processor Specifications */}
-          {processor && PROCESSOR_SPECS[processor] && (
-            <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              {PROCESSOR_SPECS[processor].inputs !== undefined && PROCESSOR_SPECS[processor].inputs! > 0 && (
+          {processor && PROCESSOR_SPECS[processor] && (() => {
+            const connectorDesc = getConnectorDescriptions(processor);
+            return (
+            <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">Input Connectors</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">{connectorDesc.inputConnectors}</div>
+              </div>
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">Ethernet Output</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">{connectorDesc.ethernetOutput}</div>
+              </div>
+              {connectorDesc.opticalFiberOutput && (
                 <div className="bg-white rounded-lg p-2 sm:p-3">
-                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Input Connectors</div>
-                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{PROCESSOR_SPECS[processor].inputs}</div>
-                </div>
-              )}
-              {PROCESSOR_SPECS[processor].outputs !== undefined && PROCESSOR_SPECS[processor].outputs! > 0 && (
-                <div className="bg-white rounded-lg p-2 sm:p-3">
-                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Output Connectors</div>
-                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{PROCESSOR_SPECS[processor].outputs}</div>
+                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Optical Fiber Output</div>
+                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{connectorDesc.opticalFiberOutput}</div>
                 </div>
               )}
               {PROCESSOR_SPECS[processor].maxResolution && (
@@ -408,7 +413,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
           {processor && (
             <div style={{ marginTop: '15px', display: 'flex', justifyContent: 'flex-end' }}>
               <button
