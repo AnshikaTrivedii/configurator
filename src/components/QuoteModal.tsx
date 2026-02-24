@@ -121,11 +121,11 @@ function calculateCorrectTotalPrice(
 
   }
 
-  const gstProduct = subtotal * 0.18;
-  const totalProduct = subtotal + gstProduct;
+  const gstProduct = 0;
+  const totalProduct = subtotal;
 
-  const gstProcessor = processorPrice * 0.18;
-  const totalProcessor = processorPrice + gstProcessor;
+  const gstProcessor = 0;
+  const totalProcessor = processorPrice;
 
   const widthInMeters = config.width / 1000;
   const heightInMeters = config.height / 1000;
@@ -154,11 +154,11 @@ function calculateCorrectTotalPrice(
     installationBasePrice = screenAreaSqFt * 500;
   }
 
-  const structureGST = structureBasePrice * 0.18;
-  const totalStructure = structureBasePrice + structureGST;
+  const structureGST = 0;
+  const totalStructure = structureBasePrice;
 
-  const installationGST = installationBasePrice * 0.18;
-  const totalInstallation = installationBasePrice + installationGST;
+  const installationGST = 0;
+  const totalInstallation = installationBasePrice;
 
   const grandTotal = totalProduct + totalProcessor + totalStructure + totalInstallation;
 
@@ -539,13 +539,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         }
 
         const subtotal = unitPrice * quantity;
-        const gstProduct = subtotal * 0.18;
+        const gstProduct = 0;
 
         let processorPrice = 0;
         if (processor && !isJumboSeriesProduct(selectedProduct as any)) {
           processorPrice = getProcessorPrice(processor, pdfUserType);
         }
-        const gstProcessor = processorPrice * 0.18;
+        const gstProcessor = 0;
 
         let structureBasePrice = 0;
         let installationBasePrice = 0;
@@ -568,32 +568,32 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           installationBasePrice = screenAreaSqFt * 500;
         }
 
-        const structureGST = structureBasePrice * 0.18;
-        const totalStructure = structureBasePrice + structureGST;
-        const installationGST = installationBasePrice * 0.18;
-        const totalInstallation = installationBasePrice + installationGST;
+        const structureGST = 0;
+        const totalStructure = structureBasePrice;
+        const installationGST = 0;
+        const totalInstallation = installationBasePrice;
 
         const breakdown = {
           unitPrice,
           quantity,
           subtotal: subtotal,
           gstRate: 18,
-          gstAmount: gstProduct, // legacy field
+          gstAmount: 0,
           productSubtotal: subtotal,
-          productGST: gstProduct,
-          productTotal: subtotal + gstProduct,
+          productGST: 0,
+          productTotal: subtotal,
 
           processorPrice,
-          processorGst: gstProcessor, // legacy field
-          processorGST: gstProcessor,
-          processorTotal: processorPrice + gstProcessor,
+          processorGst: 0,
+          processorGST: 0,
+          processorTotal: processorPrice,
 
           structureCost: structureBasePrice,
-          structureGST: structureGST,
+          structureGST: 0,
           structureTotal: totalStructure,
 
           installationCost: installationBasePrice,
-          installationGST: installationGST,
+          installationGST: 0,
           installationTotal: totalInstallation,
 
           grandTotal: Math.round(newTotalPrice)

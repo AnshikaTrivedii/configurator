@@ -264,16 +264,16 @@ export function calculateCentralizedPricing(
 
     const roundedQuantity = Math.round(quantity * 100) / 100;
     const productSubtotal = Math.round((unitPrice * roundedQuantity) * 100) / 100;
-    const productGST = Math.round((productSubtotal * 0.18) * 100) / 100;
-    const productTotal = Math.round((productSubtotal + productGST) * 100) / 100;
+    const productGST = 0;
+    const productTotal = productSubtotal;
 
     let processorPrice = 0;
     if (processor && !isJumboSeriesProduct(product)) {
       processorPrice = getProcessorPrice(processor, pdfUserType);
     }
 
-    const processorGST = Math.round((processorPrice * 0.18) * 100) / 100;
-    const processorTotal = Math.round((processorPrice + processorGST) * 100) / 100;
+    const processorGST = 0;
+    const processorTotal = processorPrice;
 
     const METERS_TO_FEET = 3.2808399;
     const widthInMeters = config.width / 1000;
@@ -296,11 +296,11 @@ export function calculateCentralizedPricing(
       installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 500);
     }
 
-    const structureGST = Math.round((structureBasePrice * 0.18) * 100) / 100;
-    const structureTotal = Math.round((structureBasePrice + structureGST) * 100) / 100;
+    const structureGST = 0;
+    const structureTotal = structureBasePrice;
 
-    const installationGST = Math.round((installationBasePrice * 0.18) * 100) / 100;
-    const installationTotal = Math.round((installationBasePrice + installationGST) * 100) / 100;
+    const installationGST = 0;
+    const installationTotal = installationBasePrice;
 
     const grandTotal = Math.round(productTotal + processorTotal + structureTotal + installationTotal);
 
@@ -339,8 +339,8 @@ export function calculateCentralizedPricing(
       unitPrice: 5300,
       quantity: 1,
       productSubtotal: 5300,
-      productGST: 954,
-      productTotal: 6254,
+      productGST: 0,
+      productTotal: 5300,
       processorPrice: 0,
       processorGST: 0,
       processorTotal: 0,

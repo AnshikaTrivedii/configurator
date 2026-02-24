@@ -85,13 +85,6 @@ export const generateConfigurationDocx = async (
     processorPrice?: number;
     processorGst?: number;
     grandTotal?: number;
-    structureCost?: number;
-    installationCost?: number;
-    customPricing?: {
-      enabled: boolean;
-      structurePrice: number | null;
-      installationPrice: number | null;
-    };
     discount?: {
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
@@ -281,7 +274,11 @@ export const generateConfigurationHtml = (
     processorGst?: number;
     grandTotal?: number;
     structureCost?: number;
+    structureGST?: number;
+    structureTotal?: number;
     installationCost?: number;
+    installationGST?: number;
+    installationTotal?: number;
     customPricing?: {
       enabled: boolean;
       structurePrice: number | null;
@@ -408,14 +405,14 @@ export const generateConfigurationHtml = (
 
   let safeQuantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
   let subtotal = unitPrice * safeQuantity;
-  let gstProduct = subtotal * 0.18;
+  let gstProduct = 0;
 
   let controllerPrice = 0;
   if (processor && !isJumboSeries) {
 
     controllerPrice = getProcessorPrice(processor, userInfo?.userType || 'End User');
   }
-  let gstController = controllerPrice * 0.18;
+  let gstController = 0;
 
   const widthInMeters = config.width / 1000;
   const heightInMeters = config.height / 1000;
@@ -426,9 +423,14 @@ export const generateConfigurationHtml = (
   let structureBasePrice: number;
   let installationBasePrice: number;
 
-  if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
-    structureBasePrice = customPricing.structurePrice;
-    installationBasePrice = customPricing.installationPrice;
+  const effectiveCustomPricing = customPricing || exactPricingBreakdown?.customPricing;
+
+  if (exactPricingBreakdown?.structureCost !== undefined && exactPricingBreakdown?.installationCost !== undefined) {
+    structureBasePrice = exactPricingBreakdown.structureCost;
+    installationBasePrice = exactPricingBreakdown.installationCost;
+  } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.structurePrice !== null && effectiveCustomPricing.installationPrice !== null) {
+    structureBasePrice = effectiveCustomPricing.structurePrice;
+    installationBasePrice = effectiveCustomPricing.installationPrice;
   } else {
 
     const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
@@ -443,15 +445,15 @@ export const generateConfigurationHtml = (
     installationBasePrice = screenAreaSqFt * 500;
   }
 
-  let structureGST = structureBasePrice * 0.18;
-  let installationGST = installationBasePrice * 0.18;
+  const structureGST = 0;
+  const installationGST = 0;
 
   if (exactPricingBreakdown) {
 
     if (exactPricingBreakdown.unitPrice !== undefined) unitPrice = exactPricingBreakdown.unitPrice;
     if (exactPricingBreakdown.quantity !== undefined) {
       quantity = exactPricingBreakdown.quantity;
-      safeQuantity = quantity;
+      safeQuantity = quantity; // Update safeQuantity to match
     }
 
     if (exactPricingBreakdown.subtotal !== undefined) subtotal = exactPricingBreakdown.subtotal;
@@ -461,27 +463,6 @@ export const generateConfigurationHtml = (
     if (exactPricingBreakdown.processorPrice !== undefined) controllerPrice = exactPricingBreakdown.processorPrice;
     if (exactPricingBreakdown.processorGst !== undefined) gstController = exactPricingBreakdown.processorGst;
 
-    if (exactPricingBreakdown.structureCost !== undefined) {
-      structureBasePrice = exactPricingBreakdown.structureCost;
-    } else if (exactPricingBreakdown.customPricing?.enabled &&
-               exactPricingBreakdown.customPricing.structurePrice !== null) {
-      structureBasePrice = exactPricingBreakdown.customPricing.structurePrice;
-    }
-
-    if (exactPricingBreakdown.installationCost !== undefined) {
-      installationBasePrice = exactPricingBreakdown.installationCost;
-    } else if (exactPricingBreakdown.customPricing?.enabled &&
-               exactPricingBreakdown.customPricing.installationPrice !== null) {
-      installationBasePrice = exactPricingBreakdown.customPricing.installationPrice;
-    }
-
-    structureGST = structureBasePrice * 0.18;
-    installationGST = installationBasePrice * 0.18;
-
-    if (!customPricing && exactPricingBreakdown.customPricing?.enabled) {
-      customPricing = exactPricingBreakdown.customPricing;
-    }
-
     if (exactPricingBreakdown.discount) {
 
       const discountedProductTotal = exactPricingBreakdown.discount.discountedProductTotal;
@@ -489,54 +470,44 @@ export const generateConfigurationHtml = (
       const discountedGrandTotal = exactPricingBreakdown.discount.discountedGrandTotal;
 
       if (discountedProductTotal !== undefined) {
-
-        const originalSubtotal = subtotal;
-        const originalGstProduct = gstProduct;
-
-        subtotal = Math.round((discountedProductTotal / 1.18) * 100) / 100;
-        gstProduct = Math.round((subtotal * 0.18) * 100) / 100;
+        subtotal = discountedProductTotal;
+        gstProduct = 0;
         totalProduct = discountedProductTotal;
-
       } else {
-        totalProduct = subtotal + gstProduct;
+        totalProduct = subtotal;
       }
 
       if (discountedProcessorTotal !== undefined) {
-        const originalControllerPrice = controllerPrice;
-        const originalGstController = gstController;
-
-        controllerPrice = Math.round((discountedProcessorTotal / 1.18) * 100) / 100;
-        gstController = Math.round((controllerPrice * 0.18) * 100) / 100;
+        controllerPrice = discountedProcessorTotal;
+        gstController = 0;
         totalController = discountedProcessorTotal;
-
       } else {
-        totalController = controllerPrice + gstController;
+        totalController = controllerPrice;
       }
 
       grandTotal = discountedGrandTotal || exactPricingBreakdown.grandTotal || 0;
 
     } else {
 
-      totalProduct = subtotal + gstProduct;
-      totalController = controllerPrice + gstController;
+      totalProduct = subtotal;
+      totalController = controllerPrice;
 
       if (exactPricingBreakdown.grandTotal) {
         grandTotal = exactPricingBreakdown.grandTotal;
       } else {
-
-        grandTotal = totalProduct + totalController + structureBasePrice + structureGST + installationBasePrice + installationGST;
+        grandTotal = totalProduct + totalController + structureBasePrice + installationBasePrice;
       }
     }
 
-    totalStructure = structureBasePrice + structureGST;
-    totalInstallation = installationBasePrice + installationGST;
+    totalStructure = exactPricingBreakdown.structureTotal ?? structureBasePrice;
+    totalInstallation = exactPricingBreakdown.installationTotal ?? installationBasePrice;
 
   } else {
 
-    totalProduct = subtotal + gstProduct;
-    totalController = controllerPrice + gstController;
-    totalStructure = structureBasePrice + structureGST;
-    totalInstallation = installationBasePrice + installationGST;
+    totalProduct = subtotal;
+    totalController = controllerPrice;
+    totalStructure = structureBasePrice;
+    totalInstallation = installationBasePrice;
 
     grandTotal = totalProduct + totalController + totalStructure + totalInstallation;
   }
@@ -555,6 +526,8 @@ export const generateConfigurationHtml = (
     }
     return s;
   };
+
+  const GST_RATE = '18%';
 
   const html = `
     <!DOCTYPE html>
@@ -865,8 +838,8 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(subtotal)}</span>
                             </div>
                             <div class="quotation-row">
-                                <span class="quotation-label">GST (18%):</span>
-                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(gstProduct)}</span>
+                                <span class="quotation-label">GST</span>
+                                <span class="quotation-value" style="color: #333; font-weight: 700;">${GST_RATE}</span>
                             </div>
                             <div class="quotation-total-row" style="margin-top: auto;">
                                 <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 4px 2px; border-bottom: none;">
@@ -924,8 +897,8 @@ export const generateConfigurationHtml = (
                                     <span class="quotation-value" style="font-size: 10px; font-weight: 700;">₹${formatIndianNumber(controllerPrice)}</span>
                             </div>
                                 <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
-                                    <span class="quotation-label" style="font-size: 10px;">GST (18%):</span>
-                                    <span class="quotation-value" style="font-size: 10px; color: #dc3545; font-weight: 700;">₹${formatIndianNumber(gstController)}</span>
+                                    <span class="quotation-label" style="font-size: 10px;">GST</span>
+                                    <span class="quotation-value" style="font-size: 10px; color: #333; font-weight: 700;">${GST_RATE}</span>
                             </div>
                             </div>
                             <div class="quotation-total-row" style="padding: 5px 6px; margin-top: auto; min-height: 35px;">
@@ -957,17 +930,14 @@ export const generateConfigurationHtml = (
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Base Cost:</span>
-                                <span class="quotation-value" style="font-weight: 700;">${(customPricing?.enabled && structureBasePrice === 0)
+                                <span class="quotation-value" style="font-weight: 700;">${(effectiveCustomPricing?.enabled && structureBasePrice === 0)
       ? "In Client Scope"
       : "₹" + formatIndianNumber(structureBasePrice)
     }</span>
                             </div>
                             <div class="quotation-row">
-                                <span class="quotation-label">GST (18%):</span>
-                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">${(customPricing?.enabled && structureBasePrice === 0)
-      ? "N/A"
-      : "₹" + formatIndianNumber(structureGST)
-    }</span>
+                                <span class="quotation-label">GST</span>
+                                <span class="quotation-value" style="color: #333; font-weight: 700;">${GST_RATE}</span>
                             </div>
                         </div>
                     </div>
@@ -982,17 +952,14 @@ export const generateConfigurationHtml = (
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Base Cost:</span>
-                                <span class="quotation-value" style="font-weight: 700;">${(customPricing?.enabled && installationBasePrice === 0)
+                                <span class="quotation-value" style="font-weight: 700;">${(effectiveCustomPricing?.enabled && installationBasePrice === 0)
       ? "In Client Scope"
       : "₹" + formatIndianNumber(installationBasePrice)
     }</span>
                             </div>
                             <div class="quotation-row">
-                                <span class="quotation-label">GST (18%):</span>
-                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">${(customPricing?.enabled && installationBasePrice === 0)
-      ? "N/A"
-      : "₹" + formatIndianNumber(installationGST)
-    }</span>
+                                <span class="quotation-label">GST</span>
+                                <span class="quotation-value" style="color: #333; font-weight: 700;">${GST_RATE}</span>
                             </div>
                         </div>
                     </div>
@@ -1120,7 +1087,11 @@ export const generateConfigurationPdf = async (
     processorGst?: number;
     grandTotal?: number;
     structureCost?: number;
+    structureGST?: number;
+    structureTotal?: number;
     installationCost?: number;
+    installationGST?: number;
+    installationTotal?: number;
     customPricing?: {
       enabled: boolean;
       structurePrice: number | null;
@@ -1301,7 +1272,11 @@ export const generateAlternatePdf = async (
     processorGst?: number;
     grandTotal?: number;
     structureCost?: number;
+    structureGST?: number;
+    structureTotal?: number;
     installationCost?: number;
+    installationGST?: number;
+    installationTotal?: number;
     customPricing?: {
       enabled: boolean;
       structurePrice: number | null;

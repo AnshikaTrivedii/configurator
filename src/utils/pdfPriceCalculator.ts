@@ -203,12 +203,12 @@ export function calculatePricingBreakdown(
       unitPrice: 5300,
       quantity: 1,
       productSubtotal: 5300,
-      productGST: 954,
-      productTotal: 6254,
+      productGST: 0,
+      productTotal: 5300,
       processorPrice: 0,
       processorGST: 0,
       processorTotal: 0,
-      grandTotal: 6254,
+      grandTotal: 5300,
       userType: 'End User',
       productName: product.name
     };

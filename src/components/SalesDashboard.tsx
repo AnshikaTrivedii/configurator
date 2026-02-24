@@ -252,7 +252,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             location: salesPerson.location
           } : null,
           quotation.quotationId,
-          quotation.quotationData?.customPricing,
+          quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
           quotation.exactPricingBreakdown
         );
 
@@ -341,7 +341,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
 
       // Generate alternate PDF with only pages 1, 6, and 7
       const { generateAlternatePdf } = await import('../utils/docxGenerator');
-
+      
       const pdfBlob = await generateAlternatePdf(
         config,
         product,
@@ -356,7 +356,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           location: salesPerson.location
         } : null,
         quotation.quotationId,
-        quotation.quotationData?.customPricing,
+        quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
         quotation.exactPricingBreakdown
       );
 
