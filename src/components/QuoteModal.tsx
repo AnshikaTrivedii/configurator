@@ -136,21 +136,19 @@ function calculateCorrectTotalPrice(
   let structureBasePrice: number;
   let installationBasePrice: number;
 
-  if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
-
+  const normalizedEnv = product.environment?.toLowerCase().trim();
+  if (customPricing?.enabled && customPricing.structurePrice !== null) {
     structureBasePrice = customPricing.structurePrice;
+  } else if (normalizedEnv === 'indoor') {
+    const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+    structureBasePrice = numberOfCabinets * 4000;
+  } else {
+    structureBasePrice = screenAreaSqFt * 2500;
+  }
+
+  if (customPricing?.enabled && customPricing.installationPrice !== null) {
     installationBasePrice = customPricing.installationPrice;
   } else {
-
-    const normalizedEnv = product.environment?.toLowerCase().trim();
-    if (normalizedEnv === 'indoor') {
-
-      const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-      structureBasePrice = numberOfCabinets * 4000;
-    } else {
-
-      structureBasePrice = screenAreaSqFt * 2500;
-    }
     installationBasePrice = screenAreaSqFt * 500;
   }
 
@@ -484,7 +482,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
         const configForCalc = config || { width: 2400, height: 1010, unit: 'mm' };
 
-        const customPricingObj = customPricingEnabled && customStructurePrice !== null && customInstallationPrice !== null
+        const customPricingObj = customPricingEnabled && (customStructurePrice !== null || customInstallationPrice !== null)
           ? {
             enabled: true,
             structurePrice: customStructurePrice,
@@ -550,21 +548,23 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         let structureBasePrice = 0;
         let installationBasePrice = 0;
 
-        if (customPricingObj?.enabled) {
-          structureBasePrice = customPricingObj.structurePrice || 0;
-          installationBasePrice = customPricingObj.installationPrice || 0;
-        } else {
-          const METERS_TO_FEET = 3.2808399;
-          const widthInMeters = configForCalc.width / 1000;
-          const heightInMeters = configForCalc.height / 1000;
-          const screenAreaSqFt = Math.round((widthInMeters * METERS_TO_FEET * heightInMeters * METERS_TO_FEET) * 100) / 100;
+        const METERS_TO_FEET = 3.2808399;
+        const widthInMeters = configForCalc.width / 1000;
+        const heightInMeters = configForCalc.height / 1000;
+        const screenAreaSqFt = Math.round((widthInMeters * METERS_TO_FEET * heightInMeters * METERS_TO_FEET) * 100) / 100;
 
-          if (selectedProduct.environment?.toLowerCase().trim() === 'indoor') {
-            const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-            structureBasePrice = numberOfCabinets * 4000;
-          } else {
-            structureBasePrice = screenAreaSqFt * 2500;
-          }
+        if (customPricingObj?.enabled && customPricingObj.structurePrice !== null) {
+          structureBasePrice = customPricingObj.structurePrice;
+        } else if (selectedProduct.environment?.toLowerCase().trim() === 'indoor') {
+          const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+          structureBasePrice = numberOfCabinets * 4000;
+        } else {
+          structureBasePrice = screenAreaSqFt * 2500;
+        }
+
+        if (customPricingObj?.enabled && customPricingObj.installationPrice !== null) {
+          installationBasePrice = customPricingObj.installationPrice;
+        } else {
           installationBasePrice = screenAreaSqFt * 500;
         }
 
@@ -884,7 +884,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
           const configForCalc = config || { width: 2400, height: 1010, unit: 'mm' };
 
-          const customPricingObj = customPricingEnabled && customStructurePrice !== null && customInstallationPrice !== null
+          const customPricingObj = customPricingEnabled && (customStructurePrice !== null || customInstallationPrice !== null)
             ? {
               enabled: true,
               structurePrice: customStructurePrice,
