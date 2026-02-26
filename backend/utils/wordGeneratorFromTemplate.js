@@ -203,9 +203,13 @@ const createQuotationContent = (data) => {
     structureBasePrice = customPricing.structurePrice;
     installationBasePrice = customPricing.installationPrice;
   } else {
-    // Structure Price: Indoor = ₹4000 per cabinet, Outdoor = ₹2500 per sq.ft
+    // Structure Price: Module/Grid Series = per ft² (700 or 600), Indoor = ₹4000 per cabinet, Outdoor = ₹2500 per sq.ft
     const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
-    if (normalizedEnv === 'indoor') {
+    if (selectedProduct.category === 'Module/ Grid Series') {
+      const normalized = userType === 'Reseller' ? 'Reseller' : (userType === 'Channel' || userType === 'SI/Channel Partner' ? 'Channel' : 'End User');
+      const structurePerSqFt = normalized === 'Reseller' ? 600 : 700;
+      structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
+    } else if (normalizedEnv === 'indoor') {
       // Indoor: ₹4000 per cabinet
       const numberOfCabinets = cabinetGrid.columns * cabinetGrid.rows;
       structureBasePrice = numberOfCabinets * 4000;
@@ -428,7 +432,7 @@ const createQuotationContent = (data) => {
               }),
               new Paragraph({
                 children: [
-                  new TextRun({ text: `Cabinet Dimension: ${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm`, size: 20 }),
+                  new TextRun({ text: `${selectedProduct.category === 'Module/ Grid Series' ? 'Module Dimension' : 'Cabinet Dimension'}: ${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm`, size: 20 }),
                 ],
                 spacing: { after: 80 },
               }),

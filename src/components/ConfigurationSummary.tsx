@@ -76,6 +76,9 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
     selectedProduct.name?.toLowerCase().includes('jumbo series');
 
+  const isModuleGridSeries = selectedProduct.category === 'Module/ Grid Series';
+  const useModuleTerminology = isJumboSeries || isModuleGridSeries;
+
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
   const MM_TO_FEET = 1 / FEET_TO_MM;
 
@@ -165,7 +168,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             </div>
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">
-                {isJumboSeries ? 'Number of Modules' : 'Number of Cabinets'}
+                {useModuleTerminology ? 'Number of Modules' : 'Number of Cabinets'}
               </h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-amber-700 break-words">
                 {cabinetGrid.columns * cabinetGrid.rows} ({cabinetGrid.columns} × {cabinetGrid.rows})

@@ -2529,6 +2529,113 @@ export const products: Product[] = [
     scanMode: 'Static',
     pixelComposition: 'SMD1921'
   },
+
+  // Module/ Grid Series (Indoor, 320×160mm module only — no cabinet size)
+  {
+    id: 'orion-module-grid-p18',
+    name: 'Module/ Grid Series SMD P1.8',
+    category: 'Module/ Grid Series',
+    enabled: true,
+    image: '/products/module series/Module Grid Series P1.8.png.jpeg',
+    resolution: { width: 172, height: 86 }, // 320/1.86, 160/1.86
+    cabinetDimensions: { width: 320, height: 160 }, // Module size only (no separate cabinet)
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 172, height: 86 },
+    moduleQuantity: 1,
+    pixelPitch: 1.86,
+    pixelDensity: 284444,
+    brightness: 800,
+    refreshRate: 3840,
+    environment: 'Indoor',
+    maxPowerConsumption: 650,
+    avgPowerConsumption: 225,
+    weightPerCabinet: 0, // Cabinet size not included for this series
+    viewingAngle: '140/140',
+    colorDepth: '14 Bit',
+    voltage: '220v',
+    serviceAccess: 'Front',
+    ipGrade: '31/31',
+    operatingTemperature: '0°C~+50°C',
+    operatingHumidity: '0-50%',
+    lifeTime: 50000,
+    mtbf: 5000,
+    price: 7800,        // per ft² — End Customer
+    siChannelPrice: 7100,  // per ft² — SI/Channel
+    resellerPrice: 6600,   // per ft² — Reseller
+    prices: {
+      cabinet: { endCustomer: 7800, siChannel: 7100, reseller: 6600 }
+    }
+  },
+  {
+    id: 'orion-module-grid-p25',
+    name: 'Module/ Grid Series SMD P2.5',
+    category: 'Module/ Grid Series',
+    enabled: true,
+    image: '/products/module series/Module Grid Series P2.5.png.jpeg',
+    resolution: { width: 128, height: 64 }, // 320/2.5, 160/2.5
+    cabinetDimensions: { width: 320, height: 160 }, // Module size only (no separate cabinet)
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 128, height: 64 },
+    moduleQuantity: 1,
+    pixelPitch: 2.5,
+    pixelDensity: 160000,
+    brightness: 900,
+    refreshRate: 3840,
+    environment: 'Indoor',
+    maxPowerConsumption: 650,
+    avgPowerConsumption: 350,
+    weightPerCabinet: 0, // Cabinet size not included for this series
+    viewingAngle: '140/140',
+    colorDepth: '14 Bit',
+    voltage: '220v',
+    serviceAccess: 'Front',
+    ipGrade: '31/31',
+    operatingTemperature: '0°C~+50°C',
+    operatingHumidity: '0-50%',
+    lifeTime: 50000,
+    mtbf: 5000,
+    price: 5100,        // per ft² — End Customer
+    siChannelPrice: 4700,  // per ft² — SI/Channel
+    resellerPrice: 4400,   // per ft² — Reseller
+    prices: {
+      cabinet: { endCustomer: 5100, siChannel: 4700, reseller: 4400 }
+    }
+  },
+  {
+    id: 'orion-module-grid-p4',
+    name: 'Module/ Grid Series SMD P4',
+    category: 'Module/ Grid Series',
+    enabled: true,
+    image: '/products/module series/Module Grid Series P4.png.jpeg',
+    resolution: { width: 80, height: 40 }, // 320/4, 160/4
+    cabinetDimensions: { width: 320, height: 160 }, // Module size only (no separate cabinet)
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 80, height: 40 },
+    moduleQuantity: 1,
+    pixelPitch: 4,
+    pixelDensity: 62500,
+    brightness: 5000,
+    refreshRate: 3840,
+    environment: 'Indoor',
+    maxPowerConsumption: 700,
+    avgPowerConsumption: 400,
+    weightPerCabinet: 0, // Cabinet size not included for this series
+    viewingAngle: '140/140',
+    colorDepth: '14 Bit',
+    voltage: '220v',
+    serviceAccess: 'Rear',
+    ipGrade: '65/54',
+    operatingTemperature: '-10°C~+65°C',
+    operatingHumidity: '0-99%',
+    lifeTime: 50000,
+    mtbf: 5000,
+    price: 4700,        // per ft² — End Customer
+    siChannelPrice: 4300,  // per ft² — SI/Channel
+    resellerPrice: 4000,   // per ft² — Reseller
+    prices: {
+      cabinet: { endCustomer: 4700, siChannel: 4300, reseller: 4000 }
+    }
+  },
 ];
 
 export const categories = Array.from(new Set(products.filter(p => p.enabled !== false).map(p => p.category)));
