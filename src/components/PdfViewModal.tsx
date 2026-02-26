@@ -5,6 +5,7 @@ import { clientAPI } from '../api/clients';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { products } from '../data/products';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
+import { getDisplayPower } from '../utils/displayPower';
 
 const triggerPdfDownload = (blob: Blob, fileName: string, setBlob?: (blob: Blob) => void, setUrl?: (url: string) => void) => {
 
@@ -561,8 +562,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       brightness: fullProduct.brightness,
       refreshRate: fullProduct.refreshRate,
       environment: fullProduct.environment,
-      maxPowerConsumption: fullProduct.maxPowerConsumption,
-      avgPowerConsumption: fullProduct.avgPowerConsumption,
+      maxPowerConsumption: cabinetGrid ? getDisplayPower(fullProduct, cabinetGrid).maxPower : fullProduct.maxPowerConsumption,
+      avgPowerConsumption: cabinetGrid ? getDisplayPower(fullProduct, cabinetGrid).avgPower : fullProduct.avgPowerConsumption,
       weightPerCabinet: fullProduct.weightPerCabinet,
 
       cabinetGrid: cabinetGrid,

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { DisplayConfig, AspectRatio, CabinetGrid, Product } from '../types';
+import { clampAndSnapDimensions, hasDimensionConstraints } from '../utils/dimensionConstraints';
 
 const aspectRatios: AspectRatio[] = [
   { label: '16:9', value: 16 / 9, name: '16:9' },
@@ -36,9 +37,18 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
       if (prev.aspectRatio !== 'None') {
         const ratio = aspectRatios.find(r => r.name === prev.aspectRatio)?.value || 1;
         const height = Math.round(width / ratio);
-        return { ...prev, width, height };
+        const next = { ...prev, width, height };
+        if (hasDimensionConstraints(selectedProduct)) {
+          const clamped = clampAndSnapDimensions(selectedProduct!, width, height);
+          return { ...next, width: clamped.width, height: clamped.height };
+        }
+        return next;
       }
 
+      if (hasDimensionConstraints(selectedProduct)) {
+        const clamped = clampAndSnapDimensions(selectedProduct!, width, prev.height);
+        return { ...prev, width: clamped.width, height: clamped.height };
+      }
       return { ...prev, width };
     });
   };
@@ -57,9 +67,18 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
       if (prev.aspectRatio !== 'None') {
         const ratio = aspectRatios.find(r => r.name === prev.aspectRatio)?.value || 1;
         const width = Math.round(height * ratio);
-        return { ...prev, width, height };
+        const next = { ...prev, width, height };
+        if (hasDimensionConstraints(selectedProduct)) {
+          const clamped = clampAndSnapDimensions(selectedProduct!, width, height);
+          return { ...next, width: clamped.width, height: clamped.height };
+        }
+        return next;
       }
 
+      if (hasDimensionConstraints(selectedProduct)) {
+        const clamped = clampAndSnapDimensions(selectedProduct!, prev.width, height);
+        return { ...prev, width: clamped.width, height: clamped.height };
+      }
       return { ...prev, height };
     });
   };
@@ -110,7 +129,10 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
   };
 
   const calculateCabinetGrid = (selectedProduct: Product | undefined): CabinetGrid => {
-    const cabinet = selectedProduct?.cabinetDimensions || defaultCabinet;
+    const c = selectedProduct?.dimensionConstraints;
+    const cabinet = c
+      ? { width: c.moduleWidth, height: c.moduleHeight }
+      : (selectedProduct?.cabinetDimensions || defaultCabinet);
 
     let columns = Math.floor(config.width / cabinet.width);
     let rows = Math.floor(config.height / cabinet.height);

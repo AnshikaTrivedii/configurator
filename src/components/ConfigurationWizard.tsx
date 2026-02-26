@@ -4,7 +4,8 @@ import { Product } from '../types';
 import { products } from '../data/products';
 import { getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistanceRange } from '../utils/viewingDistanceRanges';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
-import { normalize, getAvailablePixelPitches } from '../utils/pixelPitchRecommendation';
+import { normalize } from '../utils/pixelPitchRecommendation';
+import { getAvailablePixelPitches as getAvailablePixelPitchesFromFilter } from '../utils/productFilter';
 
 interface ConfigurationWizardProps {
   isOpen: boolean;
@@ -238,11 +239,12 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     let pitches: number[] = [];
     
     if (viewingDistance) {
-
       pitches = getPixelPitchesForViewingDistanceRange(viewingDistance, viewingDistanceUnit, environment as 'Indoor' | 'Outdoor' | null);
     } else {
-
-      pitches = getAvailablePixelPitches();
+      pitches = getAvailablePixelPitchesFromFilter({
+        enabled: true,
+        environment: environment === 'Indoor' || environment === 'Outdoor' ? environment : undefined
+      });
     }
 
     if (environment && pitches.length > 0) {

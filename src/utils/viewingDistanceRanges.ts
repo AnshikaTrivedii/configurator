@@ -25,7 +25,9 @@ export const OUTDOOR_VIEWING_DISTANCE_RANGES: ViewingDistanceRange[] = [
   { pixelPitch: 2.5,  minMeters: 2.5,  maxMeters: 3,    minFeet: 8.2, maxFeet: 9.8,  displayText: '2.5-3m (8.2-9.8ft)', environment: 'Outdoor' },
   { pixelPitch: 3,    minMeters: 2.5,  maxMeters: 3,    minFeet: 8.2, maxFeet: 9.8,  displayText: '2.5-3m (8.2-9.8ft)', environment: 'Outdoor' },
   { pixelPitch: 4,    minMeters: 4,    maxMeters: 8,    minFeet: 13.1, maxFeet: 26.2, displayText: '4-8m (13.1-26.2ft)', environment: 'Outdoor' },
+  { pixelPitch: 6,    minMeters: 4,    maxMeters: 8,    minFeet: 13.1, maxFeet: 26.2, displayText: '4-8m (13.1-26.2ft)', environment: 'Outdoor' },
   { pixelPitch: 6.6,  minMeters: 4,    maxMeters: 8,    minFeet: 13.1, maxFeet: 26.2, displayText: '4-8m (13.1-26.2ft)', environment: 'Outdoor' },
+  { pixelPitch: 6,    minMeters: 10,   maxMeters: 999,  minFeet: 32.8, maxFeet: 3278, displayText: '10m+ (32.8ft+)', environment: 'Outdoor' },
   { pixelPitch: 6.6,  minMeters: 10,   maxMeters: 999,  minFeet: 32.8, maxFeet: 3278, displayText: '10m+ (32.8ft+)', environment: 'Outdoor' },
   { pixelPitch: 10,   minMeters: 10,   maxMeters: 999,  minFeet: 32.8, maxFeet: 3278, displayText: '10m+ (32.8ft+)', environment: 'Outdoor' }
 ];

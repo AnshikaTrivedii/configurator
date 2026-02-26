@@ -6,7 +6,7 @@
  * 
  * IMPORTANT: All functions use data from /src/data/products.ts
  * - Only uses products where enabled === true
- * - Excludes: Rental, Flexible, Transparent, Jumbo products
+ * - Excludes: Rental, Flexible, Transparent products
  * - All recommendations are based on actual product data, not hardcoded values
  */
 
@@ -78,8 +78,7 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
     const category = (p.category || '').toLowerCase();
     return !category.includes('rental') && 
            !category.includes('flexible') && 
-           !category.includes('transparent') && 
-           !category.includes('jumbo');
+           !category.includes('transparent');
   });
 
   if (environment) {

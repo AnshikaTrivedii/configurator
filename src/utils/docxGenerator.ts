@@ -366,26 +366,13 @@ export const generateConfigurationHtml = (
 
     quantity = cabinetGrid.columns * cabinetGrid.rows;
   } else if (isJumboSeries) {
-
-    const pixelPitch = selectedProduct.pixelPitch;
-
-    if (pixelPitch === 4 || pixelPitch === 2.5) {
-
-      const widthInFeet = 7.34;
-      const heightInFeet = 4.72;
-      const fixedQuantity = widthInFeet * heightInFeet;
-
-      quantity = Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
-    } else if (pixelPitch === 3 || pixelPitch === 6) {
-
-      const widthInFeet = 6.92;
-      const heightInFeet = 5.04;
-      const fixedQuantity = widthInFeet * heightInFeet;
-
-      quantity = Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
-    } else {
-      quantity = 1; // Fallback
-    }
+    // Jumbo: quantity = display area in sq ft (from config dimensions in mm)
+    const widthInMeters = config.width / 1000;
+    const heightInMeters = config.height / 1000;
+    const widthInFeet = widthInMeters * METERS_TO_FEET;
+    const heightInFeet = heightInMeters * METERS_TO_FEET;
+    const rawQuantity = widthInFeet * heightInFeet;
+    quantity = Math.round(rawQuantity * 100) / 100;
   } else {
 
     const widthInMeters = config.width / 1000;
@@ -799,8 +786,8 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-value">P${selectedProduct.pixelPitch}</span>
                             </div>
                             <div class="quotation-row">
-                                <span class="quotation-label">Cabinet Dimension:</span>
-                                <span class="quotation-value">${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm</span>
+                                <span class="quotation-label">${isJumboSeries ? 'Module Dimension:' : 'Cabinet Dimension:'}</span>
+                                <span class="quotation-value">${isJumboSeries ? `${selectedProduct.moduleDimensions.width} x ${selectedProduct.moduleDimensions.height}` : `${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height}`} mm</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Display Size (m):</span>

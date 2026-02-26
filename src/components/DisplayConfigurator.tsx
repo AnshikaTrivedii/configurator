@@ -24,6 +24,7 @@ import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { SuperUserDashboard } from './SuperUserDashboard';
 import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
+import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } from '../utils/dimensionConstraints';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
@@ -302,6 +303,19 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const cabinetGrid = calculateCabinetGrid(selectedProduct);
 
+  const dimensionValidation = selectedProduct
+    ? validateDimensions(selectedProduct, config.width, config.height)
+    : { valid: true, message: null };
+  const dimensionInvalid = selectedProduct ? !dimensionValidation.valid : false;
+  const isJumbo = selectedProduct?.category?.toLowerCase().includes('jumbo') ?? false;
+
+  // When switching to Jumbo, show Preview (Data/Power tabs are hidden for Jumbo)
+  React.useEffect(() => {
+    if (isJumbo && (activeTab === 'data' || activeTab === 'power')) {
+      setActiveTab('preview');
+    }
+  }, [isJumbo, activeTab]);
+
   // Allowed processors only (names and capacities). Suggested = smallest that can handle required pixels.
   const ALLOWED_PROCESSORS = [
     { name: 'TB2', type: 'asynchronous' as const, portCount: 1, pixelCapacity: 0.65, inputs: 0, outputs: 0, maxResolution: '' },
@@ -498,6 +512,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const handleQuoteClick = () => {
+    if (dimensionInvalid) return;
     if ((userRole === 'sales' || userRole === 'partner') && salesUser) {
 
       setPendingAction('quote');
@@ -509,7 +524,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const handlePdfClick = () => {
-
+    if (dimensionInvalid) return;
     if ((userRole === 'sales' || userRole === 'partner') && !salesUser) {
 
       alert('Sales user information is missing. Please log in again.');
@@ -532,6 +547,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const handleDownloadPdf = async () => {
     if (!selectedProduct) return;
+    if (dimensionInvalid) return;
 
     if ((userRole === 'sales' || userRole === 'partner') && !salesUser) {
 
@@ -643,34 +659,24 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
 
-  function getJumboFixedGrid(product: Product) {
-    if (!product) return null;
-    if (product.category?.toLowerCase() !== 'jumbo series') return null;
-    if (product.name.toLowerCase().includes('p2.5') || product.name.toLowerCase().includes('p4')) {
-      return { columns: 7, rows: 9 };
-    }
-    if (product.name.toLowerCase().includes('p6') || product.name.toLowerCase().includes('p5')) {
-      return { columns: 11, rows: 8 };
-    }
-    return null;
-  }
-  const jumboGrid = selectedProduct ? getJumboFixedGrid(selectedProduct) : null;
-
   const fixedCabinetGrid = isDigitalStandee
     ? { ...cabinetGrid, columns: 7, rows: 5 }
-    : (jumboGrid ? { ...cabinetGrid, ...jumboGrid } : cabinetGrid);
+    : cabinetGrid;
+
+  const moduleWidth = selectedProduct?.dimensionConstraints?.moduleWidth ?? selectedProduct?.cabinetDimensions?.width ?? 600;
+  const moduleHeight = selectedProduct?.dimensionConstraints?.moduleHeight ?? selectedProduct?.cabinetDimensions?.height ?? 337.5;
 
   const handleColumnsChange = (columns: number) => {
-    if (isDigitalStandee || jumboGrid) return;
+    if (isDigitalStandee) return;
     if (!selectedProduct) return;
-    const newWidth = columns * selectedProduct.cabinetDimensions.width;
+    const newWidth = columns * moduleWidth;
     updateWidth(newWidth);
   };
 
   const handleRowsChange = (rows: number) => {
-    if (isDigitalStandee || jumboGrid) return;
+    if (isDigitalStandee) return;
     if (!selectedProduct) return;
-    const newHeight = rows * selectedProduct.cabinetDimensions.height;
+    const newHeight = rows * moduleHeight;
     updateHeight(newHeight);
   };
 
@@ -693,9 +699,19 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
           updateWidth(selectedProduct.cabinetDimensions.width);
           updateHeight(selectedProduct.cabinetDimensions.height);
-        } else if (jumboGrid) {
-          updateWidth(selectedProduct.cabinetDimensions.width);
-          updateHeight(selectedProduct.cabinetDimensions.height);
+        } else if (selectedProduct.category?.toLowerCase().includes('jumbo')) {
+          if (hasDimensionConstraints(selectedProduct)) {
+            const clamped = clampAndSnapDimensions(
+              selectedProduct,
+              selectedProduct.cabinetDimensions.width,
+              selectedProduct.cabinetDimensions.height
+            );
+            updateWidth(clamped.width);
+            updateHeight(clamped.height);
+          } else {
+            updateWidth(selectedProduct.cabinetDimensions.width);
+            updateHeight(selectedProduct.cabinetDimensions.height);
+          }
         } else {
 
           const isFromWizard = initialConfig?.selectedProduct?.id === selectedProduct.id;
@@ -937,8 +953,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   Preview
                 </button>
 
-                {/* Show other tabs only when product is selected */}
-                {selectedProduct && (
+                {/* Show Data/Power tabs only when product is selected and not Jumbo */}
+                {selectedProduct && !isJumbo && (
                   <>
                     <button
                       className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'data' ? 'bg-black text-white' : 'bg-gray-200'}`}
@@ -966,7 +982,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   />
                 )}
 
-                {selectedProduct && activeTab === 'data' && (
+                {selectedProduct && !isJumbo && activeTab === 'data' && (
                   <DataWiringView
                     product={selectedProduct}
                     cabinetGrid={fixedCabinetGrid}
@@ -976,7 +992,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   />
                 )}
 
-                {selectedProduct && activeTab === 'power' && (
+                {selectedProduct && !isJumbo && activeTab === 'power' && (
                   <PowerWiringView product={selectedProduct} cabinetGrid={fixedCabinetGrid} />
                 )}
               </div>
@@ -1011,18 +1027,22 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                       <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Category</h4>
                       <p className="text-gray-600 text-xs sm:text-sm">{selectedProduct.category}</p>
                     </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Cabinet Size</h4>
-                      <p className="text-gray-600 text-xs sm:text-sm">
-                        {selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Cabinet Resolution</h4>
-                      <p className="text-gray-600 text-xs sm:text-sm">
-                        {selectedProduct.resolution.width} × {selectedProduct.resolution.height}
-                      </p>
-                    </div>
+                    {!isJumbo && (
+                      <>
+                        <div>
+                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Cabinet Size</h4>
+                          <p className="text-gray-600 text-xs sm:text-sm">
+                            {selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm
+                          </p>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Cabinet Resolution</h4>
+                          <p className="text-gray-600 text-xs sm:text-sm">
+                            {selectedProduct.resolution.width} × {selectedProduct.resolution.height}
+                          </p>
+                        </div>
+                      </>
+                    )}
                     {/* PRICING SECTION - TEMPORARILY DISABLED
                     To re-enable pricing display, uncomment the section below and remove this comment block.
                     
@@ -1054,10 +1074,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                       </p>
                     </div>
                     END PRICING SECTION */}
-                    <div>
-                      <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Total Cabinets</h4>
-                      <p className="text-gray-600 text-xs sm:text-sm">{cabinetGrid.columns * cabinetGrid.rows} units</p>
-                    </div>
+                    {!isJumbo && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Total Cabinets</h4>
+                        <p className="text-gray-600 text-xs sm:text-sm">{cabinetGrid.columns * cabinetGrid.rows} units</p>
+                      </div>
+                    )}
                     {/* Transparent Series specific properties */}
                     {selectedProduct.category === 'Transparent Series' && (
                       <>
@@ -1162,7 +1184,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   {userRole === 'normal' && (
                     <button
                       onClick={handleQuoteClick}
-                      className="inline-flex items-center justify-center px-6 py-3 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                      disabled={dimensionInvalid}
+                      className={`inline-flex items-center justify-center px-6 py-3 font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors ${dimensionInvalid ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'}`}
                     >
                       <Mail className="w-5 h-5 mr-2" />
                       Send Quote
@@ -1195,14 +1218,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                         <>
                           <button
                             onClick={handlePdfClick}
-                            className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                            disabled={dimensionInvalid}
+                            className={`inline-flex items-center justify-center px-6 py-3 font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors ${dimensionInvalid ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                           >
                             <FileText className="w-5 h-5 mr-2" />
                             View Docs
                           </button>
                           <button
                             onClick={handleDownloadPdf}
-                            className="inline-flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-800 font-semibold rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors border border-gray-300"
+                            disabled={dimensionInvalid}
+                            className={`inline-flex items-center justify-center px-6 py-3 font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors border ${dimensionInvalid ? 'bg-gray-200 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-gray-100 text-gray-800 hover:bg-gray-200 border-gray-300'}`}
                           >
                             <Download className="w-5 h-5 mr-2" />
                             Download PDF

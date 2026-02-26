@@ -62,24 +62,14 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   }, [cloudSolution]);
 
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
-
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
 
-  function getJumboFixedGrid(product: Product | undefined) {
-    if (!product) return null;
-    if (product.category?.toLowerCase() !== 'jumbo series') return null;
-    if (product.name.toLowerCase().includes('p2.5') || product.name.toLowerCase().includes('p4')) {
-      return { columns: 7, rows: 9 };
-    }
-    if (product.name.toLowerCase().includes('p6') || product.name.toLowerCase().includes('p5')) {
-      return { columns: 11, rows: 8 };
-    }
-    return null;
-  }
-  const jumboGrid = getJumboFixedGrid(selectedProduct);
+  React.useEffect(() => {
+    if (isJumbo && activeTab === 'processing') setActiveTab('dimensions');
+  }, [isJumbo, activeTab]);
 
-  const displayColumns = isDigitalStandee ? 7 : (jumboGrid ? jumboGrid.columns : cabinetGrid.columns);
-  const displayRows = isDigitalStandee ? 5 : (jumboGrid ? jumboGrid.rows : cabinetGrid.rows);
+  const displayColumns = isDigitalStandee ? 7 : cabinetGrid.columns;
+  const displayRows = isDigitalStandee ? 5 : cabinetGrid.rows;
 
   if (!selectedProduct) {
     return (
@@ -118,7 +108,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs - hide Processor tab for Jumbo series (controller included in price) */}
       <div className="border-b border-gray-200">
         <nav className="flex">
           <button 
@@ -131,22 +121,24 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
           >
             Dimensions
           </button>
-          <button 
-            onClick={() => setActiveTab('processing')}
-            className={`flex-1 py-2 sm:py-3 lg:py-4 px-3 sm:px-4 lg:px-6 text-center text-xs sm:text-sm font-medium ${
-              activeTab === 'processing' 
-                ? 'text-black border-b-2 border-black' 
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Processor
-          </button>
+          {!isJumbo && (
+            <button 
+              onClick={() => setActiveTab('processing')}
+              className={`flex-1 py-2 sm:py-3 lg:py-4 px-3 sm:px-4 lg:px-6 text-center text-xs sm:text-sm font-medium ${
+                activeTab === 'processing' 
+                  ? 'text-black border-b-2 border-black' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Processor
+            </button>
+          )}
         </nav>
       </div>
 
-      {/* Content */}
+      {/* Content - for Jumbo only Dimensions is shown (no Processor tab) */}
       <div className="flex-1 px-3 sm:px-4 lg:px-6 py-2">
-        {activeTab === 'dimensions' ? (
+        {(activeTab === 'dimensions' || isJumbo) ? (
           <div className="space-y-3 sm:space-y-4 lg:space-y-6">
             <div>
               <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">Screen Size</h3>
@@ -159,7 +151,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(Math.max(1, cabinetGrid.columns - 1))}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee || isJumbo}
+                      disabled={isDigitalStandee}
                     >
                       -
                     </button>
@@ -169,7 +161,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(cabinetGrid.columns + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee || isJumbo}
+                      disabled={isDigitalStandee}
                     >
                       +
                     </button>
@@ -184,7 +176,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(Math.max(1, cabinetGrid.rows - 1))}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee || isJumbo}
+                      disabled={isDigitalStandee}
                     >
                       -
                     </button>
@@ -194,7 +186,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(cabinetGrid.rows + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee || isJumbo}
+                      disabled={isDigitalStandee}
                     >
                       +
                     </button>

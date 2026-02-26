@@ -114,24 +114,14 @@ export function calculateQuantity(
 
       return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
     } else if (isJumboSeriesProduct(product)) {
-
-      const pixelPitch = product.pixelPitch;
-      
-      if (pixelPitch === 4 || pixelPitch === 2.5) {
-
-        const widthInFeet = 7.34;
-        const heightInFeet = 4.72;
-        const fixedQuantity = widthInFeet * heightInFeet;
-
-        return Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
-      } else if (pixelPitch === 3 || pixelPitch === 6) {
-
-        const widthInFeet = 6.92;
-        const heightInFeet = 5.04;
-        const fixedQuantity = widthInFeet * heightInFeet;
-
-        return Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
-      }
+      // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
+      const widthInMeters = config.width / 1000;
+      const heightInMeters = config.height / 1000;
+      const widthInFeet = widthInMeters * METERS_TO_FEET;
+      const heightInFeet = heightInMeters * METERS_TO_FEET;
+      const quantity = widthInFeet * heightInFeet;
+      const roundedQuantity = Math.round(quantity * 100) / 100;
+      return isNaN(roundedQuantity) || roundedQuantity <= 0 ? 1 : Math.max(0.01, Math.min(roundedQuantity, 10000));
     } else {
 
       const widthInMeters = config.width / 1000;

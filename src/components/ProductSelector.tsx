@@ -527,9 +527,11 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                       <p className="font-medium text-gray-800">{product.refreshRate} Hz</p>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-gray-500">Cabinet Size (W × H)</p>
+                      <p className="text-gray-500">{product.category?.toLowerCase().includes('jumbo') ? 'Module Dimension (W × H)' : 'Cabinet Size (W × H)'}</p>
                       <p className="font-medium text-gray-800">
-                        {product.cabinetDimensions.width} × {product.cabinetDimensions.height} mm
+                        {product.category?.toLowerCase().includes('jumbo')
+                          ? `${product.moduleDimensions.width} × ${product.moduleDimensions.height}`
+                          : `${product.cabinetDimensions.width} × ${product.cabinetDimensions.height}`} mm
                       </p>
                       {product.sizeInInches && (
                         <p className="text-gray-500 text-xs mt-1">

@@ -10,6 +10,7 @@ import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
 import { getProcessorPrice } from '../utils/processorPrices';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { applyDiscount, DiscountInfo } from '../utils/discountCalculator';
+import { getDisplayPower } from '../utils/displayPower';
 
 interface ProductWithPricing extends Product {
   prices?: {
@@ -77,26 +78,14 @@ function calculateCorrectTotalPrice(
 
     quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
   } else if (isJumboSeriesProduct(product)) {
-
-    const pixelPitch = product.pixelPitch;
-
-    if (pixelPitch === 4 || pixelPitch === 2.5) {
-
-      const widthInFeet = 7.34;
-      const heightInFeet = 4.72;
-      const fixedQuantity = widthInFeet * heightInFeet;
-
-      quantity = Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
-    } else if (pixelPitch === 3 || pixelPitch === 6) {
-
-      const widthInFeet = 6.92;
-      const heightInFeet = 5.04;
-      const fixedQuantity = widthInFeet * heightInFeet;
-
-      quantity = Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
-    } else {
-      quantity = 1; // Fallback
-    }
+    // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
+    const widthInMeters = config.width / 1000;
+    const heightInMeters = config.height / 1000;
+    const widthInFeet = widthInMeters * METERS_TO_FEET;
+    const heightInFeet = heightInMeters * METERS_TO_FEET;
+    const rawQuantity = widthInFeet * heightInFeet;
+    quantity = Math.round(rawQuantity * 100) / 100;
+    quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
   } else {
 
     const widthInMeters = config.width / 1000;
@@ -459,8 +448,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           brightness: selectedProduct.brightness,
           refreshRate: selectedProduct.refreshRate,
           environment: selectedProduct.environment,
-          maxPowerConsumption: selectedProduct.maxPowerConsumption,
-          avgPowerConsumption: selectedProduct.avgPowerConsumption,
+          maxPowerConsumption: cabinetGrid ? getDisplayPower(selectedProduct, cabinetGrid).maxPower : selectedProduct.maxPowerConsumption,
+          avgPowerConsumption: cabinetGrid ? getDisplayPower(selectedProduct, cabinetGrid).avgPower : selectedProduct.avgPowerConsumption,
           weightPerCabinet: selectedProduct.weightPerCabinet,
 
           userType: userType
@@ -518,15 +507,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         if (selectedProduct.category?.toLowerCase().includes('rental')) {
           quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
         } else if (isJumboSeriesProduct(selectedProduct as any)) {
-
-          const pixelPitch = selectedProduct.pixelPitch;
-          if (pixelPitch === 4 || pixelPitch === 2.5) {
-            quantity = 34.64;
-          } else if (pixelPitch === 3 || pixelPitch === 6) {
-            quantity = 34.88;
-          } else {
-            quantity = 1;
-          }
+          // Jumbo: prices per ft² (controller included). Quantity = display area in sq ft.
+          const METERS_TO_FEET = 3.2808399;
+          const widthInMeters = configForCalc.width / 1000;
+          const heightInMeters = configForCalc.height / 1000;
+          const widthInFeet = widthInMeters * METERS_TO_FEET;
+          const heightInFeet = heightInMeters * METERS_TO_FEET;
+          quantity = Math.round((widthInFeet * heightInFeet) * 100) / 100;
+          quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
         } else {
 
           const METERS_TO_FEET = 3.2808399;
@@ -862,8 +850,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             brightness: selectedProduct.brightness,
             refreshRate: selectedProduct.refreshRate,
             environment: selectedProduct.environment,
-            maxPowerConsumption: selectedProduct.maxPowerConsumption,
-            avgPowerConsumption: selectedProduct.avgPowerConsumption,
+            maxPowerConsumption: cabinetGrid ? getDisplayPower(selectedProduct, cabinetGrid).maxPower : selectedProduct.maxPowerConsumption,
+            avgPowerConsumption: cabinetGrid ? getDisplayPower(selectedProduct, cabinetGrid).avgPower : selectedProduct.avgPowerConsumption,
             weightPerCabinet: selectedProduct.weightPerCabinet,
 
             cabinetGrid: cabinetGrid,

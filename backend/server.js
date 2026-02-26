@@ -53,14 +53,28 @@ if (process.env.RUN_PARTNER_SCRIPT === 'true') {
 
 // Middleware
 app.use(compression()); // Enable gzip compression for better performance
+// Allow Vite dev server on any port (5173–5180+) and preview; in dev allow any localhost
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://localhost:5176',
+  'http://localhost:5177',
+  'http://localhost:5178',
+  'http://localhost:5179',
+  'http://localhost:5180',
+  'http://localhost:4173'
+].filter(Boolean);
+
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:5175',
-    'http://localhost:5176',
-    'http://localhost:4173'
-  ],
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    // Development: allow any localhost / 127.0.0.1 origin
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' })); // Increase JSON payload limit
