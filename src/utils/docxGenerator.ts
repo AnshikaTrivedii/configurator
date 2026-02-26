@@ -411,29 +411,29 @@ export const generateConfigurationHtml = (
   let installationBasePrice: number;
 
   const effectiveCustomPricing = customPricing || exactPricingBreakdown?.customPricing;
+  const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
 
-  if (exactPricingBreakdown?.structureCost !== undefined && exactPricingBreakdown?.installationCost !== undefined) {
+  if (exactPricingBreakdown?.structureCost !== undefined) {
     structureBasePrice = exactPricingBreakdown.structureCost;
-    installationBasePrice = exactPricingBreakdown.installationCost;
-  } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.structurePrice !== null && effectiveCustomPricing.installationPrice !== null) {
+  } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.structurePrice !== null) {
     structureBasePrice = effectiveCustomPricing.structurePrice;
+  } else if (normalizedEnv === 'indoor') {
+    const numberOfCabinets = cabinetGrid.columns * cabinetGrid.rows;
+    structureBasePrice = numberOfCabinets * 4000;
+  } else {
+    structureBasePrice = screenAreaSqFt * 2500;
+  }
+
+  if (exactPricingBreakdown?.installationCost !== undefined) {
+    installationBasePrice = exactPricingBreakdown.installationCost;
+  } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null) {
     installationBasePrice = effectiveCustomPricing.installationPrice;
   } else {
-
-    const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
-    if (normalizedEnv === 'indoor') {
-
-      const numberOfCabinets = cabinetGrid.columns * cabinetGrid.rows;
-      structureBasePrice = numberOfCabinets * 4000;
-    } else {
-
-      structureBasePrice = screenAreaSqFt * 2500;
-    }
     installationBasePrice = screenAreaSqFt * 500;
   }
 
-  const structureGST = 0;
-  const installationGST = 0;
+  let structureGST = structureBasePrice * 0.18;
+  let installationGST = installationBasePrice * 0.18;
 
   if (exactPricingBreakdown) {
 

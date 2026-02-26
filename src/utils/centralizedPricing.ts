@@ -275,14 +275,15 @@ export function calculateCentralizedPricing(
     let structureBasePrice: number;
     let installationBasePrice: number;
 
-    if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
-
+    if (customPricing?.enabled && customPricing.structurePrice !== null) {
       structureBasePrice = customPricing.structurePrice;
-      // Custom installation price is always a flat total amount (GST added separately)
+    } else {
+      structureBasePrice = calculateStructureCost(product.environment, cabinetGrid, screenAreaSqFt);
+    }
+
+    if (customPricing?.enabled && customPricing.installationPrice !== null) {
       installationBasePrice = customPricing.installationPrice;
     } else {
-
-      structureBasePrice = calculateStructureCost(product.environment, cabinetGrid, screenAreaSqFt);
       installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 500);
     }
 
