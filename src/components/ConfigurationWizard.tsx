@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, Package } from 'lucide-react';
 import { Product } from '../types';
-import { products } from '../data/products';
+import { products as productsImport } from '../data/products';
+
+const products: Product[] = Array.isArray(productsImport) ? productsImport : [];
 import { getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistanceRange } from '../utils/viewingDistanceRanges';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { normalize } from '../utils/pixelPitchRecommendation';
@@ -39,6 +41,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   const [environment, setEnvironment] = useState<'Indoor' | 'Outdoor' | ''>('');
   const [pixelPitch, setPixelPitch] = useState<number | null>(null);
   const [selectedWarranty, setSelectedWarranty] = useState<number | null>(null);
+  const [selectedSeriesCategory, setSelectedSeriesCategory] = useState<string | null>(null); // 'Module/ Grid Series' when that option is chosen
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [hasSkippedPixelPitch, setHasSkippedPixelPitch] = useState<boolean>(false);
 
@@ -64,6 +67,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       setEnvironment('');
       setPixelPitch(null);
       setSelectedWarranty(null);
+      setSelectedSeriesCategory(null);
       setSelectedProduct(null);
       setHasSkippedPixelPitch(false);
     }
@@ -93,7 +97,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
    * Map warranty years to product series
    * Betelgeuse Series → 5 Years
    * Rigel Series → 3 Years
-   * Bellatrix Series, Jumbo Series → 2 Years
+   * Bellatrix Series, Jumbo Series, Module/ Grid Series → 2 Years
    */
   const getSeriesForWarranty = (warrantyYears: number): string[] => {
     switch (warrantyYears) {
@@ -102,7 +106,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       case 3:
         return ['Rigel Series'];
       case 2:
-        return ['Bellatrix Series', 'Jumbo Series'];
+        return ['Bellatrix Series', 'Jumbo Series', 'Module/ Grid Series'];
       default:
         return [];
     }
@@ -210,15 +214,15 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     });
   }, [pixelPitch, isOpen, updateConfig]);
 
-  // Reset product selection when warranty changes
+  // Reset product selection when warranty or series category changes
   useEffect(() => {
-    if (selectedWarranty !== null && selectedProduct !== null) {
-      // Check if current product matches the new warranty
-      if (!productMatchesWarranty(selectedProduct, selectedWarranty)) {
-        setSelectedProduct(null);
-      }
+    if (selectedProduct === null) return;
+    if (selectedSeriesCategory === 'Module/ Grid Series') {
+      if (selectedProduct.category !== 'Module/ Grid Series') setSelectedProduct(null);
+    } else if (selectedWarranty !== null && !productMatchesWarranty(selectedProduct, selectedWarranty)) {
+      setSelectedProduct(null);
     }
-  }, [selectedWarranty, selectedProduct]);
+  }, [selectedWarranty, selectedSeriesCategory, selectedProduct]);
 
   const canProceed = () => {
     switch (currentStep) {
@@ -231,7 +235,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       case 'pixelPitch':
         return true; // Pixel pitch is optional, can proceed without selection
       case 'warranty':
-        return selectedWarranty !== null;
+        return selectedWarranty !== null || selectedSeriesCategory === 'Module/ Grid Series';
       case 'product':
         return selectedProduct !== null;
       default:
@@ -288,7 +292,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 
   const selectedEnv = environment?.toLowerCase().trim();
 
-  // Pixel pitch filter applies to ALL series including Jumbo — no override
+  // Product list: warranty/series filter; pixel pitch applies to all except Module/ Grid Series
   const filteredProducts = products.filter(product => {
 
     if (product.enabled === false) return false;
@@ -300,7 +304,12 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       return false;
     }
 
-    // Pixel pitch: same rules for all series (including Jumbo)
+    // Filter by warranty (series-based) or Module/ Grid Series
+    if (selectedSeriesCategory === 'Module/ Grid Series') {
+      if (product.category !== 'Module/ Grid Series') return false;
+    }
+
+    // Pixel pitch (and viewing-distance recommendations): apply to all series including Module/ Grid
     if (pixelPitch !== null) {
       const productPitch = normalize(product.pixelPitch);
       const selectedPitch = normalize(pixelPitch);
@@ -319,8 +328,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       if (!matchesRecommended) return false;
     }
 
-    // Filter by warranty (series-based)
-    if (!productMatchesWarranty(product, selectedWarranty)) {
+    if (selectedSeriesCategory !== 'Module/ Grid Series' && !productMatchesWarranty(product, selectedWarranty)) {
       return false;
     }
 
@@ -621,14 +629,17 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                   <p className="text-sm text-blue-600 mt-1">Select <strong>2 Years</strong> to include Jumbo Series (outdoor) products.</p>
                 )}
                 {environment === 'Indoor' && (
-                  <p className="text-sm text-gray-500 mt-1">Jumbo Series appears only when <strong>Outdoor</strong> is selected (step 1).</p>
+                  <>
+                    <p className="text-sm text-gray-500 mt-1">Jumbo Series appears only when <strong>Outdoor</strong> is selected (step 1).</p>
+                    <p className="text-sm text-blue-600 mt-1">Select <strong>2 Years</strong> to include Module/ Grid Series (P1.8, P2.5, P4).</p>
+                  </>
                 )}
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {([5, 3, 2] as const).map((years) => {
                   const allowedSeries = getSeriesForWarranty(years);
-                  const seriesLabel = years === 5 ? 'Betelgeuse Series' : years === 3 ? 'Rigel Series' : 'Bellatrix Series, Jumbo Series';
+                  const seriesLabel = years === 5 ? 'Betelgeuse Series' : years === 3 ? 'Rigel Series' : 'Bellatrix Series, Jumbo Series, Module/ Grid Series';
                   const cardSelectedEnv = environment?.toLowerCase().trim();
 
                   // Calculate matching products with all previous filters + warranty (pixel pitch applies to all series including Jumbo)
@@ -673,7 +684,10 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                   return (
                     <button
                       key={years}
-                      onClick={() => setSelectedWarranty(years)}
+                      onClick={() => {
+                        setSelectedWarranty(years);
+                        setSelectedSeriesCategory(null);
+                      }}
                       className={`p-6 rounded-xl border-2 transition-all text-left ${
                         selectedWarranty === years
                           ? 'border-blue-600 bg-blue-50 shadow-lg'
@@ -685,6 +699,9 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                         {seriesLabel}
                         {years === 2 && cardSelectedEnv === 'outdoor' && (
                           <span className="block text-xs text-blue-600 mt-0.5">(includes Jumbo outdoor)</span>
+                        )}
+                        {years === 2 && cardSelectedEnv === 'indoor' && (
+                          <span className="block text-xs text-blue-600 mt-0.5">(includes Module/ Grid P1.8, P2.5, P4)</span>
                         )}
                       </div>
                       {matchingProducts.length > 0 && (
@@ -712,11 +729,12 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                 <p className="text-gray-600">
                   Choose from available products matching your criteria
                 </p>
-                {(environment || pixelPitch !== null || viewingDistance || selectedWarranty !== null) && (
+                {(environment || pixelPitch !== null || viewingDistance || selectedWarranty !== null || selectedSeriesCategory !== null) && (
                   <div className="mt-2 text-sm text-blue-600">
                     Filters: {environment && <span className="font-medium">{environment}</span>}
                     {pixelPitch !== null && <span className="ml-2 font-medium">P{pixelPitch}mm</span>}
                     {viewingDistance && <span className="ml-2 font-medium">{viewingDistance} {viewingDistanceUnit}</span>}
+                    {selectedSeriesCategory === 'Module/ Grid Series' && <span className="ml-2 font-medium">Module/ Grid Series</span>}
                     {selectedWarranty !== null && <span className="ml-2 font-medium">{selectedWarranty} Years Warranty</span>}
                   </div>
                 )}
@@ -810,6 +828,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                   <div className="text-sm text-gray-400 mb-6">
                     Current filters: {environment || 'Any'} environment, {pixelPitch !== null ? `P${pixelPitch}mm` : 'Any pixel pitch'}
                     {viewingDistance && `, ${viewingDistance} ${viewingDistanceUnit}`}
+                    {selectedSeriesCategory === 'Module/ Grid Series' && ', Module/ Grid Series'}
                     {selectedWarranty !== null && `, ${selectedWarranty} Years Warranty`}
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">

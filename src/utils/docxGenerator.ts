@@ -790,8 +790,8 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-value">P${selectedProduct.pixelPitch}</span>
                             </div>
                             <div class="quotation-row">
-                                <span class="quotation-label">${isJumboSeries ? 'Module Dimension:' : 'Cabinet Dimension:'}</span>
-                                <span class="quotation-value">${isJumboSeries ? `${selectedProduct.moduleDimensions.width} x ${selectedProduct.moduleDimensions.height}` : `${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height}`} mm</span>
+                                <span class="quotation-label">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series') ? 'Module Dimension:' : 'Cabinet Dimension:'}</span>
+                                <span class="quotation-value">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series') ? `${selectedProduct.moduleDimensions.width} x ${selectedProduct.moduleDimensions.height}` : `${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height}`} mm</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Display Size (m):</span>

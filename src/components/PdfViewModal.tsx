@@ -3,7 +3,9 @@ import { X, Download, Save } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { clientAPI } from '../api/clients';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
-import { products } from '../data/products';
+import { products as productsImport } from '../data/products';
+
+const products: import('../types').Product[] = Array.isArray(productsImport) ? productsImport : [];
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { getDisplayPower } from '../utils/displayPower';
 

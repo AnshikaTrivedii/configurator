@@ -1,5 +1,7 @@
 import { Product } from '../types';
-import { products } from '../data/products';
+import { products as productsImport } from '../data/products';
+
+const products: Product[] = Array.isArray(productsImport) ? productsImport : [];
 
 export interface DisplayConfig {
   width: number; // in mm

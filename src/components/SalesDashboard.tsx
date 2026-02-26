@@ -10,7 +10,9 @@ import { LeadDetailsModal } from './LeadDetailsModal';
 import { LeadStatusModal } from './LeadStatusModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
 import { Quotation } from '../types';
-import { products } from '../data/products';
+import { products as productsImport } from '../data/products';
+
+const products: import('../types').Product[] = Array.isArray(productsImport) ? productsImport : [];
 
 interface SalesDashboardProps {
   onBack: () => void;

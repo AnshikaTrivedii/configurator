@@ -10,7 +10,9 @@ interface ProductWithOptionalSize extends Product {
     height: string;
   };
 }
-import { products, categories } from '../data/products';
+import { products as productsImport, categories } from '../data/products';
+
+const products: Product[] = Array.isArray(productsImport) ? productsImport : [];
 
 interface ProductSelectorProps {
   isOpen: boolean;

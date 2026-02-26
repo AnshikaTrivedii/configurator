@@ -11,7 +11,9 @@
  */
 
 import { Product } from '../types';
-import { products } from '../data/products';
+import { products as productsImport } from '../data/products';
+
+const products: Product[] = Array.isArray(productsImport) ? productsImport : [];
 import { getPixelPitchesForViewingDistanceRange, getPixelPitchesForViewingDistance } from './viewingDistanceRanges';
 
 export interface ProductFilterOptions {
