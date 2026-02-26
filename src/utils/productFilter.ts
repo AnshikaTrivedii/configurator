@@ -82,7 +82,12 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
   });
 
   if (environment) {
-    filtered = filtered.filter((p) => normalizeEnv(p.environment) === normalizeEnv(environment));
+    filtered = filtered.filter((p) => {
+      const isJumbo = (p.category || '').toLowerCase().includes('jumbo');
+      // Jumbo series: always treat as outdoor for filtering (all Jumbo products appear under Outdoor only)
+      if (isJumbo) return normalizeEnv(environment) === 'outdoor';
+      return normalizeEnv(p.environment) === normalizeEnv(environment);
+    });
   }
 
   if (environment === 'Indoor' && indoorType) {

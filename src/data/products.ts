@@ -2040,7 +2040,7 @@ export const products: Product[] = [
 
   {
     id: 'jumbo-indoor-p2.5',
-    name: 'Jumbo Series Indoor P2.5',
+    name: 'Jumbo Series Outdoor P2.5',
     category: 'Jumbo Series',
     enabled: true,
     image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy 3.png',
@@ -2054,7 +2054,7 @@ export const products: Product[] = [
     pixelDensity: 160000,
     brightness: 4500,
     refreshRate: 3840,
-    environment: 'indoor',
+    environment: 'outdoor',
     maxPowerConsumption: 700,
     avgPowerConsumption: 300,
     weightPerCabinet: 27,
@@ -2090,7 +2090,7 @@ export const products: Product[] = [
       minHeight: 960,
       maxWidth: 3840,
       maxHeight: 2400,
-      validationMessage: 'For Jumbo Series Indoor P2.5, screen size must be between 960x960mm and 3840x2400mm and in multiples of 320x160 module size.',
+      validationMessage: 'For Jumbo Series Outdoor P2.5, screen size must be between 960x960mm and 3840x2400mm and in multiples of 320x160 module size.',
     },
     price: 12500,
     siChannelPrice: 11300,
