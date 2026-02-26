@@ -242,6 +242,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   const isJumbo = selectedProduct?.category?.toLowerCase().includes('jumbo') ?? false;
 
   const useModuleGrid = selectedProduct && (
+    selectedProduct.category === 'Module/ Grid Series' ||
     selectedProduct.category?.toLowerCase().includes('digital standee') ||
     selectedProduct.category?.toLowerCase().includes('jumbo')
   );
@@ -268,7 +269,9 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   );
 
   const moduleGrid = useModuleGrid && selectedProduct ? (
-    selectedProduct.category?.toLowerCase().includes('digital standee')
+    selectedProduct.category === 'Module/ Grid Series'
+      ? { columns: cabinetGrid.columns, rows: cabinetGrid.rows, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
+      : selectedProduct.category?.toLowerCase().includes('digital standee')
       ? { columns: 7, rows: 5, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
       : selectedProduct.moduleGrid
         ? { 

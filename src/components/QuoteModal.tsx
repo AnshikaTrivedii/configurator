@@ -128,6 +128,9 @@ function calculateCorrectTotalPrice(
   const normalizedEnv = product.environment?.toLowerCase().trim();
   if (customPricing?.enabled && customPricing.structurePrice !== null) {
     structureBasePrice = customPricing.structurePrice;
+  } else if (product.category === 'Module/ Grid Series') {
+    const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
+    structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
   } else if (normalizedEnv === 'indoor') {
     const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
     structureBasePrice = numberOfCabinets * 4000;
@@ -543,6 +546,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
         if (customPricingObj?.enabled && customPricingObj.structurePrice !== null) {
           structureBasePrice = customPricingObj.structurePrice;
+        } else if (selectedProduct.category === 'Module/ Grid Series') {
+          const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
+          structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
         } else if (selectedProduct.environment?.toLowerCase().trim() === 'indoor') {
           const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
           structureBasePrice = numberOfCabinets * 4000;

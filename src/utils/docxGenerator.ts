@@ -417,6 +417,10 @@ export const generateConfigurationHtml = (
     structureBasePrice = exactPricingBreakdown.structureCost;
   } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.structurePrice !== null) {
     structureBasePrice = effectiveCustomPricing.structurePrice;
+  } else if (selectedProduct.category === 'Module/ Grid Series') {
+    const pdfUserType = normalizeLegacyUserType(userInfo?.userType);
+    const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
+    structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
   } else if (normalizedEnv === 'indoor') {
     const numberOfCabinets = cabinetGrid.columns * cabinetGrid.rows;
     structureBasePrice = numberOfCabinets * 4000;

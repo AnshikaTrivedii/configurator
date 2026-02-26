@@ -63,6 +63,8 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
 
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
+  const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
+  const useModuleLabel = isJumbo || isModuleGridSeries;
 
   React.useEffect(() => {
     if (isJumbo && activeTab === 'processing') setActiveTab('dimensions');
@@ -199,7 +201,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Configuration</h3>
               <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm text-gray-600">
                 <div className="flex justify-between">
-                  <span>{isJumbo ? 'Total Modules:' : 'Total Cabinets:'}</span>
+                  <span>{useModuleLabel ? 'Total Modules:' : 'Total Cabinets:'}</span>
                   <span className="font-medium text-gray-900">{cabinetGrid.columns * cabinetGrid.rows}</span>
                 </div>
                 <div className="flex justify-between">
