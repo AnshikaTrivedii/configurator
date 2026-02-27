@@ -1,8 +1,8 @@
 /**
- * Display power calculation. For Jumbo Series only:
- * - Max power = (modules/8)*350
- * - Avg power = (modules/8)*175 (half of max).
- * All other series use product per-cabinet values × cabinet count.
+ * Display power calculation.
+ * - Jumbo Series: Max = (modules/8)*350, Avg = (modules/8)*175.
+ * - Module/ Grid Series: Power = (modules/8)*350 (used for both avg and max).
+ * - All other series: product per-cabinet values × cabinet count.
  */
 
 import { Product } from '../types';
@@ -15,7 +15,8 @@ export interface DisplayPowerResult {
 }
 
 /**
- * Returns total and per-unit power for display. Jumbo: Power = (modules/8)*350 (rounded).
+ * Returns total and per-unit power for display.
+ * Module/ Grid: Power = (No. of modules / 8) × 350.
  */
 export function getDisplayPower(
   product: Product | undefined,
@@ -25,6 +26,7 @@ export function getDisplayPower(
   const isJumbo =
     product?.category?.toLowerCase().includes('jumbo') ??
     (product as any)?.dimensionConstraints?.series === 'Jumbo';
+  const isModuleGridSeries = product?.category === 'Module/ Grid Series';
 
   if (isJumbo && product) {
     const maxPower = Math.round((modules / 8) * 350);
@@ -36,6 +38,18 @@ export function getDisplayPower(
       maxPower,
       avgPowerPerCabinet: Math.round(avgPerUnit * 100) / 100,
       maxPowerPerCabinet: Math.round(maxPerUnit * 100) / 100
+    };
+  }
+
+  if (isModuleGridSeries && product) {
+    // Module/ Grid Series: Power consumption = (No. of modules / 8) × 350
+    const totalPower = Math.round((modules / 8) * 350);
+    const perUnit = modules > 0 ? totalPower / modules : 0;
+    return {
+      avgPower: totalPower,
+      maxPower: totalPower,
+      avgPowerPerCabinet: Math.round(perUnit * 100) / 100,
+      maxPowerPerCabinet: Math.round(perUnit * 100) / 100
     };
   }
 
