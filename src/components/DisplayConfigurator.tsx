@@ -317,58 +317,67 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     }
   }, [isJumbo, activeTab]);
 
-  // Allowed processors only (names and capacities). Suggested = smallest that can handle required pixels.
+  // Allowed processors only (names and capacities). minPortsForRedundancy: 0 = cannot support redundancy, >= 2 = can.
   const ALLOWED_PROCESSORS = [
-    { name: 'TB2', type: 'asynchronous' as const, portCount: 1, pixelCapacity: 0.65, inputs: 0, outputs: 0, maxResolution: '' },
-    { name: 'TB40', type: 'asynchronous' as const, portCount: 2, pixelCapacity: 1.3, inputs: 1, outputs: 3, maxResolution: '1920×1080@60Hz' },
-    { name: 'TB60', type: 'asynchronous' as const, portCount: 4, pixelCapacity: 2.3, inputs: 1, outputs: 5, maxResolution: '1920×1080@60Hz' },
-    { name: 'VX1', type: 'synchronous' as const, portCount: 2, pixelCapacity: 1.3, inputs: 5, outputs: 2, maxResolution: '1920×1080@60Hz' },
-    { name: 'VX400', type: 'synchronous' as const, portCount: 4, pixelCapacity: 2.6, inputs: 5, outputs: 4, maxResolution: '1920×1200@60Hz' },
-    { name: 'VX400 Pro', type: 'synchronous' as const, portCount: 4, pixelCapacity: 2.6, inputs: 5, outputs: 4, maxResolution: '4096×2160@60Hz (4K)' },
-    { name: 'VX600', type: 'synchronous' as const, portCount: 6, pixelCapacity: 3.9, inputs: 5, outputs: 6, maxResolution: '1920×1200@60Hz' },
-    { name: 'VX600 Pro', type: 'synchronous' as const, portCount: 6, pixelCapacity: 3.9, inputs: 5, outputs: 6, maxResolution: '4096×2160@60Hz (4K)' },
-    { name: 'VX1000', type: 'synchronous' as const, portCount: 10, pixelCapacity: 6.5, inputs: 6, outputs: 10, maxResolution: '3840×2160@30Hz' },
-    { name: 'VX1000 Pro', type: 'synchronous' as const, portCount: 10, pixelCapacity: 6.5, inputs: 5, outputs: 10, maxResolution: '4096×2160@60Hz (True 4K@60)' },
-    { name: 'VX16S', type: 'synchronous' as const, portCount: 16, pixelCapacity: 10, inputs: 7, outputs: 16, maxResolution: '3840×2160@60Hz' },
-    { name: 'VX2000pro', type: 'synchronous' as const, portCount: 25, pixelCapacity: 13, inputs: 10, outputs: 25, maxResolution: '4096×2160@60Hz (4K)' },
-    { name: 'TU15PRO', type: 'synchronous' as const, portCount: 5, pixelCapacity: 2.6, inputs: 2, outputs: 5, maxResolution: '2048×1152@60Hz' },
-    { name: 'TU20PRO', type: 'synchronous' as const, portCount: 7, pixelCapacity: 3.9, inputs: 2, outputs: 7, maxResolution: '2048×1152@60Hz' },
-    { name: 'TU4k pro', type: 'synchronous' as const, portCount: 23, pixelCapacity: 13, inputs: 3, outputs: 23, maxResolution: '4096×2160@60Hz' },
+    { name: 'TB2', type: 'asynchronous' as const, portCount: 1, pixelCapacity: 0.65, inputs: 0, outputs: 0, maxResolution: '', minPortsForRedundancy: 0 },
+    { name: 'TB40', type: 'asynchronous' as const, portCount: 2, pixelCapacity: 1.3, inputs: 1, outputs: 3, maxResolution: '1920×1080@60Hz', minPortsForRedundancy: 2 },
+    { name: 'TB60', type: 'asynchronous' as const, portCount: 4, pixelCapacity: 2.3, inputs: 1, outputs: 5, maxResolution: '1920×1080@60Hz', minPortsForRedundancy: 2 },
+    { name: 'VX1', type: 'synchronous' as const, portCount: 2, pixelCapacity: 1.3, inputs: 5, outputs: 2, maxResolution: '1920×1080@60Hz', minPortsForRedundancy: 2 },
+    { name: 'VX400', type: 'synchronous' as const, portCount: 4, pixelCapacity: 2.6, inputs: 5, outputs: 4, maxResolution: '1920×1200@60Hz', minPortsForRedundancy: 2 },
+    { name: 'VX400 Pro', type: 'synchronous' as const, portCount: 4, pixelCapacity: 2.6, inputs: 5, outputs: 4, maxResolution: '4096×2160@60Hz (4K)', minPortsForRedundancy: 2 },
+    { name: 'VX600', type: 'synchronous' as const, portCount: 6, pixelCapacity: 3.9, inputs: 5, outputs: 6, maxResolution: '1920×1200@60Hz', minPortsForRedundancy: 2 },
+    { name: 'VX600 Pro', type: 'synchronous' as const, portCount: 6, pixelCapacity: 3.9, inputs: 5, outputs: 6, maxResolution: '4096×2160@60Hz (4K)', minPortsForRedundancy: 2 },
+    { name: 'VX1000', type: 'synchronous' as const, portCount: 10, pixelCapacity: 6.5, inputs: 6, outputs: 10, maxResolution: '3840×2160@30Hz', minPortsForRedundancy: 2 },
+    { name: 'VX1000 Pro', type: 'synchronous' as const, portCount: 10, pixelCapacity: 6.5, inputs: 5, outputs: 10, maxResolution: '4096×2160@60Hz (True 4K@60)', minPortsForRedundancy: 2 },
+    { name: 'VX16S', type: 'synchronous' as const, portCount: 16, pixelCapacity: 10, inputs: 7, outputs: 16, maxResolution: '3840×2160@60Hz', minPortsForRedundancy: 2 },
+    { name: 'VX2000pro', type: 'synchronous' as const, portCount: 25, pixelCapacity: 13, inputs: 10, outputs: 25, maxResolution: '4096×2160@60Hz (4K)', minPortsForRedundancy: 2 },
+    { name: 'TU15PRO', type: 'synchronous' as const, portCount: 5, pixelCapacity: 2.6, inputs: 2, outputs: 5, maxResolution: '2048×1152@60Hz', minPortsForRedundancy: 2 },
+    { name: 'TU20PRO', type: 'synchronous' as const, portCount: 7, pixelCapacity: 3.9, inputs: 2, outputs: 7, maxResolution: '2048×1152@60Hz', minPortsForRedundancy: 2 },
+    { name: 'TU4k pro', type: 'synchronous' as const, portCount: 23, pixelCapacity: 13, inputs: 3, outputs: 23, maxResolution: '4096×2160@60Hz', minPortsForRedundancy: 2 },
   ];
 
   const createControllerSelection = () => {
     if (!selectedProduct) return null;
 
     const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
-    const totalPixelsMillion = totalPixels / 1_000_000;
+    const dataHubPorts = Math.ceil(totalPixels / 655000);
+    const requiredPorts = redundancyEnabled ? dataHubPorts * 2 : dataHubPorts;
+    const backupPorts = redundancyEnabled ? dataHubPorts : 0;
 
-    // Only processors whose pixel capacity (in pixels) is >= required total pixels
-    const availableProcessors = ALLOWED_PROCESSORS
-      .filter((p) => p.pixelCapacity * 1_000_000 >= totalPixels)
-      .sort((a, b) => a.pixelCapacity - b.pixelCapacity);
+    // Processors that have enough pixel capacity, enough ports (controller.portCount >= requiredPorts), and when redundancy enabled only those with minPortsForRedundancy >= 2
+    const availableProcessors = ALLOWED_PROCESSORS.filter(
+      (p) =>
+        p.pixelCapacity * 1_000_000 >= totalPixels &&
+        p.portCount >= requiredPorts &&
+        (!redundancyEnabled || p.minPortsForRedundancy >= 2)
+    ).sort((a, b) => a.portCount - b.portCount || a.pixelCapacity - b.pixelCapacity);
+
     const suggestedName = availableProcessors[0]?.name ?? 'TU4k pro';
     const effectiveName = availableProcessors.some((p) => p.name === selectedController) ? selectedController : suggestedName;
     const resolved = ALLOWED_PROCESSORS.find((p) => p.name === effectiveName) ?? ALLOWED_PROCESSORS[ALLOWED_PROCESSORS.length - 1];
+    const finalResolved = availableProcessors.find((p) => p.name === resolved.name) ?? availableProcessors[0] ?? resolved;
 
     return {
       selectedController: {
-        name: resolved.name,
-        type: resolved.type,
-        portCount: resolved.portCount,
-        pixelCapacity: resolved.pixelCapacity,
-        inputs: resolved.inputs,
-        outputs: resolved.outputs,
-        maxResolution: resolved.maxResolution
+        name: finalResolved.name,
+        type: finalResolved.type,
+        portCount: finalResolved.portCount,
+        pixelCapacity: finalResolved.pixelCapacity,
+        inputs: finalResolved.inputs,
+        outputs: finalResolved.outputs,
+        maxResolution: finalResolved.maxResolution
       },
-      requiredPorts: Math.ceil(totalPixels / 655000),
-      dataHubPorts: Math.ceil(totalPixels / 655000),
-      backupPorts: redundancyEnabled ? Math.ceil(totalPixels / 655000) : 0,
+      requiredPorts,
+      dataHubPorts,
+      backupPorts,
       isRedundancyMode: redundancyEnabled,
       totalPixels: totalPixels
     };
   };
 
   const controllerSelection = createControllerSelection() || undefined;
+  // Use redundancy-aware controller for display (Configuration Summary, PDF, Quote) so controller changes when redundancy is enabled
+  const effectiveProcessor = controllerSelection?.selectedController?.name ?? selectedController;
 
   // For dropdown: processors with capacity >= totalPixels, suggested first, then higher capacity only
   const totalPixelsForProcessor = selectedProduct
@@ -575,7 +584,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         config,
         selectedProduct,
         fixedCabinetGrid,
-        selectedController,
+        effectiveProcessor,
         selectedMode,
         userInfo
           ? { ...userInfo, userType: legacyUserTypeForPricing }
@@ -623,7 +632,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         config,
         selectedProduct,
         fixedCabinetGrid,
-        selectedController,
+        effectiveProcessor,
         selectedMode,
         userInfo ? {
           ...userInfo,
@@ -1174,7 +1183,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                 config={config}
                 cabinetGrid={fixedCabinetGrid}
                 selectedProduct={selectedProduct}
-                processor={selectedController}
+                processor={effectiveProcessor}
                 mode={selectedMode}
               />
 
@@ -1272,7 +1281,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           selectedProduct={selectedProduct}
           config={config}
           cabinetGrid={cabinetGrid}
-          processor={selectedController}
+          processor={effectiveProcessor}
           mode={selectedMode}
           userInfo={userInfo && userInfo.userType !== 'SI/Channel Partner' ? userInfo : undefined}
           title={(userRole === 'sales' || userRole === 'partner' || userRole === 'super' || userRole === 'super_admin') && salesUser ? 'Sales Quote' : 'Get a Quote'}
@@ -1302,7 +1311,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             config,
             selectedProduct,
             fixedCabinetGrid,
-            selectedController,
+            effectiveProcessor,
             selectedMode,
 
             userInfo
@@ -1329,7 +1338,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           selectedProduct={selectedProduct}
           config={config}
           cabinetGrid={fixedCabinetGrid}
-          processor={selectedController}
+          processor={effectiveProcessor}
           mode={selectedMode}
 
           userInfo={userInfo ? { ...userInfo, userType: userInfo.userType || 'End User' } : undefined}
