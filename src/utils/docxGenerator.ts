@@ -330,13 +330,13 @@ export const generateConfigurationHtml = (
     const normalizedUserType = normalizeLegacyUserType(userType);
 
     if (product.category?.toLowerCase().includes('rental') && product.prices) {
-
+      const priceSet = product.rentalOption === 'curve lock' ? product.prices.curveLock : product.prices.cabinet;
       if (normalizedUserType === 'Reseller') {
-        return product.prices.cabinet.reseller;
+        return priceSet.reseller;
       } else if (normalizedUserType === 'Channel') {
-        return product.prices.cabinet.siChannel;
+        return priceSet.siChannel;
       } else {
-        return product.prices.cabinet.endCustomer;
+        return priceSet.endCustomer;
       }
     }
 
@@ -501,6 +501,13 @@ export const generateConfigurationHtml = (
     totalInstallation = installationBasePrice;
 
     grandTotal = totalProduct + totalController + totalStructure + totalInstallation;
+  }
+
+  const isRentalProduct = selectedProduct.category?.toLowerCase().includes('rental');
+  if (isRentalProduct) {
+    totalStructure = 0;
+    totalInstallation = 0;
+    grandTotal = totalProduct + totalController;
   }
 
   const formatIndianNumber = (x: number): string => {
@@ -809,6 +816,12 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-label">Matrix:</span>
                                 <span class="quotation-value">${cabinetGrid.columns} x ${cabinetGrid.rows}</span>
                             </div>
+                            ${selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption
+                              ? `<div class="quotation-row">
+                                <span class="quotation-label">Rental Option:</span>
+                                <span class="quotation-value">${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'}</span>
+                            </div>`
+                              : ''}
                         </div>
                     </div>
                     
@@ -904,7 +917,7 @@ export const generateConfigurationHtml = (
             </div>
             ` : ''}
             
-            <!-- Structure and Installation Price Section (shown for all products) - SEPARATE ROWS -->
+            ${!isRentalProduct ? `<!-- Structure and Installation Price Section (excluded for Rental Series) -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
                     C. STRUCTURE AND INSTALLATION PRICE
@@ -968,13 +981,18 @@ export const generateConfigurationHtml = (
                     </div>
                 </div>
             </div>
+            ` : ''}
             
             <!-- Grand Total - Clean Design -->
             <!-- Fixed: Reduced width and added left margin to prevent QR code overlap -->
             <div class="quotation-section" style="background: rgba(51, 51, 51, 0.95); color: white; padding: 5px 8px; border-radius: 3px; margin: 3px 0 0 40px; text-align: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); width: calc(100% - 40px); min-height: auto; box-sizing: border-box;">
                 <h2 style="margin: 0 0 2px 0; font-size: 13px; font-weight: bold; line-height: 1.1;">GRAND TOTAL</h2>
                 <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatIndianNumber(grandTotal)}</p>
-                ${!isJumboSeries ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Structure + Installation)</p>` : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + C = Product + Structure + Installation)</p>`}
+                ${!isJumboSeries
+  ? (isRentalProduct
+    ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Processor)</p>`
+    : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Structure + Installation)</p>`)
+  : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + C = Product + Structure + Installation)</p>`}
             </div>
             </div>
         </div>

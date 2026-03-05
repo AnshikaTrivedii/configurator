@@ -1709,7 +1709,7 @@ export const products: Product[] = [
     id: 'rental-indoor-p2.6',
     name: 'Rental Series Indoor P2.6',
     category: 'Rental Series',
-    enabled: false,
+    enabled: true,
     image: '/products/rental-series/Rental SMD P2.6 Indoor.png',
     resolution: { width: 192, height: 192 },
     cabinetDimensions: { width: 500, height: 500 },
@@ -1748,7 +1748,7 @@ export const products: Product[] = [
     id: 'rental-indoor-p2.97',
     name: 'Rental Series Indoor P2.97',
     category: 'Rental Series',
-    enabled: false,
+    enabled: true,
     image: '/products/rental-series/Rental SMD P2.97 Indoor.png',
     resolution: { width: 168, height: 168 },
     cabinetDimensions: { width: 500, height: 500 },
@@ -1787,7 +1787,7 @@ export const products: Product[] = [
     id: 'rental-outdoor-p3.8',
     name: 'Rental Series Outdoor P3.8',
     category: 'Rental Series',
-    enabled: false,
+    enabled: true,
     image: '/products/rental-series/Rental SMD P3.8 Outdoor.png',
     resolution: { width: 150, height: 150 },
     cabinetDimensions: { width: 576, height: 576 },
@@ -1826,7 +1826,7 @@ export const products: Product[] = [
     id: 'rental-outdoor-p4.8',
     name: 'Rental Series Outdoor P4.8',
     category: 'Rental Series',
-    enabled: false,
+    enabled: true,
     image: '/products/rental-series/Rental SMD P4.8 Outdoor.png',
     resolution: { width: 120, height: 120 },
     cabinetDimensions: { width: 576, height: 576 },
@@ -1866,7 +1866,7 @@ export const products: Product[] = [
     name: 'Jumbo Series Outdoor P6',
     category: 'Jumbo Series',
     enabled: true,
-    image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM.png',
+    image: '/products/jumbo-series/Jumbo Series Outdoor P6.png',
     resolution: { width: 32, height: 32 }, // Per module: 32×columns × 32×rows (192mm/6mm = 32 px)
     cabinetDimensions: { width: 2109, height: 1536 },
     moduleDimensions: { width: 192, height: 192 }, // 192×192mm per Orion P6 spec
@@ -1925,7 +1925,7 @@ export const products: Product[] = [
     name: 'Jumbo Series Outdoor P4',
     category: 'Jumbo Series',
     enabled: true,
-    image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy.png',
+    image: '/products/jumbo-series/Jumbo Series Outdoor P4.png',
     resolution: { width: 80, height: 40 }, // Per module: (Column × 80) × (Row × 40)
     cabinetDimensions: { width: 2237, height: 1439 }, // Fixed display size: 7.34ft x 4.72ft
     moduleDimensions: { width: 320, height: 160 }, // Fixed module size: 320x160mm
@@ -1984,7 +1984,7 @@ export const products: Product[] = [
     name: 'Jumbo Series Outdoor P3',
     category: 'Jumbo Series',
     enabled: true,
-    image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy 2.png',
+    image: '/products/jumbo-series/Jumbo Series Outdoor P3.png',
     resolution: { width: 64, height: 64 }, // Per module: (Column × 64) × (Row × 64)
     cabinetDimensions: { width: 2109, height: 1536 }, // Fixed display size: 6.92ft x 5.04ft
     moduleDimensions: { width: 192, height: 192 }, // Fixed module size: 192x192mm
@@ -2043,7 +2043,7 @@ export const products: Product[] = [
     name: 'Jumbo Series Outdoor P2.5',
     category: 'Jumbo Series',
     enabled: true,
-    image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy 3.png',
+    image: '/products/jumbo-series/Jumbo Series Outdoor P2.5.png',
     resolution: { width: 128, height: 64 }, // Per module: (Column × 128) × (Row × 64)
     cabinetDimensions: { width: 2237, height: 1439 }, // Fixed display size: 7.34ft x 4.72ft
     moduleDimensions: { width: 320, height: 160 }, // Fixed module size: 320x160mm
