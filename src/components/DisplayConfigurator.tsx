@@ -491,7 +491,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         QuotationIdGenerator.storeQuotationId(newQuotationId, username);
       } catch (error) {
 
-        const fallbackId = `ORION/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getDate()).padStart(2, '0')}/${username.toUpperCase()}/001`;
+        const fallbackId = `ORION/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${username.trim().split(' ')[0].toUpperCase()}/001`;
         setQuotationId(fallbackId);
       }
     }

@@ -29,7 +29,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 }) => {
   const { updateConfig } = useDisplayConfig();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor'>('All');
+  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series'>('All');
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
   const [pendingRentalProduct, setPendingRentalProduct] = useState<ProductWithOptionalSize | null>(null);
   const [rentalOption, setRentalOption] = useState<'cabinet' | 'curve lock' | null>(null);
@@ -51,6 +51,13 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   useEffect(() => {
     setSelectedPixelPitch('All');
   }, [viewingDistanceValue, viewingDistanceUnit]);
+
+  // Category row no longer shows Rental Series or Jumbo Series; reset if one was selected
+  useEffect(() => {
+    if (selectedCategory === 'Rental Series' || selectedCategory === 'Jumbo Series') {
+      setSelectedCategory('All');
+    }
+  }, [selectedCategory]);
 
   useEffect(() => {
     if (!hasEnvironmentInteraction.current) return;
@@ -106,6 +113,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const isRentalSeries = (product: Product) =>
     product.category && product.category.toLowerCase().includes('rental');
 
+  const isJumboSeries = (product: Product) =>
+    product.category && product.category.toLowerCase().includes('jumbo');
+
   const recommendedPixelPitches = useMemo(() => {
     if (!viewingDistanceValue) return [];
     const env = selectedFilter === 'Indoor' || selectedFilter === 'Outdoor' ? selectedFilter : null;
@@ -119,6 +129,10 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       tempProducts = tempProducts.filter((p) => normalizeEnv(p.environment) === 'indoor');
     } else if (selectedFilter === 'Outdoor') {
       tempProducts = tempProducts.filter((p) => normalizeEnv(p.environment) === 'outdoor');
+    } else if (selectedFilter === 'Rental') {
+      tempProducts = tempProducts.filter((p) => isRentalSeries(p));
+    } else if (selectedFilter === 'Jumbo Series') {
+      tempProducts = tempProducts.filter((p) => isJumboSeries(p));
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
@@ -139,6 +153,10 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       filtered = filtered.filter((p) => normalizeEnv(p.environment) === 'indoor');
     } else if (selectedFilter === 'Outdoor') {
       filtered = filtered.filter((p) => normalizeEnv(p.environment) === 'outdoor');
+    } else if (selectedFilter === 'Rental') {
+      filtered = filtered.filter((p) => isRentalSeries(p));
+    } else if (selectedFilter === 'Jumbo Series') {
+      filtered = filtered.filter((p) => isJumboSeries(p));
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
@@ -248,6 +266,34 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 }`}
               >
                 Outdoor
+              </button>
+              <button
+                onClick={() => { 
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('Rental'); 
+                  setIndoorType('All'); 
+                }}
+                className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'Rental'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                Rental
+              </button>
+              <button
+                onClick={() => { 
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('Jumbo Series'); 
+                  setIndoorType('All'); 
+                }}
+                className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'Jumbo Series'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                Jumbo Series
               </button>
             </div>
 
@@ -430,7 +476,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
             >
               All Products
             </button>
-            {categories.map((category) => (
+            {categories
+              .filter((category) => category !== 'Rental Series' && category !== 'Jumbo Series')
+              .map((category) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}

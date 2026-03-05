@@ -2085,47 +2085,49 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
 });
 
 // Generate globally unique quotation ID with atomic serial number generation
+// Format: ORION/YYYY/MM/FIRSTNAME/001 (no day)
 router.post('/generate-quotation-id', async (req, res) => {
   const session = await mongoose.startSession();
 
   try {
     await session.withTransaction(async () => {
 
-      const { firstName, year, month, day } = req.body;
+      const { firstName, year, month } = req.body;
 
-      if (!firstName || !year || !month || !day) {
-        throw new Error('Missing required fields: firstName, year, month, day');
+      if (!firstName || !year || !month) {
+        throw new Error('Missing required fields: firstName, year, month');
       }
 
       const upperFirstName = firstName.toUpperCase();
 
-      // Step 1: Find ALL quotations matching this specific user + date prefix
-      const prefix = `ORION/${year}/${month}/${day}/${upperFirstName}/`;
+      // Step 1: Find ALL quotations matching this specific user + year/month prefix (no day)
+      const prefix = `ORION/${year}/${month}/${upperFirstName}/`;
       const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const existingQuotations = await Quotation.find({
         quotationId: { $regex: new RegExp(`^${escapedPrefix}\\d{3}$`) }
       }).select('quotationId').session(session).lean();
 
-      // Step 2: Extract serial numbers numerically and find the max
+      // Step 2: Extract serial numbers (support both 5-part new format and 6-part legacy)
       let maxSerial = 0;
       existingQuotations.forEach(q => {
         const parts = q.quotationId.split('/');
-        if (parts.length === 6) {
-          const serialNum = parseInt(parts[5], 10) || 0;
+        const serialPart = parts.length === 5 ? parts[4] : parts.length === 6 ? parts[5] : null;
+        if (serialPart) {
+          const serialNum = parseInt(serialPart, 10) || 0;
           maxSerial = Math.max(maxSerial, serialNum);
         }
       });
 
-      const nextSerial = maxSerial + 1; // 001 if none exist, otherwise max + 1
+      const nextSerial = maxSerial + 1;
       const serial = nextSerial.toString().padStart(3, '0');
-      const quotationId = `ORION/${year}/${month}/${day}/${upperFirstName}/${serial}`;
+      const quotationId = `ORION/${year}/${month}/${upperFirstName}/${serial}`;
 
       res.json({
         success: true,
         quotationId,
         serial,
         isGloballyUnique: true,
-        message: 'Quotation ID generated successfully (scoped to user + date)'
+        message: 'Quotation ID generated successfully (scoped to user + year/month)'
       });
     });
 
@@ -2141,37 +2143,34 @@ router.post('/generate-quotation-id', async (req, res) => {
   }
 });
 
-// Check latest quotation ID for a specific user and date to prevent duplicates (legacy endpoint)
+// Check latest quotation ID for a specific user and year/month (no day). Format: ORION/YYYY/MM/FIRSTNAME/001
 router.post('/check-latest-quotation-id', async (req, res) => {
   try {
 
-    const { firstName, year, month, day } = req.body;
+    const { firstName, year, month } = req.body;
 
-    if (!firstName || !year || !month || !day) {
+    if (!firstName || !year || !month) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: firstName, year, month, day'
+        error: 'Missing required fields: firstName, year, month'
       });
     }
 
-    // Create regex pattern to match quotation IDs for this user and date
-    const pattern = new RegExp(`^ORION/${year}/${month}/${day}/${firstName.toUpperCase()}/\\d{3}$`);
+    // Match new format ORION/YYYY/MM/FIRSTNAME/001 (5 parts)
+    const pattern = new RegExp(`^ORION/${year}/${month}/${firstName.toUpperCase()}/\\d{3}$`);
 
-    // Find the latest quotation ID matching this pattern
     const latestQuotation = await Quotation.findOne({
       quotationId: { $regex: pattern }
     }).sort({ quotationId: -1 });
 
     let latestSerial = 0;
     if (latestQuotation && latestQuotation.quotationId) {
-      // Extract the serial number from the quotation ID
       const parts = latestQuotation.quotationId.split('/');
-      if (parts.length === 6) {
+      if (parts.length === 5) {
+        latestSerial = parseInt(parts[4], 10) || 0;
+      } else if (parts.length === 6) {
         latestSerial = parseInt(parts[5], 10) || 0;
       }
-
-    } else {
-
     }
 
     res.json({
