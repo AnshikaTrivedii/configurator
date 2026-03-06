@@ -42,13 +42,20 @@ export function getProductUnitPrice(product: Product, userType: string): number 
   try {
 
     if (product.category?.toLowerCase().includes('rental') && product.prices) {
+      const isCurveLock = product.rentalOption === 'curve lock' || product.rentalOption === 'curveLock';
+      let cabinetPrice: number;
+      let curveLockAddOn = 0;
       if (userType === 'Reseller') {
-        return product.prices.cabinet.reseller;
+        cabinetPrice = product.prices.cabinet.reseller;
+        if (isCurveLock && product.prices.curveLock) curveLockAddOn = product.prices.curveLock.reseller;
       } else if (userType === 'Channel') {
-        return product.prices.cabinet.siChannel;
+        cabinetPrice = product.prices.cabinet.siChannel;
+        if (isCurveLock && product.prices.curveLock) curveLockAddOn = product.prices.curveLock.siChannel;
       } else {
-        return product.prices.cabinet.endCustomer;
+        cabinetPrice = product.prices.cabinet.endCustomer;
+        if (isCurveLock && product.prices.curveLock) curveLockAddOn = product.prices.curveLock.endCustomer;
       }
+      return cabinetPrice + curveLockAddOn;
     }
 
     if (userType === 'Reseller' && typeof product.resellerPrice === 'number') {

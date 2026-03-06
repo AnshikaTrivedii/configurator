@@ -25,13 +25,15 @@ function getProductPriceForPdf(productDetails, userType = 'End User') {
   try {
     // Handle different product types
     if (productDetails.category?.toLowerCase().includes('rental') && productDetails.prices) {
-      // For rental products, use cabinet pricing based on user type
+      const isCurveLock = productDetails.rentalOption === 'curve lock' || productDetails.rentalOption === 'curveLock';
+      const cab = productDetails.prices.cabinet;
+      const curve = productDetails.prices.curveLock;
       if (userType === 'Reseller') {
-        return productDetails.prices.cabinet.reseller;
+        return cab.reseller + (isCurveLock && curve ? curve.reseller : 0);
       } else if (userType === 'Channel') {
-        return productDetails.prices.cabinet.siChannel;
+        return cab.siChannel + (isCurveLock && curve ? curve.siChannel : 0);
       } else {
-        return productDetails.prices.cabinet.endCustomer;
+        return cab.endCustomer + (isCurveLock && curve ? curve.endCustomer : 0);
       }
     }
 

@@ -58,16 +58,21 @@ function getProductUnitPrice(product: Product, userType: string): number | null 
   try {
 
     if (product.category?.toLowerCase().includes('rental') && product.prices) {
+      const isCurveLock = product.rentalOption === 'curve lock' || product.rentalOption === 'curveLock';
+      let cabinetPrice: number;
+      let curveLockAddOn = 0;
       if (userType === 'Reseller') {
-        const price = product.prices.cabinet.reseller;
-        return ((price as any) === 'NA' || (price as any) === 'N/A') ? null : price;
+        cabinetPrice = product.prices.cabinet.reseller as number;
+        if (isCurveLock && product.prices.curveLock) curveLockAddOn = product.prices.curveLock.reseller as number;
       } else if (userType === 'Channel') {
-        const price = product.prices.cabinet.siChannel;
-        return ((price as any) === 'NA' || (price as any) === 'N/A') ? null : price;
+        cabinetPrice = product.prices.cabinet.siChannel as number;
+        if (isCurveLock && product.prices.curveLock) curveLockAddOn = product.prices.curveLock.siChannel as number;
       } else {
-        const price = product.prices.cabinet.endCustomer;
-        return ((price as any) === 'NA' || (price as any) === 'N/A') ? null : price;
+        cabinetPrice = product.prices.cabinet.endCustomer as number;
+        if (isCurveLock && product.prices.curveLock) curveLockAddOn = product.prices.curveLock.endCustomer as number;
       }
+      const price = cabinetPrice + curveLockAddOn;
+      return ((cabinetPrice as any) === 'NA' || (cabinetPrice as any) === 'N/A') ? null : price;
     }
 
     let selectedPrice: any;

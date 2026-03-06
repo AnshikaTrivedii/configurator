@@ -49,12 +49,13 @@ function calculateCorrectTotalPrice(
   let unitPrice = 0;
 
   if (product.category?.toLowerCase().includes('rental') && product.prices) {
+    const isCurveLock = product.rentalOption === 'curve lock' || product.rentalOption === 'curveLock';
     if (pdfUserType === 'Reseller') {
-      unitPrice = product.prices.cabinet.reseller;
+      unitPrice = product.prices.cabinet.reseller + (isCurveLock && product.prices.curveLock ? product.prices.curveLock.reseller : 0);
     } else if (pdfUserType === 'Channel') {
-      unitPrice = product.prices.cabinet.siChannel;
+      unitPrice = product.prices.cabinet.siChannel + (isCurveLock && product.prices.curveLock ? product.prices.curveLock.siChannel : 0);
     } else {
-      unitPrice = product.prices.cabinet.endCustomer;
+      unitPrice = product.prices.cabinet.endCustomer + (isCurveLock && product.prices.curveLock ? product.prices.curveLock.endCustomer : 0);
     }
   } else {
 
@@ -495,9 +496,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
         let unitPrice = 0;
         if (selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.prices) {
-          if (pdfUserType === 'Reseller') unitPrice = selectedProduct.prices.cabinet.reseller;
-          else if (pdfUserType === 'Channel') unitPrice = selectedProduct.prices.cabinet.siChannel;
-          else unitPrice = selectedProduct.prices.cabinet.endCustomer;
+          const isCurveLock = selectedProduct.rentalOption === 'curve lock' || selectedProduct.rentalOption === 'curveLock';
+          const addCurveLock = isCurveLock && selectedProduct.prices.curveLock;
+          if (pdfUserType === 'Reseller') unitPrice = selectedProduct.prices.cabinet.reseller + (addCurveLock ? selectedProduct.prices.curveLock!.reseller : 0);
+          else if (pdfUserType === 'Channel') unitPrice = selectedProduct.prices.cabinet.siChannel + (addCurveLock ? selectedProduct.prices.curveLock!.siChannel : 0);
+          else unitPrice = selectedProduct.prices.cabinet.endCustomer + (addCurveLock ? selectedProduct.prices.curveLock!.endCustomer : 0);
         } else {
           if (pdfUserType === 'Reseller') unitPrice = Number(selectedProduct.resellerPrice) || 0;
           else if (pdfUserType === 'Channel') unitPrice = Number(selectedProduct.siChannelPrice) || 0;

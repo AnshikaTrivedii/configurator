@@ -341,8 +341,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               </div>
             )}
 
-                      {/* Viewing Distance Filter */}
-                      <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
+            {/* Viewing Distance Filter */}
+            <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
                         <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Viewing Distance:</span>
                         <div className="flex items-center gap-2">
                           {/* Unit Selector */}

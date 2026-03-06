@@ -1065,16 +1065,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                             selectedProduct.rentalOption &&
                             selectedProduct.prices
                           ) {
-
-                            const userTypeToPriceKey = (type: string): 'endCustomer' | 'siChannel' | 'reseller' => {
-                              if (type === 'siChannel' || type === 'reseller') return type;
-                              return 'endCustomer';
-                            };
-                            const price = selectedProduct.prices[
-                              selectedProduct.rentalOption === 'curve lock' ? 'curveLock' : 'cabinet'
-                            ][userTypeToPriceKey('endCustomer')];
+                            const cab = selectedProduct.prices.cabinet.endCustomer;
+                            const curve = selectedProduct.rentalOption === 'curve lock' && selectedProduct.prices.curveLock
+                              ? selectedProduct.prices.curveLock.endCustomer : 0;
+                            const price = cab + curve;
                             return price
-                              ? `₹${price.toLocaleString('en-IN')} (${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'})/ft²`
+                              ? `₹${price.toLocaleString('en-IN')} (${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'})/cabinet`
                               : 'Contact for pricing';
                           }
                           let price = selectedProduct.price;

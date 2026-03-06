@@ -330,13 +330,15 @@ export const generateConfigurationHtml = (
     const normalizedUserType = normalizeLegacyUserType(userType);
 
     if (product.category?.toLowerCase().includes('rental') && product.prices) {
-      const priceSet = product.rentalOption === 'curve lock' ? product.prices.curveLock : product.prices.cabinet;
+      const isCurveLock = product.rentalOption === 'curve lock' || product.rentalOption === 'curveLock';
+      const cabinet = product.prices.cabinet;
+      const curveLock = product.prices.curveLock;
       if (normalizedUserType === 'Reseller') {
-        return priceSet.reseller;
+        return cabinet.reseller + (isCurveLock && curveLock ? curveLock.reseller : 0);
       } else if (normalizedUserType === 'Channel') {
-        return priceSet.siChannel;
+        return cabinet.siChannel + (isCurveLock && curveLock ? curveLock.siChannel : 0);
       } else {
-        return priceSet.endCustomer;
+        return cabinet.endCustomer + (isCurveLock && curveLock ? curveLock.endCustomer : 0);
       }
     }
 

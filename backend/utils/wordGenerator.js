@@ -75,12 +75,15 @@ const normalizeLegacyUserType = (userType) => {
 const getProductPriceForWord = (product, userType = 'End User') => {
   const normalizedUserType = normalizeLegacyUserType(userType);
   if (product.category?.toLowerCase().includes('rental') && product.prices) {
+    const isCurveLock = product.rentalOption === 'curve lock' || product.rentalOption === 'curveLock';
+    const cab = product.prices.cabinet;
+    const curve = product.prices.curveLock;
     if (normalizedUserType === 'Reseller') {
-      return product.prices.cabinet.reseller;
+      return cab.reseller + (isCurveLock && curve ? curve.reseller : 0);
     } else if (normalizedUserType === 'Channel') {
-      return product.prices.cabinet.siChannel;
+      return cab.siChannel + (isCurveLock && curve ? curve.siChannel : 0);
     } else {
-      return product.prices.cabinet.endCustomer;
+      return cab.endCustomer + (isCurveLock && curve ? curve.endCustomer : 0);
     }
   }
   
