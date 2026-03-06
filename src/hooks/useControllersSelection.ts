@@ -172,98 +172,105 @@ export const useControllerSelection = (
   isRedundancyMode: boolean
 ): ControllerSelection => {
   return useMemo(() => {
+    const primaryPorts = dataHubPorts;
+    const backupPorts = isRedundancyMode ? dataHubPorts : 0;
+    const requiredPorts = isRedundancyMode ? primaryPorts + backupPorts : primaryPorts; // = 2 * dataHubPorts when redundancy
 
-    let requiredPorts: number;
-    let backupPorts: number;
-    
+    console.log({
+      redundancyEnabled: isRedundancyMode,
+      dataHubPorts,
+      primaryPorts,
+      backupPorts,
+      requiredPorts,
+    });
+
+    let computedRequiredPorts: number;
+    let computedBackupPorts: number;
+
     if (isRedundancyMode) {
+      computedRequiredPorts = requiredPorts; // 2 * dataHubPorts
+      computedBackupPorts = backupPorts; // dataHubPorts
 
-      requiredPorts = dataHubPorts * 2;
-      backupPorts = dataHubPorts;
+      // Redundancy: only controllers that support redundancy (minPortsForRedundancy >= 2)
+      const availableControllers = CONTROLLERS.filter(
+        (ctrl) => ctrl.minPortsForRedundancy >= 2 && ctrl.portCount >= computedRequiredPorts
+      );
 
-      const availableControllers = CONTROLLERS.filter(ctrl => ctrl.minPortsForRedundancy > 0);
-
-      const selectedController = availableControllers.find(ctrl => ctrl.portCount >= requiredPorts);
+      // First pick by port count (requiredPorts), then by pixel capacity
+      const selectedController = availableControllers.find(
+        (ctrl) => ctrl.portCount >= computedRequiredPorts && ctrl.pixelCapacity * 1000000 >= totalPixels
+      )
+        ?? availableControllers.find((ctrl) => ctrl.portCount >= computedRequiredPorts);
       
       if (selectedController) {
-
+        // If selected controller has insufficient pixel capacity, pick smallest controller that has both enough ports and enough pixels
         if (totalPixels > selectedController.pixelCapacity * 1000000) {
-
-          const pixelCapableControllers = availableControllers.filter(
-            ctrl => ctrl.pixelCapacity * 1000000 >= totalPixels
+          const portAndPixelCapable = availableControllers.filter(
+            (ctrl) =>
+              ctrl.portCount >= computedRequiredPorts &&
+              ctrl.pixelCapacity * 1000000 >= totalPixels
           );
-          
-          if (pixelCapableControllers.length > 0) {
-
-            const bestController = pixelCapableControllers.sort((a, b) => {
-              if (a.portCount !== b.portCount) {
-                return a.portCount - b.portCount; // Prefer fewer ports
-              }
-              return a.pixelCapacity - b.pixelCapacity; // Then prefer lower pixel capacity
+          if (portAndPixelCapable.length > 0) {
+            const bestController = portAndPixelCapable.sort((a, b) => {
+              if (a.portCount !== b.portCount) return a.portCount - b.portCount;
+              return a.pixelCapacity - b.pixelCapacity;
             })[0];
-            
             return {
               selectedController: bestController,
-              requiredPorts,
+              requiredPorts: computedRequiredPorts,
               totalPixels,
               isRedundancyMode,
               dataHubPorts,
-              backupPorts,
+              backupPorts: computedBackupPorts,
             };
           }
         }
-        
         return {
           selectedController,
-          requiredPorts,
+          requiredPorts: computedRequiredPorts,
           totalPixels,
           isRedundancyMode,
           dataHubPorts,
-          backupPorts,
+          backupPorts: computedBackupPorts,
         };
       }
     } else {
+      computedRequiredPorts = dataHubPorts;
+      computedBackupPorts = 0;
 
-      requiredPorts = dataHubPorts;
-      backupPorts = 0;
-
-      const selectedController = CONTROLLERS.find(ctrl => ctrl.portCount >= requiredPorts);
+      const selectedController = CONTROLLERS.find(
+        (ctrl) => ctrl.portCount >= computedRequiredPorts
+      );
       
       if (selectedController) {
-
         if (totalPixels > selectedController.pixelCapacity * 1000000) {
-
           const pixelCapableControllers = CONTROLLERS.filter(
-            ctrl => ctrl.pixelCapacity * 1000000 >= totalPixels
+            (ctrl) =>
+              ctrl.portCount >= computedRequiredPorts &&
+              ctrl.pixelCapacity * 1000000 >= totalPixels
           );
-          
           if (pixelCapableControllers.length > 0) {
-
             const bestController = pixelCapableControllers.sort((a, b) => {
-              if (a.portCount !== b.portCount) {
-                return a.portCount - b.portCount; // Prefer fewer ports
-              }
-              return a.pixelCapacity - b.pixelCapacity; // Then prefer lower pixel capacity
+              if (a.portCount !== b.portCount) return a.portCount - b.portCount;
+              return a.pixelCapacity - b.pixelCapacity;
             })[0];
-            
             return {
               selectedController: bestController,
-              requiredPorts,
+              requiredPorts: computedRequiredPorts,
               totalPixels,
               isRedundancyMode,
               dataHubPorts,
-              backupPorts,
+              backupPorts: computedBackupPorts,
             };
           }
         }
-        
         return {
           selectedController,
-          requiredPorts,
+          requiredPorts: computedRequiredPorts,
           totalPixels,
           isRedundancyMode,
           dataHubPorts,
-          backupPorts,
+          backupPorts: computedBackupPorts,
         };
       }
     }
@@ -271,7 +278,7 @@ export const useControllerSelection = (
     const fallbackController = CONTROLLERS[CONTROLLERS.length - 1];
     return {
       selectedController: fallbackController,
-      requiredPorts: fallbackController.portCount,
+      requiredPorts: isRedundancyMode ? computedRequiredPorts : fallbackController.portCount,
       totalPixels,
       isRedundancyMode,
       dataHubPorts,

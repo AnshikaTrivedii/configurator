@@ -10,6 +10,7 @@ import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
 import { getProcessorPrice } from '../utils/processorPrices';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { applyDiscount, DiscountInfo } from '../utils/discountCalculator';
+import { getDisplayPower } from '../utils/displayPower';
 
 interface ProductWithPricing extends Product {
   prices?: {
@@ -77,26 +78,14 @@ function calculateCorrectTotalPrice(
 
     quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
   } else if (isJumboSeriesProduct(product)) {
-
-    const pixelPitch = product.pixelPitch;
-
-    if (pixelPitch === 4 || pixelPitch === 2.5) {
-
-      const widthInFeet = 7.34;
-      const heightInFeet = 4.72;
-      const fixedQuantity = widthInFeet * heightInFeet;
-
-      quantity = Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
-    } else if (pixelPitch === 3 || pixelPitch === 6) {
-
-      const widthInFeet = 6.92;
-      const heightInFeet = 5.04;
-      const fixedQuantity = widthInFeet * heightInFeet;
-
-      quantity = Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
-    } else {
-      quantity = 1; // Fallback
-    }
+    // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
+    const widthInMeters = config.width / 1000;
+    const heightInMeters = config.height / 1000;
+    const widthInFeet = widthInMeters * METERS_TO_FEET;
+    const heightInFeet = heightInMeters * METERS_TO_FEET;
+    const rawQuantity = widthInFeet * heightInFeet;
+    quantity = Math.round(rawQuantity * 100) / 100;
+    quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
   } else {
 
     const widthInMeters = config.width / 1000;
@@ -121,11 +110,11 @@ function calculateCorrectTotalPrice(
 
   }
 
-  const gstProduct = subtotal * 0.18;
-  const totalProduct = subtotal + gstProduct;
+  const gstProduct = 0;
+  const totalProduct = subtotal;
 
-  const gstProcessor = processorPrice * 0.18;
-  const totalProcessor = processorPrice + gstProcessor;
+  const gstProcessor = 0;
+  const totalProcessor = processorPrice;
 
   const widthInMeters = config.width / 1000;
   const heightInMeters = config.height / 1000;
@@ -136,29 +125,30 @@ function calculateCorrectTotalPrice(
   let structureBasePrice: number;
   let installationBasePrice: number;
 
-  if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
-
+  const normalizedEnv = product.environment?.toLowerCase().trim();
+  if (customPricing?.enabled && customPricing.structurePrice !== null) {
     structureBasePrice = customPricing.structurePrice;
+  } else if (product.category === 'Module/ Grid Series') {
+    const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
+    structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
+  } else if (normalizedEnv === 'indoor') {
+    const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+    structureBasePrice = numberOfCabinets * 4000;
+  } else {
+    structureBasePrice = screenAreaSqFt * 2500;
+  }
+
+  if (customPricing?.enabled && customPricing.installationPrice !== null) {
     installationBasePrice = customPricing.installationPrice;
   } else {
-
-    const normalizedEnv = product.environment?.toLowerCase().trim();
-    if (normalizedEnv === 'indoor') {
-
-      const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-      structureBasePrice = numberOfCabinets * 4000;
-    } else {
-
-      structureBasePrice = screenAreaSqFt * 2500;
-    }
     installationBasePrice = screenAreaSqFt * 500;
   }
 
-  const structureGST = structureBasePrice * 0.18;
-  const totalStructure = structureBasePrice + structureGST;
+  const structureGST = 0;
+  const totalStructure = structureBasePrice;
 
-  const installationGST = installationBasePrice * 0.18;
-  const totalInstallation = installationBasePrice + installationGST;
+  const installationGST = 0;
+  const totalInstallation = installationBasePrice;
 
   const grandTotal = totalProduct + totalProcessor + totalStructure + totalInstallation;
 
@@ -459,8 +449,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           brightness: selectedProduct.brightness,
           refreshRate: selectedProduct.refreshRate,
           environment: selectedProduct.environment,
-          maxPowerConsumption: selectedProduct.maxPowerConsumption,
-          avgPowerConsumption: selectedProduct.avgPowerConsumption,
+          maxPowerConsumption: cabinetGrid ? getDisplayPower(selectedProduct, cabinetGrid).maxPower : selectedProduct.maxPowerConsumption,
+          avgPowerConsumption: cabinetGrid ? getDisplayPower(selectedProduct, cabinetGrid).avgPower : selectedProduct.avgPowerConsumption,
           weightPerCabinet: selectedProduct.weightPerCabinet,
 
           userType: userType
@@ -484,7 +474,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
         const configForCalc = config || { width: 2400, height: 1010, unit: 'mm' };
 
-        const customPricingObj = customPricingEnabled && customStructurePrice !== null && customInstallationPrice !== null
+        const customPricingObj = customPricingEnabled && (customStructurePrice !== null || customInstallationPrice !== null)
           ? {
             enabled: true,
             structurePrice: customStructurePrice,
@@ -518,15 +508,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         if (selectedProduct.category?.toLowerCase().includes('rental')) {
           quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
         } else if (isJumboSeriesProduct(selectedProduct as any)) {
-
-          const pixelPitch = selectedProduct.pixelPitch;
-          if (pixelPitch === 4 || pixelPitch === 2.5) {
-            quantity = 34.64;
-          } else if (pixelPitch === 3 || pixelPitch === 6) {
-            quantity = 34.88;
-          } else {
-            quantity = 1;
-          }
+          // Jumbo: prices per ft² (controller included). Quantity = display area in sq ft.
+          const METERS_TO_FEET = 3.2808399;
+          const widthInMeters = configForCalc.width / 1000;
+          const heightInMeters = configForCalc.height / 1000;
+          const widthInFeet = widthInMeters * METERS_TO_FEET;
+          const heightInFeet = heightInMeters * METERS_TO_FEET;
+          quantity = Math.round((widthInFeet * heightInFeet) * 100) / 100;
+          quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
         } else {
 
           const METERS_TO_FEET = 3.2808399;
@@ -539,61 +528,66 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         }
 
         const subtotal = unitPrice * quantity;
-        const gstProduct = subtotal * 0.18;
+        const gstProduct = 0;
 
         let processorPrice = 0;
         if (processor && !isJumboSeriesProduct(selectedProduct as any)) {
           processorPrice = getProcessorPrice(processor, pdfUserType);
         }
-        const gstProcessor = processorPrice * 0.18;
+        const gstProcessor = 0;
 
         let structureBasePrice = 0;
         let installationBasePrice = 0;
 
-        if (customPricingObj?.enabled) {
-          structureBasePrice = customPricingObj.structurePrice || 0;
-          installationBasePrice = customPricingObj.installationPrice || 0;
-        } else {
-          const METERS_TO_FEET = 3.2808399;
-          const widthInMeters = configForCalc.width / 1000;
-          const heightInMeters = configForCalc.height / 1000;
-          const screenAreaSqFt = Math.round((widthInMeters * METERS_TO_FEET * heightInMeters * METERS_TO_FEET) * 100) / 100;
+        const METERS_TO_FEET = 3.2808399;
+        const widthInMeters = configForCalc.width / 1000;
+        const heightInMeters = configForCalc.height / 1000;
+        const screenAreaSqFt = Math.round((widthInMeters * METERS_TO_FEET * heightInMeters * METERS_TO_FEET) * 100) / 100;
 
-          if (selectedProduct.environment?.toLowerCase().trim() === 'indoor') {
-            const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-            structureBasePrice = numberOfCabinets * 4000;
-          } else {
-            structureBasePrice = screenAreaSqFt * 2500;
-          }
+        if (customPricingObj?.enabled && customPricingObj.structurePrice !== null) {
+          structureBasePrice = customPricingObj.structurePrice;
+        } else if (selectedProduct.category === 'Module/ Grid Series') {
+          const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
+          structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
+        } else if (selectedProduct.environment?.toLowerCase().trim() === 'indoor') {
+          const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+          structureBasePrice = numberOfCabinets * 4000;
+        } else {
+          structureBasePrice = screenAreaSqFt * 2500;
+        }
+
+        if (customPricingObj?.enabled && customPricingObj.installationPrice !== null) {
+          installationBasePrice = customPricingObj.installationPrice;
+        } else {
           installationBasePrice = screenAreaSqFt * 500;
         }
 
-        const structureGST = structureBasePrice * 0.18;
-        const totalStructure = structureBasePrice + structureGST;
-        const installationGST = installationBasePrice * 0.18;
-        const totalInstallation = installationBasePrice + installationGST;
+        const structureGST = 0;
+        const totalStructure = structureBasePrice;
+        const installationGST = 0;
+        const totalInstallation = installationBasePrice;
 
         const breakdown = {
           unitPrice,
           quantity,
           subtotal: subtotal,
           gstRate: 18,
-          gstAmount: gstProduct, // legacy field
+          gstAmount: 0,
           productSubtotal: subtotal,
-          productGST: gstProduct,
-          productTotal: subtotal + gstProduct,
+          productGST: 0,
+          productTotal: subtotal,
 
           processorPrice,
-          processorGst: gstProcessor, // legacy field
-          processorGST: gstProcessor,
-          processorTotal: processorPrice + gstProcessor,
+          processorGst: 0,
+          processorGST: 0,
+          processorTotal: processorPrice,
 
           structureCost: structureBasePrice,
-          structureGST: structureGST,
+          structureGST: 0,
           structureTotal: totalStructure,
 
           installationCost: installationBasePrice,
-          installationGST: installationGST,
+          installationGST: 0,
           installationTotal: totalInstallation,
 
           grandTotal: Math.round(newTotalPrice)
@@ -862,8 +856,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             brightness: selectedProduct.brightness,
             refreshRate: selectedProduct.refreshRate,
             environment: selectedProduct.environment,
-            maxPowerConsumption: selectedProduct.maxPowerConsumption,
-            avgPowerConsumption: selectedProduct.avgPowerConsumption,
+            maxPowerConsumption: cabinetGrid ? getDisplayPower(selectedProduct, cabinetGrid).maxPower : selectedProduct.maxPowerConsumption,
+            avgPowerConsumption: cabinetGrid ? getDisplayPower(selectedProduct, cabinetGrid).avgPower : selectedProduct.avgPowerConsumption,
             weightPerCabinet: selectedProduct.weightPerCabinet,
 
             cabinetGrid: cabinetGrid,
@@ -884,7 +878,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
           const configForCalc = config || { width: 2400, height: 1010, unit: 'mm' };
 
-          const customPricingObj = customPricingEnabled && customStructurePrice !== null && customInstallationPrice !== null
+          const customPricingObj = customPricingEnabled && (customStructurePrice !== null || customInstallationPrice !== null)
             ? {
               enabled: true,
               structurePrice: customStructurePrice,
@@ -1578,15 +1572,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                             <span className="text-sm font-medium text-gray-600">Product Price:</span>
                             <span className="font-semibold text-gray-900 text-sm">₹{getPriceForUserType()?.toLocaleString('en-IN')}</span>
                           </div>
-                          {processor && processorPrices[processor] && (
+                          {processor && (
                             <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
                               <span className="text-sm font-medium text-gray-600">Processor Price:</span>
-                              <span className="font-semibold text-gray-900 text-sm">₹{(() => {
-                                const userType = getUserType();
-                                if (userType === 'siChannel') return processorPrices[processor].siChannel;
-                                if (userType === 'reseller') return processorPrices[processor].reseller;
-                                return processorPrices[processor].endUser;
-                              })().toLocaleString('en-IN')}</span>
+                              <span className="font-semibold text-gray-900 text-sm">₹{getProcessorPrice(processor, getUserType()).toLocaleString('en-IN')}</span>
                             </div>
                           )}
                           {totalPrice && (

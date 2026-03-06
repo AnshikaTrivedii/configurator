@@ -239,13 +239,39 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     return cabinets;
   };
 
+  const isJumbo = selectedProduct?.category?.toLowerCase().includes('jumbo') ?? false;
+
   const useModuleGrid = selectedProduct && (
+    selectedProduct.category === 'Module/ Grid Series' ||
     selectedProduct.category?.toLowerCase().includes('digital standee') ||
     selectedProduct.category?.toLowerCase().includes('jumbo')
   );
 
+  /** Jumbo only: one logo centered on the whole screen, no grid lines */
+  const renderJumboPreview = () => (
+    <div className="absolute inset-0 flex items-center justify-center bg-black">
+      <img
+        src="https://orion-led.com/wp-content/uploads/2025/06/logo-white-1.png"
+        alt="Orion LED Logo"
+        className="max-w-[40%] max-h-[40%] w-auto h-auto object-contain"
+        onError={(e) => {
+          e.currentTarget.style.display = 'none';
+          const parent = e.currentTarget.parentElement;
+          if (parent && !parent.querySelector('.fallback-text')) {
+            const fallback = document.createElement('div');
+            fallback.className = 'fallback-text text-gray-400 text-sm';
+            fallback.textContent = 'ORION';
+            parent.appendChild(fallback);
+          }
+        }}
+      />
+    </div>
+  );
+
   const moduleGrid = useModuleGrid && selectedProduct ? (
-    selectedProduct.category?.toLowerCase().includes('digital standee')
+    selectedProduct.category === 'Module/ Grid Series'
+      ? { columns: cabinetGrid.columns, rows: cabinetGrid.rows, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
+      : selectedProduct.category?.toLowerCase().includes('digital standee')
       ? { columns: 7, rows: 5, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
       : selectedProduct.moduleGrid
         ? { 
@@ -432,9 +458,9 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             className="hidden"
             accept="image/*,video/*"
           />
-          {/* Cabinet grid, overlays, and corners only if no background */}
-          {!(backgroundImage || backgroundVideo) && (useModuleGrid ? renderModuleGrid() : renderCabinetGrid())}
-          {!(backgroundImage || backgroundVideo) && (
+          {/* Cabinet grid, overlays, and corners only if no background. Jumbo: single centered logo, no grid. */}
+          {!(backgroundImage || backgroundVideo) && (isJumbo ? renderJumboPreview() : (useModuleGrid ? renderModuleGrid() : renderCabinetGrid()))}
+          {!(backgroundImage || backgroundVideo) && !selectedProduct?.category?.toLowerCase().includes('jumbo') && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="bg-black bg-opacity-60 text-white p-1 sm:p-2 lg:p-4 rounded-lg backdrop-blur-sm text-center">
                 <h3 className="text-xs sm:text-sm lg:text-lg font-bold mb-1">

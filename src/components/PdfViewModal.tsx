@@ -3,8 +3,11 @@ import { X, Download, Save } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { clientAPI } from '../api/clients';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
-import { products } from '../data/products';
+import { products as productsImport } from '../data/products';
+
+const products: import('../types').Product[] = Array.isArray(productsImport) ? productsImport : [];
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
+import { getDisplayPower } from '../utils/displayPower';
 
 const triggerPdfDownload = (blob: Blob, fileName: string, setBlob?: (blob: Blob) => void, setUrl?: (url: string) => void) => {
 
@@ -373,7 +376,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             gstAmount: exactPricingBreakdown.gstAmount || exactPricingBreakdown.productGST,
             processorPrice: exactPricingBreakdown.processorPrice,
             processorGst: exactPricingBreakdown.processorGst || exactPricingBreakdown.processorGST,
-            grandTotal: exactPricingBreakdown.grandTotal
+            structureCost: exactPricingBreakdown.structureCost,
+            installationCost: exactPricingBreakdown.installationCost,
+            grandTotal: exactPricingBreakdown.grandTotal,
+            customPricing: exactPricingBreakdown.customPricing || (customPricing?.enabled ? {
+              enabled: true,
+              structurePrice: customPricing.structurePrice,
+              installationPrice: customPricing.installationPrice
+            } : undefined)
           };
         } else {
           // Calculate new pricing using full product with prices
@@ -415,7 +425,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             gstAmount: pricingResult.productGST,
             processorPrice: pricingResult.processorPrice,
             processorGst: pricingResult.processorGST,
-            grandTotal: pricingResult.grandTotal
+            structureCost: pricingResult.structureCost,
+            installationCost: pricingResult.installationCost,
+            grandTotal: pricingResult.grandTotal,
+            customPricing: customPricing?.enabled ? {
+              enabled: true,
+              structurePrice: customPricing.structurePrice,
+              installationPrice: customPricing.installationPrice
+            } : undefined
           };
         }
 
@@ -547,8 +564,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       brightness: fullProduct.brightness,
       refreshRate: fullProduct.refreshRate,
       environment: fullProduct.environment,
-      maxPowerConsumption: fullProduct.maxPowerConsumption,
-      avgPowerConsumption: fullProduct.avgPowerConsumption,
+      maxPowerConsumption: cabinetGrid ? getDisplayPower(fullProduct, cabinetGrid).maxPower : fullProduct.maxPowerConsumption,
+      avgPowerConsumption: cabinetGrid ? getDisplayPower(fullProduct, cabinetGrid).avgPower : fullProduct.avgPowerConsumption,
       weightPerCabinet: fullProduct.weightPerCabinet,
 
       cabinetGrid: cabinetGrid,
@@ -681,7 +698,27 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         gstAmount: finalPricingResult.productGST,
         processorPrice: finalPricingResult.processorPrice,
         processorGst: finalPricingResult.processorGST,
-        grandTotal: finalTotalPrice
+        structureCost: finalPricingResult.structureCost,
+        structureGST: finalPricingResult.structureGST,
+        structureTotal: finalPricingResult.structureTotal,
+        installationCost: finalPricingResult.installationCost,
+        installationGST: finalPricingResult.installationGST,
+        installationTotal: finalPricingResult.installationTotal,
+        grandTotal: finalTotalPrice,
+        customPricing: customPricing?.enabled ? {
+          enabled: true,
+          structurePrice: customPricing.structurePrice,
+          installationPrice: customPricing.installationPrice
+        } : undefined
+      },
+
+      quotationData: {
+        config: config || { width: 2400, height: 1010, unit: 'mm' },
+        customPricing: customPricing?.enabled ? {
+          enabled: true,
+          structurePrice: customPricing.structurePrice,
+          installationPrice: customPricing.installationPrice
+        } : undefined
       },
 
       exactProductSpecs: {
@@ -724,7 +761,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           gstAmount: finalPricingResult.productGST,
           processorPrice: finalPricingResult.processorPrice,
           processorGst: finalPricingResult.processorGST,
-          grandTotal: finalTotalPrice
+          structureCost: finalPricingResult.structureCost,
+          installationCost: finalPricingResult.installationCost,
+          grandTotal: finalTotalPrice,
+          customPricing: customPricing?.enabled ? {
+            enabled: true,
+            structurePrice: customPricing.structurePrice,
+            installationPrice: customPricing.installationPrice
+          } : undefined
         };
 
         const uiUserType: string | undefined = userInfo?.userType;
@@ -1018,7 +1062,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                         gstAmount: finalPricingResult.productGST,
                         processorPrice: finalPricingResult.processorPrice,
                         processorGst: finalPricingResult.processorGST,
-                        grandTotal: finalPricingResult.grandTotal
+                        structureCost: finalPricingResult.structureCost,
+                        installationCost: finalPricingResult.installationCost,
+                        grandTotal: finalPricingResult.grandTotal,
+                        customPricing: customPricing?.enabled ? {
+                          enabled: true,
+                          structurePrice: customPricing.structurePrice,
+                          installationPrice: customPricing.installationPrice
+                        } : undefined
                       };
 
                       const uiUserType: string | undefined = userInfo?.userType;

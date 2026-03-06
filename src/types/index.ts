@@ -87,6 +87,19 @@ export interface Product {
   scanMode?: string; // Scan mode (e.g., "Static")
   pixelComposition?: string; // Pixel composition (e.g., "SMD2121", "SMD2020", "SMD1313", "SMD1921")
 
+  /** Optional strict dimension constraints (e.g. Jumbo P2.5/P4/P6). Validation reads from this; no hardcoding in validation logic. */
+  dimensionConstraints?: {
+    series?: string;
+    moduleWidth: number;
+    moduleHeight: number;
+    minWidth: number;
+    minHeight: number;
+    maxWidth: number;
+    maxHeight: number;
+    /** Optional custom validation message when dimensions are invalid. */
+    validationMessage?: string;
+  };
+
   enabled?: boolean; // If false, product is hidden from UI but kept in codebase
 }
 

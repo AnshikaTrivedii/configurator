@@ -21,14 +21,13 @@ class QuotationIdGenerator {
   private static readonly MAX_SERIAL = 999; // Maximum 3-digit serial
 
   /**
-   * Generate a globally unique quotation ID in the format: ORION/{YEAR}/{MONTH}/{DAY}/{FIRSTNAME}/{SERIAL}
+   * Generate a globally unique quotation ID in the format: ORION/{YEAR}/{MONTH}/{FIRSTNAME}/{SERIAL} (no day)
    * Uses backend transaction to ensure globally unique serial numbers that never repeat
    */
   static async generateQuotationId(username: string): Promise<string> {
     const now = new Date();
     const year = now.getFullYear().toString();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
 
     const firstName = username.trim().split(' ')[0].toUpperCase();
 
@@ -42,8 +41,7 @@ class QuotationIdGenerator {
         body: JSON.stringify({
           firstName,
           year,
-          month,
-          day
+          month
         })
       });
 
@@ -63,8 +61,8 @@ class QuotationIdGenerator {
       }
     } catch (error) {
 
-      const serial = await this.getNextSerialNumber(firstName, year, month, day);
-      const quotationId = `ORION/${year}/${month}/${day}/${firstName}/${serial}`;
+      const serial = await this.getNextSerialNumber(firstName, year, month);
+      const quotationId = `ORION/${year}/${month}/${firstName}/${serial}`;
 
       this.storeQuotationId(quotationId, firstName);
 
@@ -73,45 +71,44 @@ class QuotationIdGenerator {
   }
 
   /**
-   * Get the next available serial number for a specific user and date
+   * Get the next available serial number for a specific user and year/month (no day)
    * Checks both localStorage and database for existing quotation IDs
    */
-  private static async getNextSerialNumber(firstName: string, year: string, month: string, day: string): Promise<string> {
+  private static async getNextSerialNumber(firstName: string, year: string, month: string): Promise<string> {
     const storedIds = this.getStoredQuotationIds();
 
     const relevantIds = storedIds.filter(id =>
       id.username.toLowerCase() === firstName.toLowerCase() &&
       id.year === year &&
-      id.month === month &&
-      id.day === day
+      id.month === month
     );
 
     let maxSerial = 0;
     if (relevantIds.length > 0) {
       const serialNumbers = relevantIds.map(id => {
         const parts = id.id.split('/');
-        return parseInt(parts[5] || '0', 10); // Serial is now at index 5
+        const serialPart = parts.length === 5 ? parts[4] : parts[5] || '0';
+        return parseInt(serialPart, 10);
       });
       maxSerial = Math.max(...serialNumbers);
     }
 
-    const dbMaxSerial = await this.getLatestSerialFromDatabase(firstName, year, month, day);
+    const dbMaxSerial = await this.getLatestSerialFromDatabase(firstName, year, month);
     maxSerial = Math.max(maxSerial, dbMaxSerial);
 
     const nextSerial = maxSerial + 1;
 
     if (nextSerial > this.MAX_SERIAL) {
-      throw new Error(`Maximum serial number (${this.MAX_SERIAL}) exceeded for user ${firstName} on ${day}/${month}/${year}`);
+      throw new Error(`Maximum serial number (${this.MAX_SERIAL}) exceeded for user ${firstName} in ${month}/${year}`);
     }
 
     return nextSerial.toString().padStart(3, '0');
   }
 
   /**
-   * Get the latest serial number from database for a specific user and date
-   * This prevents duplicates when multiple users are creating quotations
+   * Get the latest serial number from database for a specific user and year/month (no day)
    */
-  private static async getLatestSerialFromDatabase(firstName: string, year: string, month: string, day: string): Promise<number> {
+  private static async getLatestSerialFromDatabase(firstName: string, year: string, month: string): Promise<number> {
     try {
 
       const response = await fetch(`${API_URL}/sales/check-latest-quotation-id`, {
@@ -122,8 +119,7 @@ class QuotationIdGenerator {
         body: JSON.stringify({
           firstName,
           year,
-          month,
-          day
+          month
         })
       });
 
@@ -179,20 +175,18 @@ class QuotationIdGenerator {
   }
 
   /**
-   * Get the current day's statistics for a user
+   * Get the current month's statistics for a user (scoped by year/month, no day)
    */
   static getUserDayStats(firstName: string): { total: number; lastId?: string } {
     const now = new Date();
     const year = now.getFullYear().toString();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
 
     const storedIds = this.getStoredQuotationIds();
     const relevantIds = storedIds.filter(id =>
       id.username.toLowerCase() === firstName.toLowerCase() &&
       id.year === year &&
-      id.month === month &&
-      id.day === day
+      id.month === month
     );
 
     return {
@@ -202,20 +196,18 @@ class QuotationIdGenerator {
   }
 
   /**
-   * Generate a fallback unique quotation ID using random components
-   * This is used when the standard format might have conflicts
+   * Generate a fallback unique quotation ID. Format: ORION/YYYY/MM/FIRSTNAME/001 (no day)
    */
   static generateFallbackQuotationId(username: string): string {
     const now = new Date();
     const year = now.getFullYear().toString();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
 
     const firstName = username.trim().split(' ')[0].toUpperCase();
 
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
 
-    return `ORION/${year}/${month}/${day}/${firstName}/${random}`;
+    return `ORION/${year}/${month}/${firstName}/${random}`;
   }
 
   /**

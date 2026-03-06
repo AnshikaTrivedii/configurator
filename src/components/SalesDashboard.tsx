@@ -10,7 +10,9 @@ import { LeadDetailsModal } from './LeadDetailsModal';
 import { LeadStatusModal } from './LeadStatusModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
 import { Quotation } from '../types';
-import { products } from '../data/products';
+import { products as productsImport } from '../data/products';
+
+const products: import('../types').Product[] = Array.isArray(productsImport) ? productsImport : [];
 
 interface SalesDashboardProps {
   onBack: () => void;
@@ -252,8 +254,8 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             location: salesPerson.location
           } : null,
           quotation.quotationId,
-          undefined, // customPricing
-          quotation.exactPricingBreakdown // CRITICAL: Use exact pricing breakdown
+          quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
+          quotation.exactPricingBreakdown
         );
 
         setPdfHtmlContent(htmlContent);
@@ -356,7 +358,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           location: salesPerson.location
         } : null,
         quotation.quotationId,
-        undefined, // customPricing
+        quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
         quotation.exactPricingBreakdown
       );
 

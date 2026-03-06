@@ -1709,7 +1709,7 @@ export const products: Product[] = [
     id: 'rental-indoor-p2.6',
     name: 'Rental Series Indoor P2.6',
     category: 'Rental Series',
-    enabled: false,
+    enabled: true,
     image: '/products/rental-series/Rental SMD P2.6 Indoor.png',
     resolution: { width: 192, height: 192 },
     cabinetDimensions: { width: 500, height: 500 },
@@ -1748,7 +1748,7 @@ export const products: Product[] = [
     id: 'rental-indoor-p2.97',
     name: 'Rental Series Indoor P2.97',
     category: 'Rental Series',
-    enabled: false,
+    enabled: true,
     image: '/products/rental-series/Rental SMD P2.97 Indoor.png',
     resolution: { width: 168, height: 168 },
     cabinetDimensions: { width: 500, height: 500 },
@@ -1787,7 +1787,7 @@ export const products: Product[] = [
     id: 'rental-outdoor-p3.8',
     name: 'Rental Series Outdoor P3.8',
     category: 'Rental Series',
-    enabled: false,
+    enabled: true,
     image: '/products/rental-series/Rental SMD P3.8 Outdoor.png',
     resolution: { width: 150, height: 150 },
     cabinetDimensions: { width: 576, height: 576 },
@@ -1826,7 +1826,7 @@ export const products: Product[] = [
     id: 'rental-outdoor-p4.8',
     name: 'Rental Series Outdoor P4.8',
     category: 'Rental Series',
-    enabled: false,
+    enabled: true,
     image: '/products/rental-series/Rental SMD P4.8 Outdoor.png',
     resolution: { width: 120, height: 120 },
     cabinetDimensions: { width: 576, height: 576 },
@@ -1865,13 +1865,13 @@ export const products: Product[] = [
     id: 'jumbo-outdoor-p6',
     name: 'Jumbo Series Outdoor P6',
     category: 'Jumbo Series',
-    enabled: false,
-    image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM.png',
-    resolution: { width: 352, height: 256 }, // 11 columns x 8 rows x 32 pixels per module
-    cabinetDimensions: { width: 2109, height: 1536 }, // Fixed display size: 6.92ft x 5.04ft
-    moduleDimensions: { width: 192, height: 192 }, // Fixed module size: 192x192mm
+    enabled: true,
+    image: '/products/jumbo-series/Jumbo Series Outdoor P6.png',
+    resolution: { width: 32, height: 32 }, // Per module: 32×columns × 32×rows (192mm/6mm = 32 px)
+    cabinetDimensions: { width: 2109, height: 1536 },
+    moduleDimensions: { width: 192, height: 192 }, // 192×192mm per Orion P6 spec
     moduleResolution: { width: 32, height: 32 },
-    moduleQuantity: 88, // 11 columns x 8 rows
+    moduleQuantity: 88,
     moduleGrid: { columns: 11, rows: 8 },
     pixelPitch: 6,
     pixelDensity: 27776,
@@ -1884,12 +1884,14 @@ export const products: Product[] = [
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/jumbo-series/Jumbo+Series+Outdoor+SMD+P6.pdf',
     ledType: 'SMD',
     ledConfiguration: '1R+1G+1B',
+    driverIC: 'ICN/SM/MBI or Equivalent',
+    powerSupply: 'Rong',
     minViewDistance: '6m',
     viewingAngle: 'H:140°, V:140° @ 50% brightness',
     brightnessAdjustment: 'Manual, 256 level; Auto, 8 levels',
     colorDepth: '16 bit/color',
     availableColorPalette: '281 trillion colors',
-    operatingTemperature: '-10°C ~+65°C',
+    operatingTemperature: '-10°C ~ +65°C',
     operatingHumidity: '10%~95%RH',
     lifeTime: 100000,
     voltage: 'AC110V/220V/380V ±10%',
@@ -1903,6 +1905,16 @@ export const products: Product[] = [
     serviceAccess: 'Rear Access',
     ipGrade: 'IP65',
     certificates: 'CE, ROHS, ISO, BIS',
+    dimensionConstraints: {
+      series: 'Jumbo',
+      moduleWidth: 192,
+      moduleHeight: 192,
+      minWidth: 960,
+      minHeight: 960,
+      maxWidth: 3840,
+      maxHeight: 2496,
+      validationMessage: 'For Jumbo Series Outdoor P6, screen size must be between 960x960mm and 3840x2496mm and in multiples of 192x192 module size.',
+    },
     price: 6600,
     siChannelPrice: 6000,
     resellerPrice: 5600,
@@ -1912,9 +1924,9 @@ export const products: Product[] = [
     id: 'jumbo-outdoor-p4',
     name: 'Jumbo Series Outdoor P4',
     category: 'Jumbo Series',
-    enabled: false,
-    image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy.png',
-    resolution: { width: 560, height: 360 }, // 7 columns x 9 rows x 80x40 pixels per module
+    enabled: true,
+    image: '/products/jumbo-series/Jumbo Series Outdoor P4.png',
+    resolution: { width: 80, height: 40 }, // Per module: (Column × 80) × (Row × 40)
     cabinetDimensions: { width: 2237, height: 1439 }, // Fixed display size: 7.34ft x 4.72ft
     moduleDimensions: { width: 320, height: 160 }, // Fixed module size: 320x160mm
     moduleResolution: { width: 80, height: 40 },
@@ -1922,7 +1934,7 @@ export const products: Product[] = [
     moduleGrid: { columns: 7, rows: 9 },
     pixelPitch: 4,
     pixelDensity: 62500,
-    brightness: 5000,
+    brightness: 5500,
     refreshRate: 3840,
     environment: 'outdoor',
     maxPowerConsumption: 700,
@@ -1931,12 +1943,14 @@ export const products: Product[] = [
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/jumbo-series/Jumbo+Series+Outdoor+SMD+P4.pdf',
     ledType: 'SMD',
     ledConfiguration: '1R+1PG+1PB',
+    driverIC: 'ICN/SM/MBI or Equivalent',
+    powerSupply: 'Rong',
     minViewDistance: '4m',
     viewingAngle: 'H:160°, V:160° @ 50% brightness',
     brightnessAdjustment: 'Manual, 256 level; Auto, 8 levels',
     colorDepth: '16 bit/color',
     availableColorPalette: '281 trillion colors',
-    operatingTemperature: '-10°C ~+65°C',
+    operatingTemperature: '-10°C ~ +65°C',
     operatingHumidity: '10%~95%RH',
     lifeTime: 100000,
     voltage: 'AC110V/220V/380V ±10%',
@@ -1950,6 +1964,16 @@ export const products: Product[] = [
     serviceAccess: 'Rear Access',
     ipGrade: 'IP65',
     certificates: 'CE, ROHS, ISO, BIS',
+    dimensionConstraints: {
+      series: 'Jumbo',
+      moduleWidth: 320,
+      moduleHeight: 160,
+      minWidth: 960,
+      minHeight: 960,
+      maxWidth: 3840,
+      maxHeight: 2400,
+      validationMessage: 'For Jumbo Series Outdoor P4, screen size must be between 960x960mm and 3840x2400mm and in multiples of 320x160 module size.',
+    },
     price: 7900,
     siChannelPrice: 7200,
     resellerPrice: 6800,
@@ -1959,9 +1983,9 @@ export const products: Product[] = [
     id: 'jumbo-outdoor-p3',
     name: 'Jumbo Series Outdoor P3',
     category: 'Jumbo Series',
-    enabled: false,
-    image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy 2.png',
-    resolution: { width: 704, height: 512 }, // 11 columns x 8 rows x 64 pixels per module
+    enabled: true,
+    image: '/products/jumbo-series/Jumbo Series Outdoor P3.png',
+    resolution: { width: 64, height: 64 }, // Per module: (Column × 64) × (Row × 64)
     cabinetDimensions: { width: 2109, height: 1536 }, // Fixed display size: 6.92ft x 5.04ft
     moduleDimensions: { width: 192, height: 192 }, // Fixed module size: 192x192mm
     moduleResolution: { width: 64, height: 64 },
@@ -1969,7 +1993,7 @@ export const products: Product[] = [
     moduleGrid: { columns: 11, rows: 8 },
     pixelPitch: 3,
     pixelDensity: 111000,
-    brightness: 5000,
+    brightness: 5500,
     refreshRate: 3840,
     environment: 'outdoor',
     maxPowerConsumption: 700,
@@ -1978,12 +2002,14 @@ export const products: Product[] = [
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/jumbo-series/Jumbo+Series+Outdoor+SMD+P3.pdf',
     ledType: 'SMD',
     ledConfiguration: '1R+1PG+1PB',
+    driverIC: 'ICN/SM/MBI or Equivalent',
+    powerSupply: 'Rong',
     minViewDistance: '3m',
     viewingAngle: 'H:160°, V:160° @ 50% brightness',
     brightnessAdjustment: 'Manual, 256 level; Auto, 8 levels',
     colorDepth: '16 bit/color',
     availableColorPalette: '281 trillion colors',
-    operatingTemperature: '-10°C ~+65°C',
+    operatingTemperature: '-10°C ~ +65°C',
     operatingHumidity: '10%~95%RH',
     lifeTime: 100000,
     voltage: 'AC110V/220V/380V ±10%',
@@ -1997,6 +2023,16 @@ export const products: Product[] = [
     serviceAccess: 'Rear Access',
     ipGrade: 'IP65',
     certificates: 'CE, ROHS, ISO, BIS',
+    dimensionConstraints: {
+      series: 'Jumbo',
+      moduleWidth: 192,
+      moduleHeight: 192,
+      minWidth: 960,
+      minHeight: 960,
+      maxWidth: 3840,
+      maxHeight: 2496,
+      validationMessage: 'For Jumbo Series Outdoor P3, screen size must be between 960x960mm and 3840x2496mm and in multiples of 192x192 module size.',
+    },
     price: 9400,
     siChannelPrice: 8500,
     resellerPrice: 8000,
@@ -2004,11 +2040,11 @@ export const products: Product[] = [
 
   {
     id: 'jumbo-indoor-p2.5',
-    name: 'Jumbo Series Indoor P2.5',
+    name: 'Jumbo Series Outdoor P2.5',
     category: 'Jumbo Series',
-    enabled: false,
-    image: '/products/jumbo-series/Screenshot 2025-06-24 at 1.51.07 PM copy 3.png',
-    resolution: { width: 896, height: 576 }, // 7 columns x 9 rows x 128x64 pixels per module
+    enabled: true,
+    image: '/products/jumbo-series/Jumbo Series Outdoor P2.5.png',
+    resolution: { width: 128, height: 64 }, // Per module: (Column × 128) × (Row × 64)
     cabinetDimensions: { width: 2237, height: 1439 }, // Fixed display size: 7.34ft x 4.72ft
     moduleDimensions: { width: 320, height: 160 }, // Fixed module size: 320x160mm
     moduleResolution: { width: 128, height: 64 },
@@ -2018,19 +2054,21 @@ export const products: Product[] = [
     pixelDensity: 160000,
     brightness: 4500,
     refreshRate: 3840,
-    environment: 'indoor',
+    environment: 'outdoor',
     maxPowerConsumption: 700,
     avgPowerConsumption: 300,
     weightPerCabinet: 27,
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/jumbo-series/Jumbo+Series+Outdoor+SMD+P2.5.pdf',
     ledType: 'SMD',
     ledConfiguration: '1R+1PG+1PB',
+    driverIC: 'ICN/SM/MBI or Equivalent',
+    powerSupply: 'Rong',
     minViewDistance: '2.5m',
     viewingAngle: 'H:160°, V:160° @ 50% brightness',
     brightnessAdjustment: 'Manual, 256 level; Auto, 8 levels',
     colorDepth: '16 bit/color',
     availableColorPalette: '281 trillion colors',
-    operatingTemperature: '-10°C ~+65°C',
+    operatingTemperature: '-10°C ~ +65°C',
     operatingHumidity: '10%~95%RH',
     lifeTime: 100000,
     voltage: 'AC110V/220V/380V ±10%',
@@ -2044,6 +2082,16 @@ export const products: Product[] = [
     serviceAccess: 'Rear Access',
     ipGrade: 'IP65',
     certificates: 'CE, ROHS, ISO, BIS',
+    dimensionConstraints: {
+      series: 'Jumbo',
+      moduleWidth: 320,
+      moduleHeight: 160,
+      minWidth: 960,
+      minHeight: 960,
+      maxWidth: 3840,
+      maxHeight: 2400,
+      validationMessage: 'For Jumbo Series Outdoor P2.5, screen size must be between 960x960mm and 3840x2400mm and in multiples of 320x160 module size.',
+    },
     price: 12500,
     siChannelPrice: 11300,
     resellerPrice: 10600,
@@ -2480,6 +2528,113 @@ export const products: Product[] = [
     transparency: 55,
     scanMode: 'Static',
     pixelComposition: 'SMD1921'
+  },
+
+  // Module/ Grid Series (Indoor, 320×160mm module only — no cabinet size)
+  {
+    id: 'orion-module-grid-p18',
+    name: 'Module/ Grid Series SMD P1.8',
+    category: 'Module/ Grid Series',
+    enabled: true,
+    image: '/products/module series/Module Grid Series P1.8.png.jpeg',
+    resolution: { width: 172, height: 86 }, // 320/1.86, 160/1.86
+    cabinetDimensions: { width: 320, height: 160 }, // Module size only (no separate cabinet)
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 172, height: 86 },
+    moduleQuantity: 1,
+    pixelPitch: 1.86,
+    pixelDensity: 284444,
+    brightness: 800,
+    refreshRate: 3840,
+    environment: 'Indoor',
+    maxPowerConsumption: 650,
+    avgPowerConsumption: 225,
+    weightPerCabinet: 0, // Cabinet size not included for this series
+    viewingAngle: '140/140',
+    colorDepth: '14 Bit',
+    voltage: '220v',
+    serviceAccess: 'Front',
+    ipGrade: '31/31',
+    operatingTemperature: '0°C~+50°C',
+    operatingHumidity: '0-50%',
+    lifeTime: 50000,
+    mtbf: 5000,
+    price: 7800,        // per ft² — End Customer
+    siChannelPrice: 7100,  // per ft² — SI/Channel
+    resellerPrice: 6600,   // per ft² — Reseller
+    prices: {
+      cabinet: { endCustomer: 7800, siChannel: 7100, reseller: 6600 }
+    }
+  },
+  {
+    id: 'orion-module-grid-p25',
+    name: 'Module/ Grid Series SMD P2.5',
+    category: 'Module/ Grid Series',
+    enabled: true,
+    image: '/products/module series/Module Grid Series P2.5.png.jpeg',
+    resolution: { width: 128, height: 64 }, // 320/2.5, 160/2.5
+    cabinetDimensions: { width: 320, height: 160 }, // Module size only (no separate cabinet)
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 128, height: 64 },
+    moduleQuantity: 1,
+    pixelPitch: 2.5,
+    pixelDensity: 160000,
+    brightness: 900,
+    refreshRate: 3840,
+    environment: 'Indoor',
+    maxPowerConsumption: 650,
+    avgPowerConsumption: 350,
+    weightPerCabinet: 0, // Cabinet size not included for this series
+    viewingAngle: '140/140',
+    colorDepth: '14 Bit',
+    voltage: '220v',
+    serviceAccess: 'Front',
+    ipGrade: '31/31',
+    operatingTemperature: '0°C~+50°C',
+    operatingHumidity: '0-50%',
+    lifeTime: 50000,
+    mtbf: 5000,
+    price: 5100,        // per ft² — End Customer
+    siChannelPrice: 4700,  // per ft² — SI/Channel
+    resellerPrice: 4400,   // per ft² — Reseller
+    prices: {
+      cabinet: { endCustomer: 5100, siChannel: 4700, reseller: 4400 }
+    }
+  },
+  {
+    id: 'orion-module-grid-p4',
+    name: 'Module/ Grid Series SMD P4',
+    category: 'Module/ Grid Series',
+    enabled: true,
+    image: '/products/module series/Module Grid Series P4.png.jpeg',
+    resolution: { width: 80, height: 40 }, // 320/4, 160/4
+    cabinetDimensions: { width: 320, height: 160 }, // Module size only (no separate cabinet)
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 80, height: 40 },
+    moduleQuantity: 1,
+    pixelPitch: 4,
+    pixelDensity: 62500,
+    brightness: 5000,
+    refreshRate: 3840,
+    environment: 'Indoor',
+    maxPowerConsumption: 700,
+    avgPowerConsumption: 400,
+    weightPerCabinet: 0, // Cabinet size not included for this series
+    viewingAngle: '140/140',
+    colorDepth: '14 Bit',
+    voltage: '220v',
+    serviceAccess: 'Rear',
+    ipGrade: '65/54',
+    operatingTemperature: '-10°C~+65°C',
+    operatingHumidity: '0-99%',
+    lifeTime: 50000,
+    mtbf: 5000,
+    price: 4700,        // per ft² — End Customer
+    siChannelPrice: 4300,  // per ft² — SI/Channel
+    resellerPrice: 4000,   // per ft² — Reseller
+    prices: {
+      cabinet: { endCustomer: 4700, siChannel: 4300, reseller: 4000 }
+    }
   },
 ];
 

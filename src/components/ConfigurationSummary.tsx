@@ -2,6 +2,8 @@ import React from 'react';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { Ruler, Zap, Move3d, Monitor, Boxes, Square, Maximize2 } from 'lucide-react';
 import { getControllerPdfUrl } from '../utils/controllerPdfMap';
+import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
+import { getDisplayPower } from '../utils/displayPower';
 
 // Processor specifications - matches DisplayConfigurator.tsx
 const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
@@ -74,6 +76,9 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
     selectedProduct.name?.toLowerCase().includes('jumbo series');
 
+  const isModuleGridSeries = selectedProduct.category === 'Module/ Grid Series';
+  const useModuleTerminology = isJumboSeries || isModuleGridSeries;
+
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
   const MM_TO_FEET = 1 / FEET_TO_MM;
 
@@ -102,10 +107,11 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const diagonalM = Math.sqrt(width * width + height * height);
   const diagonalFt = diagonalM * 3.28084;
 
-  const avgPowerPerCabinet = selectedProduct.avgPowerConsumption || 91.7; // Default to 91.7W if not specified
-  const maxPowerPerCabinet = selectedProduct.maxPowerConsumption || (avgPowerPerCabinet * 3); // Use actual max power or default to 3x avg
-  const avgPower = (avgPowerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(2);
-  const maxPower = (maxPowerPerCabinet * cabinetGrid.columns * cabinetGrid.rows).toFixed(2);
+  const displayPower = getDisplayPower(selectedProduct, cabinetGrid);
+  const avgPower = displayPower.avgPower.toFixed(2);
+  const maxPower = displayPower.maxPower.toFixed(2);
+  const avgPowerPerCabinet = displayPower.avgPowerPerCabinet;
+  const maxPowerPerCabinet = displayPower.maxPowerPerCabinet;
 
   if (selectedProduct.category?.toLowerCase().includes('betelgeuse')) {
 
@@ -162,7 +168,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             </div>
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">
-                {isJumboSeries ? 'Number of Modules' : 'Number of Cabinets'}
+                {useModuleTerminology ? 'Number of Modules' : 'Number of Cabinets'}
               </h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-amber-700 break-words">
                 {cabinetGrid.columns * cabinetGrid.rows} ({cabinetGrid.columns} × {cabinetGrid.rows})
@@ -274,14 +280,18 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Power (max)</div>
             <div className="text-sm sm:text-lg font-semibold text-red-700">{maxPower} W</div>
           </div>
-          <div className="bg-white rounded-lg p-2 sm:p-3">
-            <div className="text-xs sm:text-sm text-gray-600 mb-1">Per Cabinet (avg)</div>
-            <div className="text-sm sm:text-lg font-semibold text-red-700">{avgPowerPerCabinet} W</div>
-          </div>
-          <div className="bg-white rounded-lg p-2 sm:p-3">
-            <div className="text-xs sm:text-sm text-gray-600 mb-1">Per Cabinet (max)</div>
-            <div className="text-sm sm:text-lg font-semibold text-red-700">{maxPowerPerCabinet} W</div>
-          </div>
+          {!isJumboSeries && (
+            <>
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">{useModuleTerminology ? 'Per Module (avg)' : 'Per Cabinet (avg)'}</div>
+                <div className="text-sm sm:text-lg font-semibold text-red-700">{avgPowerPerCabinet} W</div>
+              </div>
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">{useModuleTerminology ? 'Per Module (max)' : 'Per Cabinet (max)'}</div>
+                <div className="text-sm sm:text-lg font-semibold text-red-700">{maxPowerPerCabinet} W</div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -336,17 +346,21 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
           </div>
           <div className="space-y-2 sm:space-y-3">
             <div className="bg-white rounded-lg p-2 sm:p-3">
-              <div className="text-xs sm:text-sm text-gray-600 mb-1">Cabinet Size</div>
+              <div className="text-xs sm:text-sm text-gray-600 mb-1">{isModuleGridSeries ? 'Module Size' : isJumboSeries ? 'Screen Size' : 'Cabinet Size'}</div>
               <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm</div>
             </div>
-            <div className="bg-white rounded-lg p-2 sm:p-3">
-              <div className="text-xs sm:text-sm text-gray-600 mb-1">Weight per Cabinet</div>
-              <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.weightPerCabinet || 'N/A'} kg</div>
-            </div>
-            <div className="bg-white rounded-lg p-2 sm:p-3">
-              <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Weight</div>
-              <div className="font-medium text-gray-900 text-xs sm:text-sm">{((selectedProduct.weightPerCabinet || 0) * cabinetGrid.columns * cabinetGrid.rows).toFixed(2)} kg</div>
-            </div>
+            {!isJumboSeries && !isModuleGridSeries && (
+              <>
+                <div className="bg-white rounded-lg p-2 sm:p-3">
+                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Weight per Cabinet</div>
+                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.weightPerCabinet ?? 'N/A'} kg</div>
+                </div>
+                <div className="bg-white rounded-lg p-2 sm:p-3">
+                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Weight</div>
+                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{((selectedProduct.weightPerCabinet || 0) * cabinetGrid.columns * cabinetGrid.rows).toFixed(2)} kg</div>
+                </div>
+              </>
+            )}
             {selectedProduct.category === 'Transparent Series' && selectedProduct.pixelComposition && (
               <div className="bg-white rounded-lg p-2 sm:p-3">
                 <div className="text-xs sm:text-sm text-gray-600 mb-1">Pixel Composition</div>
@@ -381,18 +395,22 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             )}
           </div>
           {/* Processor Specifications */}
-          {processor && PROCESSOR_SPECS[processor] && (
-            <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              {PROCESSOR_SPECS[processor].inputs !== undefined && PROCESSOR_SPECS[processor].inputs! > 0 && (
+          {processor && PROCESSOR_SPECS[processor] && (() => {
+            const connectorDesc = getConnectorDescriptions(processor);
+            return (
+            <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">Input Connectors</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">{connectorDesc.inputConnectors}</div>
+              </div>
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">Ethernet Output</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">{connectorDesc.ethernetOutput}</div>
+              </div>
+              {connectorDesc.opticalFiberOutput && (
                 <div className="bg-white rounded-lg p-2 sm:p-3">
-                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Input Connectors</div>
-                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{PROCESSOR_SPECS[processor].inputs}</div>
-                </div>
-              )}
-              {PROCESSOR_SPECS[processor].outputs !== undefined && PROCESSOR_SPECS[processor].outputs! > 0 && (
-                <div className="bg-white rounded-lg p-2 sm:p-3">
-                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Output Connectors</div>
-                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{PROCESSOR_SPECS[processor].outputs}</div>
+                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Optical Fiber Output</div>
+                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{connectorDesc.opticalFiberOutput}</div>
                 </div>
               )}
               {PROCESSOR_SPECS[processor].maxResolution && (
@@ -408,7 +426,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
           {processor && (
             <div style={{ marginTop: '15px', display: 'flex', justifyContent: 'flex-end' }}>
               <button

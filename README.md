@@ -387,7 +387,7 @@ Save quotation to database (requires authentication).
 **Request Body:**
 ```json
 {
-  "quotationId": "ORION/2024/01/01/JOHN/001",
+  "quotationId": "ORION/2024/01/JOHN/001",
   "customerName": "Customer Name",
   "customerEmail": "customer@example.com",
   "customerPhone": "9876543210",
@@ -418,7 +418,7 @@ Save quotation to database (requires authentication).
 {
   "success": true,
   "message": "Quotation saved successfully",
-  "quotationId": "ORION/2024/01/01/JOHN/001",
+  "quotationId": "ORION/2024/01/JOHN/001",
   "quotationData": {
     "id": "507f1f77bcf86cd799439012",
     "customerName": "Customer Name",
@@ -548,7 +548,7 @@ Get current sales user's own dashboard data (requires sales user authentication)
       "userTypeDisplayName": "End User",
       "quotations": [
         {
-          "quotationId": "ORION/2024/01/01/JOHN/001",
+          "quotationId": "ORION/2024/01/JOHN/001",
           "productName": "Product Name",
           "productDetails": {},
           "totalPrice": 150000,
@@ -609,7 +609,7 @@ Get sales person details with their quotations (requires super admin authenticat
       "userTypeDisplayName": "End User",
       "quotations": [
         {
-          "quotationId": "ORION/2024/01/01/JOHN/001",
+          "quotationId": "ORION/2024/01/JOHN/001",
           "productName": "Product Name",
           "productDetails": {},
           "totalPrice": 150000,
@@ -661,7 +661,7 @@ Generate globally unique quotation ID with atomic serial number generation.
 ```json
 {
   "success": true,
-  "quotationId": "ORION/2024/01/01/JOHN/001",
+  "quotationId": "ORION/2024/01/JOHN/001",
   "serial": "001",
   "isGloballyUnique": true,
   "message": "Globally unique quotation ID generated successfully"
@@ -697,7 +697,7 @@ Check latest quotation ID for a specific user and date (legacy endpoint).
   "success": true,
   "latestSerial": 5,
   "pattern": "/^ORION\\/2024\\/01\\/01\\/JOHN\\/\\d{3}$/",
-  "foundQuotation": "ORION/2024/01/01/JOHN/005"
+  "foundQuotation": "ORION/2024/01/JOHN/005"
 }
 ```
 
@@ -708,7 +708,7 @@ Check latest quotation ID for a specific user and date (legacy endpoint).
 ### Quotation Model
 ```typescript
 {
-  quotationId: string;              // Unique quotation ID (e.g., "ORION/2024/01/01/JOHN/001")
+  quotationId: string;              // Unique quotation ID (e.g., "ORION/2024/01/JOHN/001")
   salesUserId: ObjectId;            // Reference to SalesUser
   salesUserName: string;            // Name of sales user
   customerName: string;             // Customer name

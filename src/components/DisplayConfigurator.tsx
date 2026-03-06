@@ -24,6 +24,7 @@ import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { SuperUserDashboard } from './SuperUserDashboard';
 import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
+import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } from '../utils/dimensionConstraints';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
@@ -302,58 +303,81 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const cabinetGrid = calculateCabinetGrid(selectedProduct);
 
-  // Allowed processors only (names and capacities). Suggested = smallest that can handle required pixels.
+  const dimensionValidation = selectedProduct
+    ? validateDimensions(selectedProduct, config.width, config.height)
+    : { valid: true, message: null };
+  const dimensionInvalid = selectedProduct ? !dimensionValidation.valid : false;
+  const isJumbo = selectedProduct?.category?.toLowerCase().includes('jumbo') ?? false;
+  const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
+
+  // When switching to Jumbo, show Preview (Data/Power tabs are hidden for Jumbo)
+  React.useEffect(() => {
+    if (isJumbo && (activeTab === 'data' || activeTab === 'power')) {
+      setActiveTab('preview');
+    }
+  }, [isJumbo, activeTab]);
+
+  // Allowed processors only (names and capacities). minPortsForRedundancy: 0 = cannot support redundancy, >= 2 = can.
   const ALLOWED_PROCESSORS = [
-    { name: 'TB2', type: 'asynchronous' as const, portCount: 1, pixelCapacity: 0.65, inputs: 0, outputs: 0, maxResolution: '' },
-    { name: 'TB40', type: 'asynchronous' as const, portCount: 2, pixelCapacity: 1.3, inputs: 1, outputs: 3, maxResolution: '1920×1080@60Hz' },
-    { name: 'TB60', type: 'asynchronous' as const, portCount: 4, pixelCapacity: 2.3, inputs: 1, outputs: 5, maxResolution: '1920×1080@60Hz' },
-    { name: 'VX1', type: 'synchronous' as const, portCount: 2, pixelCapacity: 1.3, inputs: 5, outputs: 2, maxResolution: '1920×1080@60Hz' },
-    { name: 'VX400', type: 'synchronous' as const, portCount: 4, pixelCapacity: 2.6, inputs: 5, outputs: 4, maxResolution: '1920×1200@60Hz' },
-    { name: 'VX400 Pro', type: 'synchronous' as const, portCount: 4, pixelCapacity: 2.6, inputs: 5, outputs: 4, maxResolution: '4096×2160@60Hz (4K)' },
-    { name: 'VX600', type: 'synchronous' as const, portCount: 6, pixelCapacity: 3.9, inputs: 5, outputs: 6, maxResolution: '1920×1200@60Hz' },
-    { name: 'VX600 Pro', type: 'synchronous' as const, portCount: 6, pixelCapacity: 3.9, inputs: 5, outputs: 6, maxResolution: '4096×2160@60Hz (4K)' },
-    { name: 'VX1000', type: 'synchronous' as const, portCount: 10, pixelCapacity: 6.5, inputs: 6, outputs: 10, maxResolution: '3840×2160@30Hz' },
-    { name: 'VX1000 Pro', type: 'synchronous' as const, portCount: 10, pixelCapacity: 6.5, inputs: 5, outputs: 10, maxResolution: '4096×2160@60Hz (True 4K@60)' },
-    { name: 'VX16S', type: 'synchronous' as const, portCount: 16, pixelCapacity: 10, inputs: 7, outputs: 16, maxResolution: '3840×2160@60Hz' },
-    { name: 'VX2000pro', type: 'synchronous' as const, portCount: 25, pixelCapacity: 13, inputs: 10, outputs: 25, maxResolution: '4096×2160@60Hz (4K)' },
-    { name: 'TU15PRO', type: 'synchronous' as const, portCount: 5, pixelCapacity: 2.6, inputs: 2, outputs: 5, maxResolution: '2048×1152@60Hz' },
-    { name: 'TU20PRO', type: 'synchronous' as const, portCount: 7, pixelCapacity: 3.9, inputs: 2, outputs: 7, maxResolution: '2048×1152@60Hz' },
-    { name: 'TU4k pro', type: 'synchronous' as const, portCount: 23, pixelCapacity: 13, inputs: 3, outputs: 23, maxResolution: '4096×2160@60Hz' },
+    { name: 'TB2', type: 'asynchronous' as const, portCount: 1, pixelCapacity: 0.65, inputs: 0, outputs: 0, maxResolution: '', minPortsForRedundancy: 0 },
+    { name: 'TB40', type: 'asynchronous' as const, portCount: 2, pixelCapacity: 1.3, inputs: 1, outputs: 3, maxResolution: '1920×1080@60Hz', minPortsForRedundancy: 2 },
+    { name: 'TB60', type: 'asynchronous' as const, portCount: 4, pixelCapacity: 2.3, inputs: 1, outputs: 5, maxResolution: '1920×1080@60Hz', minPortsForRedundancy: 2 },
+    { name: 'VX1', type: 'synchronous' as const, portCount: 2, pixelCapacity: 1.3, inputs: 5, outputs: 2, maxResolution: '1920×1080@60Hz', minPortsForRedundancy: 2 },
+    { name: 'VX400', type: 'synchronous' as const, portCount: 4, pixelCapacity: 2.6, inputs: 5, outputs: 4, maxResolution: '1920×1200@60Hz', minPortsForRedundancy: 2 },
+    { name: 'VX400 Pro', type: 'synchronous' as const, portCount: 4, pixelCapacity: 2.6, inputs: 5, outputs: 4, maxResolution: '4096×2160@60Hz (4K)', minPortsForRedundancy: 2 },
+    { name: 'VX600', type: 'synchronous' as const, portCount: 6, pixelCapacity: 3.9, inputs: 5, outputs: 6, maxResolution: '1920×1200@60Hz', minPortsForRedundancy: 2 },
+    { name: 'VX600 Pro', type: 'synchronous' as const, portCount: 6, pixelCapacity: 3.9, inputs: 5, outputs: 6, maxResolution: '4096×2160@60Hz (4K)', minPortsForRedundancy: 2 },
+    { name: 'VX1000', type: 'synchronous' as const, portCount: 10, pixelCapacity: 6.5, inputs: 6, outputs: 10, maxResolution: '3840×2160@30Hz', minPortsForRedundancy: 2 },
+    { name: 'VX1000 Pro', type: 'synchronous' as const, portCount: 10, pixelCapacity: 6.5, inputs: 5, outputs: 10, maxResolution: '4096×2160@60Hz (True 4K@60)', minPortsForRedundancy: 2 },
+    { name: 'VX16S', type: 'synchronous' as const, portCount: 16, pixelCapacity: 10, inputs: 7, outputs: 16, maxResolution: '3840×2160@60Hz', minPortsForRedundancy: 2 },
+    { name: 'VX2000pro', type: 'synchronous' as const, portCount: 25, pixelCapacity: 13, inputs: 10, outputs: 25, maxResolution: '4096×2160@60Hz (4K)', minPortsForRedundancy: 2 },
+    { name: 'TU15PRO', type: 'synchronous' as const, portCount: 5, pixelCapacity: 2.6, inputs: 2, outputs: 5, maxResolution: '2048×1152@60Hz', minPortsForRedundancy: 2 },
+    { name: 'TU20PRO', type: 'synchronous' as const, portCount: 7, pixelCapacity: 3.9, inputs: 2, outputs: 7, maxResolution: '2048×1152@60Hz', minPortsForRedundancy: 2 },
+    { name: 'TU4k pro', type: 'synchronous' as const, portCount: 23, pixelCapacity: 13, inputs: 3, outputs: 23, maxResolution: '4096×2160@60Hz', minPortsForRedundancy: 2 },
   ];
 
   const createControllerSelection = () => {
     if (!selectedProduct) return null;
 
     const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
-    const totalPixelsMillion = totalPixels / 1_000_000;
+    const dataHubPorts = Math.ceil(totalPixels / 655000);
+    const requiredPorts = redundancyEnabled ? dataHubPorts * 2 : dataHubPorts;
+    const backupPorts = redundancyEnabled ? dataHubPorts : 0;
 
-    // Only processors whose pixel capacity (in pixels) is >= required total pixels
-    const availableProcessors = ALLOWED_PROCESSORS
-      .filter((p) => p.pixelCapacity * 1_000_000 >= totalPixels)
-      .sort((a, b) => a.pixelCapacity - b.pixelCapacity);
+    // Processors that have enough pixel capacity, enough ports (controller.portCount >= requiredPorts), and when redundancy enabled only those with minPortsForRedundancy >= 2
+    const availableProcessors = ALLOWED_PROCESSORS.filter(
+      (p) =>
+        p.pixelCapacity * 1_000_000 >= totalPixels &&
+        p.portCount >= requiredPorts &&
+        (!redundancyEnabled || p.minPortsForRedundancy >= 2)
+    ).sort((a, b) => a.portCount - b.portCount || a.pixelCapacity - b.pixelCapacity);
+
     const suggestedName = availableProcessors[0]?.name ?? 'TU4k pro';
     const effectiveName = availableProcessors.some((p) => p.name === selectedController) ? selectedController : suggestedName;
     const resolved = ALLOWED_PROCESSORS.find((p) => p.name === effectiveName) ?? ALLOWED_PROCESSORS[ALLOWED_PROCESSORS.length - 1];
+    const finalResolved = availableProcessors.find((p) => p.name === resolved.name) ?? availableProcessors[0] ?? resolved;
 
     return {
       selectedController: {
-        name: resolved.name,
-        type: resolved.type,
-        portCount: resolved.portCount,
-        pixelCapacity: resolved.pixelCapacity,
-        inputs: resolved.inputs,
-        outputs: resolved.outputs,
-        maxResolution: resolved.maxResolution
+        name: finalResolved.name,
+        type: finalResolved.type,
+        portCount: finalResolved.portCount,
+        pixelCapacity: finalResolved.pixelCapacity,
+        inputs: finalResolved.inputs,
+        outputs: finalResolved.outputs,
+        maxResolution: finalResolved.maxResolution
       },
-      requiredPorts: Math.ceil(totalPixels / 655000),
-      dataHubPorts: Math.ceil(totalPixels / 655000),
-      backupPorts: redundancyEnabled ? Math.ceil(totalPixels / 655000) : 0,
+      requiredPorts,
+      dataHubPorts,
+      backupPorts,
       isRedundancyMode: redundancyEnabled,
       totalPixels: totalPixels
     };
   };
 
   const controllerSelection = createControllerSelection() || undefined;
+  // Use redundancy-aware controller for display (Configuration Summary, PDF, Quote) so controller changes when redundancy is enabled
+  const effectiveProcessor = controllerSelection?.selectedController?.name ?? selectedController;
 
   // For dropdown: processors with capacity >= totalPixels, suggested first, then higher capacity only
   const totalPixelsForProcessor = selectedProduct
@@ -467,7 +491,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         QuotationIdGenerator.storeQuotationId(newQuotationId, username);
       } catch (error) {
 
-        const fallbackId = `ORION/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getDate()).padStart(2, '0')}/${username.toUpperCase()}/001`;
+        const fallbackId = `ORION/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${username.trim().split(' ')[0].toUpperCase()}/001`;
         setQuotationId(fallbackId);
       }
     }
@@ -498,6 +522,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const handleQuoteClick = () => {
+    if (dimensionInvalid) return;
     if ((userRole === 'sales' || userRole === 'partner') && salesUser) {
 
       setPendingAction('quote');
@@ -509,7 +534,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const handlePdfClick = () => {
-
+    if (dimensionInvalid) return;
     if ((userRole === 'sales' || userRole === 'partner') && !salesUser) {
 
       alert('Sales user information is missing. Please log in again.');
@@ -532,6 +557,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const handleDownloadPdf = async () => {
     if (!selectedProduct) return;
+    if (dimensionInvalid) return;
 
     if ((userRole === 'sales' || userRole === 'partner') && !salesUser) {
 
@@ -558,7 +584,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         config,
         selectedProduct,
         fixedCabinetGrid,
-        selectedController,
+        effectiveProcessor,
         selectedMode,
         userInfo
           ? { ...userInfo, userType: legacyUserTypeForPricing }
@@ -606,7 +632,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         config,
         selectedProduct,
         fixedCabinetGrid,
-        selectedController,
+        effectiveProcessor,
         selectedMode,
         userInfo ? {
           ...userInfo,
@@ -643,34 +669,24 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
 
-  function getJumboFixedGrid(product: Product) {
-    if (!product) return null;
-    if (product.category?.toLowerCase() !== 'jumbo series') return null;
-    if (product.name.toLowerCase().includes('p2.5') || product.name.toLowerCase().includes('p4')) {
-      return { columns: 7, rows: 9 };
-    }
-    if (product.name.toLowerCase().includes('p6') || product.name.toLowerCase().includes('p5')) {
-      return { columns: 11, rows: 8 };
-    }
-    return null;
-  }
-  const jumboGrid = selectedProduct ? getJumboFixedGrid(selectedProduct) : null;
-
   const fixedCabinetGrid = isDigitalStandee
     ? { ...cabinetGrid, columns: 7, rows: 5 }
-    : (jumboGrid ? { ...cabinetGrid, ...jumboGrid } : cabinetGrid);
+    : cabinetGrid;
+
+  const moduleWidth = selectedProduct?.dimensionConstraints?.moduleWidth ?? selectedProduct?.cabinetDimensions?.width ?? 600;
+  const moduleHeight = selectedProduct?.dimensionConstraints?.moduleHeight ?? selectedProduct?.cabinetDimensions?.height ?? 337.5;
 
   const handleColumnsChange = (columns: number) => {
-    if (isDigitalStandee || jumboGrid) return;
+    if (isDigitalStandee) return;
     if (!selectedProduct) return;
-    const newWidth = columns * selectedProduct.cabinetDimensions.width;
+    const newWidth = columns * moduleWidth;
     updateWidth(newWidth);
   };
 
   const handleRowsChange = (rows: number) => {
-    if (isDigitalStandee || jumboGrid) return;
+    if (isDigitalStandee) return;
     if (!selectedProduct) return;
-    const newHeight = rows * selectedProduct.cabinetDimensions.height;
+    const newHeight = rows * moduleHeight;
     updateHeight(newHeight);
   };
 
@@ -693,9 +709,19 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
           updateWidth(selectedProduct.cabinetDimensions.width);
           updateHeight(selectedProduct.cabinetDimensions.height);
-        } else if (jumboGrid) {
-          updateWidth(selectedProduct.cabinetDimensions.width);
-          updateHeight(selectedProduct.cabinetDimensions.height);
+        } else if (selectedProduct.category?.toLowerCase().includes('jumbo')) {
+          if (hasDimensionConstraints(selectedProduct)) {
+            const clamped = clampAndSnapDimensions(
+              selectedProduct,
+              selectedProduct.cabinetDimensions.width,
+              selectedProduct.cabinetDimensions.height
+            );
+            updateWidth(clamped.width);
+            updateHeight(clamped.height);
+          } else {
+            updateWidth(selectedProduct.cabinetDimensions.width);
+            updateHeight(selectedProduct.cabinetDimensions.height);
+          }
         } else {
 
           const isFromWizard = initialConfig?.selectedProduct?.id === selectedProduct.id;
@@ -937,8 +963,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   Preview
                 </button>
 
-                {/* Show other tabs only when product is selected */}
-                {selectedProduct && (
+                {/* Show Data/Power tabs only when product is selected and not Jumbo */}
+                {selectedProduct && !isJumbo && (
                   <>
                     <button
                       className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'data' ? 'bg-black text-white' : 'bg-gray-200'}`}
@@ -966,7 +992,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   />
                 )}
 
-                {selectedProduct && activeTab === 'data' && (
+                {selectedProduct && !isJumbo && activeTab === 'data' && (
                   <DataWiringView
                     product={selectedProduct}
                     cabinetGrid={fixedCabinetGrid}
@@ -976,7 +1002,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   />
                 )}
 
-                {selectedProduct && activeTab === 'power' && (
+                {selectedProduct && !isJumbo && activeTab === 'power' && (
                   <PowerWiringView product={selectedProduct} cabinetGrid={fixedCabinetGrid} />
                 )}
               </div>
@@ -1011,18 +1037,22 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                       <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Category</h4>
                       <p className="text-gray-600 text-xs sm:text-sm">{selectedProduct.category}</p>
                     </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Cabinet Size</h4>
-                      <p className="text-gray-600 text-xs sm:text-sm">
-                        {selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Cabinet Resolution</h4>
-                      <p className="text-gray-600 text-xs sm:text-sm">
-                        {selectedProduct.resolution.width} × {selectedProduct.resolution.height}
-                      </p>
-                    </div>
+                    {!isJumbo && (
+                      <>
+                        <div>
+                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Size' : 'Cabinet Size'}</h4>
+                          <p className="text-gray-600 text-xs sm:text-sm">
+                            {selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm
+                          </p>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Resolution' : 'Cabinet Resolution'}</h4>
+                          <p className="text-gray-600 text-xs sm:text-sm">
+                            {selectedProduct.resolution.width} × {selectedProduct.resolution.height}
+                          </p>
+                        </div>
+                      </>
+                    )}
                     {/* PRICING SECTION - TEMPORARILY DISABLED
                     To re-enable pricing display, uncomment the section below and remove this comment block.
                     
@@ -1054,10 +1084,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                       </p>
                     </div>
                     END PRICING SECTION */}
-                    <div>
-                      <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Total Cabinets</h4>
-                      <p className="text-gray-600 text-xs sm:text-sm">{cabinetGrid.columns * cabinetGrid.rows} units</p>
-                    </div>
+                    {!isJumbo && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'No. of Modules' : 'Total Cabinets'}</h4>
+                        <p className="text-gray-600 text-xs sm:text-sm">{cabinetGrid.columns * cabinetGrid.rows} units</p>
+                      </div>
+                    )}
                     {/* Transparent Series specific properties */}
                     {selectedProduct.category === 'Transparent Series' && (
                       <>
@@ -1151,7 +1183,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                 config={config}
                 cabinetGrid={fixedCabinetGrid}
                 selectedProduct={selectedProduct}
-                processor={selectedController}
+                processor={effectiveProcessor}
                 mode={selectedMode}
               />
 
@@ -1162,7 +1194,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   {userRole === 'normal' && (
                     <button
                       onClick={handleQuoteClick}
-                      className="inline-flex items-center justify-center px-6 py-3 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                      disabled={dimensionInvalid}
+                      className={`inline-flex items-center justify-center px-6 py-3 font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors ${dimensionInvalid ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'}`}
                     >
                       <Mail className="w-5 h-5 mr-2" />
                       Send Quote
@@ -1195,14 +1228,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                         <>
                           <button
                             onClick={handlePdfClick}
-                            className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                            disabled={dimensionInvalid}
+                            className={`inline-flex items-center justify-center px-6 py-3 font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors ${dimensionInvalid ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                           >
                             <FileText className="w-5 h-5 mr-2" />
                             View Docs
                           </button>
                           <button
                             onClick={handleDownloadPdf}
-                            className="inline-flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-800 font-semibold rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors border border-gray-300"
+                            disabled={dimensionInvalid}
+                            className={`inline-flex items-center justify-center px-6 py-3 font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors border ${dimensionInvalid ? 'bg-gray-200 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-gray-100 text-gray-800 hover:bg-gray-200 border-gray-300'}`}
                           >
                             <Download className="w-5 h-5 mr-2" />
                             Download PDF
@@ -1246,7 +1281,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           selectedProduct={selectedProduct}
           config={config}
           cabinetGrid={cabinetGrid}
-          processor={selectedController}
+          processor={effectiveProcessor}
           mode={selectedMode}
           userInfo={userInfo && userInfo.userType !== 'SI/Channel Partner' ? userInfo : undefined}
           title={(userRole === 'sales' || userRole === 'partner' || userRole === 'super' || userRole === 'super_admin') && salesUser ? 'Sales Quote' : 'Get a Quote'}
@@ -1276,7 +1311,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             config,
             selectedProduct,
             fixedCabinetGrid,
-            selectedController,
+            effectiveProcessor,
             selectedMode,
 
             userInfo
@@ -1303,7 +1338,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           selectedProduct={selectedProduct}
           config={config}
           cabinetGrid={fixedCabinetGrid}
-          processor={selectedController}
+          processor={effectiveProcessor}
           mode={selectedMode}
 
           userInfo={userInfo ? { ...userInfo, userType: userInfo.userType || 'End User' } : undefined}

@@ -1,18 +1,14 @@
 import React from 'react';
-import { Minus, Plus, X, ChevronDown } from 'lucide-react';
-import { DisplayConfig } from '../types';
+import { Minus, Plus, X, ChevronDown, AlertCircle } from 'lucide-react';
+import { DisplayConfig, Product } from '../types';
+import { validateDimensions, hasDimensionConstraints } from '../utils/dimensionConstraints';
 
 interface DimensionControlsProps {
   config: DisplayConfig;
   onWidthChange: (width: number) => void;
   onHeightChange: (height: number) => void;
   onUnitChange: (unit: 'm' | 'ft') => void;
-  selectedProduct?: {
-    cabinetDimensions: {
-      width: number;
-      height: number;
-    };
-  };
+  selectedProduct?: Product | null;
 }
 
 export const DimensionControls: React.FC<DimensionControlsProps> = ({
@@ -23,8 +19,9 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
   selectedProduct
 }) => {
 
-  const cabinetWidth = selectedProduct?.cabinetDimensions?.width || 600;
-  const cabinetHeight = selectedProduct?.cabinetDimensions?.height || 337.5;
+  const c = selectedProduct?.dimensionConstraints;
+  const cabinetWidth = c ? c.moduleWidth : (selectedProduct?.cabinetDimensions?.width ?? 600);
+  const cabinetHeight = c ? c.moduleHeight : (selectedProduct?.cabinetDimensions?.height ?? 337.5);
 
   const METERS_TO_FEET = 3.2808399;
   const FEET_TO_METERS = 1 / METERS_TO_FEET;
@@ -33,38 +30,66 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
 
   const toDisplayUnit = (mm: number, unit: 'm' | 'ft') => {
     if (unit === 'ft') {
-
       const feet = mm * MM_TO_FEET;
+      if (hasConstraints) {
+        return (Math.floor(feet * 100) / 100).toFixed(2);
+      }
       return feet.toFixed(2);
     }
-
     const meters = mm / 1000;
     return meters.toFixed(2);
   };
 
   const fromDisplayUnit = (value: number, unit: 'm' | 'ft') => {
     if (unit === 'ft') {
-
       return value * FEET_TO_MM;
     }
-
     return value * 1000;
   };
 
   const stepSize = config.unit === 'ft' ? 0.33 : 0.1; // ~1ft or 0.1m
 
+  const minWidthDisplay = c ? (config.unit === 'ft' ? c.minWidth * MM_TO_FEET : c.minWidth / 1000) : 0.1;
+  const maxWidthDisplay = c
+    ? config.unit === 'ft'
+      ? Math.floor(c.maxWidth * MM_TO_FEET * 100) / 100
+      : c.maxWidth / 1000
+    : 100;
+  const minHeightDisplay = c ? (config.unit === 'ft' ? c.minHeight * MM_TO_FEET : c.minHeight / 1000) : 0.1;
+  const maxHeightDisplay = c
+    ? config.unit === 'ft'
+      ? Math.floor(c.maxHeight * MM_TO_FEET * 100) / 100
+      : c.maxHeight / 1000
+    : 100;
+
   const adjustValue = (value: number, increment: number, isWidth: boolean) => {
     const cabinetSize = isWidth ? cabinetWidth : cabinetHeight;
     const currentCabinets = Math.round(value / cabinetSize);
     const newCabinets = Math.max(1, currentCabinets + increment);
-    return newCabinets * cabinetSize;
+    let result = newCabinets * cabinetSize;
+    if (c && isWidth) result = Math.min(c.maxWidth, Math.max(c.minWidth, result));
+    if (c && !isWidth) result = Math.min(c.maxHeight, Math.max(c.minHeight, result));
+    return result;
   };
 
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
-  const isFixedGrid = isDigitalStandee || isJumbo;
+  const hasConstraints = selectedProduct ? hasDimensionConstraints(selectedProduct) : false;
+  const isFixedGrid = isDigitalStandee || (isJumbo && !hasConstraints);
+
+  const dimensionValidation = selectedProduct
+    ? validateDimensions(selectedProduct, config.width, config.height)
+    : { valid: true, message: null as string | null };
+  const showDimensionError = hasConstraints && !dimensionValidation.valid && dimensionValidation.message;
 
   return (
+    <div className="flex flex-col gap-2">
+    {showDimensionError && (
+      <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-2.5 text-amber-800 text-xs sm:text-sm">
+        <AlertCircle className="flex-shrink-0 w-4 h-4 mt-0.5" />
+        <span>{dimensionValidation.message}</span>
+      </div>
+    )}
     <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3 sm:gap-4 lg:gap-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full lg:w-auto">
         <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-800">Target Display Size</h3>
@@ -104,7 +129,8 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
                 onChange={(e) => onWidthChange(fromDisplayUnit(Number(e.target.value), config.unit))}
                 className="w-full text-center outline-none text-xs sm:text-sm lg:text-base"
                 step={stepSize}
-                min={0.1}
+                min={hasConstraints ? minWidthDisplay : 0.1}
+                max={hasConstraints ? maxWidthDisplay : undefined}
                 disabled={isFixedGrid}
               />
               <span className="text-xs sm:text-sm text-gray-500">{config.unit}</span>
@@ -139,7 +165,8 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
                 onChange={(e) => onHeightChange(fromDisplayUnit(Number(e.target.value), config.unit))}
                 className="w-full text-center outline-none text-xs sm:text-sm lg:text-base"
                 step={stepSize}
-                min={0.1}
+                min={hasConstraints ? minHeightDisplay : 0.1}
+                max={hasConstraints ? maxHeightDisplay : undefined}
                 disabled={isFixedGrid}
               />
               <span className="text-xs sm:text-sm text-gray-500">{config.unit}</span>
@@ -154,6 +181,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

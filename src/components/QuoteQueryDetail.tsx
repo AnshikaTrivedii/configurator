@@ -186,20 +186,22 @@ export const QuoteQueryDetail: React.FC<QuoteQueryDetailProps> = ({ quoteId, onC
               </div>
               <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-purple-600">
                 <strong className="text-gray-600 text-sm uppercase tracking-wide block mb-2">
-                  Cabinet Dimensions
+                  {quote.category === 'Module/ Grid Series' ? 'Module Dimensions' : 'Cabinet Dimensions'}
                 </strong>
                 <span className="text-gray-900 font-medium">
                   {quote.cabinetDimensions.width}mm × {quote.cabinetDimensions.height}mm
                 </span>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-purple-600">
-                <strong className="text-gray-600 text-sm uppercase tracking-wide block mb-2">
-                  Module Dimensions
-                </strong>
-                <span className="text-gray-900 font-medium">
-                  {quote.moduleDimensions.width}mm × {quote.moduleDimensions.height}mm
-                </span>
-              </div>
+              {quote.category !== 'Module/ Grid Series' && (
+                <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-purple-600">
+                  <strong className="text-gray-600 text-sm uppercase tracking-wide block mb-2">
+                    Module Dimensions
+                  </strong>
+                  <span className="text-gray-900 font-medium">
+                    {quote.moduleDimensions.width}mm × {quote.moduleDimensions.height}mm
+                  </span>
+                </div>
+              )}
               <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-purple-600">
                 <strong className="text-gray-600 text-sm uppercase tracking-wide block mb-2">
                   Module Resolution
@@ -277,12 +279,14 @@ export const QuoteQueryDetail: React.FC<QuoteQueryDetailProps> = ({ quoteId, onC
                 </strong>
                 <span className="text-gray-900 font-medium">{quote.avgPowerConsumption}W</span>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-purple-600">
-                <strong className="text-gray-600 text-sm uppercase tracking-wide block mb-2">
-                  Weight Per Cabinet
-                </strong>
-                <span className="text-gray-900 font-medium">{quote.weightPerCabinet}kg</span>
-              </div>
+              {quote.weightPerCabinet != null && quote.weightPerCabinet > 0 && (
+                <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-purple-600">
+                  <strong className="text-gray-600 text-sm uppercase tracking-wide block mb-2">
+                    Weight Per Cabinet
+                  </strong>
+                  <span className="text-gray-900 font-medium">{quote.weightPerCabinet}kg</span>
+                </div>
+              )}
             </div>
           </section>
 

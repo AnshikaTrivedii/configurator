@@ -273,6 +273,17 @@ export const generateConfigurationHtml = (
     processorPrice?: number;
     processorGst?: number;
     grandTotal?: number;
+    structureCost?: number;
+    structureGST?: number;
+    structureTotal?: number;
+    installationCost?: number;
+    installationGST?: number;
+    installationTotal?: number;
+    customPricing?: {
+      enabled: boolean;
+      structurePrice: number | null;
+      installationPrice: number | null;
+    };
     discount?: {
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
@@ -319,13 +330,13 @@ export const generateConfigurationHtml = (
     const normalizedUserType = normalizeLegacyUserType(userType);
 
     if (product.category?.toLowerCase().includes('rental') && product.prices) {
-
+      const priceSet = product.rentalOption === 'curve lock' ? product.prices.curveLock : product.prices.cabinet;
       if (normalizedUserType === 'Reseller') {
-        return product.prices.cabinet.reseller;
+        return priceSet.reseller;
       } else if (normalizedUserType === 'Channel') {
-        return product.prices.cabinet.siChannel;
+        return priceSet.siChannel;
       } else {
-        return product.prices.cabinet.endCustomer;
+        return priceSet.endCustomer;
       }
     }
 
@@ -355,26 +366,13 @@ export const generateConfigurationHtml = (
 
     quantity = cabinetGrid.columns * cabinetGrid.rows;
   } else if (isJumboSeries) {
-
-    const pixelPitch = selectedProduct.pixelPitch;
-
-    if (pixelPitch === 4 || pixelPitch === 2.5) {
-
-      const widthInFeet = 7.34;
-      const heightInFeet = 4.72;
-      const fixedQuantity = widthInFeet * heightInFeet;
-
-      quantity = Math.round(fixedQuantity * 100) / 100; // 34.64 sqft
-    } else if (pixelPitch === 3 || pixelPitch === 6) {
-
-      const widthInFeet = 6.92;
-      const heightInFeet = 5.04;
-      const fixedQuantity = widthInFeet * heightInFeet;
-
-      quantity = Math.round(fixedQuantity * 100) / 100; // 34.88 sqft
-    } else {
-      quantity = 1; // Fallback
-    }
+    // Jumbo: quantity = display area in sq ft (from config dimensions in mm)
+    const widthInMeters = config.width / 1000;
+    const heightInMeters = config.height / 1000;
+    const widthInFeet = widthInMeters * METERS_TO_FEET;
+    const heightInFeet = heightInMeters * METERS_TO_FEET;
+    const rawQuantity = widthInFeet * heightInFeet;
+    quantity = Math.round(rawQuantity * 100) / 100;
   } else {
 
     const widthInMeters = config.width / 1000;
@@ -394,14 +392,14 @@ export const generateConfigurationHtml = (
 
   let safeQuantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
   let subtotal = unitPrice * safeQuantity;
-  let gstProduct = subtotal * 0.18;
+  let gstProduct = 0;
 
   let controllerPrice = 0;
   if (processor && !isJumboSeries) {
 
     controllerPrice = getProcessorPrice(processor, userInfo?.userType || 'End User');
   }
-  let gstController = controllerPrice * 0.18;
+  let gstController = 0;
 
   const widthInMeters = config.width / 1000;
   const heightInMeters = config.height / 1000;
@@ -412,25 +410,34 @@ export const generateConfigurationHtml = (
   let structureBasePrice: number;
   let installationBasePrice: number;
 
-  if (customPricing?.enabled && customPricing.structurePrice !== null && customPricing.installationPrice !== null) {
-    structureBasePrice = customPricing.structurePrice;
-    installationBasePrice = customPricing.installationPrice;
+  const effectiveCustomPricing = customPricing || exactPricingBreakdown?.customPricing;
+  const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
+
+  if (exactPricingBreakdown?.structureCost !== undefined) {
+    structureBasePrice = exactPricingBreakdown.structureCost;
+  } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.structurePrice !== null) {
+    structureBasePrice = effectiveCustomPricing.structurePrice;
+  } else if (selectedProduct.category === 'Module/ Grid Series') {
+    const pdfUserType = normalizeLegacyUserType(userInfo?.userType);
+    const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
+    structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
+  } else if (normalizedEnv === 'indoor') {
+    const numberOfCabinets = cabinetGrid.columns * cabinetGrid.rows;
+    structureBasePrice = numberOfCabinets * 4000;
   } else {
+    structureBasePrice = screenAreaSqFt * 2500;
+  }
 
-    const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
-    if (normalizedEnv === 'indoor') {
-
-      const numberOfCabinets = cabinetGrid.columns * cabinetGrid.rows;
-      structureBasePrice = numberOfCabinets * 4000;
-    } else {
-
-      structureBasePrice = screenAreaSqFt * 2500;
-    }
+  if (exactPricingBreakdown?.installationCost !== undefined) {
+    installationBasePrice = exactPricingBreakdown.installationCost;
+  } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null) {
+    installationBasePrice = effectiveCustomPricing.installationPrice;
+  } else {
     installationBasePrice = screenAreaSqFt * 500;
   }
 
-  const structureGST = structureBasePrice * 0.18;
-  const installationGST = installationBasePrice * 0.18;
+  let structureGST = structureBasePrice * 0.18;
+  let installationGST = installationBasePrice * 0.18;
 
   if (exactPricingBreakdown) {
 
@@ -454,56 +461,53 @@ export const generateConfigurationHtml = (
       const discountedGrandTotal = exactPricingBreakdown.discount.discountedGrandTotal;
 
       if (discountedProductTotal !== undefined) {
-
-        const originalSubtotal = subtotal;
-        const originalGstProduct = gstProduct;
-
-        subtotal = Math.round((discountedProductTotal / 1.18) * 100) / 100;
-        gstProduct = Math.round((subtotal * 0.18) * 100) / 100;
+        subtotal = discountedProductTotal;
+        gstProduct = 0;
         totalProduct = discountedProductTotal;
-
       } else {
-        totalProduct = subtotal + gstProduct;
+        totalProduct = subtotal;
       }
 
       if (discountedProcessorTotal !== undefined) {
-        const originalControllerPrice = controllerPrice;
-        const originalGstController = gstController;
-
-        controllerPrice = Math.round((discountedProcessorTotal / 1.18) * 100) / 100;
-        gstController = Math.round((controllerPrice * 0.18) * 100) / 100;
+        controllerPrice = discountedProcessorTotal;
+        gstController = 0;
         totalController = discountedProcessorTotal;
-
       } else {
-        totalController = controllerPrice + gstController;
+        totalController = controllerPrice;
       }
 
       grandTotal = discountedGrandTotal || exactPricingBreakdown.grandTotal || 0;
 
     } else {
 
-      totalProduct = subtotal + gstProduct;
-      totalController = controllerPrice + gstController;
+      totalProduct = subtotal;
+      totalController = controllerPrice;
 
       if (exactPricingBreakdown.grandTotal) {
         grandTotal = exactPricingBreakdown.grandTotal;
       } else {
-
-        grandTotal = totalProduct + totalController + structureBasePrice + structureGST + installationBasePrice + installationGST;
+        grandTotal = totalProduct + totalController + structureBasePrice + installationBasePrice;
       }
     }
 
-    totalStructure = structureBasePrice + structureGST;
-    totalInstallation = installationBasePrice + installationGST;
+    totalStructure = exactPricingBreakdown.structureTotal ?? structureBasePrice;
+    totalInstallation = exactPricingBreakdown.installationTotal ?? installationBasePrice;
 
   } else {
 
-    totalProduct = subtotal + gstProduct;
-    totalController = controllerPrice + gstController;
-    totalStructure = structureBasePrice + structureGST;
-    totalInstallation = installationBasePrice + installationGST;
+    totalProduct = subtotal;
+    totalController = controllerPrice;
+    totalStructure = structureBasePrice;
+    totalInstallation = installationBasePrice;
 
     grandTotal = totalProduct + totalController + totalStructure + totalInstallation;
+  }
+
+  const isRentalProduct = selectedProduct.category?.toLowerCase().includes('rental');
+  if (isRentalProduct) {
+    totalStructure = 0;
+    totalInstallation = 0;
+    grandTotal = totalProduct + totalController;
   }
 
   const formatIndianNumber = (x: number): string => {
@@ -520,6 +524,8 @@ export const generateConfigurationHtml = (
     }
     return s;
   };
+
+  const GST_RATE = '18%';
 
   const html = `
     <!DOCTYPE html>
@@ -791,8 +797,8 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-value">P${selectedProduct.pixelPitch}</span>
                             </div>
                             <div class="quotation-row">
-                                <span class="quotation-label">Cabinet Dimension:</span>
-                                <span class="quotation-value">${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm</span>
+                                <span class="quotation-label">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series') ? 'Module Dimension:' : 'Cabinet Dimension:'}</span>
+                                <span class="quotation-value">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series') ? `${selectedProduct.moduleDimensions.width} x ${selectedProduct.moduleDimensions.height}` : `${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height}`} mm</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Display Size (m):</span>
@@ -810,6 +816,12 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-label">Matrix:</span>
                                 <span class="quotation-value">${cabinetGrid.columns} x ${cabinetGrid.rows}</span>
                             </div>
+                            ${selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption
+                              ? `<div class="quotation-row">
+                                <span class="quotation-label">Rental Option:</span>
+                                <span class="quotation-value">${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'}</span>
+                            </div>`
+                              : ''}
                         </div>
                     </div>
                     
@@ -830,8 +842,8 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(subtotal)}</span>
                             </div>
                             <div class="quotation-row">
-                                <span class="quotation-label">GST (18%):</span>
-                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">₹${formatIndianNumber(gstProduct)}</span>
+                                <span class="quotation-label">GST</span>
+                                <span class="quotation-value" style="color: #333; font-weight: 700;">${GST_RATE}</span>
                             </div>
                             <div class="quotation-total-row" style="margin-top: auto;">
                                 <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 4px 2px; border-bottom: none;">
@@ -889,8 +901,8 @@ export const generateConfigurationHtml = (
                                     <span class="quotation-value" style="font-size: 10px; font-weight: 700;">₹${formatIndianNumber(controllerPrice)}</span>
                             </div>
                                 <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
-                                    <span class="quotation-label" style="font-size: 10px;">GST (18%):</span>
-                                    <span class="quotation-value" style="font-size: 10px; color: #dc3545; font-weight: 700;">₹${formatIndianNumber(gstController)}</span>
+                                    <span class="quotation-label" style="font-size: 10px;">GST</span>
+                                    <span class="quotation-value" style="font-size: 10px; color: #333; font-weight: 700;">${GST_RATE}</span>
                             </div>
                             </div>
                             <div class="quotation-total-row" style="padding: 5px 6px; margin-top: auto; min-height: 35px;">
@@ -905,7 +917,7 @@ export const generateConfigurationHtml = (
             </div>
             ` : ''}
             
-            <!-- Structure and Installation Price Section (shown for all products) - SEPARATE ROWS -->
+            ${!isRentalProduct ? `<!-- Structure and Installation Price Section (excluded for Rental Series) -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
                     C. STRUCTURE AND INSTALLATION PRICE
@@ -922,17 +934,14 @@ export const generateConfigurationHtml = (
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Base Cost:</span>
-                                <span class="quotation-value" style="font-weight: 700;">${(customPricing?.enabled && structureBasePrice === 0)
+                                <span class="quotation-value" style="font-weight: 700;">${(effectiveCustomPricing?.enabled && structureBasePrice === 0)
       ? "In Client Scope"
       : "₹" + formatIndianNumber(structureBasePrice)
     }</span>
                             </div>
                             <div class="quotation-row">
-                                <span class="quotation-label">GST (18%):</span>
-                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">${(customPricing?.enabled && structureBasePrice === 0)
-      ? "N/A"
-      : "₹" + formatIndianNumber(structureGST)
-    }</span>
+                                <span class="quotation-label">GST</span>
+                                <span class="quotation-value" style="color: #333; font-weight: 700;">${GST_RATE}</span>
                             </div>
                         </div>
                     </div>
@@ -947,17 +956,14 @@ export const generateConfigurationHtml = (
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Base Cost:</span>
-                                <span class="quotation-value" style="font-weight: 700;">${(customPricing?.enabled && installationBasePrice === 0)
+                                <span class="quotation-value" style="font-weight: 700;">${(effectiveCustomPricing?.enabled && installationBasePrice === 0)
       ? "In Client Scope"
       : "₹" + formatIndianNumber(installationBasePrice)
     }</span>
                             </div>
                             <div class="quotation-row">
-                                <span class="quotation-label">GST (18%):</span>
-                                <span class="quotation-value" style="color: #dc3545; font-weight: 700;">${(customPricing?.enabled && installationBasePrice === 0)
-      ? "N/A"
-      : "₹" + formatIndianNumber(installationGST)
-    }</span>
+                                <span class="quotation-label">GST</span>
+                                <span class="quotation-value" style="color: #333; font-weight: 700;">${GST_RATE}</span>
                             </div>
                         </div>
                     </div>
@@ -975,13 +981,18 @@ export const generateConfigurationHtml = (
                     </div>
                 </div>
             </div>
+            ` : ''}
             
             <!-- Grand Total - Clean Design -->
             <!-- Fixed: Reduced width and added left margin to prevent QR code overlap -->
             <div class="quotation-section" style="background: rgba(51, 51, 51, 0.95); color: white; padding: 5px 8px; border-radius: 3px; margin: 3px 0 0 40px; text-align: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); width: calc(100% - 40px); min-height: auto; box-sizing: border-box;">
                 <h2 style="margin: 0 0 2px 0; font-size: 13px; font-weight: bold; line-height: 1.1;">GRAND TOTAL</h2>
                 <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatIndianNumber(grandTotal)}</p>
-                ${!isJumboSeries ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Structure + Installation)</p>` : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + C = Product + Structure + Installation)</p>`}
+                ${!isJumboSeries
+  ? (isRentalProduct
+    ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Processor)</p>`
+    : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Structure + Installation)</p>`)
+  : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + C = Product + Structure + Installation)</p>`}
             </div>
             </div>
         </div>
@@ -1084,6 +1095,17 @@ export const generateConfigurationPdf = async (
     processorPrice?: number;
     processorGst?: number;
     grandTotal?: number;
+    structureCost?: number;
+    structureGST?: number;
+    structureTotal?: number;
+    installationCost?: number;
+    installationGST?: number;
+    installationTotal?: number;
+    customPricing?: {
+      enabled: boolean;
+      structurePrice: number | null;
+      installationPrice: number | null;
+    };
     discount?: {
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
@@ -1258,6 +1280,17 @@ export const generateAlternatePdf = async (
     processorPrice?: number;
     processorGst?: number;
     grandTotal?: number;
+    structureCost?: number;
+    structureGST?: number;
+    structureTotal?: number;
+    installationCost?: number;
+    installationGST?: number;
+    installationTotal?: number;
+    customPricing?: {
+      enabled: boolean;
+      structurePrice: number | null;
+      installationPrice: number | null;
+    };
     discount?: {
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;

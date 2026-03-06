@@ -269,20 +269,20 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           unitPrice: ob.unitPrice || 0,
           quantity: ob.quantity || 0,
           productSubtotal: ob.productSubtotal || ob.subtotal || 0,
-          productGST: ob.productGST || ob.gstAmount || 0,
-          productTotal: (ob.productSubtotal || ob.subtotal || 0) + (ob.productGST || ob.gstAmount || 0),
+          productGST: 0,
+          productTotal: ob.productSubtotal || ob.subtotal || 0,
 
           processorPrice: ob.processorPrice || 0,
-          processorGST: ob.processorGST || ob.processorGst || 0,
-          processorTotal: (ob.processorPrice || 0) + (ob.processorGST || ob.processorGst || 0),
+          processorGST: 0,
+          processorTotal: ob.processorPrice || 0,
 
           structureCost: ob.structureCost || 0,
-          structureGST: ob.structureGST || 0,
-          structureTotal: ob.structureTotal || 0,
+          structureGST: 0,
+          structureTotal: ob.structureCost || ob.structureTotal || 0,
 
           installationCost: ob.installationCost || 0,
-          installationGST: ob.installationGST || 0,
-          installationTotal: ob.installationTotal || 0,
+          installationGST: 0,
+          installationTotal: ob.installationCost || ob.installationTotal || 0,
 
           grandTotal: ob.grandTotal || 0,
 
@@ -300,20 +300,20 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           unitPrice: eb.unitPrice || 0,
           quantity: eb.quantity || 0,
           productSubtotal: eb.productSubtotal || eb.subtotal || 0,
-          productGST: eb.productGST || eb.gstAmount || 0,
-          productTotal: (eb.productSubtotal || eb.subtotal || 0) + (eb.productGST || eb.gstAmount || 0),
+          productGST: 0,
+          productTotal: eb.productSubtotal || eb.subtotal || 0,
 
           processorPrice: eb.processorPrice || 0,
-          processorGST: eb.processorGST || eb.processorGst || 0,
-          processorTotal: (eb.processorPrice || 0) + (eb.processorGST || eb.processorGst || 0),
+          processorGST: 0,
+          processorTotal: eb.processorPrice || 0,
 
           structureCost: eb.structureCost || 0,
-          structureGST: eb.structureGST || 0,
-          structureTotal: eb.structureTotal || 0,
+          structureGST: 0,
+          structureTotal: eb.structureCost || eb.structureTotal || 0,
 
           installationCost: eb.installationCost || 0,
-          installationGST: eb.installationGST || 0,
-          installationTotal: eb.installationTotal || 0,
+          installationGST: 0,
+          installationTotal: eb.installationCost || eb.installationTotal || 0,
 
           grandTotal: eb.grandTotal || 0,
 
@@ -360,20 +360,20 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           unitPrice: eb.unitPrice || 0,
           quantity: eb.quantity || 0,
           productSubtotal: eb.productSubtotal || eb.subtotal || 0,
-          productGST: eb.productGST || eb.gstAmount || 0,
-          productTotal: (eb.productSubtotal || eb.subtotal || 0) + (eb.productGST || eb.gstAmount || 0),
+          productGST: 0,
+          productTotal: eb.productSubtotal || eb.subtotal || 0,
 
           processorPrice: eb.processorPrice || 0,
-          processorGST: eb.processorGST || eb.processorGst || 0,
-          processorTotal: (eb.processorPrice || 0) + (eb.processorGST || eb.processorGst || 0),
+          processorGST: 0,
+          processorTotal: eb.processorPrice || 0,
 
           structureCost: eb.structureCost || 0,
-          structureGST: eb.structureGST || 0,
-          structureTotal: eb.structureTotal || 0,
+          structureGST: 0,
+          structureTotal: eb.structureCost || eb.structureTotal || 0,
 
           installationCost: eb.installationCost || 0,
-          installationGST: eb.installationGST || 0,
-          installationTotal: eb.installationTotal || 0,
+          installationGST: 0,
+          installationTotal: eb.installationCost || eb.installationTotal || 0,
 
           grandTotal: eb.grandTotal || 0,
 
@@ -914,7 +914,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                     {userTypeDisplayName} Pricing
                                                   </div>
                                                   <div className="text-xs text-gray-500">
-                                                    (Incl. 18% GST - From DB)
+                                                    (Excl. GST - From DB)
                                                   </div>
                                                 </div>
                                               );
@@ -942,8 +942,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                 <span>₹{quotation.exactPricingBreakdown.subtotal?.toLocaleString('en-IN')}</span>
                                               </div>
                                               <div className="flex justify-between">
-                                                <span>GST ({quotation.exactPricingBreakdown.gstRate}%):</span>
-                                                <span>₹{quotation.exactPricingBreakdown.gstAmount?.toLocaleString('en-IN')}</span>
+                                                <span>GST</span>
+                                                <span>18%</span>
                                               </div>
                                               {quotation.exactPricingBreakdown.processorPrice > 0 && (
                                                 <>
@@ -952,8 +952,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                     <span>₹{quotation.exactPricingBreakdown.processorPrice?.toLocaleString('en-IN')}</span>
                                                   </div>
                                                   <div className="flex justify-between">
-                                                    <span>Processor GST:</span>
-                                                    <span>₹{quotation.exactPricingBreakdown.processorGst?.toLocaleString('en-IN')}</span>
+                                                    <span>Processor GST</span>
+                                                    <span>18%</span>
                                                   </div>
                                                 </>
                                               )}
