@@ -95,18 +95,39 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         ? 'm'
         : initialConfig.unit; // Keep 'ft' or 'm' as entered
 
-      setConfig(prevConfig => {
-        const newConfig = {
-          width: initialConfig.width,  // Already in mm, exact value from wizard
-          height: initialConfig.height, // Already in mm, exact value from wizard
-          unit: displayUnit, // Preserve 'ft' or 'm' as user entered
-          aspectRatio: 'None' // Reset aspect ratio to allow free dimensions
-        };
+      // Use same grid-aligned dimensions as calculateCabinetGrid so Configuration panel,
+      // Target Display Size, and Preview all show the same values (no mismatch).
+      const product = initialConfig.selectedProduct;
+      const defaultCabinet = { width: 600, height: 337.5 };
+      const c = product?.dimensionConstraints;
+      const cabinet = c
+        ? { width: c.moduleWidth, height: c.moduleHeight }
+        : (product?.cabinetDimensions || defaultCabinet);
 
-        return newConfig;
+      let widthMm: number;
+      let heightMm: number;
+
+      if (hasDimensionConstraints(product)) {
+        const clamped = clampAndSnapDimensions(product!, initialConfig.width, initialConfig.height);
+        widthMm = clamped.width;
+        heightMm = clamped.height;
+      } else {
+        let columns = Math.floor(initialConfig.width / cabinet.width);
+        let rows = Math.floor(initialConfig.height / cabinet.height);
+        if (!Number.isFinite(columns) || columns <= 0) columns = 1;
+        if (!Number.isFinite(rows) || rows <= 0) rows = 1;
+        widthMm = columns * cabinet.width;
+        heightMm = rows * cabinet.height;
+      }
+
+      setConfig({
+        width: widthMm,
+        height: heightMm,
+        unit: displayUnit,
+        aspectRatio: 'None'
       });
 
-      updateGlobalDimensions(initialConfig.width, initialConfig.height, initialConfig.unit);
+      updateGlobalDimensions(widthMm, heightMm, initialConfig.unit);
     } else {
 
       const displayUnit = globalConfig.unit === 'mm' || globalConfig.unit === 'cm' ? 'm' : globalConfig.unit;
@@ -896,6 +917,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           <ProductSidebar
             selectedProduct={selectedProduct}
             cabinetGrid={fixedCabinetGrid}
+            displayUnit={config.unit}
             onColumnsChange={handleColumnsChange}
             onRowsChange={handleRowsChange}
             onSelectProductClick={() => {

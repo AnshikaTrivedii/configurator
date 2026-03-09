@@ -2,9 +2,13 @@ import React, { useState } from 'react';
 import { Product, CabinetGrid } from '../types';
 import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
 
+const MM_TO_FEET = 1 / 304.8;
+
 interface ProductSidebarProps {
   selectedProduct: Product | undefined;
   cabinetGrid: CabinetGrid;
+  /** Display unit for Total Width/Height so they match Target Display Size and Preview */
+  displayUnit?: 'm' | 'ft';
   onColumnsChange: (columns: number) => void;
   onRowsChange: (rows: number) => void;
   onSelectProductClick: () => void;
@@ -31,6 +35,7 @@ interface ProductSidebarProps {
 export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   selectedProduct,
   cabinetGrid,
+  displayUnit = 'm',
   onColumnsChange,
   onRowsChange,
   onSelectProductClick,
@@ -207,13 +212,17 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                 <div className="flex justify-between">
                   <span>Total Width:</span>
                   <span className="font-medium text-gray-900">
-                    {(cabinetGrid.totalWidth / 1000).toFixed(2)} m
+                    {displayUnit === 'ft'
+                      ? `${(cabinetGrid.totalWidth * MM_TO_FEET).toFixed(2)} ft`
+                      : `${(cabinetGrid.totalWidth / 1000).toFixed(2)} m`}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Total Height:</span>
                   <span className="font-medium text-gray-900">
-                    {(cabinetGrid.totalHeight / 1000).toFixed(2)} m
+                    {displayUnit === 'ft'
+                      ? `${(cabinetGrid.totalHeight * MM_TO_FEET).toFixed(2)} ft`
+                      : `${(cabinetGrid.totalHeight / 1000).toFixed(2)} m`}
                   </span>
                 </div>
               </div>
