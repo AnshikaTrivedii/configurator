@@ -51,7 +51,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
 
   const DEFAULT_VALIDITY = '• Offer shall remain valid for period of 30 days from the date of quotation made.\n• The current offer is based on USD=INR 88. Any increase in exchange rate beyond 1% at the time of placement of order will lead to increase in INR price';
   const DEFAULT_PAYMENT_TERMS = '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation';
-  const DEFAULT_WARRANTY = 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier. Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.';
+  const DEFAULT_WARRANTY = '1 year warranty';
 
   const getDefaultUserType = (): 'End User' | 'Reseller' | 'SI/Channel Partner' => {
     if (initialData?.userType) {
@@ -228,7 +228,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
           address: '',
           userType: defaultUserType,
           paymentTerms: '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation',
-          warranty: 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier. Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.'
+          warranty: '1 year warranty'
         });
       }
       setErrors({});
