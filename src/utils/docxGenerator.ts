@@ -999,8 +999,8 @@ export const generateConfigurationHtml = (
             </div>
         </div>
         <div class="page page-bg" style="background-image: url('/Pages to JPG/7.png'); position: relative;">
-            <!-- White overlay to hide background content while keeping footer -->
-            <div style="position: absolute; top: 12%; left: 0; right: 0; bottom: 12%; background: white; z-index: 1;"></div>
+            <!-- Main white overlay (height 82%); bottom 6% leaves footer strip visible -->
+            <div style="position: absolute; top: 12%; left: 0; right: 0; bottom: 6%; background: white; z-index: 1;"></div>
             <div class="quotation-overlay" style="padding-top: 45mm; padding-bottom: 25mm; padding-left: 8mm; padding-right: 8mm; position: relative; z-index: 2;">
                 <div style="background: rgba(255, 255, 255, 0.98); padding: 12px 14px; border-radius: 4px; margin-bottom: 8px;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid #000000;">
@@ -1020,7 +1020,7 @@ export const generateConfigurationHtml = (
                         <tr>
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Warranty</td>
                             <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">
-                                ${userInfo?.warranty ? userInfo.warranty.replace(/\n/g, '<br/>') : 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier.<br/>Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.'}
+                                ${userInfo?.warranty ? userInfo.warranty.replace(/\n/g, '<br/>') : '1 year warranty'}
                             </td>
                         </tr>
                         <tr style="background: rgba(248, 249, 250, 0.5);">
@@ -1031,7 +1031,7 @@ export const generateConfigurationHtml = (
                         </tr>
                         <tr>
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Bank Account Details</td>
-                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">A/C Holder Name - Atenti Origins Photoelectricity Consort Pvt Ltd. Branch Name- ICICI Bank. Sector 50, Noida<br/>A/C Number - 628405020381 IFSC Code - ICIC0006284</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">A/C Holder Name - Atenti Origins Photoelectricity Consort Pvt Ltd.<br/>Branch Name- ICICI Bank. Sector 50, Noida<br/>A/C Number - 628405020381<br/>IFSC Code - ICIC0006284</td>
                         </tr>
                         <tr style="background: rgba(248, 249, 250, 0.5);">
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Freight & Insurance</td>
