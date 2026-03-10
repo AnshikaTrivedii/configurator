@@ -101,7 +101,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
         <div className="flex flex-col items-center space-y-2 sm:space-y-3 mb-3 sm:mb-4">
           <div className="w-full bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
             <img 
-              src={selectedProduct.image} 
+              src={encodeURI(selectedProduct.image)} 
               alt={selectedProduct.name}
               className="w-full h-full object-contain p-1"
             />

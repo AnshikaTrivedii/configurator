@@ -537,7 +537,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 {/* Product image */}
                 <div className="h-24 sm:h-32 lg:h-48 bg-gray-100 overflow-hidden">
                   <img
-                    src={product.image}
+                    src={encodeURI(product.image)}
                     alt={product.name}
                     className="w-full h-full object-cover"
                   />
