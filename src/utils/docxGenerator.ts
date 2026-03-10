@@ -1053,14 +1053,22 @@ export const generateConfigurationHtml = (
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Spares</td>
                             <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">2% spares will be supplied with the main supply</td>
                         </tr>
+                        <tr>
+                            <td colspan="2" style="padding: 8px 12px; border: 1px solid #000000; color: #dc3545; font-size: 13px; font-weight: 600;">Once an order has been placed, it cannot be cancelled.</td>
+                        </tr>
+                        <tr style="background: rgba(248, 249, 250, 0.5);">
+                            <td colspan="2" style="padding: 8px 12px; border: 1px solid #000000; color: #dc3545; font-size: 13px; font-weight: 600;">Above prices are based on the configuration as provided, additional charge will be in client's account if any parts changed.</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="padding: 8px 12px; border: 1px solid #000000; color: #dc3545; font-size: 13px; font-weight: 600;">Electrical wiring & Accessories (MCB, TPN, RCCB), UPS, CAT6 wire, Network cabling, Fabrication, Civil, Electrical, Conduiting at Client end.</td>
+                        </tr>
+                        <tr style="background: rgba(248, 249, 250, 0.5);">
+                            <td colspan="2" style="padding: 8px 12px; border: 1px solid #000000; color: #dc3545; font-size: 13px; font-weight: 600;">Conduiting / Trunking / LAN / Power points / scaffolding / Ladder / SRP etc are Client's scope or by client's Electrical Contractor.</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="padding: 8px 12px; border: 1px solid #000000; color: #dc3545; font-size: 13px; font-weight: 600;">Earthing wire should be of same specification with live & neutral (Client End)</td>
+                        </tr>
                     </table>
-                    <div style="margin-top: 16px; padding: 10px 0;">
-                        <p style="margin: 6px 0; color: #dc3545; font-size: 13px; font-weight: 600;">1. Once an order has been placed, it cannot be cancelled.</p>
-                        <p style="margin: 6px 0; color: #dc3545; font-size: 13px; font-weight: 600;">2. Above prices are based on the configuration as provided, additional charge will be in client's account if any parts changed.</p>
-                        <p style="margin: 6px 0; color: #dc3545; font-size: 13px; font-weight: 600;">3. Electrical wiring & Accessories (MCB, TPN, RCCB), UPS, CAT6 wire, Network cabling, Fabrication, Civil, Electrical, Conduiting at Client end.</p>
-                        <p style="margin: 6px 0; color: #dc3545; font-size: 13px; font-weight: 600;">4. Conduiting / Trunking / LAN /Power points /scaffolding/Ladder/SRP etc are Client's scope or by client's Electrical Contractor.</p>
-                        <p style="margin: 6px 0; color: #dc3545; font-size: 13px; font-weight: 600;">5. Earthing wire should be of same specification with live & neutral (Client End)</p>
-                    </div>
                 </div>
             </div>
         </div>
