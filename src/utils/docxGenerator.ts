@@ -1020,7 +1020,7 @@ export const generateConfigurationHtml = (
                         <tr>
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Warranty</td>
                             <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">
-                                ${userInfo?.warranty ? userInfo.warranty.replace(/\n/g, '<br/>') : '1 year warranty'}
+                                ${userInfo?.warranty ? userInfo.warranty.replace(/\n/g, '<br/>') : 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier.<br/>Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.'}
                             </td>
                         </tr>
                         <tr style="background: rgba(248, 249, 250, 0.5);">
