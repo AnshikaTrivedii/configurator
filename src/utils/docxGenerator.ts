@@ -527,6 +527,10 @@ export const generateConfigurationHtml = (
     return s;
   };
 
+  /** Format number with Indian grouping and 2 decimal places (for quotation totals only). */
+  const formatTotalWithDecimals = (x: number): string =>
+    x.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const GST_RATE = '18%';
 
   const html = `
@@ -850,7 +854,7 @@ export const generateConfigurationHtml = (
                             <div class="quotation-total-row" style="margin-top: auto;">
                                 <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 4px 2px; border-bottom: none;">
                                     <span style="font-weight: 700; color: #333; font-size: 12px; text-align: left;">TOTAL:</span>
-                                    <span style="color: #333; font-weight: 700; font-size: 12px; text-align: right; white-space: nowrap;">₹${formatIndianNumber(totalProduct)}</span>
+                                    <span style="color: #333; font-weight: 700; font-size: 12px; text-align: right; white-space: nowrap;">₹${formatTotalWithDecimals(totalProduct)}</span>
                             </div>
                         </div>
                     </div>
@@ -910,7 +914,7 @@ export const generateConfigurationHtml = (
                             <div class="quotation-total-row" style="padding: 5px 6px; margin-top: auto; min-height: 35px;">
                                 <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; padding: 3px 2px; border-bottom: none;">
                                     <span style="font-weight: 700; color: #333; font-size: 11px; text-align: left;">TOTAL:</span>
-                                    <span style="color: #333; font-weight: 700; font-size: 11px; text-align: right; white-space: nowrap;">₹${formatIndianNumber(totalController)}</span>
+                                    <span style="color: #333; font-weight: 700; font-size: 11px; text-align: right; white-space: nowrap;">₹${formatTotalWithDecimals(totalController)}</span>
                                 </div>
                             </div>
                         </div>
@@ -977,7 +981,7 @@ export const generateConfigurationHtml = (
                         <div class="quotation-total-row" style="padding: 5px 6px; margin-top: 0; min-height: 35px;">
                             <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; padding: 3px 2px; border-bottom: none;">
                                 <span style="font-weight: 700; color: #333; font-size: 11px; text-align: left;">STRUCTURE + INSTALLATION TOTAL:</span>
-                                <span style="color: #333; font-weight: 700; font-size: 11px; text-align: right; white-space: nowrap;">₹${(totalStructure + totalInstallation).toLocaleString('en-IN')}</span>
+                                <span style="color: #333; font-weight: 700; font-size: 11px; text-align: right; white-space: nowrap;">₹${formatTotalWithDecimals(totalStructure + totalInstallation)}</span>
                             </div>
                         </div>
                     </div>
@@ -989,7 +993,7 @@ export const generateConfigurationHtml = (
             <!-- Fixed: Reduced width and added left margin to prevent QR code overlap -->
             <div class="quotation-section" style="background: rgba(51, 51, 51, 0.95); color: white; padding: 5px 8px; border-radius: 3px; margin: 3px 0 0 40px; text-align: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); width: calc(100% - 40px); min-height: auto; box-sizing: border-box;">
                 <h2 style="margin: 0 0 2px 0; font-size: 13px; font-weight: bold; line-height: 1.1;">GRAND TOTAL</h2>
-                <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatIndianNumber(grandTotal)}</p>
+                <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatTotalWithDecimals(grandTotal)}</p>
                 ${!isJumboSeries
   ? (isRentalProduct
     ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Processor)</p>`
