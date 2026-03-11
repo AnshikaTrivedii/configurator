@@ -763,7 +763,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                       <div className="relative w-full bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden flex items-center justify-center" style={{ height: '200px', padding: '12px' }}>
                         {product.image ? (
                           <img
-                            src={product.image}
+                            src={encodeURI(product.image)}
                             alt={product.name}
                             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                             style={{
