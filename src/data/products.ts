@@ -2624,7 +2624,7 @@ export const products: Product[] = [
     name: 'Module/ Grid Series SMD P1.8',
     category: 'Module/ Grid Series',
     enabled: true,
-    image: '/products/module series/Module Grid Series P1.8.png.jpeg',
+    image: '/products/module series/Module Grid Series P1.8.png.jpg',
     resolution: { width: 172, height: 86 }, // 320/1.86, 160/1.86
     cabinetDimensions: { width: 320, height: 160 }, // Module size only (no separate cabinet)
     moduleDimensions: { width: 320, height: 160 },
@@ -2659,7 +2659,7 @@ export const products: Product[] = [
     name: 'Module/ Grid Series SMD P2.5',
     category: 'Module/ Grid Series',
     enabled: true,
-    image: '/products/module series/Module Grid Series P2.5.png.jpeg',
+    image: '/products/module series/Module Grid Series P2.5.png.jpg',
     resolution: { width: 128, height: 64 }, // 320/2.5, 160/2.5
     cabinetDimensions: { width: 320, height: 160 }, // Module size only (no separate cabinet)
     moduleDimensions: { width: 320, height: 160 },
@@ -2694,7 +2694,7 @@ export const products: Product[] = [
     name: 'Module/ Grid Series SMD P4',
     category: 'Module/ Grid Series',
     enabled: true,
-    image: '/products/module series/Module Grid Series P4.png.jpeg',
+    image: '/products/module series/Module Grid Series P4.png.jpg',
     resolution: { width: 80, height: 40 }, // 320/4, 160/4
     cabinetDimensions: { width: 320, height: 160 }, // Module size only (no separate cabinet)
     moduleDimensions: { width: 320, height: 160 },

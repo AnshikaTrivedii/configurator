@@ -280,7 +280,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Power (max)</div>
             <div className="text-sm sm:text-lg font-semibold text-red-700">{maxPower} W</div>
           </div>
-          {!isJumboSeries && (
+          {!isJumboSeries && !isModuleGridSeries && (
             <>
               <div className="bg-white rounded-lg p-2 sm:p-3">
                 <div className="text-xs sm:text-sm text-gray-600 mb-1">{useModuleTerminology ? 'Per Module (avg)' : 'Per Cabinet (avg)'}</div>

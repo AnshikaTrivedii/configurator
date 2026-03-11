@@ -1,7 +1,8 @@
 /**
  * Display power calculation.
  * - Jumbo Series: Max = (modules/8)*350, Avg = (modules/8)*175.
- * - Module/ Grid Series: Power = (modules/8)*350 (used for both avg and max).
+ * - Module/ Grid Series: P1.8 → avg=(modules/8)*225, max=(modules/8)*650;
+ *   P2.5 → avg=(modules/8)*350, max=(modules/8)*650; P4 → avg=(modules/8)*400, max=(modules/8)*700.
  * - All other series: product per-cabinet values × cabinet count.
  */
 
@@ -42,14 +43,23 @@ export function getDisplayPower(
   }
 
   if (isModuleGridSeries && product) {
-    // Module/ Grid Series: Power consumption = (No. of modules / 8) × 350
-    const totalPower = Math.round((modules / 8) * 350);
-    const perUnit = modules > 0 ? totalPower / modules : 0;
+    // Module/ Grid Series: per-pitch formulas — power = (modules/8) × W
+    const factor = modules / 8;
+    const moduleGridPower: Record<string, { avgW: number; maxW: number }> = {
+      'orion-module-grid-p18': { avgW: 225, maxW: 650 },
+      'orion-module-grid-p25': { avgW: 350, maxW: 650 },
+      'orion-module-grid-p4': { avgW: 400, maxW: 700 }
+    };
+    const { avgW, maxW } = moduleGridPower[product.id ?? ''] ?? { avgW: 350, maxW: 650 };
+    const avgPower = Math.round(factor * avgW * 100) / 100;
+    const maxPower = Math.round(factor * maxW * 100) / 100;
+    const avgPerUnit = modules > 0 ? avgPower / modules : 0;
+    const maxPerUnit = modules > 0 ? maxPower / modules : 0;
     return {
-      avgPower: totalPower,
-      maxPower: totalPower,
-      avgPowerPerCabinet: Math.round(perUnit * 100) / 100,
-      maxPowerPerCabinet: Math.round(perUnit * 100) / 100
+      avgPower,
+      maxPower,
+      avgPowerPerCabinet: Math.round(avgPerUnit * 100) / 100,
+      maxPowerPerCabinet: Math.round(maxPerUnit * 100) / 100
     };
   }
 
