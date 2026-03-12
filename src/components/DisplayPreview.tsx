@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
+import { hasDimensionConstraints } from '../utils/dimensionConstraints';
 
 interface DisplayPreviewProps {
   config: DisplayConfig;
@@ -108,8 +109,9 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   let mediaHeight = previewHeight;
 
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
+  const standeeHasConstraints = isDigitalStandee && hasDimensionConstraints(selectedProduct);
 
-  if (isDigitalStandee && selectedProduct?.cabinetDimensions) {
+  if (isDigitalStandee && !standeeHasConstraints && selectedProduct?.cabinetDimensions) {
     const { width: cabW, height: cabH } = selectedProduct.cabinetDimensions;
     const cabRatio = cabW / cabH;
 
@@ -272,7 +274,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     selectedProduct.category === 'Module/ Grid Series'
       ? { columns: cabinetGrid.columns, rows: cabinetGrid.rows, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
       : selectedProduct.category?.toLowerCase().includes('digital standee')
-      ? { columns: 7, rows: 5, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
+      ? { columns: cabinetGrid.columns, rows: cabinetGrid.rows, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
       : selectedProduct.moduleGrid
         ? { 
             columns: selectedProduct.moduleGrid.columns, 
@@ -348,10 +350,16 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
 
   let previewWidthMM = config.width;
   let previewHeightMM = config.height;
-  if (isDigitalStandee && selectedProduct?.cabinetDimensions) {
+  if (isDigitalStandee && !standeeHasConstraints && selectedProduct?.cabinetDimensions) {
     previewWidthMM = selectedProduct.cabinetDimensions.width;
     previewHeightMM = selectedProduct.cabinetDimensions.height;
   }
+
+  // Digital standee: 25mm outer frame (scaled to preview pixels)
+  const STANDEE_FRAME_MM = 25;
+  const framePxW = isDigitalStandee && config.width > 0 ? (STANDEE_FRAME_MM * previewWidth) / config.width : 0;
+  const framePxH = isDigitalStandee && config.height > 0 ? (STANDEE_FRAME_MM * previewHeight) / config.height : 0;
+  const standeeFrameColor = '#52525b'; // zinc-600, distinct from black display
 
   return (
     <div className="flex flex-col items-center space-y-2 sm:space-y-4 lg:space-y-6 py-2 sm:py-4 lg:py-8 overflow-hidden">
@@ -373,7 +381,134 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
         </div>
 
-        {/* Display screen with cabinet grid or media */}
+        {/* Display screen with cabinet grid or media. Digital standee: wrap in 25mm outer frame. */}
+        {isDigitalStandee ? (
+          <div
+            className="flex items-center justify-center flex-shrink-0 rounded-sm"
+            style={{
+              width: `${previewWidth + 2 * framePxW}px`,
+              height: `${previewHeight + 2 * framePxH}px`,
+              backgroundColor: standeeFrameColor,
+              padding: `${framePxH}px ${framePxW}px`,
+              boxSizing: 'content-box',
+            }}
+            title="25mm outer frame"
+          >
+            <div
+              className={`relative border-2 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-dashed border-gray-400'} shadow-xl overflow-hidden transition-all duration-300 ease-in-out flex items-center justify-center bg-transparent flex-shrink-0`}
+              style={{
+                width: `${previewWidth}px`,
+                height: `${previewHeight}px`,
+                cursor: 'pointer',
+                position: 'relative',
+                backgroundColor: '#000',
+                minWidth: '100px',
+                minHeight: '60px',
+              }}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+          {/* Render image or video centered and fit to its aspect ratio */}
+          {backgroundType === 'image' && backgroundImage && mediaAspectRatio && (
+            <img
+              src={backgroundImage}
+              alt="Background"
+              style={{
+                width: `${mediaWidth}px`,
+                height: `${mediaHeight}px`,
+                objectFit: 'contain',
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                background: 'transparent',
+              }}
+              draggable={false}
+            />
+          )}
+          {backgroundType === 'video' && backgroundVideo && mediaAspectRatio && (
+            <video
+              src={backgroundVideo}
+              style={{
+                width: `${mediaWidth}px`,
+                height: `${mediaHeight}px`,
+                objectFit: 'contain',
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                background: 'transparent',
+              }}
+              autoPlay
+              loop
+              muted
+            />
+          )}
+          {/* Background upload interface */}
+          {!backgroundImage && !backgroundVideo && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-1 sm:p-2 lg:p-4 text-center">
+              <svg className="w-6 h-6 sm:w-8 sm:h-8 lg:w-12 lg:h-12 text-gray-400 mb-1 sm:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p className="text-xs sm:text-sm text-gray-600">Click to upload background image or video</p>
+              <p className="text-xs text-gray-500 mt-1">or drag and drop</p>
+            </div>
+          )}
+          {/* Remove background button */}
+          {(backgroundImage || backgroundVideo) && (
+            <button
+              onClick={removeBackground}
+              className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-1 sm:p-1.5 transition-all duration-200"
+              title="Remove background"
+            >
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+          {/* Hidden file input */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            accept="image/*,video/*"
+          />
+          {!(backgroundImage || backgroundVideo) && (isJumbo ? renderJumboPreview() : (useModuleGrid ? renderModuleGrid() : renderCabinetGrid()))}
+          {!(backgroundImage || backgroundVideo) && !selectedProduct?.category?.toLowerCase().includes('jumbo') && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="bg-black bg-opacity-60 text-white p-1 sm:p-2 lg:p-4 rounded-lg backdrop-blur-sm text-center">
+                <h3 className="text-xs sm:text-sm lg:text-lg font-bold mb-1">
+                  {useModuleGrid
+                    ? `${moduleGrid?.columns ?? 0} × ${moduleGrid?.rows ?? 0} Module Grid`
+                    : `${cabinetGrid.columns} × ${cabinetGrid.rows} Grid`}
+                </h3>
+                <p className="text-xs sm:text-sm">
+                  {useModuleGrid ? `${(moduleGrid?.columns ?? 0) * (moduleGrid?.rows ?? 0)} Modules Total` : `${cabinetGrid.columns * cabinetGrid.rows} Cabinets Total`}
+                </p>
+                {selectedProduct && (
+                  <p className="text-xs mt-1 opacity-90">                                   
+                    {useModuleGrid
+                      ? `${selectedProduct.moduleDimensions.width}×${selectedProduct.moduleDimensions.height}mm each`
+                      : `${selectedProduct.cabinetDimensions.width}×${selectedProduct.cabinetDimensions.height}mm each`}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          {!(backgroundImage || backgroundVideo) && (
+            <>
+              <div className="absolute top-1 left-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-t-2 border-l-2 border-white opacity-60"></div>
+              <div className="absolute top-1 right-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-t-2 border-r-2 border-white opacity-60"></div>
+              <div className="absolute bottom-1 left-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-b-2 border-l-2 border-white opacity-60"></div>
+              <div className="absolute bottom-1 right-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-b-2 border-r-2 border-white opacity-60"></div>
+            </>
+          )}
+            </div>
+          </div>
+        ) : (
         <div 
           className={`relative border-2 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-dashed border-gray-400'} shadow-xl overflow-hidden transition-all duration-300 ease-in-out flex items-center justify-center bg-transparent flex-shrink-0`}
           style={{
@@ -490,6 +625,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             </>
           )}
         </div>
+        )}
 
         {/* Right measurement */}
         <div className="flex flex-col items-center ml-1 sm:ml-2 lg:ml-4 flex-shrink-0">

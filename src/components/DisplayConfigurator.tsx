@@ -689,8 +689,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
+  const standeeHasConstraints = isDigitalStandee && hasDimensionConstraints(selectedProduct);
 
-  const fixedCabinetGrid = isDigitalStandee
+  const fixedCabinetGrid = isDigitalStandee && !standeeHasConstraints
     ? { ...cabinetGrid, columns: 7, rows: 5 }
     : cabinetGrid;
 
@@ -698,14 +699,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const moduleHeight = selectedProduct?.dimensionConstraints?.moduleHeight ?? selectedProduct?.cabinetDimensions?.height ?? 337.5;
 
   const handleColumnsChange = (columns: number) => {
-    if (isDigitalStandee) return;
+    if (isDigitalStandee && !standeeHasConstraints) return;
     if (!selectedProduct) return;
     const newWidth = columns * moduleWidth;
     updateWidth(newWidth);
   };
 
   const handleRowsChange = (rows: number) => {
-    if (isDigitalStandee) return;
+    if (isDigitalStandee && !standeeHasConstraints) return;
     if (!selectedProduct) return;
     const newHeight = rows * moduleHeight;
     updateHeight(newHeight);
@@ -728,8 +729,19 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       const timer = setTimeout(() => {
 
         if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
-          updateWidth(selectedProduct.cabinetDimensions.width);
-          updateHeight(selectedProduct.cabinetDimensions.height);
+          if (hasDimensionConstraints(selectedProduct)) {
+            const c = selectedProduct.dimensionConstraints!;
+            const clamped = clampAndSnapDimensions(
+              selectedProduct,
+              c.minWidth,
+              c.minHeight
+            );
+            updateWidth(clamped.width);
+            updateHeight(clamped.height);
+          } else {
+            updateWidth(selectedProduct.cabinetDimensions.width);
+            updateHeight(selectedProduct.cabinetDimensions.height);
+          }
         } else if (selectedProduct.category?.toLowerCase().includes('jumbo')) {
           if (hasDimensionConstraints(selectedProduct)) {
             const clamped = clampAndSnapDimensions(

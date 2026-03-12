@@ -621,7 +621,7 @@ export const products: Product[] = [
     id: 'orion-p18-digital-standee',
     name: 'Orion P1.8 Indoor Standee Display',
     category: 'Digital Standee Series',
-    enabled: false,
+    enabled: true,
     image: '/products/standee-series/Digital Standee Series SMD P1.8.png',
     resolution: { width: 344, height: 946 }, // 344 dots x 946 dots
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
@@ -652,6 +652,16 @@ export const products: Product[] = [
     cabinetMaterial: 'Aluminum',
     screenResolution: '344 dots x 946 dots',
     activeDisplayArea: '640mm x 1760mm',
+    dimensionConstraints: {
+      series: 'Digital Standee Series',
+      moduleWidth: 320,
+      moduleHeight: 160,
+      minWidth: 640,
+      minHeight: 1760,
+      maxWidth: 1280,
+      maxHeight: 1920,
+      validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
+    },
     price: 110300,
     siChannelPrice: 100000,
     resellerPrice: 93800,
@@ -660,7 +670,7 @@ export const products: Product[] = [
     id: 'orion-p25-digital-standee',
     name: 'Orion P2.5 Indoor Standee Display',
     category: 'Digital Standee Series',
-    enabled: false,
+    enabled: true,
     image: '/products/standee-series/Digital Standee Series SMD P2.5.png',
     resolution: { width: 256, height: 704 }, // 256 dots x 704 dots
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
@@ -691,6 +701,16 @@ export const products: Product[] = [
     cabinetMaterial: 'Aluminum',
     screenResolution: '256 dots x 704 dots',
     activeDisplayArea: '640mm x 1760mm',
+    dimensionConstraints: {
+      series: 'Digital Standee Series',
+      moduleWidth: 320,
+      moduleHeight: 160,
+      minWidth: 640,
+      minHeight: 1760,
+      maxWidth: 1280,
+      maxHeight: 1920,
+      validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
+    },
     price: 80900,
     siChannelPrice: 73300,
     resellerPrice: 68800,
@@ -699,7 +719,7 @@ export const products: Product[] = [
     id: 'orion-p4-digital-standee',
     name: 'Orion P4 Indoor Standee Display',
     category: 'Digital Standee Series',
-    enabled: false,
+    enabled: true,
     image: '/products/standee-series/Digital Standee Series SMD P4.png',
     resolution: { width: 160, height: 440 }, // 160 dots x 440 dots
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
@@ -730,6 +750,16 @@ export const products: Product[] = [
     cabinetMaterial: 'Aluminum',
     screenResolution: '160 dots x 440 dots',
     activeDisplayArea: '640mm x 1760mm',
+    dimensionConstraints: {
+      series: 'Digital Standee Series',
+      moduleWidth: 320,
+      moduleHeight: 160,
+      minWidth: 640,
+      minHeight: 1760,
+      maxWidth: 1280,
+      maxHeight: 1920,
+      validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
+    },
     price: 95600,
     siChannelPrice: 86700,
     resellerPrice: 81300,

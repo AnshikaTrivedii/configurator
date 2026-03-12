@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Product, CabinetGrid } from '../types';
 import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
+import { hasDimensionConstraints } from '../utils/dimensionConstraints';
 
 const MM_TO_FEET = 1 / 304.8;
 
@@ -70,13 +71,14 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
   const useModuleLabel = isJumbo || isModuleGridSeries;
+  const standeeHasConstraints = isDigitalStandee && hasDimensionConstraints(selectedProduct);
 
   React.useEffect(() => {
     if (isJumbo && activeTab === 'processing') setActiveTab('dimensions');
   }, [isJumbo, activeTab]);
 
-  const displayColumns = isDigitalStandee ? 7 : cabinetGrid.columns;
-  const displayRows = isDigitalStandee ? 5 : cabinetGrid.rows;
+  const displayColumns = isDigitalStandee && !standeeHasConstraints ? 7 : cabinetGrid.columns;
+  const displayRows = isDigitalStandee && !standeeHasConstraints ? 5 : cabinetGrid.rows;
 
   if (!selectedProduct) {
     return (
@@ -158,7 +160,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(Math.max(1, cabinetGrid.columns - 1))}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee}
+                      disabled={isDigitalStandee && !standeeHasConstraints}
                     >
                       -
                     </button>
@@ -168,7 +170,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(cabinetGrid.columns + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee}
+                      disabled={isDigitalStandee && !standeeHasConstraints}
                     >
                       +
                     </button>
@@ -183,7 +185,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(Math.max(1, cabinetGrid.rows - 1))}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee}
+                      disabled={isDigitalStandee && !standeeHasConstraints}
                     >
                       -
                     </button>
@@ -193,7 +195,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(cabinetGrid.rows + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee}
+                      disabled={isDigitalStandee && !standeeHasConstraints}
                     >
                       +
                     </button>
