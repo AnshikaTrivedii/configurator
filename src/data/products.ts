@@ -622,11 +622,11 @@ export const products: Product[] = [
     name: 'Orion P1.8 Indoor Standee Display',
     category: 'Digital Standee Series',
     enabled: true,
-    image: '/products/standee-series/Digital Standee Series SMD P1.8.png',
-    resolution: { width: 344, height: 946 }, // 344 dots x 946 dots
+    image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.10 (1).jpeg',
+    resolution: { width: 176, height: 176 }, // Per module: total = 176×columns × 176×rows
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
     moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 160, height: 80 },
+    moduleResolution: { width: 176, height: 176 },
     moduleQuantity: 12,
     pixelPitch: 1.8,
     pixelDensity: 284444,
@@ -636,7 +636,7 @@ export const products: Product[] = [
     maxPowerConsumption: 400, // <400W
     avgPowerConsumption: 120, // <120W
     weightPerCabinet: 45, // kg
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P1.8.pdf',
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/1_Digital+Standee+Series++SMD+P1.8.pdf',
     ledType: 'SMD',
     driverIC: 'ICN/MBI/SM',
     viewingAngle: 'H140°, V140°',
@@ -650,7 +650,7 @@ export const products: Product[] = [
     lifeTime: 100000,
     controller: 'Novastar TB40',
     cabinetMaterial: 'Aluminum',
-    screenResolution: '344 dots x 946 dots',
+    screenResolution: '176×176 per module (total = 176×cols × 176×rows)',
     activeDisplayArea: '640mm x 1760mm',
     dimensionConstraints: {
       series: 'Digital Standee Series',
@@ -671,8 +671,8 @@ export const products: Product[] = [
     name: 'Orion P2.5 Indoor Standee Display',
     category: 'Digital Standee Series',
     enabled: true,
-    image: '/products/standee-series/Digital Standee Series SMD P2.5.png',
-    resolution: { width: 256, height: 704 }, // 256 dots x 704 dots
+    image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.10.jpeg',
+    resolution: { width: 128, height: 64 }, // Per module: total = 128×columns × 64×rows
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
     moduleDimensions: { width: 320, height: 160 },
     moduleResolution: { width: 128, height: 64 },
@@ -685,7 +685,7 @@ export const products: Product[] = [
     maxPowerConsumption: 400, // <400W
     avgPowerConsumption: 120, // <120W
     weightPerCabinet: 45, // kg
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P2.5.pdf',
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/2_Digital+Standee+Series++SMD+P2.5.pdf',
     ledType: 'SMD',
     driverIC: 'ICN/MBI/SM',
     viewingAngle: 'H140°, V140°',
@@ -699,7 +699,7 @@ export const products: Product[] = [
     lifeTime: 100000,
     controller: 'Novastar TB40',
     cabinetMaterial: 'Aluminum',
-    screenResolution: '256 dots x 704 dots',
+    screenResolution: '128×64 per module (total = 128×cols × 64×rows)',
     activeDisplayArea: '640mm x 1760mm',
     dimensionConstraints: {
       series: 'Digital Standee Series',
@@ -720,8 +720,8 @@ export const products: Product[] = [
     name: 'Orion P4 Indoor Standee Display',
     category: 'Digital Standee Series',
     enabled: true,
-    image: '/products/standee-series/Digital Standee Series SMD P4.png',
-    resolution: { width: 160, height: 440 }, // 160 dots x 440 dots
+    image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.11.jpeg',
+    resolution: { width: 80, height: 40 }, // Per module: total = 80×columns × 40×rows
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
     moduleDimensions: { width: 320, height: 160 },
     moduleResolution: { width: 80, height: 40 },
@@ -734,7 +734,7 @@ export const products: Product[] = [
     maxPowerConsumption: 750, // <750W
     avgPowerConsumption: 400, // <400W
     weightPerCabinet: 60, // kg
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P4.pdf',
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/3_Digital+Standee+Series++SMD+P4.pdf',
     ledType: 'SMD',
     driverIC: 'ICN/MBI/SM',
     viewingAngle: 'H140°, V140°',
@@ -748,7 +748,7 @@ export const products: Product[] = [
     lifeTime: 100000,
     controller: 'Novastar TB2',
     cabinetMaterial: 'Aluminum',
-    screenResolution: '160 dots x 440 dots',
+    screenResolution: '80×40 per module (total = 80×cols × 40×rows)',
     activeDisplayArea: '640mm x 1760mm',
     dimensionConstraints: {
       series: 'Digital Standee Series',
