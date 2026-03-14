@@ -77,6 +77,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     selectedProduct.name?.toLowerCase().includes('jumbo series');
 
   const isModuleGridSeries = selectedProduct.category === 'Module/ Grid Series';
+  const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
   const useModuleTerminology = isJumboSeries || isModuleGridSeries;
 
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
@@ -280,7 +281,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Power (max)</div>
             <div className="text-sm sm:text-lg font-semibold text-red-700">{maxPower} W</div>
           </div>
-          {!isJumboSeries && !isModuleGridSeries && (
+          {!isJumboSeries && !isModuleGridSeries && !isDigitalStandee && (
             <>
               <div className="bg-white rounded-lg p-2 sm:p-3">
                 <div className="text-xs sm:text-sm text-gray-600 mb-1">{useModuleTerminology ? 'Per Module (avg)' : 'Per Cabinet (avg)'}</div>

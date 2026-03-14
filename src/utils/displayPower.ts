@@ -1,6 +1,8 @@
 /**
  * Display power calculation.
  * - Jumbo Series: Max = (modules/8)*350, Avg = (modules/8)*175.
+ * - Digital Standee: P1.8 & P2.5 → avg=(modules/8)*120, max=(modules/8)*400;
+ *   P4 → avg=(modules/8)*400, max=(modules/8)*750.
  * - Module/ Grid Series: P1.8 → avg=(modules/8)*225, max=(modules/8)*650;
  *   P2.5 → avg=(modules/8)*350, max=(modules/8)*650; P4 → avg=(modules/8)*400, max=(modules/8)*700.
  * - All other series: product per-cabinet values × cabinet count.
@@ -34,6 +36,27 @@ export function getDisplayPower(
     const avgPower = Math.round((modules / 8) * 175);
     const maxPerUnit = modules > 0 ? maxPower / modules : 0;
     const avgPerUnit = modules > 0 ? avgPower / modules : 0;
+    return {
+      avgPower,
+      maxPower,
+      avgPowerPerCabinet: Math.round(avgPerUnit * 100) / 100,
+      maxPowerPerCabinet: Math.round(maxPerUnit * 100) / 100
+    };
+  }
+
+  const isDigitalStandee = product?.category?.toLowerCase().includes('digital standee');
+  if (isDigitalStandee && product) {
+    const factor = modules / 8;
+    const standeePower: Record<string, { avgW: number; maxW: number }> = {
+      'orion-p18-digital-standee': { avgW: 120, maxW: 400 },
+      'orion-p25-digital-standee': { avgW: 120, maxW: 400 },
+      'orion-p4-digital-standee': { avgW: 400, maxW: 750 }
+    };
+    const { avgW, maxW } = standeePower[product.id ?? ''] ?? { avgW: 120, maxW: 400 };
+    const avgPower = Math.round(factor * avgW * 100) / 100;
+    const maxPower = Math.round(factor * maxW * 100) / 100;
+    const avgPerUnit = modules > 0 ? avgPower / modules : 0;
+    const maxPerUnit = modules > 0 ? maxPower / modules : 0;
     return {
       avgPower,
       maxPower,
