@@ -4,6 +4,7 @@ export interface QuoteRequest {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  customerLocation?: string;
   message: string;
   userTypeDisplayName?: string;
 

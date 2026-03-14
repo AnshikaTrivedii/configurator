@@ -223,6 +223,12 @@ function generateQuoteRequestEmail(data) {
                 <strong>Phone Number</strong>
                 <span>${escapeHtml(data.customerPhone)}</span>
               </div>
+              ${data.customerLocation ? `
+              <div class="info-item">
+                <strong>Location</strong>
+                <span>${escapeHtml(data.customerLocation)}</span>
+              </div>
+              ` : ''}
             </div>
           </div>
 
@@ -416,7 +422,11 @@ function generatePlainTextQuoteRequest(data) {
   text += `===================\n`;
   text += `Customer Name: ${data.customerName}\n`;
   text += `Email Address: ${data.customerEmail}\n`;
-  text += `Phone Number: ${data.customerPhone}\n\n`;
+  text += `Phone Number: ${data.customerPhone}\n`;
+  if (data.customerLocation) {
+    text += `Location: ${data.customerLocation}\n`;
+  }
+  text += `\n`;
   
   text += `PRODUCT INFORMATION\n`;
   text += `==================\n`;

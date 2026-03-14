@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, User, Phone, MessageSquare, Package, ChevronDown } from 'lucide-react';
+import { X, Mail, User, Phone, MessageSquare, Package, ChevronDown, MapPin } from 'lucide-react';
 import { submitQuoteRequest, QuoteRequest } from '../api/quote';
 import { salesAPI } from '../api/sales';
 import { clientAPI } from '../api/clients';
@@ -268,6 +268,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const [customerName, setCustomerName] = useState(userInfo?.fullName || existingQuotation?.customerName || '');
   const [customerEmail, setCustomerEmail] = useState(userInfo?.email || existingQuotation?.customerEmail || '');
   const [customerPhone, setCustomerPhone] = useState(userInfo?.phoneNumber || existingQuotation?.customerPhone || '');
+  const [customerLocation, setCustomerLocation] = useState(userInfo?.address || '');
   const [salesPersons, setSalesPersons] = useState<any[]>([]);
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState<string | null>(null);
   const [loadingSalesPersons, setLoadingSalesPersons] = useState(false);
@@ -335,6 +336,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       setCustomerName(userInfo.fullName);
       setCustomerEmail(userInfo.email);
       setCustomerPhone(userInfo.phoneNumber);
+      setCustomerLocation(userInfo.address || '');
       setSelectedUserType(userInfo.userType);
     }
   }, [userInfo]);
@@ -429,6 +431,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         customerName: customerName.trim(),
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim(),
+        customerLocation: customerLocation.trim() || undefined,
         message: message.trim() || 'No additional message provided',
         userTypeDisplayName: getUserTypeDisplayName(getUserType()),
 
@@ -645,7 +648,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             email: customerEmail.trim(),
             phone: customerPhone.trim(),
             projectTitle: userInfo?.projectTitle || '',
-            location: userInfo?.address || '',
+            location: customerLocation.trim() || userInfo?.address || '',
             company: '',
             notes: message.trim() || ''
           };
@@ -713,7 +716,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               email: customerEmail.trim(),
               phoneNumber: customerPhone.trim(),
               projectTitle: userInfo?.projectTitle || '',
-              address: userInfo?.address || '',
+              address: customerLocation.trim() || userInfo?.address || '',
               userType: pdfUserType,
               validity: userInfo?.validity,
               paymentTerms: userInfo?.paymentTerms,
@@ -1028,7 +1031,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 userType: userType,
 
                 projectTitle: userInfo?.projectTitle || '',
-                address: userInfo?.address || '',
+                address: customerLocation.trim() || userInfo?.address || '',
                 validity: userInfo?.validity || undefined,
                 paymentTerms: userInfo?.paymentTerms || undefined,
                 warranty: userInfo?.warranty || undefined
@@ -1056,7 +1059,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 email: customerEmail.trim(),
                 phone: customerPhone.trim(),
                 projectTitle: userInfo?.projectTitle || '',
-                location: userInfo?.address || '',
+                location: customerLocation.trim() || userInfo?.address || '',
                 company: '', // Can be added to userInfo form later if needed
                 notes: message.trim() || ''
               };
@@ -1084,7 +1087,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               customerEmail,
               customerPhone,
               customerProject: userInfo?.projectTitle || '',
-              customerLocation: userInfo?.address || '',
+              customerLocation: customerLocation.trim() || userInfo?.address || '',
               message,
               productName: selectedProduct.name,
               productDetails: exactQuotationData.productDetails
@@ -1145,6 +1148,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         setCustomerName('');
         setCustomerEmail('');
         setCustomerPhone('');
+        setCustomerLocation('');
         setIsSubmitted(false);
         onClose();
       }, 10000);
@@ -1247,6 +1251,25 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                             required
                           />
                           <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        </div>
+                      </div>
+
+                      {/* Location Field */}
+                      <div>
+                        <label htmlFor="customerLocation" className="block text-base font-medium text-gray-700 mb-3">
+                          Location
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            id="customerLocation"
+                            className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base transition-all"
+                            placeholder="Enter your city or location"
+                            value={customerLocation}
+                            onChange={(e) => setCustomerLocation(e.target.value)}
+                            disabled={isSubmitting}
+                          />
+                          <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                         </div>
                       </div>
 

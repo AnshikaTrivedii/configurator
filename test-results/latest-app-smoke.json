@@ -1,0 +1,107 @@
+{
+  "startedAt": "2026-03-11T20:39:02.410Z",
+  "backendBaseUrl": "http://127.0.0.1:3001",
+  "summary": {
+    "passed": 7,
+    "failed": 0,
+    "skipped": 2
+  },
+  "checks": [
+    {
+      "name": "frontend build",
+      "status": "passed",
+      "timestamp": "2026-03-11T20:39:08.384Z",
+      "command": "npm run build",
+      "stdout": "> vite-react-typescript-starter@0.0.0 build\n> vite build\n\nvite v5.4.8 building for production...\ntransforming...\n✓ 2196 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                        0.48 kB │ gzip:   0.31 kB\ndist/assets/index-BQbj0nAN.css        93.82 kB │ gzip:  14.80 kB\ndist/assets/purify.es-BFmuJLeH.js     21.93 kB │ gzip:   8.59 kB\ndist/assets/html2pdf-uLRg5kr3.js     145.99 kB │ gzip:  33.96 kB\ndist/assets/index.es-CzzcyiyL.js     150.53 kB │ gzip:  51.29 kB\ndist/assets/index-2WImi9ZR.js      2,935.41 kB │ gzip: 727.94 kB\n✓ built in 5.35s",
+      "stderr": "Browserslist: caniuse-lite is outdated. Please run:\n  npx update-browserslist-db@latest\n  Why you should do it regularly: https://github.com/browserslist/update-db#readme\nnode_modules/pdfjs-dist/build/pdf.js (1982:23): Use of eval in \"node_modules/pdfjs-dist/build/pdf.js\" is strongly discouraged as it poses security risks and may cause issues with minification.\n[plugin:vite:reporter] [plugin vite:reporter] \n(!) /Users/aman/Documents/Coding/configurator/src/utils/docxGenerator.ts is dynamically imported by /Users/aman/Documents/Coding/configurator/src/components/PdfViewModal.tsx, /Users/aman/Documents/Coding/configurator/src/components/PdfViewModal.tsx, /Users/aman/Documents/Coding/configurator/src/components/PdfViewModal.tsx, /Users/aman/Documents/Coding/configurator/src/components/QuoteModal.tsx, /Users/aman/Documents/Coding/configurator/src/components/SalesDashboard.tsx but also statically imported by /Users/aman/Documents/Coding/configurator/src/components/DisplayConfigurator.tsx, /Users/aman/Documents/Coding/configurator/src/components/SalesDashboard.tsx, /Users/aman/Documents/Coding/configurator/src/components/SalesPersonDetailsModal.tsx, dynamic import will not move module into another chunk.\n\n\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit."
+    },
+    {
+      "name": "backend server syntax",
+      "status": "passed",
+      "timestamp": "2026-03-11T20:39:08.416Z",
+      "command": "node --check backend/server.js"
+    },
+    {
+      "name": "backend sales route syntax",
+      "status": "passed",
+      "timestamp": "2026-03-11T20:39:08.445Z",
+      "command": "node --check backend/routes/sales.js"
+    },
+    {
+      "name": "backend availability",
+      "status": "passed",
+      "timestamp": "2026-03-11T20:39:10.479Z",
+      "mode": "started-by-harness"
+    },
+    {
+      "name": "backend health",
+      "status": "passed",
+      "timestamp": "2026-03-11T20:39:10.482Z",
+      "url": "http://127.0.0.1:3001/health",
+      "statusCode": 200,
+      "response": {
+        "success": true,
+        "message": "Configurator Backend API is running - UPDATED CODE VERSION",
+        "timestamp": "2026-03-11T20:39:10.481Z",
+        "version": "v2.1.0",
+        "features": {
+          "quotationAssignment": "DEPLOYED",
+          "objectIdValidation": "ENABLED",
+          "assignmentVerification": "ENABLED",
+          "enhancedLogging": "ENABLED"
+        },
+        "environment": "development",
+        "frontendUrl": "http://localhost:5173"
+      }
+    },
+    {
+      "name": "products list endpoint",
+      "status": "passed",
+      "timestamp": "2026-03-11T20:39:10.483Z",
+      "url": "http://127.0.0.1:3001/api/products",
+      "statusCode": 200,
+      "response": {
+        "success": true,
+        "products": [],
+        "total": 0,
+        "filters": {
+          "guidedMode": false,
+          "recommendedPixelPitch": null,
+          "applied": false
+        }
+      }
+    },
+    {
+      "name": "products filter endpoint",
+      "status": "passed",
+      "timestamp": "2026-03-11T20:39:10.491Z",
+      "url": "http://127.0.0.1:3001/api/products/filter",
+      "statusCode": 200,
+      "response": {
+        "success": true,
+        "products": [],
+        "total": 0,
+        "originalTotal": 0,
+        "filters": {
+          "guidedMode": false,
+          "recommendedPixelPitch": "1.5",
+          "applied": false
+        }
+      }
+    },
+    {
+      "name": "authenticated sales login",
+      "status": "skipped",
+      "timestamp": "2026-03-11T20:39:10.491Z",
+      "reason": "Set TEST_SALES_EMAIL and TEST_SALES_PASSWORD to enable auth smoke tests."
+    },
+    {
+      "name": "public quotation mutation smoke",
+      "status": "skipped",
+      "timestamp": "2026-03-11T20:39:10.491Z",
+      "reason": "Set TEST_ALLOW_MUTATION=true to enable mutation tests."
+    }
+  ],
+  "finishedAt": "2026-03-11T20:39:10.491Z",
+  "success": true
+}
