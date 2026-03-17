@@ -31,6 +31,9 @@ interface ProductSidebarProps {
   };
   /** Processor names for dropdown (suggested first, then higher capacity). When provided with onControllerChange, shows dropdown instead of fixed text. */
   processorDropdownOptions?: string[];
+  /** Modular Series only: wire type for pricing */
+  wireType?: 'gold' | 'copper';
+  onWireTypeChange?: (wireType: 'gold' | 'copper') => void;
 }
 
 export const ProductSidebar: React.FC<ProductSidebarProps> = ({
@@ -45,11 +48,14 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   onRedundancyChange,
   redundancyEnabled = false,
   controllerSelection,
-  processorDropdownOptions
+  processorDropdownOptions,
+  wireType = 'gold',
+  onWireTypeChange
 }) => {
   const [activeTab, setActiveTab] = useState<'dimensions' | 'processing'>('dimensions');
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
 
+  const isModularSeries = selectedProduct?.category?.toLowerCase().includes('modular') ?? false;
   const totalPixels = selectedProduct ? (selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows) : 0;
   const totalPixelsMillion = totalPixels / 1_000_000;
 
@@ -203,6 +209,34 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                 </div>
               </div>
             </div>
+
+            {isModularSeries && onWireTypeChange && (
+              <div className="pt-2 sm:pt-3 border-t border-gray-200">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Wire Type</h3>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="wireType"
+                      checked={wireType === 'gold'}
+                      onChange={() => onWireTypeChange('gold')}
+                      className="text-black focus:ring-black"
+                    />
+                    <span className="text-xs sm:text-sm">Gold Wire</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="wireType"
+                      checked={wireType === 'copper'}
+                      onChange={() => onWireTypeChange('copper')}
+                      className="text-black focus:ring-black"
+                    />
+                    <span className="text-xs sm:text-sm">Copper Wire</span>
+                  </label>
+                </div>
+              </div>
+            )}
 
             <div className="pt-2 sm:pt-3 lg:pt-4 border-t border-gray-200">
               <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Configuration</h3>

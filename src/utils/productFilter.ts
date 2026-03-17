@@ -144,6 +144,7 @@ export function getProductSeries(filteredProducts: Product[]): string[] {
     if (category.includes('Rigel')) series.add('Rigel Series');
     if (category.includes('Betel')) series.add('Betel Series');
     if (category.includes('Bellatrix')) series.add('Bellatrix Series');
+    if (category.includes('Modular')) series.add('Modular Series');
     if (category.includes('Flexible')) series.add('Flexible Series');
     if (category.includes('Rental')) series.add('Rental Series');
     if (category.includes('Jumbo')) series.add('Jumbo Series');

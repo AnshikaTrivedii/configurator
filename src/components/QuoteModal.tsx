@@ -11,6 +11,7 @@ import { getProcessorPrice } from '../utils/processorPrices';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { applyDiscount, DiscountInfo } from '../utils/discountCalculator';
 import { getDisplayPower } from '../utils/displayPower';
+import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 
 interface ProductWithPricing extends Product {
   prices?: {
@@ -25,6 +26,10 @@ function isJumboSeriesProduct(product: ProductWithPricing): boolean {
     product.name?.toLowerCase().includes('jumbo series');
 }
 
+function isModularSeriesProduct(product: ProductWithPricing): boolean {
+  return product.category?.toLowerCase().includes('modular') ?? false;
+}
+
 function calculateCorrectTotalPrice(
   product: ProductWithPricing,
   cabinetGrid: { columns: number; rows: number } | null | undefined,
@@ -35,8 +40,14 @@ function calculateCorrectTotalPrice(
     enabled: boolean;
     structurePrice: number | null;
     installationPrice: number | null;
-  }
+  },
+  wireType?: 'gold' | 'copper'
 ): number {
+  if (isModularSeriesProduct(product) && wireType) {
+    const result = calculateCentralizedPricing(product, cabinetGrid, processor, userType, config, customPricing, wireType);
+    return result.grandTotal;
+  }
+
   const METERS_TO_FEET = 3.2808399;
 
   let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
@@ -258,6 +269,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   config,
   clientId
 }) => {
+  const { config: globalConfig } = useDisplayConfig();
+  const wireType = globalConfig.wireType ?? 'gold';
+
   const isSuperAdminUser = userRole === 'super' || userRole === 'super_admin';
   const isPublicUser = !salesUser && !isSuperAdminUser && (!userRole || userRole === 'normal');
 
@@ -492,7 +506,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           processor,
           userType,
           configForCalc,
-          customPricingObj
+          customPricingObj,
+          selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined
         );
 
         const pdfUserType = selectedUserType === 'Reseller' ? 'Reseller' : (selectedUserType === 'SI/Channel Partner' ? 'Channel' : 'End User');
@@ -725,7 +740,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             salesUser,
             existingQuotation.quotationId,
             customPricingObj,
-            exactPricingBreakdownForPdf
+            exactPricingBreakdownForPdf,
+            selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined
           );
 
           // Convert blob to base64
@@ -898,7 +914,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             processor,
             userType,
             configForCalc,
-            customPricingObj
+            customPricingObj,
+            selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined
           );
 
           const pricingResult = calculateCentralizedPricing(
@@ -907,7 +924,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             processor,
             userType,
             configForCalc,
-            customPricingObj
+            customPricingObj,
+            selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined
           );
 
           if (!pricingResult.isAvailable) {
@@ -1044,7 +1062,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 enabled: true,
                 structurePrice: customStructurePrice,
                 installationPrice: customInstallationPrice
-              } : undefined
+              } : undefined,
+              wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined
             },
 
             createdAt: new Date().toISOString()

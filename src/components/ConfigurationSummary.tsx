@@ -1,6 +1,7 @@
 import React from 'react';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { Ruler, Zap, Move3d, Monitor, Boxes, Square, Maximize2 } from 'lucide-react';
+import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { getControllerPdfUrl } from '../utils/controllerPdfMap';
 import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
 import { getDisplayPower } from '../utils/displayPower';
@@ -70,6 +71,9 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   processor,
   mode
 }) => {
+  const { config: globalConfig } = useDisplayConfig();
+  const wireType = globalConfig.wireType ?? 'gold';
+
   if (!selectedProduct) return null;
 
   const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') ||
@@ -78,6 +82,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
 
   const isModuleGridSeries = selectedProduct.category === 'Module/ Grid Series';
   const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
+  const isModularSeries = selectedProduct.category?.toLowerCase().includes('modular');
   const useModuleTerminology = isJumboSeries || isModuleGridSeries;
 
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
@@ -318,6 +323,12 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
               <div className="text-xs sm:text-sm text-gray-600 mb-1">Pixel Pitch</div>
               <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.pixelPitch} mm</div>
             </div>
+            {isModularSeries && (
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">Wire Type</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">{wireType === 'gold' ? 'Gold Wire' : 'Copper Wire'}</div>
+              </div>
+            )}
             {selectedProduct.category === 'Transparent Series' && selectedProduct.transparency && (
               <div className="bg-white rounded-lg p-2 sm:p-3">
                 <div className="text-xs sm:text-sm text-gray-600 mb-1">Transparency</div>

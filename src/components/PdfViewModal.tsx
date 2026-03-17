@@ -8,6 +8,7 @@ import { products as productsImport } from '../data/products';
 const products: import('../types').Product[] = Array.isArray(productsImport) ? productsImport : [];
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { getDisplayPower } from '../utils/displayPower';
+import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 
 const triggerPdfDownload = (blob: Blob, fileName: string, setBlob?: (blob: Blob) => void, setUrl?: (url: string) => void) => {
 
@@ -56,7 +57,8 @@ function calculateCorrectTotalPrice(
     enabled: boolean;
     structurePrice: number | null;
     installationPrice: number | null;
-  }
+  },
+  wireType?: 'gold' | 'copper'
 ): number | null {
   try {
 
@@ -66,7 +68,8 @@ function calculateCorrectTotalPrice(
       processor,
       userType,
       config,
-      customPricing
+      customPricing,
+      wireType
     );
 
     if (!pricingResult.isAvailable) {
@@ -152,6 +155,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   exactPricingBreakdown,
 
 }) => {
+  const { config: globalConfig } = useDisplayConfig();
+  const wireTypeFromContext = globalConfig.wireType ?? 'gold';
+  const isModularProduct = (p: any) => p?.category?.toLowerCase().includes('modular');
+  const effectiveWireType = (product: any) => (product && isModularProduct(product) ? wireTypeFromContext : undefined);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -403,7 +410,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             processor || null,
             userTypeForCalc,
             config || { width: 2400, height: 1010, unit: 'mm' },
-            customPricing
+            customPricing,
+            effectiveWireType(fullProduct)
           );
 
           console.log('Pricing result:', {
@@ -452,7 +460,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           salesUser,
           quotationId,
           customPricing,
-          exactPricingBreakdownForPdf
+          exactPricingBreakdownForPdf,
+          effectiveWireType(selectedProduct)
         );
 
         pdfUrl = window.URL.createObjectURL(pdfBlob);
@@ -601,7 +610,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         processor || null,
         userTypeForCalc,
         config || { width: 2400, height: 1010, unit: 'mm' },
-        customPricing
+        customPricing,
+        effectiveWireType(fullProduct)
       );
 
       if (correctTotalPrice === null) {
@@ -625,7 +635,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         processor || null,
         userTypeForCalc,
         config || { width: 2400, height: 1010, unit: 'mm' },
-        customPricing
+        customPricing,
+        effectiveWireType(fullProduct)
       );
 
       if (!pricingResult.isAvailable) {
@@ -788,7 +799,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           salesUser,
           quotationId,
           customPricing,
-          exactPricingBreakdownForPdf
+          exactPricingBreakdownForPdf,
+          effectiveWireType(selectedProduct)
         );
 
       } catch (pdfError: any) {
@@ -1050,7 +1062,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                         processor || null,
                         userTypeForCalc,
                         config || { width: 2400, height: 1010, unit: 'mm' },
-                        customPricing
+                        customPricing,
+                        effectiveWireType(selectedProduct)
                       );
 
                       let finalPricingResult = pricingResult as any;
@@ -1088,7 +1101,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                         salesUser,
                         quotationId,
                         customPricing,
-                        exactPricingBreakdownForPdf
+                        exactPricingBreakdownForPdf,
+                        effectiveWireType(selectedProduct)
                       );
 
                       if (!pdfBlob || pdfBlob.size === 0) {

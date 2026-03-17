@@ -163,7 +163,8 @@ export function calculatePricingBreakdown(
   cabinetGrid: { columns: number; rows: number } | null,
   processor: string | null,
   userType: string,
-  config: { width: number; height: number; unit: string }
+  config: { width: number; height: number; unit: string },
+  wireType?: 'gold' | 'copper'
 ): PricingBreakdown {
   try {
 
@@ -172,7 +173,9 @@ export function calculatePricingBreakdown(
       cabinetGrid,
       processor,
       userType,
-      config
+      config,
+      undefined,
+      wireType
     );
 
     const breakdown: PricingBreakdown = {

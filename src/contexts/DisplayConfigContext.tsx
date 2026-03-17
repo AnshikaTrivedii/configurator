@@ -3,6 +3,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 export type EnvironmentType = 'Indoor' | 'Outdoor' | null;
 export type EntryMode = 'guided' | 'direct' | null;
 
+export type WireType = 'gold' | 'copper';
+
 export interface DisplayConfigState {
   width: number;
   height: number;
@@ -14,6 +16,8 @@ export interface DisplayConfigState {
   entryMode: EntryMode;
   directProductMode: boolean;
   selectedProductName: string | null;
+  /** Modular Series only: wire type for pricing. Default 'gold'. */
+  wireType: WireType;
 }
 
 interface DisplayConfigContextType {
@@ -37,7 +41,8 @@ const defaultConfig: DisplayConfigState = {
   pixelPitch: null,
   entryMode: null,
   directProductMode: false,
-  selectedProductName: null
+  selectedProductName: null,
+  wireType: 'gold'
 };
 
 const loadFromStorage = (): DisplayConfigState => {
@@ -47,7 +52,8 @@ const loadFromStorage = (): DisplayConfigState => {
       const parsed = JSON.parse(stored);
       return {
         ...defaultConfig,
-        ...parsed
+        ...parsed,
+        wireType: parsed.wireType === 'copper' ? 'copper' : 'gold'
       };
     }
   } catch (error) {
@@ -75,7 +81,8 @@ const areConfigsEqual = (a: DisplayConfigState, b: DisplayConfigState) => {
     a.pixelPitch === b.pixelPitch &&
     a.entryMode === b.entryMode &&
     a.directProductMode === b.directProductMode &&
-    a.selectedProductName === b.selectedProductName
+    a.selectedProductName === b.selectedProductName &&
+    a.wireType === b.wireType
   );
 };
 

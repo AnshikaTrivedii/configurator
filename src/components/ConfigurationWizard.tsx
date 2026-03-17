@@ -21,6 +21,7 @@ interface ConfigurationWizardProps {
     environment: 'Indoor' | 'Outdoor';
     pixelPitch: number | null;
     selectedProduct: Product | null;
+    wireType?: 'gold' | 'copper';
   }) => void;
 }
 
@@ -43,7 +44,9 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   const [selectedWarranty, setSelectedWarranty] = useState<number | null>(null);
   const [selectedSeriesCategory, setSelectedSeriesCategory] = useState<string | null>(null); // 'Module/ Grid Series' when that option is chosen
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [wireType, setWireType] = useState<'gold' | 'copper'>('gold');
   const [hasSkippedPixelPitch, setHasSkippedPixelPitch] = useState<boolean>(false);
+  const isModularSeries = selectedProduct?.category?.toLowerCase().includes('modular') ?? false;
 
   const steps: { key: Step; label: string }[] = [
     { key: 'environment', label: 'Environment' },
@@ -69,6 +72,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       setSelectedWarranty(null);
       setSelectedSeriesCategory(null);
       setSelectedProduct(null);
+      setWireType('gold');
       setHasSkippedPixelPitch(false);
     }
   }, [isOpen]);
@@ -97,7 +101,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
    * Map warranty years to product series
    * Betelgeuse Series → 5 Years
    * Rigel Series → 3 Years
-   * Bellatrix Series, Jumbo Series, Module/ Grid Series → 2 Years
+   * Bellatrix Series, Jumbo Series, Module/ Grid Series, Modular Series → 2 Years
    */
   const getSeriesForWarranty = (warrantyYears: number): string[] => {
     switch (warrantyYears) {
@@ -106,7 +110,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       case 3:
         return ['Rigel Series'];
       case 2:
-        return ['Bellatrix Series', 'Jumbo Series', 'Module/ Grid Series'];
+        return ['Bellatrix Series', 'Jumbo Series', 'Module/ Grid Series', 'Modular Series'];
       default:
         return [];
     }
@@ -173,7 +177,8 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
         viewingDistanceUnit,
         environment: environment as 'Indoor' | 'Outdoor',
         pixelPitch,
-        selectedProduct
+        selectedProduct,
+        wireType: isModularSeries ? wireType : undefined
       });
       onClose();
     }
@@ -639,7 +644,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {([5, 3, 2] as const).map((years) => {
                   const allowedSeries = getSeriesForWarranty(years);
-                  const seriesLabel = years === 5 ? 'Betelgeuse Series' : years === 3 ? 'Rigel Series' : 'Bellatrix Series, Jumbo Series, Module/ Grid Series';
+                  const seriesLabel = years === 5 ? 'Betelgeuse Series' : years === 3 ? 'Rigel Series' : 'Bellatrix Series, Jumbo Series, Module/ Grid Series, Modular Series';
                   const cardSelectedEnv = environment?.toLowerCase().trim();
 
                   // Calculate matching products with all previous filters + warranty (pixel pitch applies to all series including Jumbo)
@@ -817,7 +822,37 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                     </button>
                   ))}
                 </div>
-              ) : (
+              ) : null}
+
+              {isModularSeries && selectedProduct && (
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Wire Type</h4>
+                  <div className="flex gap-6">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="wireType"
+                        checked={wireType === 'gold'}
+                        onChange={() => setWireType('gold')}
+                        className="text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-800">Gold Wire</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="wireType"
+                        checked={wireType === 'copper'}
+                        onChange={() => setWireType('copper')}
+                        className="text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-800">Copper Wire</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {filteredProducts.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-gray-500 mb-4">
                     No products found matching your criteria.
@@ -854,7 +889,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                     </button>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
         </div>

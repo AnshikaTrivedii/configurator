@@ -42,6 +42,7 @@ interface DisplayConfiguratorProps {
     environment: 'Indoor' | 'Outdoor';
     pixelPitch: number | null;
     selectedProduct: Product | null;
+    wireType?: 'gold' | 'copper';
   } | null;
   activeQuotation?: Quotation | null;
   showDashboard?: boolean;
@@ -67,6 +68,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   onSalesDashboardClose
 }) => {
   const { config: globalConfig, updateDimensions: updateGlobalDimensions, updateConfig } = useDisplayConfig();
+  const wireType = globalConfig.wireType ?? 'gold';
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(
     initialConfig?.selectedProduct || undefined
   );
@@ -612,7 +614,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           : { fullName: '', email: '', phoneNumber: '', userType: legacyUserTypeForPricing },
         salesUser,
         quotationId,
-        customPricing.enabled ? customPricing : undefined
+        customPricing.enabled ? customPricing : undefined,
+        undefined,
+        selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined
       );
 
       const url = window.URL.createObjectURL(blob);
@@ -666,7 +670,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         },
         salesUser,
         quotationId,
-        customPricing.enabled ? customPricing : undefined
+        customPricing.enabled ? customPricing : undefined,
+        undefined,
+        selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined
       );
 
       const url = window.URL.createObjectURL(blob);
@@ -943,6 +949,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             processorDropdownOptions={userRole !== 'normal' ? processorDropdownOptions : undefined}
             onRedundancyChange={setRedundancyEnabled}
             redundancyEnabled={redundancyEnabled}
+            wireType={wireType}
+            onWireTypeChange={(wt) => updateConfig({ wireType: wt })}
           />
         </div>
 
@@ -1359,7 +1367,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               : { fullName: '', email: '', phoneNumber: '', userType: 'End User' },
             salesUser,
             quotationId,
-            customPricing.enabled ? customPricing : undefined
+            customPricing.enabled ? customPricing : undefined,
+            undefined,
+            selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined
           )}
           customPricing={customPricing.enabled ? customPricing : undefined}
           onDownload={handleDownloadPdf}

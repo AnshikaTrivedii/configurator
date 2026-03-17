@@ -51,11 +51,49 @@ function isJumboSeriesProduct(product: Product): boolean {
 }
 
 /**
+ * Check if product is Modular Series (wire type affects pricing)
+ */
+function isModularSeriesProduct(product: Product): boolean {
+  return product.category?.toLowerCase().includes('modular') ?? false;
+}
+
+/** Modular Series pricing by pixel pitch (mm) -> wire type -> End User, SI Channel, Reseller */
+const MODULAR_PRICING: Record<number, { gold: [number, number, number]; copper: [number, number, number] }> = {
+  3.91: { gold: [19800, 17900, 16800], copper: [9900, 9000, 8400] },
+  4.81: { gold: [15100, 13700, 12800], copper: [8400, 7700, 7200] },
+  6.25: { gold: [12200, 11100, 10400], copper: [8300, 7500, 7000] },
+  7.81: { gold: [9900, 9000, 8400], copper: [7400, 6700, 6300] },
+  10.41: { gold: [8000, 7300, 6800], copper: [6600, 6000, 5600] }
+};
+
+function getModularUnitPrice(pixelPitch: number, wireType: 'gold' | 'copper', userType: 'End User' | 'Reseller' | 'Channel'): number | null {
+  const pitchKey = Object.keys(MODULAR_PRICING).map(Number).find(p => Math.abs(p - pixelPitch) < 0.02);
+  if (pitchKey == null) return null;
+  const row = MODULAR_PRICING[pitchKey];
+  const wire = wireType === 'gold' ? row.gold : row.copper;
+  if (userType === 'Reseller') return wire[2];
+  if (userType === 'Channel') return wire[1];
+  return wire[0];
+}
+
+/**
  * Get product unit price based on user type
  * Returns null if price is NA (Not Available)
+ * For Modular Series, wireType is used to select gold/copper pricing.
  */
-function getProductUnitPrice(product: Product, userType: string): number | null {
+function getProductUnitPrice(
+  product: Product,
+  userType: string,
+  wireType?: 'gold' | 'copper'
+): number | null {
   try {
+
+    if (isModularSeriesProduct(product)) {
+      const pdfUserType: 'End User' | 'Reseller' | 'Channel' = userType === 'Reseller' ? 'Reseller' : userType === 'Channel' ? 'Channel' : 'End User';
+      const wt = wireType ?? 'gold';
+      const price = getModularUnitPrice(product.pixelPitch, wt, pdfUserType);
+      return price ?? null;
+    }
 
     if (product.category?.toLowerCase().includes('rental') && product.prices) {
       const isCurveLock = product.rentalOption === 'curve lock' || product.rentalOption === 'curveLock';
@@ -212,7 +250,8 @@ export function calculateCentralizedPricing(
     enabled: boolean;
     structurePrice: number | null;
     installationPrice: number | null;
-  }
+  },
+  wireType?: 'gold' | 'copper'
 ): PricingCalculationResult {
   try {
 
@@ -223,7 +262,7 @@ export function calculateCentralizedPricing(
       pdfUserType = 'Channel';
     }
 
-    const unitPrice = getProductUnitPrice(product, pdfUserType);
+    const unitPrice = getProductUnitPrice(product, pdfUserType, wireType);
 
     if (unitPrice === null) {
 
@@ -368,10 +407,11 @@ export function validatePriceConsistency(
   cabinetGrid: { columns: number; rows: number } | null | undefined,
   processor: string | null | undefined,
   userType: string,
-  config: { width: number; height: number; unit: string }
+  config: { width: number; height: number; unit: string },
+  wireType?: 'gold' | 'copper'
 ): { isValid: boolean; calculatedPrice: number; difference: number; message: string } {
   try {
-    const calculatedResult = calculateCentralizedPricing(product, cabinetGrid, processor, userType, config);
+    const calculatedResult = calculateCentralizedPricing(product, cabinetGrid, processor, userType, config, undefined, wireType);
     const calculatedPrice = calculatedResult.grandTotal;
     const difference = Math.abs(storedPrice - calculatedPrice);
     const tolerance = 1; // Allow 1 rupee difference for rounding

@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { getProcessorPrice } from './processorPrices';
+import { calculateCentralizedPricing } from './centralizedPricing';
 
 // Processor specifications - matches DisplayConfigurator.tsx
 const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
@@ -90,7 +91,8 @@ export const generateConfigurationDocx = async (
       discountedProcessorTotal?: number;
       discountedGrandTotal?: number;
     };
-  }
+  },
+  wireType?: 'gold' | 'copper'
 ): Promise<Blob> => {
   try {
 
@@ -104,7 +106,8 @@ export const generateConfigurationDocx = async (
       salesUser,
       quotationId,
       customPricing,
-      exactPricingBreakdown
+      exactPricingBreakdown,
+      wireType
     );
 
     const container = document.createElement('div');
@@ -289,7 +292,8 @@ export const generateConfigurationHtml = (
       discountedProcessorTotal?: number;
       discountedGrandTotal?: number;
     };
-  }
+  },
+  wireType?: 'gold' | 'copper'
 ): string => {
 
   const METERS_TO_FEET = 3.2808399;
@@ -440,6 +444,44 @@ export const generateConfigurationHtml = (
 
   let structureGST = structureBasePrice * 0.18;
   let installationGST = installationBasePrice * 0.18;
+
+  // Modular Series: pricing depends on wireType. When exactPricingBreakdown isn't provided (common for ad-hoc PDF downloads),
+  // use centralized pricing so PDF always matches the app's pricing logic.
+  if (!exactPricingBreakdown && selectedProduct.category?.toLowerCase().includes('modular') && wireType) {
+    const normalizedUserType = normalizeLegacyUserType(userInfo?.userType);
+    const userTypeForCalc = normalizedUserType === 'Reseller'
+      ? 'reseller'
+      : normalizedUserType === 'Channel'
+        ? 'siChannel'
+        : 'endUser';
+    const pricingResult = calculateCentralizedPricing(
+      selectedProduct,
+      cabinetGrid,
+      processor || null,
+      userTypeForCalc,
+      config as any,
+      customPricing,
+      wireType
+    );
+    if (pricingResult.isAvailable) {
+      unitPrice = pricingResult.unitPrice;
+      safeQuantity = pricingResult.quantity;
+      subtotal = pricingResult.productSubtotal;
+      gstProduct = pricingResult.productGST;
+
+      controllerPrice = pricingResult.processorPrice;
+      structureBasePrice = pricingResult.structureCost;
+      installationBasePrice = pricingResult.installationCost;
+      structureGST = pricingResult.structureGST;
+      installationGST = pricingResult.installationGST;
+
+      totalProduct = pricingResult.productTotal;
+      totalController = pricingResult.processorTotal;
+      totalStructure = pricingResult.structureTotal;
+      totalInstallation = pricingResult.installationTotal;
+      grandTotal = pricingResult.grandTotal;
+    }
+  }
 
   if (exactPricingBreakdown) {
 
@@ -822,6 +864,12 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-label">Matrix:</span>
                                 <span class="quotation-value">${cabinetGrid.columns} x ${cabinetGrid.rows}</span>
                             </div>
+                            ${selectedProduct.category?.toLowerCase().includes('modular') && wireType
+                              ? `<div class="quotation-row">
+                                <span class="quotation-label">Wire Type:</span>
+                                <span class="quotation-value">${wireType === 'gold' ? 'Gold Wire' : 'Copper Wire'}</span>
+                            </div>`
+                              : ''}
                             ${selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.rentalOption
                               ? `<div class="quotation-row">
                                 <span class="quotation-label">Rental Option:</span>
@@ -1126,7 +1174,8 @@ export const generateConfigurationPdf = async (
       discountedGrandTotal?: number;
       discountAmount?: number;
     };
-  }
+  },
+  wireType?: 'gold' | 'copper'
 ): Promise<Blob> => {
   const html = generateConfigurationHtml(
     config,
@@ -1138,7 +1187,8 @@ export const generateConfigurationPdf = async (
     salesUser,
     quotationId,
     customPricing,
-    exactPricingBreakdown
+    exactPricingBreakdown,
+    wireType
   );
 
   const container = document.createElement('div');
@@ -1311,7 +1361,8 @@ export const generateAlternatePdf = async (
       discountedGrandTotal?: number;
       discountAmount?: number;
     };
-  }
+  },
+  wireType?: 'gold' | 'copper'
 ): Promise<Blob> => {
   const html = generateConfigurationHtml(
     config,
@@ -1323,7 +1374,8 @@ export const generateAlternatePdf = async (
     salesUser,
     quotationId,
     customPricing,
-    exactPricingBreakdown
+    exactPricingBreakdown,
+    wireType
   );
 
   const container = document.createElement('div');

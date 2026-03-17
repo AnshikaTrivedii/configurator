@@ -30,6 +30,7 @@ function App() {
     environment: 'Indoor' | 'Outdoor';
     pixelPitch: number | null;
     selectedProduct: Product | null;
+    wireType?: 'gold' | 'copper';
   } | null>(null);
 
   useEffect(() => {
@@ -224,6 +225,7 @@ function App() {
     environment: 'Indoor' | 'Outdoor';
     pixelPitch: number | null;
     selectedProduct: Product | null;
+    wireType?: 'gold' | 'copper';
   }) => {
 
     updateDimensions(config.width, config.height, config.unit);
@@ -234,7 +236,8 @@ function App() {
       pixelPitch: config.pixelPitch,
       entryMode: 'guided',
       directProductMode: false,
-      selectedProductName: config.selectedProduct?.name || null
+      selectedProductName: config.selectedProduct?.name || null,
+      wireType: config.wireType ?? 'gold'
     });
     setInitialConfig(config);
     setShowLandingPage(false);
@@ -268,6 +271,10 @@ function App() {
     }
 
     if (configWidth && configHeight && product) {
+      const quotationWireType = (quotation.quotationData as any)?.wireType;
+      if (quotationWireType) {
+        updateConfig({ wireType: quotationWireType });
+      }
       setInitialConfig({
         width: configWidth,
         height: configHeight,
@@ -276,7 +283,8 @@ function App() {
         viewingDistanceUnit: 'meters',
         environment: product.environment as 'Indoor' | 'Outdoor',
         pixelPitch: product.pixelPitch,
-        selectedProduct: product
+        selectedProduct: product,
+        wireType: quotationWireType ?? 'gold'
       });
 
       setShowSalesDashboard(false);
