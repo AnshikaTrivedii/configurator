@@ -76,15 +76,16 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
-  const useModuleLabel = isJumbo || isModuleGridSeries;
+  const useModuleLabel = isJumbo || isModuleGridSeries || isDigitalStandee;
   const standeeHasConstraints = isDigitalStandee && hasDimensionConstraints(selectedProduct);
 
   React.useEffect(() => {
     if (isJumbo && activeTab === 'processing') setActiveTab('dimensions');
   }, [isJumbo, activeTab]);
 
-  const displayColumns = isDigitalStandee && !standeeHasConstraints ? 7 : cabinetGrid.columns;
-  const displayRows = isDigitalStandee && !standeeHasConstraints ? 5 : cabinetGrid.rows;
+  const isDigitalStandeeModelB = isDigitalStandee && selectedProduct.name?.includes('(Model B)');
+  const displayColumns = isDigitalStandee ? (isDigitalStandeeModelB ? 3 : 2) : cabinetGrid.columns;
+  const displayRows = isDigitalStandee ? 11 : cabinetGrid.rows;
 
   if (!selectedProduct) {
     return (

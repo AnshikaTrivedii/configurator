@@ -108,6 +108,9 @@ const calculateQuantity = (product, cabinetGrid, config) => {
   if (product.category?.toLowerCase().includes('rental')) {
     return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
   }
+  if (product.category?.toLowerCase().includes('digital standee')) {
+    return 1;
+  }
   
   const isJumboSeries = product.category?.toLowerCase().includes('jumbo') || 
                         product.id?.toLowerCase().startsWith('jumbo-') ||
@@ -400,14 +403,18 @@ const createQuotationContent = (data) => {
   
   const subtotal = Math.round((unitPrice * safeQuantity) * 100) / 100;
   const gstProduct = Math.round((subtotal * 0.18) * 100) / 100;
-  const totalProduct = Math.round((subtotal + gstProduct) * 100) / 100;
+  let totalProduct = Math.round((subtotal + gstProduct) * 100) / 100;
   
   const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
                         selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
                         selectedProduct.name?.toLowerCase().includes('jumbo series');
-  
+  const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
+  if (isDigitalStandee) {
+    totalProduct = Math.round(unitPrice * 100) / 100;
+  }
+
   let controllerPrice = 0;
-  if (processor && !isJumboSeries) {
+  if (processor && !isJumboSeries && !isDigitalStandee) {
     controllerPrice = getProcessorPrice(processor, userType);
   }
   const gstController = Math.round((controllerPrice * 0.18) * 100) / 100;
@@ -655,7 +662,7 @@ const createQuotationContent = (data) => {
                 }),
                 new Paragraph({
                   children: [
-                    new TextRun({ text: `${selectedProduct.category === 'Module/ Grid Series' ? 'Module Dimension' : 'Cabinet Dimension'}: ${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm`, size: 20 }),
+                    new TextRun({ text: `${selectedProduct.category === 'Module/ Grid Series' ? 'Module Dimension' : isDigitalStandee ? 'Frame Size' : 'Cabinet Dimension'}: ${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm`, size: 20 }),
                   ],
                   spacing: { after: 80 },
                 }),
@@ -673,7 +680,7 @@ const createQuotationContent = (data) => {
                 }),
                 new Paragraph({
                   children: [
-                    new TextRun({ text: `Resolution: ${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}`, size: 20 }),
+                    new TextRun({ text: `Resolution: ${isDigitalStandee ? `${selectedProduct.resolution.width} x ${selectedProduct.resolution.height}` : `${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}`}`, size: 20 }),
                   ],
                   spacing: { after: 80 },
                 }),
@@ -707,18 +714,18 @@ const createQuotationContent = (data) => {
                 new Paragraph({
                   children: [
                     new TextRun({ 
-                      text: `Quantity: ${selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}`, 
+                      text: `Quantity: ${isDigitalStandee ? '1' : selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}`, 
                       size: 20 
                     }),
                   ],
                   spacing: { after: 80 },
                 }),
-                new Paragraph({
+                ...(!isDigitalStandee ? [new Paragraph({
                   children: [
                     new TextRun({ text: `Subtotal: ₹${formatIndianNumber(subtotal)}`, bold: true, size: 20 }),
                   ],
                   spacing: { after: 80 },
-                }),
+                })] : []),
                 new Paragraph({
                   children: [
                     new TextRun({ text: `GST (18%): ₹${formatIndianNumber(gstProduct)}`, bold: true, color: 'dc3545', size: 20 }),
@@ -750,8 +757,8 @@ const createQuotationContent = (data) => {
 
   children.push(new Paragraph({ text: '', spacing: { after: 240 } }));
 
-  // Section B: Control System (if not Jumbo Series)
-  if (!isJumboSeries && processor) {
+  // Section B: Control System (if not Jumbo Series and not Digital Standee)
+  if (!isJumboSeries && !isDigitalStandee && processor) {
     children.push(
       new Paragraph({
         children: [
@@ -965,7 +972,7 @@ const createQuotationContent = (data) => {
     new Paragraph({
       children: [
         new TextRun({
-          text: isJumboSeries ? '(A + C)' : '(A + B + C)',
+          text: (isJumboSeries || isDigitalStandee) ? '(A + B)' : '(A + B + C)',
           size: 18,
           color: 'ffffff',
         }),

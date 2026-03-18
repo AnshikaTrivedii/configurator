@@ -83,7 +83,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const isModuleGridSeries = selectedProduct.category === 'Module/ Grid Series';
   const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
   const isModularSeries = selectedProduct.category?.toLowerCase().includes('modular');
-  const useModuleTerminology = isJumboSeries || isModuleGridSeries;
+  const useModuleTerminology = isJumboSeries || isModuleGridSeries || isDigitalStandee;
 
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
   const MM_TO_FEET = 1 / FEET_TO_MM;
@@ -160,7 +160,9 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Resolution</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-purple-700 break-words">
-                {selectedProduct.resolution.width * cabinetGrid.columns} × {selectedProduct.resolution.height * cabinetGrid.rows} px
+                {isDigitalStandee
+                  ? `${selectedProduct.resolution.width} × ${selectedProduct.resolution.height} px`
+                  : `${selectedProduct.resolution.width * cabinetGrid.columns} × ${selectedProduct.resolution.height * cabinetGrid.rows} px`}
               </p>
             </div>
           </div>
@@ -358,10 +360,16 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
           </div>
           <div className="space-y-2 sm:space-y-3">
             <div className="bg-white rounded-lg p-2 sm:p-3">
-              <div className="text-xs sm:text-sm text-gray-600 mb-1">{isModuleGridSeries ? 'Module Size' : isJumboSeries ? 'Screen Size' : 'Cabinet Size'}</div>
+              <div className="text-xs sm:text-sm text-gray-600 mb-1">{isModuleGridSeries ? 'Module Size' : isJumboSeries ? 'Screen Size' : isDigitalStandee ? 'Cabinet Frame Size' : 'Cabinet Size'}</div>
               <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm</div>
             </div>
-            {!isJumboSeries && !isModuleGridSeries && (
+            {isDigitalStandee && (
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">Screen Weight</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.weightPerCabinet ?? 'N/A'} kg</div>
+              </div>
+            )}
+            {!isJumboSeries && !isModuleGridSeries && !isDigitalStandee && (
               <>
                 <div className="bg-white rounded-lg p-2 sm:p-3">
                   <div className="text-xs sm:text-sm text-gray-600 mb-1">Weight per Cabinet</div>
@@ -383,8 +391,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
         </div>
       </div>
 
-      {/* Controller Information - Hidden for Jumbo Series (prices include controllers) */}
-      {!isJumboSeries && (processor || mode) && (
+      {/* Controller Information - Hidden for Jumbo Series (prices include controllers) and Digital Standee */}
+      {!isJumboSeries && !isDigitalStandee && (processor || mode) && (
         <div className="bg-indigo-50 rounded-xl p-3 sm:p-4 transition-all duration-200 hover:shadow-md">
           <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
             <div className="p-1.5 sm:p-2 rounded-lg bg-indigo-100 text-indigo-500 bg-opacity-50">

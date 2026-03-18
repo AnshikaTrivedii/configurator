@@ -126,6 +126,9 @@ const calculateQuantity = (product, cabinetGrid, config) => {
   if (product.category?.toLowerCase().includes('rental')) {
     return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
   }
+  if (product.category?.toLowerCase().includes('digital standee')) {
+    return 1;
+  }
   
   const isJumboSeries = product.category?.toLowerCase().includes('jumbo') || 
                         product.id?.toLowerCase().startsWith('jumbo-') ||
@@ -189,14 +192,18 @@ const generateWordHtml = (data) => {
   
   const subtotal = Math.round((unitPrice * safeQuantity) * 100) / 100;
   const gstProduct = Math.round((subtotal * 0.18) * 100) / 100;
-  const totalProduct = Math.round((subtotal + gstProduct) * 100) / 100;
+  let totalProduct = Math.round((subtotal + gstProduct) * 100) / 100;
   
   const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
                         selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
                         selectedProduct.name?.toLowerCase().includes('jumbo series');
-  
+  const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
+  if (isDigitalStandee) {
+    totalProduct = Math.round(unitPrice * 100) / 100;
+  }
+
   let controllerPrice = 0;
-  if (processor && !isJumboSeries) {
+  if (processor && !isJumboSeries && !isDigitalStandee) {
     controllerPrice = getProcessorPrice(processor, userType);
   }
   const gstController = Math.round((controllerPrice * 0.18) * 100) / 100;
@@ -435,17 +442,17 @@ const generateWordHtml = (data) => {
               <h4>PRODUCT SPECIFICATIONS</h4>
               <p><strong>Series/Environment:</strong> ${selectedProduct.category}, ${selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1)}</p>
               <p><strong>Pixel Pitch:</strong> P${selectedProduct.pixelPitch}</p>
-              <p><strong>${selectedProduct.category === 'Module/ Grid Series' ? 'Module Dimension' : 'Cabinet Dimension'}:</strong> ${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm</p>
+              <p><strong>${selectedProduct.category === 'Module/ Grid Series' ? 'Module Dimension' : isDigitalStandee ? 'Frame Size' : 'Cabinet Dimension'}:</strong> ${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm</p>
               <p><strong>Display Size (m):</strong> ${toDisplayUnit(config.width, 'm')} x ${toDisplayUnit(config.height, 'm')}</p>
               <p><strong>Display Size (ft):</strong> ${toDisplayUnit(config.width, 'ft')} x ${toDisplayUnit(config.height, 'ft')}</p>
-              <p><strong>Resolution:</strong> ${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}</p>
+              <p><strong>Resolution:</strong> ${isDigitalStandee ? `${selectedProduct.resolution.width} x ${selectedProduct.resolution.height}` : `${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}`}</p>
               <p><strong>Matrix:</strong> ${cabinetGrid.columns} x ${cabinetGrid.rows}</p>
             </td>
             <td style="width: 50%;">
               <h4>PRICING DETAILS</h4>
               <p><strong>Unit Price:</strong> ₹${formatIndianNumber(unitPrice)}</p>
-              <p><strong>Quantity:</strong> ${selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}</p>
-              <p><strong>Subtotal:</strong> ₹${formatIndianNumber(subtotal)}</p>
+              <p><strong>Quantity:</strong> ${isDigitalStandee ? '1' : selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}</p>
+              ${!isDigitalStandee ? `<p><strong>Subtotal:</strong> ₹${formatIndianNumber(subtotal)}</p>` : ''}
               <p><strong>GST (18%):</strong> ₹${formatIndianNumber(gstProduct)}</p>
               <p><strong>TOTAL:</strong> ₹${formatIndianNumber(totalProduct)}</p>
             </td>
@@ -453,7 +460,7 @@ const generateWordHtml = (data) => {
         </table>
       </div>
       
-      ${!isJumboSeries && processor ? `
+      ${!isJumboSeries && !isDigitalStandee && processor ? `
       <div class="quotation-section">
         <h2>B. CONTROL SYSTEM & ACCESSORIES</h2>
         <table>
@@ -493,7 +500,7 @@ const generateWordHtml = (data) => {
       <div class="quotation-section" style="background: rgba(51, 51, 51, 0.95); color: white; text-align: center;">
         <h2 style="color: white; border-bottom: none;">GRAND TOTAL</h2>
         <p style="font-size: 16px; font-weight: bold;">₹${formatIndianNumber(grandTotal)}</p>
-        <p style="font-size: 9px;">${isJumboSeries ? '(A + C)' : '(A + B + C)'}</p>
+        <p style="font-size: 9px;">${(isJumboSeries || isDigitalStandee) ? '(A + B)' : '(A + B + C)'}</p>
       </div>
     </div>
   </div>

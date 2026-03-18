@@ -51,6 +51,13 @@ function isJumboSeriesProduct(product: Product): boolean {
 }
 
 /**
+ * Check if product is Digital Standee (controller should be excluded)
+ */
+function isDigitalStandeeProduct(product: Product): boolean {
+  return product.category?.toLowerCase().includes('digital standee') ?? false;
+}
+
+/**
  * Check if product is Modular Series (wire type affects pricing)
  */
 function isModularSeriesProduct(product: Product): boolean {
@@ -158,6 +165,8 @@ function calculateQuantity(
     if (product.category?.toLowerCase().includes('rental')) {
 
       return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+    } else if (product.category?.toLowerCase().includes('digital standee')) {
+      return 1;
     } else if (isJumboSeriesProduct(product)) {
       // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
       const widthInMeters = config.width / 1000;
@@ -302,7 +311,7 @@ export function calculateCentralizedPricing(
     const productTotal = productSubtotal;
 
     let processorPrice = 0;
-    if (processor && !isJumboSeriesProduct(product)) {
+    if (processor && !isJumboSeriesProduct(product) && !isDigitalStandeeProduct(product)) {
       processorPrice = getProcessorPrice(processor, pdfUserType);
     }
 
