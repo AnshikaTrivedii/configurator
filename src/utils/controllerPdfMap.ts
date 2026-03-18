@@ -5,6 +5,7 @@
 
 export const controllerPdfMap: Record<string, string> = {
   "VX1000 Pro": "https://orion-led-quotations.s3.ap-south-1.amazonaws.com/processor+pdf/VX1000+Pro+Controller+Specs+V1.2.pdf",
+  "VX2000 Pro": "https://orion-led-quotations.s3.ap-south-1.amazonaws.com/processor+pdf/VX2000+Pro+Controller+Specs+V1.2.pdf",
   "VX600 Pro": "https://orion-led-quotations.s3.ap-south-1.amazonaws.com/processor+pdf/VX600+Pro+Controller+Specifications+V1.2.pdf",
   "VX600": "https://orion-led-quotations.s3.ap-south-1.amazonaws.com/processor+pdf/VX600+All-in-One+Controller+Specs+V1.3.1.pdf",
   "VX400 Pro": "https://orion-led-quotations.s3.ap-south-1.amazonaws.com/processor+pdf/VX400+Pro+Controller+Specifications+V1.2.pdf",
