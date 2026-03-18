@@ -29,7 +29,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 }) => {
   const { updateConfig } = useDisplayConfig();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series' | 'Digital Standee Series'>('All');
+  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series' | 'Digital Standee Series' | 'Modular Series'>('All');
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
   const [pendingRentalProduct, setPendingRentalProduct] = useState<ProductWithOptionalSize | null>(null);
   const [rentalOption, setRentalOption] = useState<'cabinet' | 'curve lock' | null>(null);
@@ -54,7 +54,12 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
   // Category row no longer shows Rental Series, Jumbo Series, or Digital Standee Series; reset if one was selected
   useEffect(() => {
-    if (selectedCategory === 'Rental Series' || selectedCategory === 'Jumbo Series' || selectedCategory === 'Digital Standee Series') {
+    if (
+      selectedCategory === 'Rental Series' ||
+      selectedCategory === 'Jumbo Series' ||
+      selectedCategory === 'Digital Standee Series' ||
+      selectedCategory === 'Modular Series'
+    ) {
       setSelectedCategory('All');
     }
   }, [selectedCategory]);
@@ -119,6 +124,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const isDigitalStandeeSeries = (product: Product) =>
     product.category === 'Digital Standee Series';
 
+  const isModularSeries = (product: Product) =>
+    product.category && product.category.toLowerCase().includes('modular');
+
   const recommendedPixelPitches = useMemo(() => {
     if (!viewingDistanceValue) return [];
     const env = selectedFilter === 'Indoor' || selectedFilter === 'Outdoor' ? selectedFilter : null;
@@ -138,6 +146,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       tempProducts = tempProducts.filter((p) => isJumboSeries(p));
     } else if (selectedFilter === 'Digital Standee Series') {
       tempProducts = tempProducts.filter((p) => isDigitalStandeeSeries(p));
+    } else if (selectedFilter === 'Modular Series') {
+      tempProducts = tempProducts.filter((p) => isModularSeries(p));
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
@@ -164,6 +174,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       filtered = filtered.filter((p) => isJumboSeries(p));
     } else if (selectedFilter === 'Digital Standee Series') {
       filtered = filtered.filter((p) => isDigitalStandeeSeries(p));
+    } else if (selectedFilter === 'Modular Series') {
+      filtered = filtered.filter((p) => isModularSeries(p));
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
@@ -315,6 +327,20 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 }`}
               >
                 Digital Standee Series
+              </button>
+              <button
+                onClick={() => {
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('Modular Series');
+                  setIndoorType('All');
+                }}
+                className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'Modular Series'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                Modular Series
               </button>
             </div>
 
@@ -498,7 +524,12 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               All Products
             </button>
             {categories
-              .filter((category) => category !== 'Rental Series' && category !== 'Jumbo Series' && category !== 'Digital Standee Series')
+              .filter((category) =>
+                category !== 'Rental Series' &&
+                category !== 'Jumbo Series' &&
+                category !== 'Digital Standee Series' &&
+                category !== 'Modular Series'
+              )
               .map((category) => (
               <button
                 key={category}
