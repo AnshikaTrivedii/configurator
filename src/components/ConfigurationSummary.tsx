@@ -83,7 +83,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const isModuleGridSeries = selectedProduct.category === 'Module/ Grid Series';
   const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
   const isModularSeries = selectedProduct.category?.toLowerCase().includes('modular');
-  const useModuleTerminology = isJumboSeries || isModuleGridSeries || isDigitalStandee;
+  const isFlexibleSeries = selectedProduct.category?.toLowerCase().includes('flexible');
+  const useModuleTerminology = isJumboSeries || isModuleGridSeries || isDigitalStandee || isFlexibleSeries;
 
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
   const MM_TO_FEET = 1 / FEET_TO_MM;
@@ -360,7 +361,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
           </div>
           <div className="space-y-2 sm:space-y-3">
             <div className="bg-white rounded-lg p-2 sm:p-3">
-              <div className="text-xs sm:text-sm text-gray-600 mb-1">{isModuleGridSeries ? 'Module Size' : isJumboSeries ? 'Screen Size' : isDigitalStandee ? 'Cabinet Frame Size' : 'Cabinet Size'}</div>
+              <div className="text-xs sm:text-sm text-gray-600 mb-1">{isModuleGridSeries ? 'Module Size' : isJumboSeries ? 'Screen Size' : isDigitalStandee ? 'Cabinet Frame Size' : isFlexibleSeries ? 'Screen Size' : 'Cabinet Size'}</div>
               <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm</div>
             </div>
             {isDigitalStandee && (
@@ -372,7 +373,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             {!isJumboSeries && !isModuleGridSeries && !isDigitalStandee && (
               <>
                 <div className="bg-white rounded-lg p-2 sm:p-3">
-                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Weight per Cabinet</div>
+                  <div className="text-xs sm:text-sm text-gray-600 mb-1">{isFlexibleSeries ? 'Weight per module' : 'Weight per Cabinet'}</div>
                   <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.weightPerCabinet ?? 'N/A'} kg</div>
                 </div>
                 <div className="bg-white rounded-lg p-2 sm:p-3">

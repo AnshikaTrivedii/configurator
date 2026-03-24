@@ -29,7 +29,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 }) => {
   const { updateConfig } = useDisplayConfig();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series' | 'Digital Standee Series' | 'Modular Series'>('All');
+  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series' | 'Digital Standee Series' | 'Modular Series' | 'Flexible Series'>('All');
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
   const [pendingRentalProduct, setPendingRentalProduct] = useState<ProductWithOptionalSize | null>(null);
   const [rentalOption, setRentalOption] = useState<'cabinet' | 'curve lock' | null>(null);
@@ -127,6 +127,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const isModularSeries = (product: Product) =>
     product.category && product.category.toLowerCase().includes('modular');
 
+  const isFlexibleSeries = (product: Product) =>
+    product.category && product.category.toLowerCase().includes('flexible');
+
   const recommendedPixelPitches = useMemo(() => {
     if (!viewingDistanceValue) return [];
     const env = selectedFilter === 'Indoor' || selectedFilter === 'Outdoor' ? selectedFilter : null;
@@ -148,6 +151,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       tempProducts = tempProducts.filter((p) => isDigitalStandeeSeries(p));
     } else if (selectedFilter === 'Modular Series') {
       tempProducts = tempProducts.filter((p) => isModularSeries(p));
+    } else if (selectedFilter === 'Flexible Series') {
+      tempProducts = tempProducts.filter((p) => isFlexibleSeries(p));
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
@@ -176,6 +181,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       filtered = filtered.filter((p) => isDigitalStandeeSeries(p));
     } else if (selectedFilter === 'Modular Series') {
       filtered = filtered.filter((p) => isModularSeries(p));
+    } else if (selectedFilter === 'Flexible Series') {
+      filtered = filtered.filter((p) => isFlexibleSeries(p));
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
@@ -341,6 +348,20 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 }`}
               >
                 Modular Series
+              </button>
+              <button
+                onClick={() => {
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('Flexible Series');
+                  setIndoorType('All');
+                }}
+                className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'Flexible Series'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                Flexible Series
               </button>
             </div>
 
@@ -528,7 +549,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 category !== 'Rental Series' &&
                 category !== 'Jumbo Series' &&
                 category !== 'Digital Standee Series' &&
-                category !== 'Modular Series'
+                category !== 'Modular Series' &&
+                category !== 'Flexible Series'
               )
               .map((category) => (
               <button

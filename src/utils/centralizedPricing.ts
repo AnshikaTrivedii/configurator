@@ -330,8 +330,8 @@ export function calculateCentralizedPricing(
 
     if (customPricing?.enabled && customPricing.structurePrice !== null) {
       structureBasePrice = customPricing.structurePrice;
-    } else if (product.category === 'Module/ Grid Series') {
-      // Module/ Grid Series: structure per ft² — End User & SI/Channel ₹700, Reseller ₹600
+    } else if (product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('flexible')) {
+      // Module/Grid & Flexible Series: structure per ft² — End User & Channel ₹700, Reseller ₹600
       const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
       structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
     } else {

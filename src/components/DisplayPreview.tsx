@@ -242,6 +242,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   };
 
   const isJumbo = selectedProduct?.category?.toLowerCase().includes('jumbo') ?? false;
+  const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible') ?? false;
 
   const useModuleGrid = selectedProduct && (
     selectedProduct.category === 'Module/ Grid Series' ||
@@ -271,7 +272,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   );
 
   const moduleGrid = useModuleGrid && selectedProduct ? (
-    selectedProduct.category === 'Module/ Grid Series'
+    selectedProduct.category === 'Module/ Grid Series' || selectedProduct.category?.toLowerCase().includes('flexible')
       ? { columns: cabinetGrid.columns, rows: cabinetGrid.rows, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
       : selectedProduct.category?.toLowerCase().includes('digital standee')
       ? { columns: cabinetGrid.columns, rows: cabinetGrid.rows, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
@@ -521,12 +522,39 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             maxHeight: '100%',
             minWidth: '100px',
             minHeight: '60px',
+            ...(isFlexibleSeries ? {
+              transform: 'perspective(900px) rotateY(-12deg) rotateX(2deg)',
+              transformOrigin: 'center',
+              transformStyle: 'preserve-3d' as const,
+              borderRadius: '18px',
+              boxShadow: '0 18px 45px rgba(0,0,0,0.35)',
+            } : {}),
           }}
           onClick={() => fileInputRef.current?.click()}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
+          {/* Flexible Series: visual-only curve/shading (grid math stays rectangular) */}
+          {isFlexibleSeries && (
+            <>
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    'radial-gradient(120% 100% at 18% 50%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 22%, rgba(0,0,0,0) 55%), linear-gradient(90deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.22) 100%)',
+                  mixBlendMode: 'overlay',
+                }}
+              />
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10), inset 0 0 28px rgba(0,0,0,0.55)',
+                  borderRadius: '18px',
+                }}
+              />
+            </>
+          )}
           {/* Render image or video centered and fit to its aspect ratio */}
           {backgroundType === 'image' && backgroundImage && mediaAspectRatio && (
             <img

@@ -3,25 +3,25 @@ import { Product } from '../types';
 export const products: Product[] = [
 
   {
-    id: "orion-p15-flexible-indoor",
-    name: "Orion P1.5mm Flexible Series LED display",
+    id: "orion-p153-flexible-indoor",
+    name: "Flexible Series Indoor P1.53",
     category: "Flexible Series",
-    enabled: false,
-    image: "/products/flexible-series/Flexible Series Indoor P1.5.png", // Not provided in PDF
+    enabled: true,
+    image: "/products/flexible-series/Flexible Series Indoor P1.5.png",
     resolution: {
-      width: 213, // Calculated: 320mm ÷ 1.5mm pixel pitch
-      height: 107  // Calculated: 160mm ÷ 1.5mm pixel pitch
+      width: 208,
+      height: 104
     },
-    price: 14167, // Flexible series pricing (₹25,700 per ft² × 0.551 ft²)
-    siChannelPrice: 12842, // (₹23,300 per ft² × 0.551 ft²)
-    resellerPrice: 12072, // (₹21,900 per ft² × 0.551 ft²)
+    price: 25700,
+    siChannelPrice: 23300,
+    resellerPrice: 21900,
     prices: {
-      cabinet: { endCustomer: 14167, siChannel: 12842, reseller: 12072 },
+      cabinet: { endCustomer: 25700, siChannel: 23300, reseller: 21900 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
 
     cabinetDimensions: {
-      width: 320, // Using module size as cabinet (flexible display)
+      width: 320,
       height: 160
     },
     moduleDimensions: {
@@ -29,41 +29,53 @@ export const products: Product[] = [
       height: 160
     },
     moduleResolution: {
-      width: 213, // Calculated: 320mm ÷ 1.5mm pixel pitch
-      height: 107  // Calculated: 160mm ÷ 1.5mm pixel pitch
+      width: 208,
+      height: 104
     },
     moduleQuantity: 1, // Single flexible module
-    pixelPitch: 1.5,
-    pixelDensity: 409600, // pixels/m²
-    brightness: 1000, // cd/m²
-    refreshRate: 3840, // Hz (minimum)
+    pixelPitch: 1.53,
+    pixelDensity: 427185,
+    brightness: 800,
+    refreshRate: 3840,
     environment: "Indoor",
-    maxPowerConsumption: 700, // W
-    avgPowerConsumption: 350, // W
-    weightPerCabinet: 0, // Not specified in PDF
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P1.5.pdf"
+    maxPowerConsumption: 600,
+    avgPowerConsumption: 200,
+    // PDF lists 32 kg per sqm; stored here so UI can show a comparable weight figure.
+    weightPerCabinet: 32,
+    ledType: "Black SMD1212",
+    driveMethod: "1/43",
+    viewingAngle: "H 140°, V 140°",
+    voltage: "AC 110/220V",
+    serviceAccess: "Total Front Access",
+    ipGrade: "IP31",
+    operatingTemperature: "0°C~50°C",
+    operatingHumidity: "10~90%RH",
+    storageTempHumidity: "0°C~60°C, 10~90%RH",
+    lifeTime: 100000,
+    cabinetMaterial: "Sheet metal",
+    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/1_Flexible+Series+Indoor+P1.53.pdf"
   },
 
   {
-    id: "orion-p18-flexible-indoor",
-    name: "Orion P1.8mm Flexible Series LED display",
+    id: "orion-p186-flexible-indoor",
+    name: "Flexible Series Indoor P1.86",
     category: "Flexible Series",
-    enabled: false,
-    image: "/products/flexible-series/Flexible Series Indoor P1.8.png", // Not provided in PDF
+    enabled: true,
+    image: "/products/flexible-series/Flexible Series Indoor P1.8.png",
     resolution: {
-      width: 171, // Calculated: 320mm ÷ 1.875mm pixel pitch (spec shows 1.875mm)
-      height: 85   // Calculated: 160mm ÷ 1.875mm pixel pitch
+      width: 172,
+      height: 86
     },
-    price: 9700, // Flexible series pricing (₹17,600 per ft² × 0.551 ft²)
-    siChannelPrice: 8816, // (₹16,000 per ft² × 0.551 ft²)
-    resellerPrice: 8265, // (₹15,000 per ft² × 0.551 ft²)
+    price: 17600,
+    siChannelPrice: 16000,
+    resellerPrice: 15000,
     prices: {
-      cabinet: { endCustomer: 9700, siChannel: 8816, reseller: 8265 },
+      cabinet: { endCustomer: 17600, siChannel: 16000, reseller: 15000 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
 
     cabinetDimensions: {
-      width: 320, // Using module size as cabinet (flexible display)
+      width: 320,
       height: 160
     },
     moduleDimensions: {
@@ -71,41 +83,53 @@ export const products: Product[] = [
       height: 160
     },
     moduleResolution: {
-      width: 171, // Calculated: 320mm ÷ 1.875mm pixel pitch
-      height: 85   // Calculated: 160mm ÷ 1.875mm pixel pitch
+      width: 172,
+      height: 86
     },
     moduleQuantity: 1, // Single flexible module
-    pixelPitch: 1.875, // Actual spec from PDF
-    pixelDensity: 284444, // pixels/m²
-    brightness: 1000, // cd/m²
-    refreshRate: 3840, // Hz (minimum)
+    pixelPitch: 1.86,
+    pixelDensity: 288906,
+    brightness: 800,
+    refreshRate: 3840,
     environment: "Indoor",
-    maxPowerConsumption: 700, // W
-    avgPowerConsumption: 350, // W
-    weightPerCabinet: 0, // Not specified in PDF
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P1.8.pdf"
+    maxPowerConsumption: 600,
+    avgPowerConsumption: 200,
+    // PDF lists 32 kg per sqm; stored here so UI can show a comparable weight figure.
+    weightPerCabinet: 32,
+    ledType: "Black SMD1515",
+    driveMethod: "1/43",
+    viewingAngle: "H 140°, V 140°",
+    voltage: "AC 110/220V",
+    serviceAccess: "Total Front Access",
+    ipGrade: "IP31",
+    operatingTemperature: "0°C~50°C",
+    operatingHumidity: "10~90%RH",
+    storageTempHumidity: "0°C~60°C, 10~90%RH",
+    lifeTime: 100000,
+    cabinetMaterial: "Sheet metal",
+    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/2_Flexible+Series+Indoor+P1.86.pdf"
   },
 
   {
     id: "orion-p25-flexible-indoor",
-    name: "Orion P2.5mm Flexible Series LED display",
+    name: "Flexible Series Indoor P2.5",
     category: "Flexible Series",
-    enabled: false,
-    image: "/products/flexible-series/Flexible Series Indoor P2.5.png", // Not provided in PDF
+    enabled: true,
+    image: "/products/flexible-series/Flexible Series Indoor P2.5.png",
     resolution: {
-      width: 128, // Calculated: 320mm ÷ 2.5mm pixel pitch
-      height: 64   // Calculated: 160mm ÷ 2.5mm pixel pitch
+      width: 128,
+      height: 64
     },
-    price: 6888, // Flexible series pricing (₹12,500 per ft² × 0.551 ft²)
-    siChannelPrice: 6227, // (₹11,300 per ft² × 0.551 ft²)
-    resellerPrice: 5841, // (₹10,600 per ft² × 0.551 ft²)
+    price: 12500,
+    siChannelPrice: 11300,
+    resellerPrice: 10600,
     prices: {
-      cabinet: { endCustomer: 6888, siChannel: 6227, reseller: 5841 },
+      cabinet: { endCustomer: 12500, siChannel: 11300, reseller: 10600 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
 
     cabinetDimensions: {
-      width: 320, // Using module size as cabinet (flexible display)
+      width: 320,
       height: 160
     },
     moduleDimensions: {
@@ -113,98 +137,85 @@ export const products: Product[] = [
       height: 160
     },
     moduleResolution: {
-      width: 128, // Calculated: 320mm ÷ 2.5mm pixel pitch
-      height: 64   // Calculated: 160mm ÷ 2.5mm pixel pitch
+      width: 128,
+      height: 64
     },
     moduleQuantity: 1, // Single flexible module
     pixelPitch: 2.5,
-    pixelDensity: 160000, // pixels/m²
-    brightness: 1200, // cd/m²
-    refreshRate: 3840, // Hz (minimum)
+    pixelDensity: 160000,
+    brightness: 800,
+    refreshRate: 3840,
     environment: "Indoor",
-    maxPowerConsumption: 700, // W
-    avgPowerConsumption: 350, // W
-    weightPerCabinet: 0, // Not specified in PDF
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P2.5.pdf"
+    maxPowerConsumption: 600,
+    avgPowerConsumption: 200,
+    // PDF lists 32 kg per sqm; stored here so UI can show a comparable weight figure.
+    weightPerCabinet: 32,
+    ledType: "Black SMD2020",
+    driveMethod: "1/32",
+    viewingAngle: "H 140°, V 140°",
+    voltage: "AC 110/220V",
+    serviceAccess: "Total Front Access",
+    ipGrade: "IP31",
+    operatingTemperature: "0°C~50°C",
+    operatingHumidity: "10~90%RH",
+    storageTempHumidity: "0°C~60°C, 10~90%RH",
+    lifeTime: 100000,
+    cabinetMaterial: "Sheet metal",
+    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/3_Flexible+Series+Indoor+P2.5.pdf"
   },
 
   {
     id: "orion-p3-flexible-indoor",
-    name: "Orion P3mm Flexible Series LED display",
+    name: "Flexible Series Indoor P3",
     category: "Flexible Series",
-    enabled: false,
-    image: "/products/flexible-series/Flexible Series Indoor P3.png", // Not provided in PDF
+    enabled: true,
+    image: "/products/flexible-series/Flexible Series Indoor P3.png",
     resolution: {
-      width: 107, // Calculated: 320mm ÷ 3mm pixel pitch
-      height: 53   // Calculated: 160mm ÷ 3mm pixel pitch
+      width: 80,
+      height: 40
     },
-    price: 3193, // Flexible series pricing (₹10,300 per ft² × 0.31 ft²)
-    siChannelPrice: 2883, // (₹9,300 per ft² × 0.31 ft²)
-    resellerPrice: 2728, // (₹8,800 per ft² × 0.31 ft²)
+    price: 10300,
+    siChannelPrice: 9300,
+    resellerPrice: 8800,
     prices: {
-      cabinet: { endCustomer: 3193, siChannel: 2883, reseller: 2728 },
+      cabinet: { endCustomer: 10300, siChannel: 9300, reseller: 8800 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
 
     cabinetDimensions: {
-      width: 320, // Using module size as cabinet (flexible display)
-      height: 160
+      width: 240,
+      height: 120
     },
     moduleDimensions: {
-      width: 320,
-      height: 160
+      width: 240,
+      height: 120
     },
     moduleResolution: {
-      width: 107, // Calculated: 320mm ÷ 3mm pixel pitch
-      height: 53   // Calculated: 160mm ÷ 3mm pixel pitch
+      width: 80,
+      height: 40
     },
     moduleQuantity: 1, // Single flexible module
     pixelPitch: 3.0,
-    pixelDensity: 111111, // pixels/m²
-    brightness: 1200, // cd/m²
-    refreshRate: 3840, // Hz (minimum)
+    pixelDensity: 111111,
+    brightness: 800,
+    refreshRate: 3840,
     environment: "Indoor",
-    maxPowerConsumption: 700, // W
-    avgPowerConsumption: 350, // W
-    weightPerCabinet: 0, // Not specified in PDF
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P3.pdf"
-  },
-
-  {
-    id: "orion-p4-flexible-indoor",
-    name: "Orion P4mm Flexible Series LED display",
-    category: "Flexible Series",
-    enabled: false,
-    image: "/products/flexible-series/Flexible Series Indoor P4.png", // Not provided in PDF
-    resolution: {
-      width: 80, // Calculated: 320mm ÷ 4mm pixel pitch
-      height: 40  // Calculated: 160mm ÷ 4mm pixel pitch
-    },
-    price: 32000, // Flexible series pricing
-    siChannelPrice: 28800,
-    resellerPrice: 27200,
-    cabinetDimensions: {
-      width: 320, // Using module size as cabinet (flexible display)
-      height: 160
-    },
-    moduleDimensions: {
-      width: 320,
-      height: 160
-    },
-    moduleResolution: {
-      width: 80, // Calculated: 320mm ÷ 4mm pixel pitch
-      height: 40  // Calculated: 160mm ÷ 4mm pixel pitch
-    },
-    moduleQuantity: 1, // Single flexible module
-    pixelPitch: 4.0,
-    pixelDensity: 62500, // pixels/m²
-    brightness: 1200, // cd/m²
-    refreshRate: 3840, // Hz (minimum)
-    environment: "Indoor",
-    maxPowerConsumption: 700, // W
-    avgPowerConsumption: 350, // W
-    weightPerCabinet: 0, // Not specified in PDF
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P4.pdf"
+    maxPowerConsumption: 600,
+    avgPowerConsumption: 200,
+    // PDF lists 32 kg per sqm; stored here so UI can show a comparable weight figure.
+    weightPerCabinet: 32,
+    ledType: "Black SMD2121",
+    driveMethod: "1/32",
+    viewingAngle: "H 140°, V 140°",
+    voltage: "AC 110/220V",
+    serviceAccess: "Total Front Access",
+    ipGrade: "IP31",
+    operatingTemperature: "0°C~50°C",
+    operatingHumidity: "10~90%RH",
+    storageTempHumidity: "0°C~60°C, 10~90%RH",
+    lifeTime: 100000,
+    cabinetMaterial: "Sheet metal",
+    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/4_Flexible+Series+Indoor+P3.pdf"
   },
 
   {

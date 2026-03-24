@@ -334,6 +334,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const isJumbo = selectedProduct?.category?.toLowerCase().includes('jumbo') ?? false;
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
   const isDigitalStandeeSeries = selectedProduct?.category === 'Digital Standee Series';
+  const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible') ?? false;
 
   // When switching to Jumbo or Digital Standee, show Preview (Data/Power tabs are hidden)
   React.useEffect(() => {
@@ -1108,10 +1109,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                       <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Category</h4>
                       <p className="text-gray-600 text-xs sm:text-sm">{selectedProduct.category}</p>
                     </div>
-                    {!isJumbo && (
+                    {!isJumbo && !isFlexibleSeries && (
                       <>
                         <div>
-                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Size' : isDigitalStandeeSeries ? 'Cabinet Frame Size' : 'Cabinet Size'}</h4>
+                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Size' : isDigitalStandeeSeries ? 'Cabinet Frame Size' : isFlexibleSeries ? 'Screen Size' : 'Cabinet Size'}</h4>
                           <p className="text-gray-600 text-xs sm:text-sm">
                             {selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm
                           </p>
@@ -1151,7 +1152,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                       </p>
                     </div>
                     END PRICING SECTION */}
-                    {!isJumbo && (
+                    {!isJumbo && !isFlexibleSeries && (
                       <div>
                         <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries || isDigitalStandeeSeries ? 'Total Modules' : 'Total Cabinets'}</h4>
                         <p className="text-gray-600 text-xs sm:text-sm">{cabinetGrid.columns * cabinetGrid.rows} units</p>
