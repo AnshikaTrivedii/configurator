@@ -89,6 +89,8 @@ function calculateCorrectTotalPrice(
   if (product.category?.toLowerCase().includes('rental')) {
 
     quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+  } else if (product.category?.toLowerCase().includes('digital standee')) {
+    quantity = 1;
   } else if (isJumboSeriesProduct(product)) {
     // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
     const widthInMeters = config.width / 1000;
@@ -114,7 +116,7 @@ function calculateCorrectTotalPrice(
   const subtotal = unitPrice * quantity;
 
   let processorPrice = 0;
-  if (processor && !isJumboSeriesProduct(product)) {
+  if (processor && !isJumboSeriesProduct(product) && !product.category?.toLowerCase().includes('digital standee')) {
 
     processorPrice = getProcessorPrice(processor, pdfUserType);
 
@@ -127,6 +129,10 @@ function calculateCorrectTotalPrice(
 
   const gstProcessor = 0;
   const totalProcessor = processorPrice;
+
+  if (product.category?.toLowerCase().includes('digital standee')) {
+    return Math.round(totalProduct + totalProcessor);
+  }
 
   const widthInMeters = config.width / 1000;
   const heightInMeters = config.height / 1000;
@@ -528,6 +534,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         let quantity = 0;
         if (selectedProduct.category?.toLowerCase().includes('rental')) {
           quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+        } else if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
+          quantity = 1;
         } else if (isJumboSeriesProduct(selectedProduct as any)) {
           // Jumbo: prices per ft² (controller included). Quantity = display area in sq ft.
           const METERS_TO_FEET = 3.2808399;
@@ -552,7 +560,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         const gstProduct = 0;
 
         let processorPrice = 0;
-        if (processor && !isJumboSeriesProduct(selectedProduct as any)) {
+        if (processor && !isJumboSeriesProduct(selectedProduct as any) && !selectedProduct.category?.toLowerCase().includes('digital standee')) {
           processorPrice = getProcessorPrice(processor, pdfUserType);
         }
         const gstProcessor = 0;
@@ -565,7 +573,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         const heightInMeters = configForCalc.height / 1000;
         const screenAreaSqFt = Math.round((widthInMeters * METERS_TO_FEET * heightInMeters * METERS_TO_FEET) * 100) / 100;
 
-        if (customPricingObj?.enabled && customPricingObj.structurePrice !== null) {
+        if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
+          structureBasePrice = 0;
+          installationBasePrice = 0;
+        } else if (customPricingObj?.enabled && customPricingObj.structurePrice !== null) {
           structureBasePrice = customPricingObj.structurePrice;
         } else if (selectedProduct.category === 'Module/ Grid Series') {
           const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
@@ -577,10 +588,12 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           structureBasePrice = screenAreaSqFt * 2500;
         }
 
-        if (customPricingObj?.enabled && customPricingObj.installationPrice !== null) {
-          installationBasePrice = customPricingObj.installationPrice;
-        } else {
-          installationBasePrice = screenAreaSqFt * 500;
+        if (!selectedProduct.category?.toLowerCase().includes('digital standee')) {
+          if (customPricingObj?.enabled && customPricingObj.installationPrice !== null) {
+            installationBasePrice = customPricingObj.installationPrice;
+          } else {
+            installationBasePrice = screenAreaSqFt * 500;
+          }
         }
 
         const structureGST = 0;

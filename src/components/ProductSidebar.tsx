@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Product, CabinetGrid } from '../types';
+import { Product, CabinetGrid, DigitalStandeeMatrixKey } from '../types';
 import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
-import { hasDimensionConstraints } from '../utils/dimensionConstraints';
 
 const MM_TO_FEET = 1 / 304.8;
 
@@ -34,6 +33,15 @@ interface ProductSidebarProps {
   /** Modular Series only: wire type for pricing */
   wireType?: 'gold' | 'copper';
   onWireTypeChange?: (wireType: 'gold' | 'copper') => void;
+
+  /** Digital Standee only: matrix selector (e.g. 2x11 vs 3x11) */
+  digitalStandeeMatrixKey?: DigitalStandeeMatrixKey;
+  digitalStandeeMatrixOptions?: Array<{
+    key: DigitalStandeeMatrixKey;
+    label: string;
+    type: string;
+  }>;
+  onDigitalStandeeMatrixChange?: (key: DigitalStandeeMatrixKey) => void;
 }
 
 export const ProductSidebar: React.FC<ProductSidebarProps> = ({
@@ -50,7 +58,11 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   controllerSelection,
   processorDropdownOptions,
   wireType = 'gold',
-  onWireTypeChange
+  onWireTypeChange,
+
+  digitalStandeeMatrixKey,
+  digitalStandeeMatrixOptions,
+  onDigitalStandeeMatrixChange
 }) => {
   const [activeTab, setActiveTab] = useState<'dimensions' | 'processing'>('dimensions');
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
@@ -77,15 +89,14 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
   const useModuleLabel = isJumbo || isModuleGridSeries || isDigitalStandee;
-  const standeeHasConstraints = isDigitalStandee && hasDimensionConstraints(selectedProduct);
 
   React.useEffect(() => {
     if (isJumbo && activeTab === 'processing') setActiveTab('dimensions');
   }, [isJumbo, activeTab]);
 
-  const isDigitalStandeeModelB = isDigitalStandee && selectedProduct.name?.includes('(Model B)');
-  const displayColumns = isDigitalStandee ? (isDigitalStandeeModelB ? 3 : 2) : cabinetGrid.columns;
-  const displayRows = isDigitalStandee ? 11 : cabinetGrid.rows;
+  const standeeGrid = selectedProduct?.digitalStandeeCabinetGrid;
+  const displayColumns = isDigitalStandee ? (standeeGrid?.columns ?? 2) : cabinetGrid.columns;
+  const displayRows = isDigitalStandee ? (standeeGrid?.rows ?? 11) : cabinetGrid.rows;
 
   if (!selectedProduct) {
     return (
@@ -167,7 +178,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(Math.max(1, cabinetGrid.columns - 1))}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee && !standeeHasConstraints}
+                      disabled={isDigitalStandee}
                     >
                       -
                     </button>
@@ -177,7 +188,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(cabinetGrid.columns + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee && !standeeHasConstraints}
+                      disabled={isDigitalStandee}
                     >
                       +
                     </button>
@@ -192,7 +203,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(Math.max(1, cabinetGrid.rows - 1))}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee && !standeeHasConstraints}
+                      disabled={isDigitalStandee}
                     >
                       -
                     </button>
@@ -202,7 +213,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(cabinetGrid.rows + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee && !standeeHasConstraints}
+                      disabled={isDigitalStandee}
                     >
                       +
                     </button>
@@ -210,6 +221,31 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                 </div>
               </div>
             </div>
+
+            {isDigitalStandee && onDigitalStandeeMatrixChange && digitalStandeeMatrixOptions?.length ? (
+              <div className="pt-2 sm:pt-3 border-t border-gray-200">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">Matrix Configuration</h3>
+                <div className="flex flex-col gap-2">
+                  {digitalStandeeMatrixOptions.map((opt) => (
+                    <label
+                      key={opt.key}
+                      className="flex items-center justify-between gap-3 cursor-pointer px-2 py-1.5 rounded-lg border border-gray-200 hover:border-gray-400 transition-colors"
+                    >
+                      <span className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-medium text-gray-900">{opt.label}</span>
+                      </span>
+                      <input
+                        type="radio"
+                        name="digitalStandeeMatrix"
+                        checked={digitalStandeeMatrixKey === opt.key}
+                        onChange={() => onDigitalStandeeMatrixChange(opt.key)}
+                        className="text-black focus:ring-black"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             {isModularSeries && onWireTypeChange && (
               <div className="pt-2 sm:pt-3 border-t border-gray-200">
@@ -275,7 +311,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               <span className="font-semibold text-sm sm:text-base lg:text-lg text-gray-900">Processing</span>
             </div>
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center">
+              <label className="text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center">
                 Selected Processor
               </label>
               {onControllerChange && processorDropdownOptions && processorDropdownOptions.length > 0 ? (

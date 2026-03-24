@@ -558,12 +558,16 @@ export const generateConfigurationHtml = (
   }
 
   if (isDigitalStandee) {
-    // Digital standee quotations never include controller pricing.
+    // Digital standee quotations: product price only (no controller, structure, or installation).
     controllerPrice = 0;
     gstController = 0;
     totalController = 0;
     totalProduct = unitPrice;
-    grandTotal = totalProduct + totalStructure + totalInstallation;
+    structureBasePrice = 0;
+    installationBasePrice = 0;
+    totalStructure = 0;
+    totalInstallation = 0;
+    grandTotal = totalProduct;
   }
 
   const formatIndianNumber = (x: number): string => {
@@ -586,6 +590,11 @@ export const generateConfigurationHtml = (
     x.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const GST_RATE = '18%';
+
+  // Jumbo PDF skips control section B; structure/installation is the second section → label as B not C.
+  const structureInstallationSectionTitle = isJumboSeries
+    ? 'B. STRUCTURE AND INSTALLATION PRICE'
+    : 'C. STRUCTURE AND INSTALLATION PRICE';
 
   const html = `
     <!DOCTYPE html>
@@ -983,10 +992,10 @@ export const generateConfigurationHtml = (
             </div>
             ` : ''}
             
-            ${!isRentalProduct ? `<!-- Structure and Installation Price Section (excluded for Rental Series) -->
+            ${!isRentalProduct && !isDigitalStandee ? `<!-- Structure and Installation (excluded for Rental Series and Digital Standee) -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
-                    C. STRUCTURE AND INSTALLATION PRICE
+                    ${structureInstallationSectionTitle}
                 </h2>
                 
                 <div class="quotation-grid" style="grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch;">
@@ -1054,7 +1063,9 @@ export const generateConfigurationHtml = (
             <div class="quotation-section" style="background: rgba(51, 51, 51, 0.95); color: white; padding: 5px 8px; border-radius: 3px; margin: 3px 0 0 40px; text-align: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); width: calc(100% - 40px); min-height: auto; box-sizing: border-box;">
                 <h2 style="margin: 0 0 2px 0; font-size: 13px; font-weight: bold; line-height: 1.1;">GRAND TOTAL</h2>
                 <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatTotalWithDecimals(grandTotal)}</p>
-                ${!isJumboSeries && !isDigitalStandee
+                ${isDigitalStandee
+  ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A = Product)</p>`
+  : !isJumboSeries
   ? (isRentalProduct
     ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Processor)</p>`
     : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Structure + Installation)</p>`)

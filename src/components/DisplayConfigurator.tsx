@@ -7,7 +7,7 @@ import { DisplayPreview } from './DisplayPreview';
 import { ProductSelector } from './ProductSelector';
 import { ConfigurationSummary } from './ConfigurationSummary';
 import { ProductSidebar } from './ProductSidebar';
-import { Product, CabinetGrid, Quotation } from '../types';
+import { Product, CabinetGrid, Quotation, DigitalStandeeMatrixKey } from '../types';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -25,6 +25,7 @@ import { SuperUserDashboard } from './SuperUserDashboard';
 import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } from '../utils/dimensionConstraints';
+import { getDigitalStandeeMatrixOptions, resolveDigitalStandeeVariantProduct } from '../utils/digitalStandeeMatrix';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
@@ -456,6 +457,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setIsProductSelectorOpen(false);
   };
 
+  const handleDigitalStandeeMatrixChange = (matrixKey: DigitalStandeeMatrixKey) => {
+    if (!selectedProduct) return;
+    const nextProduct = resolveDigitalStandeeVariantProduct(selectedProduct, matrixKey);
+    if (!nextProduct) return;
+    handleProductSelect(nextProduct);
+  };
+
   const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string }) => {
     setUserInfo(userData);
     setIsUserInfoFormOpen(false);
@@ -697,13 +705,17 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
-  const standeeHasConstraints = isDigitalStandee && hasDimensionConstraints(selectedProduct);
   const moduleWidth = selectedProduct?.dimensionConstraints?.moduleWidth ?? selectedProduct?.cabinetDimensions?.width ?? 600;
   const moduleHeight = selectedProduct?.dimensionConstraints?.moduleHeight ?? selectedProduct?.cabinetDimensions?.height ?? 337.5;
 
-  const isDigitalStandeeModelB = isDigitalStandee && selectedProduct?.name?.includes('(Model B)');
-  const standeeColumns = isDigitalStandee ? (isDigitalStandeeModelB ? 3 : 2) : cabinetGrid.columns;
-  const standeeRows = isDigitalStandee ? 11 : cabinetGrid.rows;
+  const standeeColumns = isDigitalStandee
+    ? (selectedProduct?.digitalStandeeCabinetGrid?.columns ?? 2)
+    : cabinetGrid.columns;
+  const standeeRows = isDigitalStandee
+    ? (selectedProduct?.digitalStandeeCabinetGrid?.rows ?? 11)
+    : cabinetGrid.rows;
+
+  const digitalStandeeMatrixOptions = getDigitalStandeeMatrixOptions(selectedProduct);
 
   const fixedCabinetGrid = isDigitalStandee
     ? {
@@ -748,9 +760,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
           if (hasDimensionConstraints(selectedProduct)) {
             const c = selectedProduct.dimensionConstraints!;
-            const isModelB = selectedProduct.name?.includes('(Model B)');
-            const baseWidth = c.moduleWidth * (isModelB ? 3 : 2);
-            const baseHeight = c.moduleHeight * 11;
+            const grid = selectedProduct.digitalStandeeCabinetGrid ?? { columns: 2, rows: 11 };
+            const baseWidth = c.moduleWidth * grid.columns;
+            const baseHeight = c.moduleHeight * grid.rows;
             const clamped = clampAndSnapDimensions(
               selectedProduct,
               baseWidth,
@@ -952,6 +964,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             displayUnit={config.unit}
             onColumnsChange={handleColumnsChange}
             onRowsChange={handleRowsChange}
+            digitalStandeeMatrixKey={selectedProduct?.digitalStandeeMatrixKey}
+            digitalStandeeMatrixOptions={digitalStandeeMatrixOptions}
+            onDigitalStandeeMatrixChange={handleDigitalStandeeMatrixChange}
             onSelectProductClick={() => {
               setIsProductSelectorOpen(true);
               setIsSidebarOpen(false); // Close sidebar on mobile when opening product selector

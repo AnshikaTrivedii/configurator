@@ -345,6 +345,12 @@ export function calculateCentralizedPricing(
       installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 500);
     }
 
+    // Digital Standee: quotations are product-only (no structure / installation add-ons).
+    if (isDigitalStandeeProduct(product)) {
+      structureBasePrice = 0;
+      installationBasePrice = 0;
+    }
+
     const structureGST = 0;
     const structureTotal = structureBasePrice;
 
