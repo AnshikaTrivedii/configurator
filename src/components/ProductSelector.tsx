@@ -651,7 +651,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                       <p className="font-medium text-gray-800">{product.refreshRate} Hz</p>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-gray-500">{(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo')) ? 'Module Dimension (W × H)' : product.category === 'Digital Standee Series' ? 'Cabinet Frame Size (W × H)' : 'Cabinet Size (W × H)'}</p>
+                      <p className="text-gray-500">{(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo')) ? 'Module Dimension (W × H)' : product.category === 'Digital Standee Series' ? 'Cabinet Frame Size (W × H)' : product.category?.toLowerCase().includes('flexible') ? 'Module Size (W × H)' : 'Cabinet Size (W × H)'}</p>
                       <p className="font-medium text-gray-800">
                         {(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo'))
                           ? `${product.moduleDimensions.width} × ${product.moduleDimensions.height}`

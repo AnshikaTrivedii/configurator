@@ -1112,7 +1112,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                     {!isJumbo && !isFlexibleSeries && (
                       <>
                         <div>
-                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Size' : isDigitalStandeeSeries ? 'Cabinet Frame Size' : isFlexibleSeries ? 'Screen Size' : 'Cabinet Size'}</h4>
+                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Size' : isDigitalStandeeSeries ? 'Cabinet Frame Size' : isFlexibleSeries ? 'Module Size' : 'Cabinet Size'}</h4>
                           <p className="text-gray-600 text-xs sm:text-sm">
                             {selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm
                           </p>

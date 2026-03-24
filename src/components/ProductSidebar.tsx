@@ -88,7 +88,8 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
-  const useModuleLabel = isJumbo || isModuleGridSeries || isDigitalStandee;
+  const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible');
+  const useModuleLabel = isJumbo || isModuleGridSeries || isDigitalStandee || isFlexibleSeries;
 
   React.useEffect(() => {
     if (isJumbo && activeTab === 'processing') setActiveTab('dimensions');
@@ -168,7 +169,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
         {(activeTab === 'dimensions' || isJumbo) ? (
           <div className="space-y-3 sm:space-y-4 lg:space-y-6">
             <div>
-              <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">Screen Size</h3>
+              <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">{isFlexibleSeries ? 'Module Size' : 'Screen Size'}</h3>
               <div className="space-y-2 sm:space-y-3 lg:space-y-4">
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">

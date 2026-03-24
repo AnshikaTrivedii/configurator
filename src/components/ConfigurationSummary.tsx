@@ -361,7 +361,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
           </div>
           <div className="space-y-2 sm:space-y-3">
             <div className="bg-white rounded-lg p-2 sm:p-3">
-              <div className="text-xs sm:text-sm text-gray-600 mb-1">{isModuleGridSeries ? 'Module Size' : isJumboSeries ? 'Screen Size' : isDigitalStandee ? 'Cabinet Frame Size' : isFlexibleSeries ? 'Screen Size' : 'Cabinet Size'}</div>
+              <div className="text-xs sm:text-sm text-gray-600 mb-1">{isModuleGridSeries ? 'Module Size' : isJumboSeries ? 'Screen Size' : isDigitalStandee ? 'Cabinet Frame Size' : isFlexibleSeries ? 'Module Size' : 'Cabinet Size'}</div>
               <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm</div>
             </div>
             {isDigitalStandee && (
