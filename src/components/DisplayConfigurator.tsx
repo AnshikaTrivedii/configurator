@@ -109,7 +109,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       let widthMm: number;
       let heightMm: number;
 
-      if (hasDimensionConstraints(product)) {
+      if (hasDimensionConstraints(product ?? undefined)) {
         const clamped = clampAndSnapDimensions(product!, initialConfig.width, initialConfig.height);
         widthMm = clamped.width;
         heightMm = clamped.height;
@@ -935,7 +935,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           <ProductSidebar
             selectedProduct={selectedProduct}
             cabinetGrid={fixedCabinetGrid}
-            displayUnit={config.unit}
+            displayUnit={config.unit === 'ft' ? 'ft' : 'm'}
             onColumnsChange={handleColumnsChange}
             onRowsChange={handleRowsChange}
             onSelectProductClick={() => {

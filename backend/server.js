@@ -64,7 +64,10 @@ const allowedOrigins = [
   'http://localhost:5178',
   'http://localhost:5179',
   'http://localhost:5180',
-  'http://localhost:4173'
+  'http://13.204.238.194',
+  'https://13.204.238.194',
+  'https://configurator.orion-led.com',
+  'http://configurator.orion-led.com'
 ].filter(Boolean);
 
 app.use(cors({
