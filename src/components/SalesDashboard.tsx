@@ -278,7 +278,27 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
 
       const productDetails = quotation.productDetails;
       const exactSpecs = quotation.exactProductSpecs;
-      const product = productDetails?.product || productDetails;
+
+      // Look up the full product from products.ts (same as PDF view modal)
+      const productId = productDetails?.productId || (productDetails as any)?.product?.id || productDetails?.id;
+      let product = productId ? products.find(p => p.id === productId) : null;
+      if (!product) {
+        product = (productDetails as any)?.product || productDetails;
+        if (product && !product.id && productId) {
+          product = { ...product, id: productId };
+        }
+      } else {
+        const productFromDetails = (productDetails as any)?.product || productDetails;
+        product = {
+          ...product,
+          ...productFromDetails,
+          price: product.price ?? productFromDetails.price,
+          resellerPrice: product.resellerPrice ?? productFromDetails.resellerPrice,
+          siChannelPrice: product.siChannelPrice ?? productFromDetails.siChannelPrice,
+          prices: product.prices ?? productFromDetails.prices,
+          id: product.id
+        };
+      }
 
       let config = quotation.quotationData?.config;
       if (!config && exactSpecs.displaySize) {

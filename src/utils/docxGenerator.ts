@@ -1,4 +1,4 @@
-﻿import { Document, Packer, Paragraph, ImageRun } from 'docx';
+import { Document, Packer, Paragraph, ImageRun } from 'docx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
@@ -596,16 +596,15 @@ export const generateConfigurationHtml = (
     ? 'B. STRUCTURE AND INSTALLATION PRICE'
     : 'C. STRUCTURE AND INSTALLATION PRICE';
 
-  // Determine brand prefix (Astra / Sigma) for Core, Edge, Prime series
-  const brandedSeries = ['Core Series', 'Edge Series', 'Prime Series'];
-  let brandPrefix = '';
-  if (brandedSeries.includes(selectedProduct.category ?? '')) {
-    const idLower = selectedProduct.id.toLowerCase();
-    const nameLower = selectedProduct.name.toLowerCase();
-    if (idLower.includes('cob') || nameLower.includes('sigma')) brandPrefix = 'Sigma ';
-    else if (idLower.includes('smd') || nameLower.includes('astra')) brandPrefix = 'Astra ';
-  }
-  const seriesEnvironmentValue = `${brandPrefix}${selectedProduct.category}, ${selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1)}`;
+  // Use the product name, stripping pixel pitch, SMD, Indoor/Outdoor to avoid duplication
+  const environmentLabel = selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1);
+  const productDisplayName = selectedProduct.name || selectedProduct.category || 'LED Display';
+  const seriesName = productDisplayName
+    .replace(/\s+P\d+(\.\d+)?(-\d+(\.\d+)?)?(\s*\(.*\))?/i, '') // Remove pixel pitch (P2.6, P3.91-7.82, etc.) and parenthesized info
+    .replace(/\s+(Indoor|Outdoor)/i, '') // Remove Indoor/Outdoor from name
+    .replace(/\s+SMD/i, '')             // Remove SMD suffix
+    .trim();
+  const seriesEnvironmentValue = `${seriesName}, ${environmentLabel}`;
 
   const html = `
     <!DOCTYPE html>
