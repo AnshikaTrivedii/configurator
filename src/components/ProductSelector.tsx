@@ -30,6 +30,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const { updateConfig } = useDisplayConfig();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series' | 'Digital Standee Series' | 'Modular Series' | 'Flexible Series'>('All');
+  const [flexibleSubType, setFlexibleSubType] = useState<'Module Base' | 'Cabinet Base' | null>(null);
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
   const [pendingRentalProduct, setPendingRentalProduct] = useState<ProductWithOptionalSize | null>(null);
   const [rentalOption, setRentalOption] = useState<'cabinet' | 'curve lock' | null>(null);
@@ -110,8 +111,17 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       if (normalizeType(product.pixelComposition).includes('smd')) return 'SMD';
     }
 
+    // Check product ID — Sigma (COB) and Astra (SMD) embed the type in their IDs
+    if (product.id.toLowerCase().includes('cob')) return 'COB';
+    if (product.id.toLowerCase().includes('smd')) return 'SMD';
+
     if (product.name.toLowerCase().includes('cob')) return 'COB';
     if (product.name.toLowerCase().includes('smd')) return 'SMD';
+
+    // Brand-name fallback: Sigma = COB, Astra = SMD
+    if (product.name.toLowerCase().includes('sigma')) return 'COB';
+    if (product.name.toLowerCase().includes('astra')) return 'SMD';
+
     return undefined;
   };
 
@@ -157,6 +167,14 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
       tempProducts = tempProducts.filter((p) => getProductType(p) === indoorType);
+      // SMD → only Astra series: Core, Edge, Prime
+      if (indoorType === 'SMD') {
+        tempProducts = tempProducts.filter((p) =>
+          p.category === 'Core Series' ||
+          p.category === 'Edge Series' ||
+          p.category === 'Prime Series'
+        );
+      }
     }
 
     tempProducts = tempProducts.filter(
@@ -183,10 +201,23 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       filtered = filtered.filter((p) => isModularSeries(p));
     } else if (selectedFilter === 'Flexible Series') {
       filtered = filtered.filter((p) => isFlexibleSeries(p));
+      // Cabinet Base has no products yet — return empty list
+      if (flexibleSubType === 'Cabinet Base') {
+        return [];
+      }
+      // Module Base (or no sub-type yet selected) shows all flexible products
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
       filtered = filtered.filter((p) => getProductType(p) === indoorType);
+      // SMD → only Astra series: Core, Edge, Prime
+      if (indoorType === 'SMD') {
+        filtered = filtered.filter((p) =>
+          p.category === 'Core Series' ||
+          p.category === 'Edge Series' ||
+          p.category === 'Prime Series'
+        );
+      }
     }
 
     filtered = filtered.filter(
@@ -210,6 +241,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     return unique.sort((a, b) => a.pixelPitch - b.pixelPitch);
   }, [
     selectedFilter,
+    flexibleSubType,
     indoorType,
     selectedCategory,
     selectedPixelPitch,
@@ -353,6 +385,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => {
                   hasEnvironmentInteraction.current = true;
                   setSelectedFilter('Flexible Series');
+                  setFlexibleSubType(null);
                   setIndoorType('All');
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
@@ -365,10 +398,37 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               </button>
             </div>
 
+            {/* Flexible Series sub-type filter */}
+            {selectedFilter === 'Flexible Series' && (
+              <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
+                <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Type:</span>
+                <button
+                  onClick={() => setFlexibleSubType('Module Base')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    flexibleSubType === 'Module Base'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Module Base
+                </button>
+                <button
+                  onClick={() => setFlexibleSubType('Cabinet Base')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    flexibleSubType === 'Cabinet Base'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Cabinet Base
+                </button>
+              </div>
+            )}
+
             {/* Indoor type filter (SMD/COB) - only show when Indoor is selected */}
             {selectedFilter === 'Indoor' && (
               <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
-                <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Type:</span>
+                <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Technology:</span>
                 <button
                   onClick={() => setIndoorType('All')}
                   className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
@@ -570,7 +630,27 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
         {/* Products grid */}
         <div className="p-3 sm:p-4 lg:p-6">
-          {filteredProducts.length === 0 ? (
+          {selectedFilter === 'Flexible Series' && flexibleSubType === null ? (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-4xl mb-4">🔲</div>
+              <div className="text-gray-600 text-base font-medium mb-2">
+                Please select a type above
+              </div>
+              <div className="text-gray-400 text-sm">
+                Choose <strong>Module Base</strong> or <strong>Cabinet Base</strong> to view products.
+              </div>
+            </div>
+          ) : selectedFilter === 'Flexible Series' && flexibleSubType === 'Cabinet Base' ? (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-4xl mb-4">🚧</div>
+              <div className="text-gray-600 text-base font-medium mb-2">
+                Cabinet Base products coming soon
+              </div>
+              <div className="text-gray-400 text-sm">
+                Products for this category will be added shortly.
+              </div>
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-gray-500 text-lg font-medium mb-2">
                 No products found matching your filters

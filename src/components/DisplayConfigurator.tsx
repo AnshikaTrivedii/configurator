@@ -25,7 +25,6 @@ import { SuperUserDashboard } from './SuperUserDashboard';
 import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } from '../utils/dimensionConstraints';
-import { getDigitalStandeeMatrixOptions, resolveDigitalStandeeVariantProduct } from '../utils/digitalStandeeMatrix';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
@@ -458,12 +457,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setIsProductSelectorOpen(false);
   };
 
-  const handleDigitalStandeeMatrixChange = (matrixKey: DigitalStandeeMatrixKey) => {
-    if (!selectedProduct) return;
-    const nextProduct = resolveDigitalStandeeVariantProduct(selectedProduct, matrixKey);
-    if (!nextProduct) return;
-    handleProductSelect(nextProduct);
-  };
 
   const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string }) => {
     setUserInfo(userData);
@@ -716,7 +709,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     ? (selectedProduct?.digitalStandeeCabinetGrid?.rows ?? 11)
     : cabinetGrid.rows;
 
-  const digitalStandeeMatrixOptions = getDigitalStandeeMatrixOptions(selectedProduct);
 
   const fixedCabinetGrid = isDigitalStandee
     ? {
@@ -965,9 +957,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             displayUnit={config.unit}
             onColumnsChange={handleColumnsChange}
             onRowsChange={handleRowsChange}
-            digitalStandeeMatrixKey={selectedProduct?.digitalStandeeMatrixKey}
-            digitalStandeeMatrixOptions={digitalStandeeMatrixOptions}
-            onDigitalStandeeMatrixChange={handleDigitalStandeeMatrixChange}
             onSelectProductClick={() => {
               setIsProductSelectorOpen(true);
               setIsSidebarOpen(false); // Close sidebar on mobile when opening product selector

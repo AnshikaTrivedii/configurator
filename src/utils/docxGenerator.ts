@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, ImageRun } from 'docx';
+﻿import { Document, Packer, Paragraph, ImageRun } from 'docx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
@@ -596,6 +596,17 @@ export const generateConfigurationHtml = (
     ? 'B. STRUCTURE AND INSTALLATION PRICE'
     : 'C. STRUCTURE AND INSTALLATION PRICE';
 
+  // Determine brand prefix (Astra / Sigma) for Core, Edge, Prime series
+  const brandedSeries = ['Core Series', 'Edge Series', 'Prime Series'];
+  let brandPrefix = '';
+  if (brandedSeries.includes(selectedProduct.category ?? '')) {
+    const idLower = selectedProduct.id.toLowerCase();
+    const nameLower = selectedProduct.name.toLowerCase();
+    if (idLower.includes('cob') || nameLower.includes('sigma')) brandPrefix = 'Sigma ';
+    else if (idLower.includes('smd') || nameLower.includes('astra')) brandPrefix = 'Astra ';
+  }
+  const seriesEnvironmentValue = `${brandPrefix}${selectedProduct.category}, ${selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1)}`;
+
   const html = `
     <!DOCTYPE html>
     <html lang="en">
@@ -859,7 +870,7 @@ export const generateConfigurationHtml = (
                         <div style="flex: 1; display: flex; flex-direction: column;">
                             <div class="quotation-row">
                                 <span class="quotation-label">Series/Environment:</span>
-                                <span class="quotation-value">${selectedProduct.category}, ${selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1)}</span>
+                                 <span class="quotation-value">${seriesEnvironmentValue}</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Pixel Pitch:</span>

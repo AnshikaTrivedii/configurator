@@ -120,7 +120,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const avgPowerPerCabinet = displayPower.avgPowerPerCabinet;
   const maxPowerPerCabinet = displayPower.maxPowerPerCabinet;
 
-  if (selectedProduct.category?.toLowerCase().includes('betelgeuse')) {
+  if (selectedProduct.category?.toLowerCase().includes('prime series')) {
 
   }
 
