@@ -48,6 +48,20 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   const [hasSkippedPixelPitch, setHasSkippedPixelPitch] = useState<boolean>(false);
   const isModularSeries = selectedProduct?.category?.toLowerCase().includes('modular') ?? false;
 
+  const getTechnologyLabelForGuidedCard = (product: Product): string | null => {
+    const category = (product.category || '').toLowerCase();
+    const isPrimeEdgeCore =
+      category.includes('prime series') ||
+      category.includes('edge series') ||
+      category.includes('core series');
+    if (!isPrimeEdgeCore) return null;
+
+    const name = (product.name || '').toLowerCase();
+    if (name.includes('sigma')) return 'COB (Chip On Board)';
+    if (name.includes('astra')) return 'SMD (Surface Mounted Device)';
+    return null;
+  };
+
   const steps: { key: Step; label: string }[] = [
     { key: 'environment', label: 'Environment' },
     { key: 'viewingDistance', label: 'Viewing Distance' },
@@ -817,6 +831,12 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                             <span className="font-medium text-gray-700">Environment:</span>
                             <span className="capitalize">{product.environment}</span>
                           </div>
+                          {getTechnologyLabelForGuidedCard(product) && (
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-700">Technology:</span>
+                              <span>{getTechnologyLabelForGuidedCard(product)}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </button>
