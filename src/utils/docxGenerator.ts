@@ -367,10 +367,14 @@ export const generateConfigurationHtml = (
     selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
     selectedProduct.name?.toLowerCase().includes('jumbo series');
 
+  const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
+
   let quantity: number;
   if (selectedProduct.category?.toLowerCase().includes('rental')) {
 
     quantity = cabinetGrid.columns * cabinetGrid.rows;
+  } else if (isDigitalStandee) {
+    quantity = 1;
   } else if (isJumboSeries) {
     // Jumbo: quantity = display area in sq ft (from config dimensions in mm)
     const widthInMeters = config.width / 1000;
@@ -401,8 +405,7 @@ export const generateConfigurationHtml = (
   let gstProduct = 0;
 
   let controllerPrice = 0;
-  if (processor && !isJumboSeries) {
-
+  if (processor && !isJumboSeries && !isDigitalStandee) {
     controllerPrice = getProcessorPrice(processor, userInfo?.userType || 'End User');
   }
   let gstController = 0;
@@ -423,7 +426,7 @@ export const generateConfigurationHtml = (
     structureBasePrice = exactPricingBreakdown.structureCost;
   } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.structurePrice !== null) {
     structureBasePrice = effectiveCustomPricing.structurePrice;
-  } else if (selectedProduct.category === 'Module/ Grid Series') {
+  } else if (selectedProduct.category === 'Module/ Grid Series' || selectedProduct.category?.toLowerCase().includes('flexible')) {
     const pdfUserType = normalizeLegacyUserType(userInfo?.userType);
     const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
     structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
@@ -554,6 +557,19 @@ export const generateConfigurationHtml = (
     grandTotal = totalProduct + totalController;
   }
 
+  if (isDigitalStandee) {
+    // Digital standee quotations: product price only (no controller, structure, or installation).
+    controllerPrice = 0;
+    gstController = 0;
+    totalController = 0;
+    totalProduct = unitPrice;
+    structureBasePrice = 0;
+    installationBasePrice = 0;
+    totalStructure = 0;
+    totalInstallation = 0;
+    grandTotal = totalProduct;
+  }
+
   const formatIndianNumber = (x: number): string => {
 
     const rounded = Math.round(x);
@@ -574,6 +590,21 @@ export const generateConfigurationHtml = (
     x.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const GST_RATE = '18%';
+
+  // Jumbo PDF skips control section B; structure/installation is the second section → label as B not C.
+  const structureInstallationSectionTitle = isJumboSeries
+    ? 'B. STRUCTURE AND INSTALLATION PRICE'
+    : 'C. STRUCTURE AND INSTALLATION PRICE';
+
+  // Use the product name, stripping pixel pitch, SMD, Indoor/Outdoor to avoid duplication
+  const environmentLabel = selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1);
+  const productDisplayName = selectedProduct.name || selectedProduct.category || 'LED Display';
+  const seriesName = productDisplayName
+    .replace(/\s+P\d+(\.\d+)?(-\d+(\.\d+)?)?(\s*\(.*\))?/i, '') // Remove pixel pitch (P2.6, P3.91-7.82, etc.) and parenthesized info
+    .replace(/\s+(Indoor|Outdoor)/i, '') // Remove Indoor/Outdoor from name
+    .replace(/\s+SMD/i, '')             // Remove SMD suffix
+    .trim();
+  const seriesEnvironmentValue = `${seriesName}, ${environmentLabel}`;
 
   const html = `
     <!DOCTYPE html>
@@ -838,14 +869,14 @@ export const generateConfigurationHtml = (
                         <div style="flex: 1; display: flex; flex-direction: column;">
                             <div class="quotation-row">
                                 <span class="quotation-label">Series/Environment:</span>
-                                <span class="quotation-value">${selectedProduct.category}, ${selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1)}</span>
+                                 <span class="quotation-value">${seriesEnvironmentValue}</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Pixel Pitch:</span>
                                 <span class="quotation-value">P${selectedProduct.pixelPitch}</span>
                             </div>
                             <div class="quotation-row">
-                                <span class="quotation-label">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series') ? 'Module Dimension:' : 'Cabinet Dimension:'}</span>
+                                <span class="quotation-label">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series') ? 'Module Dimension:' : isDigitalStandee ? 'Frame Size:' : 'Cabinet Dimension:'}</span>
                                 <span class="quotation-value">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series') ? `${selectedProduct.moduleDimensions.width} x ${selectedProduct.moduleDimensions.height}` : `${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height}`} mm</span>
                             </div>
                             <div class="quotation-row">
@@ -858,7 +889,7 @@ export const generateConfigurationHtml = (
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Resolution:</span>
-                                <span class="quotation-value">${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}</span>
+                                <span class="quotation-value">${isDigitalStandee ? `${selectedProduct.resolution.width} x ${selectedProduct.resolution.height}` : `${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}`}</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Matrix:</span>
@@ -889,12 +920,12 @@ export const generateConfigurationHtml = (
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Quantity:</span>
-                                <span class="quotation-value">${selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}</span>
+                                <span class="quotation-value">${isDigitalStandee ? '1' : selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}</span>
                             </div>
-                            <div class="quotation-row">
+                            ${!isDigitalStandee ? `<div class="quotation-row">
                                 <span class="quotation-label">Subtotal:</span>
                                 <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(subtotal)}</span>
-                            </div>
+                            </div>` : ''}
                             <div class="quotation-row">
                                 <span class="quotation-label">GST</span>
                                 <span class="quotation-value" style="color: #333; font-weight: 700;">${GST_RATE}</span>
@@ -910,7 +941,7 @@ export const generateConfigurationHtml = (
                 </div>
             </div>
             
-            ${!isJumboSeries ? `
+            ${!isJumboSeries && !isDigitalStandee ? `
             <!-- Section B: Control System - Clean Layout -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 4px 5px; border-radius: 3px; margin: 0 0 3px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 3px 0; font-size: 13px; border-bottom: 2px solid #2563eb; padding-bottom: 2px; font-weight: bold;">
@@ -971,10 +1002,10 @@ export const generateConfigurationHtml = (
             </div>
             ` : ''}
             
-            ${!isRentalProduct ? `<!-- Structure and Installation Price Section (excluded for Rental Series) -->
+            ${!isRentalProduct && !isDigitalStandee ? `<!-- Structure and Installation (excluded for Rental Series and Digital Standee) -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
-                    C. STRUCTURE AND INSTALLATION PRICE
+                    ${structureInstallationSectionTitle}
                 </h2>
                 
                 <div class="quotation-grid" style="grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch;">
@@ -1041,12 +1072,14 @@ export const generateConfigurationHtml = (
             <!-- Fixed: Reduced width and added left margin to prevent QR code overlap -->
             <div class="quotation-section" style="background: rgba(51, 51, 51, 0.95); color: white; padding: 5px 8px; border-radius: 3px; margin: 3px 0 0 40px; text-align: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); width: calc(100% - 40px); min-height: auto; box-sizing: border-box;">
                 <h2 style="margin: 0 0 2px 0; font-size: 13px; font-weight: bold; line-height: 1.1;">GRAND TOTAL</h2>
-                <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatTotalWithDecimals(grandTotal)}</p>
-                ${!isJumboSeries
+                <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatTotalWithDecimals(grandTotal)} (GST Extra)</p>
+                ${isDigitalStandee
+  ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A = Product)</p>`
+  : !isJumboSeries
   ? (isRentalProduct
     ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Processor)</p>`
     : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Structure + Installation)</p>`)
-  : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + C = Product + Structure + Installation)</p>`}
+  : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Structure + Installation)</p>`}
             </div>
             </div>
         </div>

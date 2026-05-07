@@ -120,6 +120,8 @@ export function calculateQuantity(
     if (product.category?.toLowerCase().includes('rental')) {
 
       return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+    } else if (product.category?.toLowerCase().includes('digital standee')) {
+      return 1;
     } else if (isJumboSeriesProduct(product)) {
       // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
       const widthInMeters = config.width / 1000;

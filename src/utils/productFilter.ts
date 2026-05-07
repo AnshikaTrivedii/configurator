@@ -6,7 +6,7 @@
  * 
  * IMPORTANT: All functions use data from /src/data/products.ts
  * - Only uses products where enabled === true
- * - Excludes: Flexible, Transparent products (Rental Series is enabled)
+ * - Excludes: Transparent products (Rental Series and Flexible Series are enabled)
  * - All recommendations are based on actual product data, not hardcoded values
  */
 
@@ -78,8 +78,7 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
 
   filtered = filtered.filter((p) => {
     const category = (p.category || '').toLowerCase();
-    return !category.includes('flexible') &&
-           !category.includes('transparent');
+    return !category.includes('transparent');
   });
 
   if (environment) {
@@ -141,9 +140,9 @@ export function getProductSeries(filteredProducts: Product[]): string[] {
   filteredProducts.forEach(product => {
 
     const category = product.category || '';
-    if (category.includes('Rigel')) series.add('Rigel Series');
-    if (category.includes('Betel')) series.add('Betel Series');
-    if (category.includes('Bellatrix')) series.add('Bellatrix Series');
+    if (category.includes('Edge Series')) series.add('Edge Series');
+    if (category.includes('Prime')) series.add('Prime Series');
+    if (category.includes('Core Series')) series.add('Core Series');
     if (category.includes('Modular')) series.add('Modular Series');
     if (category.includes('Flexible')) series.add('Flexible Series');
     if (category.includes('Rental')) series.add('Rental Series');

@@ -7,7 +7,7 @@ import { DisplayPreview } from './DisplayPreview';
 import { ProductSelector } from './ProductSelector';
 import { ConfigurationSummary } from './ConfigurationSummary';
 import { ProductSidebar } from './ProductSidebar';
-import { Product, CabinetGrid, Quotation } from '../types';
+import { Product, CabinetGrid, Quotation, DigitalStandeeMatrixKey } from '../types';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -332,10 +332,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const dimensionInvalid = selectedProduct ? !dimensionValidation.valid : false;
   const isJumbo = selectedProduct?.category?.toLowerCase().includes('jumbo') ?? false;
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
+  const isDigitalStandeeSeries = selectedProduct?.category === 'Digital Standee Series';
+  const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible') ?? false;
 
-  // When switching to Jumbo, show Preview (Data/Power tabs are hidden for Jumbo)
+  // When switching to Jumbo or Digital Standee, show Preview (Data/Power tabs are hidden)
   React.useEffect(() => {
-    if (isJumbo && (activeTab === 'data' || activeTab === 'power')) {
+    if ((isJumbo || (selectedProduct?.category?.toLowerCase().includes('digital standee') ?? false)) &&
+      (activeTab === 'data' || activeTab === 'power')) {
       setActiveTab('preview');
     }
   }, [isJumbo, activeTab]);
@@ -453,6 +456,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
     setIsProductSelectorOpen(false);
   };
+
 
   const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string }) => {
     setUserInfo(userData);
@@ -695,24 +699,36 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
-  const standeeHasConstraints = isDigitalStandee && hasDimensionConstraints(selectedProduct);
-
-  const fixedCabinetGrid = isDigitalStandee && !standeeHasConstraints
-    ? { ...cabinetGrid, columns: 7, rows: 5 }
-    : cabinetGrid;
-
   const moduleWidth = selectedProduct?.dimensionConstraints?.moduleWidth ?? selectedProduct?.cabinetDimensions?.width ?? 600;
   const moduleHeight = selectedProduct?.dimensionConstraints?.moduleHeight ?? selectedProduct?.cabinetDimensions?.height ?? 337.5;
 
+  const standeeColumns = isDigitalStandee
+    ? (selectedProduct?.digitalStandeeCabinetGrid?.columns ?? 2)
+    : cabinetGrid.columns;
+  const standeeRows = isDigitalStandee
+    ? (selectedProduct?.digitalStandeeCabinetGrid?.rows ?? 11)
+    : cabinetGrid.rows;
+
+
+  const fixedCabinetGrid = isDigitalStandee
+    ? {
+        ...cabinetGrid,
+        columns: standeeColumns,
+        rows: standeeRows,
+        totalWidth: standeeColumns * moduleWidth,
+        totalHeight: standeeRows * moduleHeight,
+      }
+    : cabinetGrid;
+
   const handleColumnsChange = (columns: number) => {
-    if (isDigitalStandee && !standeeHasConstraints) return;
+    if (isDigitalStandee) return;
     if (!selectedProduct) return;
     const newWidth = columns * moduleWidth;
     updateWidth(newWidth);
   };
 
   const handleRowsChange = (rows: number) => {
-    if (isDigitalStandee && !standeeHasConstraints) return;
+    if (isDigitalStandee) return;
     if (!selectedProduct) return;
     const newHeight = rows * moduleHeight;
     updateHeight(newHeight);
@@ -737,10 +753,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
           if (hasDimensionConstraints(selectedProduct)) {
             const c = selectedProduct.dimensionConstraints!;
+            const grid = selectedProduct.digitalStandeeCabinetGrid ?? { columns: 2, rows: 11 };
+            const baseWidth = c.moduleWidth * grid.columns;
+            const baseHeight = c.moduleHeight * grid.rows;
             const clamped = clampAndSnapDimensions(
               selectedProduct,
-              c.minWidth,
-              c.minHeight
+              baseWidth,
+              baseHeight
             );
             updateWidth(clamped.width);
             updateHeight(clamped.height);
@@ -1005,8 +1024,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   Preview
                 </button>
 
-                {/* Show Data/Power tabs only when product is selected and not Jumbo */}
-                {selectedProduct && !isJumbo && (
+                {/* Show Data/Power tabs only when product is selected and not Jumbo and not Digital Standee */}
+                {selectedProduct && !isJumbo && !(selectedProduct.category?.toLowerCase().includes('digital standee')) && (
                   <>
                     <button
                       className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'data' ? 'bg-black text-white' : 'bg-gray-200'}`}
@@ -1034,7 +1053,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   />
                 )}
 
-                {selectedProduct && !isJumbo && activeTab === 'data' && (
+                {selectedProduct && !isJumbo && !(selectedProduct.category?.toLowerCase().includes('digital standee')) && activeTab === 'data' && (
                   <DataWiringView
                     product={selectedProduct}
                     cabinetGrid={fixedCabinetGrid}
@@ -1044,7 +1063,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   />
                 )}
 
-                {selectedProduct && !isJumbo && activeTab === 'power' && (
+                {selectedProduct && !isJumbo && !(selectedProduct.category?.toLowerCase().includes('digital standee')) && activeTab === 'power' && (
                   <PowerWiringView product={selectedProduct} cabinetGrid={fixedCabinetGrid} />
                 )}
               </div>
@@ -1079,16 +1098,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                       <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Category</h4>
                       <p className="text-gray-600 text-xs sm:text-sm">{selectedProduct.category}</p>
                     </div>
-                    {!isJumbo && (
+                    {!isJumbo && !isFlexibleSeries && (
                       <>
                         <div>
-                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Size' : 'Cabinet Size'}</h4>
+                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Size' : isDigitalStandeeSeries ? 'Cabinet Frame Size' : isFlexibleSeries ? 'Module Size' : 'Cabinet Size'}</h4>
                           <p className="text-gray-600 text-xs sm:text-sm">
                             {selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm
                           </p>
                         </div>
                         <div>
-                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Resolution' : 'Cabinet Resolution'}</h4>
+                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Resolution' : isDigitalStandeeSeries ? 'Screen Resolution' : 'Cabinet Resolution'}</h4>
                           <p className="text-gray-600 text-xs sm:text-sm">
                             {selectedProduct.resolution.width} × {selectedProduct.resolution.height}
                           </p>
@@ -1122,9 +1141,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                       </p>
                     </div>
                     END PRICING SECTION */}
-                    {!isJumbo && (
+                    {!isJumbo && !isFlexibleSeries && (
                       <div>
-                        <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'No. of Modules' : 'Total Cabinets'}</h4>
+                        <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries || isDigitalStandeeSeries ? 'Total Modules' : 'Total Cabinets'}</h4>
                         <p className="text-gray-600 text-xs sm:text-sm">{cabinetGrid.columns * cabinetGrid.rows} units</p>
                       </div>
                     )}
@@ -1318,7 +1337,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           }}
           selectedProduct={selectedProduct}
           config={config}
-          cabinetGrid={cabinetGrid}
+          cabinetGrid={fixedCabinetGrid}
           processor={effectiveProcessor}
           mode={selectedMode}
           userInfo={userInfo && userInfo.userType !== 'SI/Channel Partner' ? userInfo : undefined}

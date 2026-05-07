@@ -3,25 +3,25 @@ import { Product } from '../types';
 export const products: Product[] = [
 
   {
-    id: "orion-p15-flexible-indoor",
-    name: "Orion P1.5mm Flexible Series LED display",
+    id: "orion-p153-flexible-indoor",
+    name: "Nebula Series Indoor P1.53",
     category: "Flexible Series",
-    enabled: false,
-    image: "/products/flexible-series/Flexible Series Indoor P1.5.png", // Not provided in PDF
+    enabled: true,
+    image: "/products/flexible-series/Flexible Series Indoor P1.5.png",
     resolution: {
-      width: 213, // Calculated: 320mm ÷ 1.5mm pixel pitch
-      height: 107  // Calculated: 160mm ÷ 1.5mm pixel pitch
+      width: 208,
+      height: 104
     },
-    price: 14167, // Flexible series pricing (₹25,700 per ft² × 0.551 ft²)
-    siChannelPrice: 12842, // (₹23,300 per ft² × 0.551 ft²)
-    resellerPrice: 12072, // (₹21,900 per ft² × 0.551 ft²)
+    price: 25700,
+    siChannelPrice: 23300,
+    resellerPrice: 21900,
     prices: {
-      cabinet: { endCustomer: 14167, siChannel: 12842, reseller: 12072 },
+      cabinet: { endCustomer: 25700, siChannel: 23300, reseller: 21900 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
 
     cabinetDimensions: {
-      width: 320, // Using module size as cabinet (flexible display)
+      width: 320,
       height: 160
     },
     moduleDimensions: {
@@ -29,41 +29,53 @@ export const products: Product[] = [
       height: 160
     },
     moduleResolution: {
-      width: 213, // Calculated: 320mm ÷ 1.5mm pixel pitch
-      height: 107  // Calculated: 160mm ÷ 1.5mm pixel pitch
+      width: 208,
+      height: 104
     },
     moduleQuantity: 1, // Single flexible module
-    pixelPitch: 1.5,
-    pixelDensity: 409600, // pixels/m²
-    brightness: 1000, // cd/m²
-    refreshRate: 3840, // Hz (minimum)
+    pixelPitch: 1.53,
+    pixelDensity: 427185,
+    brightness: 800,
+    refreshRate: 3840,
     environment: "Indoor",
-    maxPowerConsumption: 700, // W
-    avgPowerConsumption: 350, // W
-    weightPerCabinet: 0, // Not specified in PDF
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P1.5.pdf"
+    maxPowerConsumption: 600,
+    avgPowerConsumption: 200,
+    // PDF lists 32 kg per sqm; stored here so UI can show a comparable weight figure.
+    weightPerCabinet: 32,
+    ledType: "Black SMD1212",
+    driveMethod: "1/43",
+    viewingAngle: "H 140°, V 140°",
+    voltage: "AC 110/220V",
+    serviceAccess: "Total Front Access",
+    ipGrade: "IP31",
+    operatingTemperature: "0°C~50°C",
+    operatingHumidity: "10~90%RH",
+    storageTempHumidity: "0°C~60°C, 10~90%RH",
+    lifeTime: 100000,
+    cabinetMaterial: "Sheet metal",
+    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/1_Flexible+Series+Indoor+P1.53.pdf"
   },
 
   {
-    id: "orion-p18-flexible-indoor",
-    name: "Orion P1.8mm Flexible Series LED display",
+    id: "orion-p186-flexible-indoor",
+    name: "Nebula Series Indoor P1.86",
     category: "Flexible Series",
-    enabled: false,
-    image: "/products/flexible-series/Flexible Series Indoor P1.8.png", // Not provided in PDF
+    enabled: true,
+    image: "/products/flexible-series/Flexible Series Indoor P1.8.png",
     resolution: {
-      width: 171, // Calculated: 320mm ÷ 1.875mm pixel pitch (spec shows 1.875mm)
-      height: 85   // Calculated: 160mm ÷ 1.875mm pixel pitch
+      width: 172,
+      height: 86
     },
-    price: 9700, // Flexible series pricing (₹17,600 per ft² × 0.551 ft²)
-    siChannelPrice: 8816, // (₹16,000 per ft² × 0.551 ft²)
-    resellerPrice: 8265, // (₹15,000 per ft² × 0.551 ft²)
+    price: 17600,
+    siChannelPrice: 16000,
+    resellerPrice: 15000,
     prices: {
-      cabinet: { endCustomer: 9700, siChannel: 8816, reseller: 8265 },
+      cabinet: { endCustomer: 17600, siChannel: 16000, reseller: 15000 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
 
     cabinetDimensions: {
-      width: 320, // Using module size as cabinet (flexible display)
+      width: 320,
       height: 160
     },
     moduleDimensions: {
@@ -71,41 +83,53 @@ export const products: Product[] = [
       height: 160
     },
     moduleResolution: {
-      width: 171, // Calculated: 320mm ÷ 1.875mm pixel pitch
-      height: 85   // Calculated: 160mm ÷ 1.875mm pixel pitch
+      width: 172,
+      height: 86
     },
     moduleQuantity: 1, // Single flexible module
-    pixelPitch: 1.875, // Actual spec from PDF
-    pixelDensity: 284444, // pixels/m²
-    brightness: 1000, // cd/m²
-    refreshRate: 3840, // Hz (minimum)
+    pixelPitch: 1.86,
+    pixelDensity: 288906,
+    brightness: 800,
+    refreshRate: 3840,
     environment: "Indoor",
-    maxPowerConsumption: 700, // W
-    avgPowerConsumption: 350, // W
-    weightPerCabinet: 0, // Not specified in PDF
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P1.8.pdf"
+    maxPowerConsumption: 600,
+    avgPowerConsumption: 200,
+    // PDF lists 32 kg per sqm; stored here so UI can show a comparable weight figure.
+    weightPerCabinet: 32,
+    ledType: "Black SMD1515",
+    driveMethod: "1/43",
+    viewingAngle: "H 140°, V 140°",
+    voltage: "AC 110/220V",
+    serviceAccess: "Total Front Access",
+    ipGrade: "IP31",
+    operatingTemperature: "0°C~50°C",
+    operatingHumidity: "10~90%RH",
+    storageTempHumidity: "0°C~60°C, 10~90%RH",
+    lifeTime: 100000,
+    cabinetMaterial: "Sheet metal",
+    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/2_Flexible+Series+Indoor+P1.86.pdf"
   },
 
   {
     id: "orion-p25-flexible-indoor",
-    name: "Orion P2.5mm Flexible Series LED display",
+    name: "Nebula Series Indoor P2.5",
     category: "Flexible Series",
-    enabled: false,
-    image: "/products/flexible-series/Flexible Series Indoor P2.5.png", // Not provided in PDF
+    enabled: true,
+    image: "/products/flexible-series/Flexible Series Indoor P2.5.png",
     resolution: {
-      width: 128, // Calculated: 320mm ÷ 2.5mm pixel pitch
-      height: 64   // Calculated: 160mm ÷ 2.5mm pixel pitch
+      width: 128,
+      height: 64
     },
-    price: 6888, // Flexible series pricing (₹12,500 per ft² × 0.551 ft²)
-    siChannelPrice: 6227, // (₹11,300 per ft² × 0.551 ft²)
-    resellerPrice: 5841, // (₹10,600 per ft² × 0.551 ft²)
+    price: 12500,
+    siChannelPrice: 11300,
+    resellerPrice: 10600,
     prices: {
-      cabinet: { endCustomer: 6888, siChannel: 6227, reseller: 5841 },
+      cabinet: { endCustomer: 12500, siChannel: 11300, reseller: 10600 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
 
     cabinetDimensions: {
-      width: 320, // Using module size as cabinet (flexible display)
+      width: 320,
       height: 160
     },
     moduleDimensions: {
@@ -113,104 +137,91 @@ export const products: Product[] = [
       height: 160
     },
     moduleResolution: {
-      width: 128, // Calculated: 320mm ÷ 2.5mm pixel pitch
-      height: 64   // Calculated: 160mm ÷ 2.5mm pixel pitch
+      width: 128,
+      height: 64
     },
     moduleQuantity: 1, // Single flexible module
     pixelPitch: 2.5,
-    pixelDensity: 160000, // pixels/m²
-    brightness: 1200, // cd/m²
-    refreshRate: 3840, // Hz (minimum)
+    pixelDensity: 160000,
+    brightness: 800,
+    refreshRate: 3840,
     environment: "Indoor",
-    maxPowerConsumption: 700, // W
-    avgPowerConsumption: 350, // W
-    weightPerCabinet: 0, // Not specified in PDF
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P2.5.pdf"
+    maxPowerConsumption: 600,
+    avgPowerConsumption: 200,
+    // PDF lists 32 kg per sqm; stored here so UI can show a comparable weight figure.
+    weightPerCabinet: 32,
+    ledType: "Black SMD2020",
+    driveMethod: "1/32",
+    viewingAngle: "H 140°, V 140°",
+    voltage: "AC 110/220V",
+    serviceAccess: "Total Front Access",
+    ipGrade: "IP31",
+    operatingTemperature: "0°C~50°C",
+    operatingHumidity: "10~90%RH",
+    storageTempHumidity: "0°C~60°C, 10~90%RH",
+    lifeTime: 100000,
+    cabinetMaterial: "Sheet metal",
+    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/3_Flexible+Series+Indoor+P2.5.pdf"
   },
 
   {
     id: "orion-p3-flexible-indoor",
-    name: "Orion P3mm Flexible Series LED display",
+    name: "Nebula Series Indoor P3",
     category: "Flexible Series",
-    enabled: false,
-    image: "/products/flexible-series/Flexible Series Indoor P3.png", // Not provided in PDF
+    enabled: true,
+    image: "/products/flexible-series/Flexible Series Indoor P3.png",
     resolution: {
-      width: 107, // Calculated: 320mm ÷ 3mm pixel pitch
-      height: 53   // Calculated: 160mm ÷ 3mm pixel pitch
+      width: 80,
+      height: 40
     },
-    price: 3193, // Flexible series pricing (₹10,300 per ft² × 0.31 ft²)
-    siChannelPrice: 2883, // (₹9,300 per ft² × 0.31 ft²)
-    resellerPrice: 2728, // (₹8,800 per ft² × 0.31 ft²)
+    price: 10300,
+    siChannelPrice: 9300,
+    resellerPrice: 8800,
     prices: {
-      cabinet: { endCustomer: 3193, siChannel: 2883, reseller: 2728 },
+      cabinet: { endCustomer: 10300, siChannel: 9300, reseller: 8800 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
 
     cabinetDimensions: {
-      width: 320, // Using module size as cabinet (flexible display)
-      height: 160
+      width: 240,
+      height: 120
     },
     moduleDimensions: {
-      width: 320,
-      height: 160
+      width: 240,
+      height: 120
     },
     moduleResolution: {
-      width: 107, // Calculated: 320mm ÷ 3mm pixel pitch
-      height: 53   // Calculated: 160mm ÷ 3mm pixel pitch
+      width: 80,
+      height: 40
     },
     moduleQuantity: 1, // Single flexible module
     pixelPitch: 3.0,
-    pixelDensity: 111111, // pixels/m²
-    brightness: 1200, // cd/m²
-    refreshRate: 3840, // Hz (minimum)
+    pixelDensity: 111111,
+    brightness: 800,
+    refreshRate: 3840,
     environment: "Indoor",
-    maxPowerConsumption: 700, // W
-    avgPowerConsumption: 350, // W
-    weightPerCabinet: 0, // Not specified in PDF
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P3.pdf"
-  },
-
-  {
-    id: "orion-p4-flexible-indoor",
-    name: "Orion P4mm Flexible Series LED display",
-    category: "Flexible Series",
-    enabled: false,
-    image: "/products/flexible-series/Flexible Series Indoor P4.png", // Not provided in PDF
-    resolution: {
-      width: 80, // Calculated: 320mm ÷ 4mm pixel pitch
-      height: 40  // Calculated: 160mm ÷ 4mm pixel pitch
-    },
-    price: 32000, // Flexible series pricing
-    siChannelPrice: 28800,
-    resellerPrice: 27200,
-    cabinetDimensions: {
-      width: 320, // Using module size as cabinet (flexible display)
-      height: 160
-    },
-    moduleDimensions: {
-      width: 320,
-      height: 160
-    },
-    moduleResolution: {
-      width: 80, // Calculated: 320mm ÷ 4mm pixel pitch
-      height: 40  // Calculated: 160mm ÷ 4mm pixel pitch
-    },
-    moduleQuantity: 1, // Single flexible module
-    pixelPitch: 4.0,
-    pixelDensity: 62500, // pixels/m²
-    brightness: 1200, // cd/m²
-    refreshRate: 3840, // Hz (minimum)
-    environment: "Indoor",
-    maxPowerConsumption: 700, // W
-    avgPowerConsumption: 350, // W
-    weightPerCabinet: 0, // Not specified in PDF
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/Flexible+Series+Indoor+P4.pdf"
+    maxPowerConsumption: 600,
+    avgPowerConsumption: 200,
+    // PDF lists 32 kg per sqm; stored here so UI can show a comparable weight figure.
+    weightPerCabinet: 32,
+    ledType: "Black SMD2121",
+    driveMethod: "1/32",
+    viewingAngle: "H 140°, V 140°",
+    voltage: "AC 110/220V",
+    serviceAccess: "Total Front Access",
+    ipGrade: "IP31",
+    operatingTemperature: "0°C~50°C",
+    operatingHumidity: "10~90%RH",
+    storageTempHumidity: "0°C~60°C, 10~90%RH",
+    lifeTime: 100000,
+    cabinetMaterial: "Sheet metal",
+    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/4_Flexible+Series+Indoor+P3.pdf"
   },
 
   {
     id: 'bellatrix-indoor-cob-p0.9',
-    name: 'Bellatrix Series Indoor COB P0.9',
-    category: 'Bellatrix Series',
+    name: 'Sigma Core P0.9',
+    category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor COB P0.9.jpg',
     resolution: { width: 640, height: 360 },
@@ -233,8 +244,8 @@ export const products: Product[] = [
   },
   {
     id: 'bellatrix-indoor-cob-p1.25',
-    name: 'Bellatrix Series Indoor COB P1.25',
-    category: 'Bellatrix Series',
+    name: 'Sigma Core P1.25',
+    category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor COB P1.25.jpg',
     resolution: { width: 480, height: 270 },
@@ -257,8 +268,8 @@ export const products: Product[] = [
   },
   {
     id: 'bellatrix-indoor-cob-p1.5',
-    name: 'Bellatrix Series Indoor COB P1.5_16_9',
-    category: 'Bellatrix Series',
+    name: 'Sigma Core P1.5',
+    category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor COB P1.5.jpg',
     resolution: { width: 384, height: 216 },
@@ -279,11 +290,11 @@ export const products: Product[] = [
     siChannelPrice: 21870,
     resellerPrice: 20655,
   },
-  
+
   {
     id: 'bellatrix-indoor-smd-p1.25',
-    name: 'Bellatrix Series Indoor SMD P1.25_16_9',
-    category: 'Bellatrix Series',
+    name: 'Astra Core-I P1.25',
+    category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P1.25.jpg',
     resolution: { width: 480, height: 270 },
@@ -305,33 +316,9 @@ export const products: Product[] = [
     resellerPrice: 18105,
   },
   {
-    id: 'bellatrix-indoor-smd-p1.25-4-3',
-    name: 'Bellatrix Series Indoor SMD P1.25_4_3',
-    category: 'Bellatrix Series',
-    enabled: true,
-    image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P1.25.jpg',
-    resolution: { width: 512, height: 384 },
-    cabinetDimensions: { width: 640, height: 480 },
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 256, height: 128 },
-    moduleQuantity: 6, // 2x3
-    pixelPitch: 1.25,
-    pixelDensity: 640000,
-    brightness: 800,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 8,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/1_Bellatrix+Series+Indoor+SMD+P1.25.pdf',
-    price: 19900,
-    siChannelPrice: 17910,
-    resellerPrice: 16915,
-  },
-  {
     id: 'bellatrix-indoor-smd-p1.5',
-    name: 'Bellatrix Series Indoor SMD P1.5_16_9',
-    category: 'Bellatrix Series',
+    name: 'Astra Core-I P1.5',
+    category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P1.5.jpg',
     resolution: { width: 384, height: 216 },
@@ -353,33 +340,9 @@ export const products: Product[] = [
     resellerPrice: 14365,
   },
   {
-    id: 'bellatrix-indoor-smd-p1.5-4-3',
-    name: 'Bellatrix Series Indoor SMD P1.5_4_3',
-    category: 'Bellatrix Series',
-    enabled: true,
-    image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P1.5.jpg',
-    resolution: { width: 416, height: 312 },
-    cabinetDimensions: { width: 640, height: 480 },
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 213, height: 107 },
-    moduleQuantity: 6, // 2x3
-    pixelPitch: 1.5,
-    pixelDensity: 444000,
-    brightness: 800,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 8,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/2_Bellatrix+Series+Indoor+SMD+P1.5.pdf',
-    price: 15400,
-    siChannelPrice: 13860,
-    resellerPrice: 13090,
-  },
-  {
     id: 'bellatrix-indoor-smd-p1.8',
-    name: 'Bellatrix Series Indoor SMD P1.8_16_9',
-    category: 'Bellatrix Series',
+    name: 'Astra Core-I P1.8',
+    category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P1.8.jpg',
     resolution: { width: 320, height: 180 },
@@ -401,33 +364,9 @@ export const products: Product[] = [
     resellerPrice: 13770,
   },
   {
-    id: 'bellatrix-indoor-smd-p1.8-4-3',
-    name: 'Bellatrix Series Indoor SMD P1.8_4_3',
-    category: 'Bellatrix Series',
-    enabled: true,
-    image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P1.8.jpg',
-    resolution: { width: 344, height: 258 },
-    cabinetDimensions: { width: 640, height: 480 },
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 172, height: 86 },
-    moduleQuantity: 6, // 2x3
-    pixelPitch: 1.86,
-    pixelDensity: 284444,
-    brightness: 800,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 8,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/3_Bellatrix+Series+Indoor+SMD+P1.8.pdf',
-    price: 11000,
-    siChannelPrice: 9900,
-    resellerPrice: 9350,
-  },
-  {
     id: 'bellatrix-indoor-smd-p2.5',
-    name: 'Bellatrix Series Indoor SMD P2.5_4_3',
-    category: 'Bellatrix Series',
+    name: 'Astra Core-I P2.5',
+    category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P2.5.jpg',
     resolution: { width: 256, height: 192 },
@@ -449,33 +388,9 @@ export const products: Product[] = [
     resellerPrice: 7480,
   },
   {
-    id: 'bellatrix-indoor-smd-p2.5-ra-1-1',
-    name: 'Bellatrix Series Indoor SMD P2.5_RA_1_1',
-    category: 'Bellatrix Series',
-    enabled: true,
-    image: '/products/bellatrix-series/Bellatrix Series Indoor SMD P2.5 R_A.jpeg',
-    resolution: { width: 384, height: 384 },
-    cabinetDimensions: { width: 960, height: 960 },
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 128, height: 64 },
-    moduleQuantity: 6, // 2x2
-    pixelPitch: 2.5,
-    pixelDensity: 160000,
-    brightness: 900,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 350,
-    weightPerCabinet: 8,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/4_Bellatrix+Series+Indoor+SMD+P2.5.pdf',
-    price: 8800,
-    siChannelPrice: 7920,
-    resellerPrice: 7480,
-  },
-  {
     id: 'bellatrix-outdoor-smd-p2.5',
-    name: 'Bellatrix Series Outdoor SMD P2.5_O_1_1',
-    category: 'Bellatrix Series',
+    name: 'Astra Core-O P2.5',
+    category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P2.5.png',
     resolution: { width: 384, height: 384 },
@@ -498,8 +413,8 @@ export const products: Product[] = [
   },
   {
     id: 'bellatrix-outdoor-smd-p3',
-    name: 'Bellatrix Series Outdoor SMD P3_1_1',
-    category: 'Bellatrix Series',
+    name: 'Astra Core-O P3',
+    category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P3.png',
     resolution: { width: 256, height: 256 },
@@ -521,33 +436,9 @@ export const products: Product[] = [
     resellerPrice: 9010,
   },
   {
-    id: 'bellatrix-outdoor-smd-p3-lh',
-    name: 'Bellatrix Series Outdoor SMD P3_1_1_LH',
-    category: 'Bellatrix Series',
-    enabled: true,
-    image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P3 LH (1).png',
-    resolution: { width: 192, height: 192 },
-    cabinetDimensions: { width: 576, height: 576 },
-    moduleDimensions: { width: 192, height: 192 },
-    moduleResolution: { width: 64, height: 64 },
-    moduleQuantity: 16, // 4x4
-    pixelPitch: 3.0,
-    pixelDensity: 111000,
-    brightness: 4000,
-    refreshRate: 1920,
-    environment: 'outdoor',
-    maxPowerConsumption: 450,
-    avgPowerConsumption: 250,
-    weightPerCabinet: 16,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/Bellatrix+Series+Outdoor+SMD+P3+LH.pdf',
-    price: 10600,
-    siChannelPrice: 9540,
-    resellerPrice: 9010,
-  },
-  {
     id: 'bellatrix-outdoor-smd-p4',
-    name: 'Bellatrix Series Outdoor SMD P4_1_1',
-    category: 'Bellatrix Series',
+    name: 'Astra Core-O P4',
+    category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P4.png',
     resolution: { width: 240, height: 240 },
@@ -570,8 +461,8 @@ export const products: Product[] = [
   },
   {
     id: 'bellatrix-outdoor-smd-p6.6',
-    name: 'Bellatrix Series Outdoor SMD P6.6_1_1',
-    category: 'Bellatrix Series',
+    name: 'Astra Core-O P6.6',
+    category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P6.6.png',
     resolution: { width: 144, height: 144 },
@@ -594,8 +485,8 @@ export const products: Product[] = [
   },
   {
     id: 'bellatrix-outdoor-smd-p10',
-    name: 'Bellatrix Series Outdoor SMD P10_1_1',
-    category: 'Bellatrix Series',
+    name: 'Astra Core-O P10',
+    category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P10.png',
     resolution: { width: 96, height: 96 },
@@ -619,11 +510,12 @@ export const products: Product[] = [
 
   {
     id: 'orion-p18-digital-standee',
-    name: 'Orion P1.8 Indoor Standee Display',
+    name: 'Omega-I Lite P1.8',
     category: 'Digital Standee Series',
     enabled: true,
+    digitalStandeeCabinetGrid: { columns: 2, rows: 11 },
     image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.10 (1).jpeg',
-    resolution: { width: 176, height: 176 }, // Per module: total = 176×columns × 176×rows
+    resolution: { width: 344, height: 946 },
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
     moduleDimensions: { width: 320, height: 160 },
     moduleResolution: { width: 176, height: 176 },
@@ -650,7 +542,7 @@ export const products: Product[] = [
     lifeTime: 100000,
     controller: 'Novastar TB40',
     cabinetMaterial: 'Aluminum',
-    screenResolution: '176×176 per module (total = 176×cols × 176×rows)',
+    screenResolution: '344×946',
     activeDisplayArea: '640mm x 1760mm',
     dimensionConstraints: {
       series: 'Digital Standee Series',
@@ -662,17 +554,68 @@ export const products: Product[] = [
       maxHeight: 1920,
       validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
     },
-    price: 110300,
-    siChannelPrice: 100000,
-    resellerPrice: 93800,
+    price: 140000,
+    siChannelPrice: 133000,
+    resellerPrice: 126000,
+  },
+  {
+    id: 'orion-p18-digital-standee-2',
+    name: 'Omega-I Plus P1.8',
+    category: 'Digital Standee Series',
+    enabled: true,
+    digitalStandeeCabinetGrid: { columns: 3, rows: 11 },
+    image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.10 (1) - Copy.jpeg',
+    resolution: { width: 516, height: 946 },
+    cabinetDimensions: { width: 985, height: 1785 },
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 160, height: 80 },
+    moduleQuantity: 12,
+    pixelPitch: 1.8,
+    pixelDensity: 288578,
+    brightness: 780,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 400,
+    avgPowerConsumption: 120,
+    weightPerCabinet: 65,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P1.8+(Model+B).pdf',
+    ledType: 'SMD',
+    driverIC: 'ICN/MBI/SM',
+    viewingAngle: 'H140°, V140°',
+    colorDepth: '14-16 bit',
+    frameChangingFrequently: '>60 frames/sec',
+    voltage: '110V-220V',
+    serviceAccess: 'REAR',
+    ipGrade: 'IP31/43',
+    operatingTemperature: '-0°C~40°C 10-90%RH',
+    storageTempHumidity: '-0°C~40°C 10-90%RH',
+    lifeTime: 100000,
+    controller: 'Novastar TB40',
+    cabinetMaterial: 'Aluminum',
+    screenResolution: '344 dots x 946 dots',
+    activeDisplayArea: '640mm x 1760mm',
+    dimensionConstraints: {
+      series: 'Digital Standee Series',
+      moduleWidth: 320,
+      moduleHeight: 160,
+      minWidth: 640,
+      minHeight: 1760,
+      maxWidth: 1280,
+      maxHeight: 1920,
+      validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
+    },
+    price: 180000,
+    siChannelPrice: 171000,
+    resellerPrice: 162000,
   },
   {
     id: 'orion-p25-digital-standee',
-    name: 'Orion P2.5 Indoor Standee Display',
+    name: 'Omega-I Lite P2.5',
     category: 'Digital Standee Series',
     enabled: true,
+    digitalStandeeCabinetGrid: { columns: 2, rows: 11 },
     image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.10.jpeg',
-    resolution: { width: 128, height: 64 }, // Per module: total = 128×columns × 64×rows
+    resolution: { width: 256, height: 704 },
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
     moduleDimensions: { width: 320, height: 160 },
     moduleResolution: { width: 128, height: 64 },
@@ -699,7 +642,7 @@ export const products: Product[] = [
     lifeTime: 100000,
     controller: 'Novastar TB40',
     cabinetMaterial: 'Aluminum',
-    screenResolution: '128×64 per module (total = 128×cols × 64×rows)',
+    screenResolution: '256×704',
     activeDisplayArea: '640mm x 1760mm',
     dimensionConstraints: {
       series: 'Digital Standee Series',
@@ -711,17 +654,68 @@ export const products: Product[] = [
       maxHeight: 1920,
       validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
     },
-    price: 80900,
-    siChannelPrice: 73300,
-    resellerPrice: 68800,
+    price: 120000,
+    siChannelPrice: 114000,
+    resellerPrice: 108000,
+  },
+  {
+    id: 'orion-p25-digital-standee-2',
+    name: 'Omega-I Plus P2.5',
+    category: 'Digital Standee Series',
+    enabled: true,
+    digitalStandeeCabinetGrid: { columns: 3, rows: 11 },
+    image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.10 - Copy.jpeg',
+    resolution: { width: 384, height: 704 },
+    cabinetDimensions: { width: 985, height: 1785 },
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 128, height: 64 },
+    moduleQuantity: 12,
+    pixelPitch: 2.5,
+    pixelDensity: 159744,
+    brightness: 780,
+    refreshRate: 3840,
+    environment: 'indoor',
+    maxPowerConsumption: 400,
+    avgPowerConsumption: 120,
+    weightPerCabinet: 65,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P2.5+(Model+B).pdf',
+    ledType: 'SMD',
+    driverIC: 'ICN/MBI/SM',
+    viewingAngle: 'H140°, V140°',
+    colorDepth: '14-16 bit',
+    frameChangingFrequently: '>60 frames/sec',
+    voltage: '110V-220V',
+    serviceAccess: 'REAR',
+    ipGrade: 'IP31/43',
+    operatingTemperature: '-0°C~40°C 10-90%RH',
+    storageTempHumidity: '-0°C~40°C 10-90%RH',
+    lifeTime: 100000,
+    controller: 'Novastar TB40',
+    cabinetMaterial: 'Aluminum',
+    screenResolution: '256 dots x 704 dots',
+    activeDisplayArea: '640mm x 1760mm',
+    dimensionConstraints: {
+      series: 'Digital Standee Series',
+      moduleWidth: 320,
+      moduleHeight: 160,
+      minWidth: 640,
+      minHeight: 1760,
+      maxWidth: 1280,
+      maxHeight: 1920,
+      validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
+    },
+    price: 130000,
+    siChannelPrice: 123500,
+    resellerPrice: 117000,
   },
   {
     id: 'orion-p4-digital-standee',
-    name: 'Orion P4 Indoor Standee Display',
+    name: 'Omega-O Lite P4',
     category: 'Digital Standee Series',
     enabled: true,
+    digitalStandeeCabinetGrid: { columns: 2, rows: 11 },
     image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.11.jpeg',
-    resolution: { width: 80, height: 40 }, // Per module: total = 80×columns × 40×rows
+    resolution: { width: 160, height: 440 },
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
     moduleDimensions: { width: 320, height: 160 },
     moduleResolution: { width: 80, height: 40 },
@@ -734,7 +728,7 @@ export const products: Product[] = [
     maxPowerConsumption: 750, // <750W
     avgPowerConsumption: 400, // <400W
     weightPerCabinet: 60, // kg
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/3_Digital+Standee+Series++SMD+P4.pdf',
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P4(Model+B).pdf',
     ledType: 'SMD',
     driverIC: 'ICN/MBI/SM',
     viewingAngle: 'H140°, V140°',
@@ -748,7 +742,7 @@ export const products: Product[] = [
     lifeTime: 100000,
     controller: 'Novastar TB2',
     cabinetMaterial: 'Aluminum',
-    screenResolution: '80×40 per module (total = 80×cols × 40×rows)',
+    screenResolution: '160×440',
     activeDisplayArea: '640mm x 1760mm',
     dimensionConstraints: {
       series: 'Digital Standee Series',
@@ -760,15 +754,65 @@ export const products: Product[] = [
       maxHeight: 1920,
       validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
     },
-    price: 95600,
-    siChannelPrice: 86700,
-    resellerPrice: 81300,
+    price: 150000,
+    siChannelPrice: 142500,
+    resellerPrice: 135000,
+  },
+  {
+    id: 'orion-p4-digital-standee-2',
+    name: 'Omega-O Plus P4',
+    category: 'Digital Standee Series',
+    enabled: true,
+    digitalStandeeCabinetGrid: { columns: 3, rows: 11 },
+    image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.11 - Copy.jpeg',
+    resolution: { width: 240, height: 440 },
+    cabinetDimensions: { width: 985, height: 1785 },
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 80, height: 40 },
+    moduleQuantity: 12,
+    pixelPitch: 4.0,
+    pixelDensity: 62400,
+    brightness: 4500,
+    refreshRate: 3840,
+    environment: 'outdoor',
+    maxPowerConsumption: 750,
+    avgPowerConsumption: 400,
+    weightPerCabinet: 90,
+    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P4.pdf',
+    ledType: 'SMD',
+    driverIC: 'ICN/MBI/SM',
+    viewingAngle: 'H140°, V140°',
+    colorDepth: '14-16 bit',
+    frameChangingFrequently: '>60 frames/sec',
+    voltage: '110V-220V',
+    serviceAccess: 'REAR',
+    ipGrade: 'IP65/43',
+    operatingTemperature: '-0°C~40°C 10-90%RH',
+    storageTempHumidity: '-0°C~40°C 10-90%RH',
+    lifeTime: 100000,
+    controller: 'Novastar TB2',
+    cabinetMaterial: 'Aluminum',
+    screenResolution: '160 dots x 440 dots',
+    activeDisplayArea: '640mm x 1760mm',
+    dimensionConstraints: {
+      series: 'Digital Standee Series',
+      moduleWidth: 320,
+      moduleHeight: 160,
+      minWidth: 640,
+      minHeight: 1760,
+      maxWidth: 1280,
+      maxHeight: 1920,
+      validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
+    },
+    price: 185000,
+    siChannelPrice: 175750,
+    resellerPrice: 166500,
   },
 
   {
     id: 'rigel-p2.5-outdoor',
-    name: 'Rigel Series Outdoor SMD P2.5_O_1_1',
-    category: 'Rigel Series',
+    name: 'Astra Edge-O P2.5',
+    category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Outdoor P2.5.png',
     resolution: { width: 384, height: 384 },
@@ -792,8 +836,8 @@ export const products: Product[] = [
 
   {
     id: 'rigel-p3-outdoor',
-    name: 'Rigel Series Outdoor SMD P3_1_1',
-    category: 'Rigel Series',
+    name: 'Astra Edge-O P3',
+    category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Outdoor P3.png',
     resolution: { width: 256, height: 256 },
@@ -816,34 +860,9 @@ export const products: Product[] = [
   },
 
   {
-    id: 'rigel-p3-outdoor-lh',
-    name: 'Rigel Series Outdoor SMD P3_1_1_LH',
-    category: 'Rigel Series',
-    enabled: true,
-    image: '/products/rigel-series/Outdoor P3.png',
-    resolution: { width: 192, height: 192 },
-    cabinetDimensions: { width: 576, height: 576 },
-    moduleDimensions: { width: 192, height: 192 },
-    moduleResolution: { width: 64, height: 64 },
-    moduleQuantity: 16, // 4x4 modules
-    pixelPitch: 3.0,
-    pixelDensity: 111000,
-    brightness: 5500,
-    refreshRate: 3840,
-    environment: 'outdoor',
-    maxPowerConsumption: 450,
-    avgPowerConsumption: 200,
-    weightPerCabinet: 16,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/6_Rigel+Outdoor+SMD+P3.pdf',
-    price: 13200,
-    siChannelPrice: 11880,
-    resellerPrice: 11220,
-  },
-
-  {
     id: 'rigel-p4-outdoor',
-    name: 'Rigel Series Outdoor SMD P4_1_1',
-    category: 'Rigel Series',
+    name: 'Astra Edge-O P4',
+    category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Outdoor P4.png',
     resolution: { width: 240, height: 240 },
@@ -867,8 +886,8 @@ export const products: Product[] = [
 
   {
     id: 'rigel-p6.6-outdoor',
-    name: 'Rigel Series Outdoor SMD P6.6_1_1',
-    category: 'Rigel Series',
+    name: 'Astra Edge-O P6.6',
+    category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Outdoor P6.6.png',
     resolution: { width: 144, height: 144 },
@@ -892,8 +911,8 @@ export const products: Product[] = [
 
   {
     id: 'rigel-p10-outdoor',
-    name: 'Rigel Series Outdoor SMD P10_1_1',
-    category: 'Rigel Series',
+    name: 'Astra Edge-O P10',
+    category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Outdoor P10.png',
     resolution: { width: 96, height: 96 },
@@ -917,7 +936,7 @@ export const products: Product[] = [
 
   {
     id: 'modular-outdoor-p3.91',
-    name: 'Modular Series Outdoor P3.91',
+    name: 'Rigel Series Outdoor P3.91',
     category: 'Modular Series',
     enabled: true,
     image: '/products/modular-series/Image Mar 17 2026 from trivedianshika (1).jpg',
@@ -956,7 +975,7 @@ export const products: Product[] = [
 
   {
     id: 'modular-outdoor-p4.81',
-    name: 'Modular Series Outdoor P4.81',
+    name: 'Rigel Series Outdoor P4.81',
     category: 'Modular Series',
     enabled: true,
     image: '/products/modular-series/Image Mar 17 2026 from trivedianshika (2).jpg',
@@ -995,7 +1014,7 @@ export const products: Product[] = [
 
   {
     id: 'modular-outdoor-p6.25',
-    name: 'Modular Series Outdoor P6.25',
+    name: 'Rigel Series Outdoor P6.25',
     category: 'Modular Series',
     enabled: true,
     image: '/products/modular-series/Image Mar 17 2026 from trivedianshika (3).jpg',
@@ -1034,7 +1053,7 @@ export const products: Product[] = [
 
   {
     id: 'modular-outdoor-p7.81',
-    name: 'Modular Series Outdoor P7.81',
+    name: 'Rigel Series Outdoor P7.81',
     category: 'Modular Series',
     enabled: true,
     image: '/products/modular-series/Image Mar 17 2026 from trivedianshika (4).jpg',
@@ -1073,7 +1092,7 @@ export const products: Product[] = [
 
   {
     id: 'modular-outdoor-p10.41',
-    name: 'Modular Series Outdoor P10.41',
+    name: 'Rigel Series Outdoor P10.41',
     category: 'Modular Series',
     enabled: true,
     image: '/products/modular-series/Image Mar 17 2026 from trivedianshika.jpg',
@@ -1112,8 +1131,8 @@ export const products: Product[] = [
 
   {
     id: 'rigel-cob-p0.9',
-    name: 'Rigel Series Indoor COB P0.9',
-    category: 'Rigel Series',
+    name: 'Sigma Edge P0.9',
+    category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Indoor P0.9.png',
     resolution: { width: 640, height: 360 },
@@ -1137,8 +1156,8 @@ export const products: Product[] = [
 
   {
     id: 'rigel-cob-p1.25',
-    name: 'Rigel Series Indoor COB P1.25_16_9',
-    category: 'Rigel Series',
+    name: 'Sigma Edge P1.25',
+    category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Indoor P1.25.png',
     resolution: { width: 480, height: 270 },
@@ -1161,34 +1180,9 @@ export const products: Product[] = [
   },
 
   {
-    id: 'rigel-smd-p1.25',
-    name: 'Rigel Series Indoor SMD P1.25_4_3',
-    category: 'Rigel Series',
-    enabled: true,
-    image: '/products/rigel-series/Indoor SMD P1.25.png',
-    resolution: { width: 512, height: 384 }, // Calculated from module dimensions and pixel pitch
-    cabinetDimensions: { width: 640, height: 480 },
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 256, height: 128 }, // Calculated from module dimensions and pixel pitch
-    moduleQuantity: 4, // 2x2 modules
-    pixelPitch: 1.25,
-    pixelDensity: 640000,
-    brightness: 700,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/1_Rigel+Indoor+SMD+P1.25.pdf',
-    price: 23200,
-    siChannelPrice: 20880,
-    resellerPrice: 19720,
-  },
-
-  {
     id: 'rigel-smd-p1.25-16-9',
-    name: 'Rigel Series Indoor SMD P1.25_16_9',
-    category: 'Rigel Series',
+    name: 'Astra Edge-I P1.25',
+    category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Indoor SMD P1.25.png',
     resolution: { width: 480, height: 270 },
@@ -1212,8 +1206,8 @@ export const products: Product[] = [
 
   {
     id: 'rigel-cob-p1.5',
-    name: 'Rigel Series Indoor COB P1.5_16_9',
-    category: 'Rigel Series',
+    name: 'Sigma Edge P1.5',
+    category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Indoor P1.5.png',
     resolution: { width: 384, height: 216 },
@@ -1236,34 +1230,9 @@ export const products: Product[] = [
   },
 
   {
-    id: 'rigel-smd-p1.5',
-    name: 'Rigel Series Indoor SMD P1.5_4_3',
-    category: 'Rigel Series',
-    enabled: true,
-    image: '/products/rigel-series/Indoor SMD P1.5.png',
-    resolution: { width: 416, height: 312 },
-    cabinetDimensions: { width: 640, height: 480 },
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 213, height: 107 }, // Calculated from module dimensions and pixel pitch
-    moduleQuantity: 4, // 2x2 modules
-    pixelPitch: 1.5,
-    pixelDensity: 444000,
-    brightness: 700,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/2_Rigel+Indoor+SMD+P1.5.pdf',
-    price: 19900,
-    siChannelPrice: 17910,
-    resellerPrice: 16915,
-  },
-
-  {
     id: 'rigel-smd-p1.5-16-9',
-    name: 'Rigel Series Indoor SMD P1.5_16_9',
-    category: 'Rigel Series',
+    name: 'Astra Edge-I P1.5',
+    category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Indoor SMD P1.5.png',
     resolution: { width: 384, height: 216 },
@@ -1287,8 +1256,8 @@ export const products: Product[] = [
 
   {
     id: 'rigel-smd-p1.8',
-    name: 'Rigel Series Indoor SMD P1.8_16_9',
-    category: 'Rigel Series',
+    name: 'Astra Edge-I P1.8',
+    category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Indoor P1.8.png',
     resolution: { width: 320, height: 180 },
@@ -1311,34 +1280,9 @@ export const products: Product[] = [
   },
 
   {
-    id: 'rigel-smd-p1.8-4-3',
-    name: 'Rigel Series Indoor SMD P1.8_4_3',
-    category: 'Rigel Series',
-    enabled: true,
-    image: '/products/rigel-series/Indoor P1.8.png',
-    resolution: { width: 344, height: 258 },
-    cabinetDimensions: { width: 640, height: 480 },
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 172, height: 86 },
-    moduleQuantity: 4, // 2x2 modules
-    pixelPitch: 1.86,
-    pixelDensity: 284444,
-    brightness: 850,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/3_Rigel+Indoor+SMD+P1.8.pdf',
-    price: 15400,
-    siChannelPrice: 13860,
-    resellerPrice: 13090,
-  },
-
-  {
     id: 'rigel-smd-p2.5',
-    name: 'Rigel Series Indoor SMD P2.5_4_3',
-    category: 'Rigel Series',
+    name: 'Astra Edge-I P2.5',
+    category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Indoor SMD P2.5.png',
     resolution: { width: 256, height: 192 }, // Calculated from module dimensions and pixel pitch
@@ -1361,59 +1305,9 @@ export const products: Product[] = [
   },
 
   {
-    id: 'rigel-smd-p2.5-ra-1-1',
-    name: 'Rigel Series Indoor SMD P2.5_RA_1_1',
-    category: 'Rigel Series',
-    enabled: true,
-    image: '/products/rigel-series/Indoor SMD P2.5 R_A.jpg',
-    resolution: { width: 384, height: 384 },
-    cabinetDimensions: { width: 960, height: 960 },
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 128, height: 64 },
-    moduleQuantity: 4, // 2x2 modules
-    pixelPitch: 2.5,
-    pixelDensity: 160000,
-    brightness: 850,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/4_Rigel+Indoor+SMD+P2.5.pdf',
-    price: 11000,
-    siChannelPrice: 9900,
-    resellerPrice: 9350,
-  },
-
-  {
-    id: 'rigel-p2.5-outdoor',
-    name: 'Rigel Series Outdoor SMD P2.5_O_1_1',
-    category: 'Rigel Series',
-    enabled: true,
-    image: '/products/rigel-series/Outdoor P2.5.png',
-    resolution: { width: 384, height: 384 },
-    cabinetDimensions: { width: 960, height: 960 },
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 128, height: 64 },
-    moduleQuantity: 18, // 3x6 modules
-    pixelPitch: 2.5,
-    pixelDensity: 160000,
-    brightness: 5000,
-    refreshRate: 3840,
-    environment: 'outdoor',
-    maxPowerConsumption: 700,
-    avgPowerConsumption: 300,
-    weightPerCabinet: 27,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/5_Rigel+Outdoor+SMD+P2.5.pdf',
-    price: 15400,
-    siChannelPrice: 13860,
-    resellerPrice: 13090,
-  },
-
-  {
     id: 'betel-indoor-cob-p0.9',
-    name: 'Betelgeuse Series Indoor COB P0.9',
-    category: 'Betelgeuse Series',
+    name: 'Sigma Prime P0.9',
+    category: 'Prime Series',
     enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Indoor COB P0.9.jpg',
     resolution: { width: 640, height: 360 },
@@ -1456,8 +1350,8 @@ export const products: Product[] = [
 
   {
     id: 'betel-indoor-cob-p1.25',
-    name: 'Betelgeuse Series Indoor COB P1.25',
-    category: 'Betelgeuse Series',
+    name: 'Sigma Prime P1.25',
+    category: 'Prime Series',
     enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Indoor COB P1.25.jpg',
     resolution: { width: 480, height: 270 },
@@ -1499,89 +1393,9 @@ export const products: Product[] = [
   },
 
   {
-    id: 'betel-indoor-smd-p1.25',
-    name: 'Betelgeuse Series Indoor SMD P1.25',
-    category: 'Betelgeuse Series',
-    enabled: false,
-    image: '/products/Betel-series/Betelgeuse Series Indoor SMD P1.25.jpg',
-    resolution: { width: 480, height: 270 },
-    cabinetDimensions: { width: 600, height: 337.5 },
-    moduleDimensions: { width: 300, height: 168.75 },
-    moduleResolution: { width: 240, height: 135 },
-    moduleQuantity: 4, // 2x2
-    pixelPitch: 1.25,
-    pixelDensity: 640000,
-    brightness: 800,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/betel-series/Betelgeuse+Indoor+SMD+P1.25.pdf',
-    price: 27200,
-    siChannelPrice: 24480,
-    resellerPrice: 23120,
-    viewingAngle: '160/160',
-    colorDepth: '16 Bit',
-    voltage: '220v',
-    serviceAccess: 'Front',
-    ipGrade: '31/31',
-    operatingTemperature: '0℃~+50℃',
-    operatingHumidity: '0-50%',
-    lifeTime: 100000,
-    mtbf: 10000,
-    ledChip: 'Nation star Gold Bond',
-    pcb: '4 Layer',
-    driverIC: 'MBI/ICN',
-    powerSupply: 'Meanwell',
-    controller: 'Nova',
-    cabinetMaterial: 'Die Cast',
-  },
-
-  {
-    id: 'betel-indoor-smd-p1.5',
-    name: 'Betelgeuse Series Indoor SMD P1.5',
-    category: 'Betelgeuse Series',
-    enabled: false,
-    image: '/products/Betel-series/Betelgeuse Series Indoor SMD P1.5.jpg',
-    resolution: { width: 384, height: 216 },
-    cabinetDimensions: { width: 600, height: 337.5 },
-    moduleDimensions: { width: 300, height: 168.75 },
-    moduleResolution: { width: 192, height: 108 },
-    moduleQuantity: 4, // 2x2
-    pixelPitch: 1.5,
-    pixelDensity: 444000,
-    brightness: 800,
-    refreshRate: 3840,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/betel-series/2_Betelgeuse+Indoor+SMD+P1.5.pdf',
-    price: 25500,
-    siChannelPrice: 22950,
-    resellerPrice: 21675,
-    viewingAngle: '160/160',
-    colorDepth: '16 Bit',
-    voltage: '220v',
-    serviceAccess: 'Front',
-    ipGrade: '31/31',
-    operatingTemperature: '0℃~+50℃',
-    operatingHumidity: '0-50%',
-    lifeTime: 100000,
-    mtbf: 10000,
-    ledChip: 'Nation star Gold Bond',
-    pcb: '4 Layer',
-    driverIC: 'MBI/ICN',
-    powerSupply: 'Meanwell',
-    controller: 'Nova',
-    cabinetMaterial: 'Die Cast',
-  },
-
-  {
     id: 'betel-indoor-cob-p1.5-16-9',
-    name: 'Betelgeuse Series Indoor COB P1.5_16_9',
-    category: 'Betelgeuse Series',
+    name: 'Sigma Prime P1.5',
+    category: 'Prime Series',
     enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Indoor SMD P1.5.jpg',
     resolution: { width: 384, height: 216 },
@@ -1620,8 +1434,8 @@ export const products: Product[] = [
 
   {
     id: 'betel-indoor-smd-p1.8',
-    name: 'Betelgeuse Series Indoor SMD P1.8_16_9',
-    category: 'Betelgeuse Series',
+    name: 'Astra Prime-I P1.8',
+    category: 'Prime Series',
     enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Indoor SMD P1.8.jpg',
     resolution: { width: 320, height: 180 },
@@ -1659,49 +1473,9 @@ export const products: Product[] = [
   },
 
   {
-    id: 'betel-indoor-smd-p1.8-4-3',
-    name: 'Betelgeuse Series Indoor SMD P1.8_4_3',
-    category: 'Betelgeuse Series',
-    enabled: true,
-    image: '/products/Betel-series/Betelgeuse Series Indoor SMD P1.8.jpg',
-    resolution: { width: 344, height: 258 },
-    cabinetDimensions: { width: 640, height: 480 },
-    moduleDimensions: { width: 300, height: 168.75 },
-    moduleResolution: { width: 172, height: 86 },
-    moduleQuantity: 4, // 2x2
-    pixelPitch: 1.86,
-    pixelDensity: 284444,
-    brightness: 1000,
-    refreshRate: 7680,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/betel-series/3_Betelgeuse+Indoor+SMD+P1.8.pdf',
-    viewingAngle: '160/160',
-    colorDepth: '16 Bit',
-    voltage: '220v',
-    serviceAccess: 'Front',
-    ipGrade: '31/31',
-    operatingTemperature: '0℃~+50℃',
-    operatingHumidity: '0-50%',
-    lifeTime: 100000,
-    mtbf: 10000,
-    ledChip: 'Nation star Gold Bond',
-    pcb: '4 Layer',
-    driverIC: 'MBI/ICN',
-    powerSupply: 'Meanwell',
-    controller: 'Nova',
-    cabinetMaterial: 'Die Cast',
-    price: 21300,
-    siChannelPrice: 19170,
-    resellerPrice: 18105,
-  },
-
-  {
     id: 'betel-indoor-smd-p2.5',
-    name: 'Betelgeuse Series Indoor SMD P2.5_4_3',
-    category: 'Betelgeuse Series',
+    name: 'Astra Prime-I P2.5',
+    category: 'Prime Series',
     enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Indoor SMD P2.5.jpg',
     resolution: { width: 256, height: 192 },
@@ -1739,51 +1513,11 @@ export const products: Product[] = [
   },
 
   {
-    id: 'betel-indoor-smd-p2.5-ra-1-1',
-    name: 'Betelgeuse Series Indoor SMD P2.5_RA_1_1',
-    category: 'Betelgeuse Series',
-    enabled: true,
-    image: '/products/Betel-series/Betelgeuse Series Indoor SMD P2.5 R_A.jpeg',
-    resolution: { width: 384, height: 384 },
-    cabinetDimensions: { width: 960, height: 960 },
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 128, height: 64 },
-    moduleQuantity: 4, // 2x2
-    pixelPitch: 2.5,
-    pixelDensity: 160000,
-    brightness: 1000,
-    refreshRate: 7680,
-    environment: 'indoor',
-    maxPowerConsumption: 650,
-    avgPowerConsumption: 225,
-    weightPerCabinet: 6.5,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/betel-series/4_Betelgeuse+Indoor+SMD+P2.5.pdf',
-    viewingAngle: '160/160',
-    colorDepth: '16 Bit',
-    voltage: '220v',
-    serviceAccess: 'Front',
-    ipGrade: '31/31',
-    operatingTemperature: '0℃~+50℃',
-    operatingHumidity: '0-50%',
-    lifeTime: 100000,
-    mtbf: 10000,
-    ledChip: 'Nation star Gold Bond',
-    pcb: '4 Layer',
-    driverIC: 'MBI/ICN',
-    powerSupply: 'Meanwell',
-    controller: 'Nova',
-    cabinetMaterial: 'Die Cast',
-    price: 18400,
-    siChannelPrice: 16560,
-    resellerPrice: 15640,
-  },
-
-  {
     id: 'betel-outdoor-smd-p2.5',
-    name: 'Betelgeuse Series Outdoor SMD P2.5_O_1_1',
-    category: 'Betelgeuse Series',
+    name: 'Astra Prime-O P2.5',
+    category: 'Prime Series',
     enabled: true,
-      image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P2.5.jpg',
+    image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P2.5.jpg',
     resolution: { width: 256, height: 192 },
     cabinetDimensions: { width: 960, height: 960 },
     moduleDimensions: { width: 320, height: 160 },
@@ -1820,8 +1554,8 @@ export const products: Product[] = [
 
   {
     id: 'betel-outdoor-smd-p3',
-    name: 'Betelgeuse Series Outdoor SMD P3_1_1',
-    category: 'Betelgeuse Series',
+    name: 'Astra Prime-O P3',
+    category: 'Prime Series',
     enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P3.jpg',
     resolution: { width: 192, height: 192 },
@@ -1859,49 +1593,9 @@ export const products: Product[] = [
   },
 
   {
-    id: 'betel-outdoor-smd-p3-1-1-lh',
-    name: 'Betelgeuse Series Outdoor SMD P3_1_1_LH',
-    category: 'Betelgeuse Series',
-    enabled: true,
-    image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P3.jpg',
-    resolution: { width: 192, height: 192 },
-    cabinetDimensions: { width: 576, height: 576 },
-    moduleDimensions: { width: 192, height: 192 },
-    moduleResolution: { width: 64, height: 64 },
-    moduleQuantity: 16, // 4x4
-    pixelPitch: 3.0,
-    pixelDensity: 111000,
-    brightness: 6000,
-    refreshRate: 7680,
-    environment: 'outdoor',
-    maxPowerConsumption: 450,
-    avgPowerConsumption: 200,
-    weightPerCabinet: 16,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/betel-series/6_Betelgeuse+Outdoor+SMD+P3.pdf',
-    viewingAngle: '160/160',
-    colorDepth: '16 Bit',
-    voltage: '220v',
-    serviceAccess: 'Rear',
-    ipGrade: '65/54',
-    operatingTemperature: '-10℃~+65℃',
-    operatingHumidity: '10%~95%RH',
-    lifeTime: 100000,
-    mtbf: 10000,
-    ledChip: 'Nation star Gold Bond',
-    pcb: '4 Layer',
-    driverIC: 'MBI/ICN',
-    powerSupply: 'Meanwell',
-    controller: 'Nova',
-    cabinetMaterial: 'Die Cast',
-    price: 18400,
-    siChannelPrice: 16560,
-    resellerPrice: 15640,
-  },
-
-  {
     id: 'betel-outdoor-smd-p4',
-    name: 'Betelgeuse Series Outdoor SMD P4_1_1',
-    category: 'Betelgeuse Series',
+    name: 'Astra Prime-O P4',
+    category: 'Prime Series',
     enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P4.jpg',
     resolution: { width: 240, height: 240 },
@@ -1940,8 +1634,8 @@ export const products: Product[] = [
 
   {
     id: 'betel-outdoor-smd-p6.6',
-    name: 'Betelgeuse Series Outdoor SMD P6.6_1_1',
-    category: 'Betelgeuse Series',
+    name: 'Astra Prime-O P6.6',
+    category: 'Prime Series',
     enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P6.6.jpg',
     resolution: { width: 144, height: 144 },
@@ -1980,8 +1674,8 @@ export const products: Product[] = [
 
   {
     id: 'betel-outdoor-smd-p10',
-    name: 'Betelgeuse Series Outdoor SMD P10_1_1',
-    category: 'Betelgeuse Series',
+    name: 'Astra Prime-O P10',
+    category: 'Prime Series',
     enabled: true,
     image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P10.jpg',
     resolution: { width: 96, height: 96 },
@@ -2020,7 +1714,7 @@ export const products: Product[] = [
 
   {
     id: 'rental-indoor-p2.6',
-    name: 'Rental Series Indoor P2.6',
+    name: 'Bellatrix Series-I P2.6',
     category: 'Rental Series',
     enabled: true,
     image: '/products/rental-series/Rental SMD P2.6 Indoor.png',
@@ -2059,7 +1753,7 @@ export const products: Product[] = [
 
   {
     id: 'rental-indoor-p2.97',
-    name: 'Rental Series Indoor P2.97',
+    name: 'Bellatrix Series-I P2.97',
     category: 'Rental Series',
     enabled: true,
     image: '/products/rental-series/Rental.jpeg',
@@ -2098,7 +1792,7 @@ export const products: Product[] = [
 
   {
     id: 'rental-outdoor-p3.8',
-    name: 'Rental Series Outdoor P3.8',
+    name: 'Bellatrix Series-O P3.8',
     category: 'Rental Series',
     enabled: true,
     image: '/products/rental-series/Rental-P3.8.jpeg',
@@ -2137,7 +1831,7 @@ export const products: Product[] = [
 
   {
     id: 'rental-outdoor-p4.8',
-    name: 'Rental Series Outdoor P4.8',
+    name: 'Bellatrix Series-O P4.8',
     category: 'Rental Series',
     enabled: true,
     image: '/products/rental-series/Rental-P4.8.jpeg',
@@ -2176,7 +1870,7 @@ export const products: Product[] = [
 
   {
     id: 'jumbo-outdoor-p6',
-    name: 'Jumbo Series Outdoor P6',
+    name: 'Mega Series Outdoor P6',
     category: 'Jumbo Series',
     enabled: true,
     image: '/products/jumbo-series/Jumbo Series Outdoor P6.png',
@@ -2235,7 +1929,7 @@ export const products: Product[] = [
 
   {
     id: 'jumbo-outdoor-p4',
-    name: 'Jumbo Series Outdoor P4',
+    name: 'Mega Series Outdoor P4',
     category: 'Jumbo Series',
     enabled: true,
     image: '/products/jumbo-series/Jumbo Series Outdoor P4.png',
@@ -2294,7 +1988,7 @@ export const products: Product[] = [
 
   {
     id: 'jumbo-outdoor-p3',
-    name: 'Jumbo Series Outdoor P3',
+    name: 'Mega Series Outdoor P3',
     category: 'Jumbo Series',
     enabled: true,
     image: '/products/jumbo-series/Jumbo Series Outdoor P3.png',
@@ -2353,7 +2047,7 @@ export const products: Product[] = [
 
   {
     id: 'jumbo-indoor-p2.5',
-    name: 'Jumbo Series Outdoor P2.5',
+    name: 'Mega Series Outdoor P2.5',
     category: 'Jumbo Series',
     enabled: true,
     image: '/products/jumbo-series/Jumbo Series Outdoor P2.5.png',

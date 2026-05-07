@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Product, CabinetGrid } from '../types';
 import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
-import { hasDimensionConstraints } from '../utils/dimensionConstraints';
 
 const MM_TO_FEET = 1 / 304.8;
 
@@ -34,6 +33,7 @@ interface ProductSidebarProps {
   /** Modular Series only: wire type for pricing */
   wireType?: 'gold' | 'copper';
   onWireTypeChange?: (wireType: 'gold' | 'copper') => void;
+
 }
 
 export const ProductSidebar: React.FC<ProductSidebarProps> = ({
@@ -50,7 +50,8 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   controllerSelection,
   processorDropdownOptions,
   wireType = 'gold',
-  onWireTypeChange
+  onWireTypeChange,
+
 }) => {
   const [activeTab, setActiveTab] = useState<'dimensions' | 'processing'>('dimensions');
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
@@ -76,15 +77,16 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
-  const useModuleLabel = isJumbo || isModuleGridSeries;
-  const standeeHasConstraints = isDigitalStandee && hasDimensionConstraints(selectedProduct);
+  const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible');
+  const useModuleLabel = isJumbo || isModuleGridSeries || isDigitalStandee || isFlexibleSeries;
 
   React.useEffect(() => {
     if (isJumbo && activeTab === 'processing') setActiveTab('dimensions');
   }, [isJumbo, activeTab]);
 
-  const displayColumns = isDigitalStandee && !standeeHasConstraints ? 7 : cabinetGrid.columns;
-  const displayRows = isDigitalStandee && !standeeHasConstraints ? 5 : cabinetGrid.rows;
+  const standeeGrid = selectedProduct?.digitalStandeeCabinetGrid;
+  const displayColumns = isDigitalStandee ? (standeeGrid?.columns ?? 2) : cabinetGrid.columns;
+  const displayRows = isDigitalStandee ? (standeeGrid?.rows ?? 11) : cabinetGrid.rows;
 
   if (!selectedProduct) {
     return (
@@ -156,7 +158,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
         {(activeTab === 'dimensions' || isJumbo) ? (
           <div className="space-y-3 sm:space-y-4 lg:space-y-6">
             <div>
-              <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">Screen Size</h3>
+              <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">{isFlexibleSeries ? 'Module Size' : 'Screen Size'}</h3>
               <div className="space-y-2 sm:space-y-3 lg:space-y-4">
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
@@ -166,7 +168,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(Math.max(1, cabinetGrid.columns - 1))}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee && !standeeHasConstraints}
+                      disabled={isDigitalStandee}
                     >
                       -
                     </button>
@@ -176,7 +178,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(cabinetGrid.columns + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee && !standeeHasConstraints}
+                      disabled={isDigitalStandee}
                     >
                       +
                     </button>
@@ -191,7 +193,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(Math.max(1, cabinetGrid.rows - 1))}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee && !standeeHasConstraints}
+                      disabled={isDigitalStandee}
                     >
                       -
                     </button>
@@ -201,7 +203,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(cabinetGrid.rows + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee && !standeeHasConstraints}
+                      disabled={isDigitalStandee}
                     >
                       +
                     </button>
@@ -274,7 +276,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               <span className="font-semibold text-sm sm:text-base lg:text-lg text-gray-900">Processing</span>
             </div>
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center">
+              <label className="text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center">
                 Selected Processor
               </label>
               {onControllerChange && processorDropdownOptions && processorDropdownOptions.length > 0 ? (

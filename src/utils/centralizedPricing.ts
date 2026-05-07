@@ -51,6 +51,13 @@ function isJumboSeriesProduct(product: Product): boolean {
 }
 
 /**
+ * Check if product is Digital Standee (controller should be excluded)
+ */
+function isDigitalStandeeProduct(product: Product): boolean {
+  return product.category?.toLowerCase().includes('digital standee') ?? false;
+}
+
+/**
  * Check if product is Modular Series (wire type affects pricing)
  */
 function isModularSeriesProduct(product: Product): boolean {
@@ -158,6 +165,8 @@ function calculateQuantity(
     if (product.category?.toLowerCase().includes('rental')) {
 
       return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+    } else if (product.category?.toLowerCase().includes('digital standee')) {
+      return 1;
     } else if (isJumboSeriesProduct(product)) {
       // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
       const widthInMeters = config.width / 1000;
@@ -302,7 +311,7 @@ export function calculateCentralizedPricing(
     const productTotal = productSubtotal;
 
     let processorPrice = 0;
-    if (processor && !isJumboSeriesProduct(product)) {
+    if (processor && !isJumboSeriesProduct(product) && !isDigitalStandeeProduct(product)) {
       processorPrice = getProcessorPrice(processor, pdfUserType);
     }
 
@@ -321,8 +330,8 @@ export function calculateCentralizedPricing(
 
     if (customPricing?.enabled && customPricing.structurePrice !== null) {
       structureBasePrice = customPricing.structurePrice;
-    } else if (product.category === 'Module/ Grid Series') {
-      // Module/ Grid Series: structure per ft² — End User & SI/Channel ₹700, Reseller ₹600
+    } else if (product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('flexible')) {
+      // Module/Grid & Flexible Series: structure per ft² — End User & Channel ₹700, Reseller ₹600
       const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
       structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
     } else {
@@ -334,6 +343,12 @@ export function calculateCentralizedPricing(
     } else {
       // Installation: ₹500 per ft² for all user types (End User, SI/Channel, Reseller)
       installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 500);
+    }
+
+    // Digital Standee: quotations are product-only (no structure / installation add-ons).
+    if (isDigitalStandeeProduct(product)) {
+      structureBasePrice = 0;
+      installationBasePrice = 0;
     }
 
     const structureGST = 0;

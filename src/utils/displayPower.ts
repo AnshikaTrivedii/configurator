@@ -1,10 +1,9 @@
 /**
  * Display power calculation.
  * - Jumbo Series: Max = (modules/8)*350, Avg = (modules/8)*175.
- * - Digital Standee: P1.8 & P2.5 → avg=(modules/8)*120, max=(modules/8)*400;
- *   P4 → avg=(modules/8)*400, max=(modules/8)*750.
- * - Module/ Grid Series: P1.8 → avg=(modules/8)*225, max=(modules/8)*650;
- *   P2.5 → avg=(modules/8)*350, max=(modules/8)*650; P4 → avg=(modules/8)*400, max=(modules/8)*700.
+ * - Digital Standee: uses product spec values (avg/max) in Power Consumption Details;
+ *   P1.8 & P2.5 → <120 W avg, <400 W max; P4 → <400 W avg, <750 W max.
+ * - Module/ Grid Series & Flexible Series: power = (modules/8) × (avg/max spec W).
  * - All other series: product per-cabinet values × cabinet count.
  */
 
@@ -46,34 +45,23 @@ export function getDisplayPower(
 
   const isDigitalStandee = product?.category?.toLowerCase().includes('digital standee');
   if (isDigitalStandee && product) {
-    const factor = modules / 8;
-    const standeePower: Record<string, { avgW: number; maxW: number }> = {
-      'orion-p18-digital-standee': { avgW: 120, maxW: 400 },
-      'orion-p25-digital-standee': { avgW: 120, maxW: 400 },
-      'orion-p4-digital-standee': { avgW: 400, maxW: 750 }
-    };
-    const { avgW, maxW } = standeePower[product.id ?? ''] ?? { avgW: 120, maxW: 400 };
-    const avgPower = Math.round(factor * avgW * 100) / 100;
-    const maxPower = Math.round(factor * maxW * 100) / 100;
-    const avgPerUnit = modules > 0 ? avgPower / modules : 0;
-    const maxPerUnit = modules > 0 ? maxPower / modules : 0;
+    // Digital Standee: show product spec values in Power Consumption Details (same as product spec)
+    const avgW = product.avgPowerConsumption ?? 120;
+    const maxW = product.maxPowerConsumption ?? 400;
     return {
-      avgPower,
-      maxPower,
-      avgPowerPerCabinet: Math.round(avgPerUnit * 100) / 100,
-      maxPowerPerCabinet: Math.round(maxPerUnit * 100) / 100
+      avgPower: avgW,
+      maxPower: maxW,
+      avgPowerPerCabinet: avgW,
+      maxPowerPerCabinet: maxW
     };
   }
 
-  if (isModuleGridSeries && product) {
-    // Module/ Grid Series: per-pitch formulas — power = (modules/8) × W
+  const isFlexibleSeries = product?.category?.toLowerCase().includes('flexible');
+  if ((isModuleGridSeries || isFlexibleSeries) && product) {
+    // Module/ Grid Series & Flexible Series: power = (modules/8) × (avg/max spec W)
     const factor = modules / 8;
-    const moduleGridPower: Record<string, { avgW: number; maxW: number }> = {
-      'orion-module-grid-p18': { avgW: 225, maxW: 650 },
-      'orion-module-grid-p25': { avgW: 350, maxW: 650 },
-      'orion-module-grid-p4': { avgW: 400, maxW: 700 }
-    };
-    const { avgW, maxW } = moduleGridPower[product.id ?? ''] ?? { avgW: 350, maxW: 650 };
+    const avgW = product.avgPowerConsumption ?? 350;
+    const maxW = product.maxPowerConsumption ?? 650;
     const avgPower = Math.round(factor * avgW * 100) / 100;
     const maxPower = Math.round(factor * maxW * 100) / 100;
     const avgPerUnit = modules > 0 ? avgPower / modules : 0;

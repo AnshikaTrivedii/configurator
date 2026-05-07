@@ -99,18 +99,18 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 
   /**
    * Map warranty years to product series
-   * Betelgeuse Series → 5 Years
-   * Rigel Series → 3 Years
-   * Bellatrix Series, Jumbo Series, Module/ Grid Series, Modular Series → 2 Years
+   * Prime Series → 5 Years
+   * Edge Series → 3 Years
+   * Core Series, Jumbo Series, Module/ Grid Series, Modular Series → 2 Years
    */
   const getSeriesForWarranty = (warrantyYears: number): string[] => {
     switch (warrantyYears) {
       case 5:
-        return ['Betelgeuse Series'];
+        return ['Prime Series'];
       case 3:
-        return ['Rigel Series'];
+        return ['Edge Series'];
       case 2:
-        return ['Bellatrix Series', 'Jumbo Series', 'Module/ Grid Series', 'Modular Series'];
+        return ['Core Series', 'Jumbo Series', 'Module/ Grid Series', 'Modular Series'];
       default:
         return [];
     }
@@ -644,7 +644,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {([5, 3, 2] as const).map((years) => {
                   const allowedSeries = getSeriesForWarranty(years);
-                  const seriesLabel = years === 5 ? 'Betelgeuse Series' : years === 3 ? 'Rigel Series' : 'Bellatrix Series, Jumbo Series, Module/ Grid Series, Modular Series';
+                  const seriesLabel = years === 5 ? 'Prime Series' : years === 3 ? 'Edge Series' : 'Core Series, Jumbo Series, Module/ Grid Series, Modular Series';
                   const cardSelectedEnv = environment?.toLowerCase().trim();
 
                   // Calculate matching products with all previous filters + warranty (pixel pitch applies to all series including Jumbo)
