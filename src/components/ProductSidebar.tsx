@@ -36,6 +36,8 @@ interface ProductSidebarProps {
   /** Nexa Series only: variants for the same pitch */
   nexaVariants?: Product[];
   onProductChange?: (product: Product) => void;
+  nexaAddons?: string[];
+  onNexaAddonsChange?: (addons: string[]) => void;
 }
 
 export const ProductSidebar: React.FC<ProductSidebarProps> = ({
@@ -54,7 +56,9 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   wireType = 'gold',
   onWireTypeChange,
   nexaVariants,
-  onProductChange
+  onProductChange,
+  nexaAddons = [],
+  onNexaAddonsChange
 }) => {
   const [activeTab, setActiveTab] = useState<'dimensions' | 'processing'>('dimensions');
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
@@ -235,6 +239,42 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                       </label>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {isNexa && onNexaAddonsChange && (
+              <div className="pt-2 sm:pt-3 border-t border-gray-200">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Add ons</h3>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={nexaAddons.includes('IR Touch')}
+                      onChange={(e) => {
+                        const newAddons = e.target.checked 
+                          ? [...nexaAddons, 'IR Touch']
+                          : nexaAddons.filter(a => a !== 'IR Touch');
+                        onNexaAddonsChange(newAddons);
+                      }}
+                      className="rounded border-gray-300 text-black focus:ring-black"
+                    />
+                    <span className="text-xs sm:text-sm">IR Touch</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={nexaAddons.includes('Floor Mount Stand')}
+                      onChange={(e) => {
+                        const newAddons = e.target.checked 
+                          ? [...nexaAddons, 'Floor Mount Stand']
+                          : nexaAddons.filter(a => a !== 'Floor Mount Stand');
+                        onNexaAddonsChange(newAddons);
+                      }}
+                      className="rounded border-gray-300 text-black focus:ring-black"
+                    />
+                    <span className="text-xs sm:text-sm">Floor Mount Stand</span>
+                  </label>
                 </div>
               </div>
             )}

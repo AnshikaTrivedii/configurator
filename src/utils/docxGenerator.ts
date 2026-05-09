@@ -92,7 +92,8 @@ export const generateConfigurationDocx = async (
       discountedGrandTotal?: number;
     };
   },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): Promise<Blob> => {
   try {
 
@@ -107,7 +108,8 @@ export const generateConfigurationDocx = async (
       quotationId,
       customPricing,
       exactPricingBreakdown,
-      wireType
+      wireType,
+      nexaAddons
     );
 
     const container = document.createElement('div');
@@ -293,7 +295,8 @@ export const generateConfigurationHtml = (
       discountedGrandTotal?: number;
     };
   },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): string => {
 
   const METERS_TO_FEET = 3.2808399;
@@ -876,6 +879,7 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-label">Pixel Pitch:</span>
                                 <span class="quotation-value">P${selectedProduct.pixelPitch}</span>
                             </div>
+                            ${!isFixed ? `
                             <div class="quotation-row">
                                 <span class="quotation-label">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series') ? 'Module Dimension:' : isDigitalStandee ? 'Frame Size:' : 'Cabinet Dimension:'}</span>
                                 <span class="quotation-value">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series') ? `${selectedProduct.moduleDimensions.width} x ${selectedProduct.moduleDimensions.height}` : `${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height}`} mm</span>
@@ -888,6 +892,7 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-label">Display Size (ft):</span>
                                 <span class="quotation-value">${toDisplayUnit(config.width, 'ft')} x ${toDisplayUnit(config.height, 'ft')}</span>
                             </div>
+                            ` : ''}
                             <div class="quotation-row">
                                 <span class="quotation-label">Resolution:</span>
                                 <span class="quotation-value">${isDigitalStandee ? `${selectedProduct.resolution.width} x ${selectedProduct.resolution.height}` : `${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}`}</span>
@@ -906,6 +911,12 @@ export const generateConfigurationHtml = (
                               ? `<div class="quotation-row">
                                 <span class="quotation-label">Rental Option:</span>
                                 <span class="quotation-value">${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'}</span>
+                            </div>`
+                              : ''}
+                            ${isFixed && nexaAddons && nexaAddons.length > 0
+                              ? `<div class="quotation-row">
+                                <span class="quotation-label">Add-ons:</span>
+                                <span class="quotation-value">${nexaAddons.join(', ')}</span>
                             </div>`
                               : ''}
                         </div>
@@ -1003,7 +1014,7 @@ export const generateConfigurationHtml = (
             </div>
             ` : ''}
             
-            ${!isRentalProduct && !isDigitalStandee ? `<!-- Structure and Installation (excluded for Rental Series and Digital Standee) -->
+            ${!isRentalProduct && !isDigitalStandee && !isFixed ? `<!-- Structure and Installation (excluded for Rental Series, Digital Standee, and Nexa) -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
                     ${structureInstallationSectionTitle}
@@ -1209,7 +1220,8 @@ export const generateConfigurationPdf = async (
       discountAmount?: number;
     };
   },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): Promise<Blob> => {
   const html = generateConfigurationHtml(
     config,
@@ -1222,7 +1234,8 @@ export const generateConfigurationPdf = async (
     quotationId,
     customPricing,
     exactPricingBreakdown,
-    wireType
+    wireType,
+    nexaAddons
   );
 
   const container = document.createElement('div');
@@ -1396,7 +1409,8 @@ export const generateAlternatePdf = async (
       discountAmount?: number;
     };
   },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): Promise<Blob> => {
   const html = generateConfigurationHtml(
     config,
@@ -1409,7 +1423,8 @@ export const generateAlternatePdf = async (
     quotationId,
     customPricing,
     exactPricingBreakdown,
-    wireType
+    wireType,
+    nexaAddons
   );
 
   const container = document.createElement('div');

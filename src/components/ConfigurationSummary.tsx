@@ -30,6 +30,7 @@ interface ConfigurationSummaryProps {
   selectedProduct?: Product;
   processor?: string;
   mode?: string;
+  nexaAddons?: string[];
 }
 
 function formatIndianNumber(x: number): string {
@@ -69,7 +70,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   cabinetGrid,
   selectedProduct,
   processor,
-  mode
+  mode,
+  nexaAddons = []
 }) => {
   const { config: globalConfig } = useDisplayConfig();
   const wireType = globalConfig.wireType ?? 'gold';
@@ -138,20 +140,23 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
       {/* Main Configuration Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
         {/* Size (w × h) */}
-        <div className="bg-blue-50 p-3 sm:p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
-          <div className="flex items-start space-x-2 sm:space-x-3">
-            <div className="p-1.5 sm:p-2 rounded-lg bg-blue-100 text-blue-500 bg-opacity-50 flex-shrink-0">
-              <Ruler className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Size (w × h)</h3>
-              <p className="mt-1 text-sm sm:text-lg font-semibold text-blue-700 break-words">
-                {toDisplayUnit(config.width, config.unit)} {config.unit}<br />
-                {toDisplayUnit(config.height, config.unit)} {config.unit}
-              </p>
+        {/* Size (w × h) - Hidden for Nexa */}
+        {!isNexa && (
+          <div className="bg-blue-50 p-3 sm:p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
+            <div className="flex items-start space-x-2 sm:space-x-3">
+              <div className="p-1.5 sm:p-2 rounded-lg bg-blue-100 text-blue-500 bg-opacity-50 flex-shrink-0">
+                <Ruler className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Size (w × h)</h3>
+                <p className="mt-1 text-sm sm:text-lg font-semibold text-blue-700 break-words">
+                  {toDisplayUnit(config.width, config.unit)} {config.unit}<br />
+                  {toDisplayUnit(config.height, config.unit)} {config.unit}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Resolution */}
         <div className="bg-purple-50 p-3 sm:p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
@@ -363,10 +368,20 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             )}
           </div>
           <div className="space-y-2 sm:space-y-3">
-            <div className="bg-white rounded-lg p-2 sm:p-3">
-              <div className="text-xs sm:text-sm text-gray-600 mb-1">{isModuleGridSeries ? 'Module Size' : isJumboSeries ? 'Screen Size' : isDigitalStandee ? 'Cabinet Frame Size' : isFlexibleSeries ? 'Module Size' : 'Cabinet Size'}</div>
-              <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm</div>
-            </div>
+            {!isNexa && (
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">{isModuleGridSeries ? 'Module Size' : isJumboSeries ? 'Screen Size' : isDigitalStandee ? 'Cabinet Frame Size' : isFlexibleSeries ? 'Module Size' : 'Cabinet Size'}</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm</div>
+              </div>
+            )}
+            {isNexa && nexaAddons.length > 0 && (
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">Selected Add-ons</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">
+                  {nexaAddons.join(', ')}
+                </div>
+              </div>
+            )}
             {isDigitalStandee && (
               <div className="bg-white rounded-lg p-2 sm:p-3">
                 <div className="text-xs sm:text-sm text-gray-600 mb-1">Screen Weight</div>

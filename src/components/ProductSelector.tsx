@@ -751,19 +751,21 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                       <p className="text-gray-500">Refresh Rate</p>
                       <p className="font-medium text-gray-800">{product.refreshRate} Hz</p>
                     </div>
-                    <div className="col-span-2">
-                      <p className="text-gray-500">{(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo')) ? 'Module Dimension (W × H)' : product.category === 'Digital Standee Series' ? 'Cabinet Frame Size (W × H)' : product.category?.toLowerCase().includes('flexible') ? 'Module Size (W × H)' : 'Cabinet Size (W × H)'}</p>
-                      <p className="font-medium text-gray-800">
-                        {(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo'))
-                          ? `${product.moduleDimensions.width} × ${product.moduleDimensions.height}`
-                          : `${product.cabinetDimensions.width} × ${product.cabinetDimensions.height}`} mm
-                      </p>
-                      {product.sizeInInches && (
-                        <p className="text-gray-500 text-xs mt-1">
-                          {product.sizeInInches.width} × {product.sizeInInches.height} (in)
+                    {!isNexaSeries(product) && (
+                      <div className="col-span-2">
+                        <p className="text-gray-500">{(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo')) ? 'Module Dimension (W × H)' : product.category === 'Digital Standee Series' ? 'Cabinet Frame Size (W × H)' : product.category?.toLowerCase().includes('flexible') ? 'Module Size (W × H)' : 'Cabinet Size (W × H)'}</p>
+                        <p className="font-medium text-gray-800">
+                          {(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo'))
+                            ? `${product.moduleDimensions.width} × ${product.moduleDimensions.height}`
+                            : `${product.cabinetDimensions.width} × ${product.cabinetDimensions.height}`} mm
                         </p>
-                      )}
-                    </div>
+                        {product.sizeInInches && (
+                          <p className="text-gray-500 text-xs mt-1">
+                            {product.sizeInInches.width} × {product.sizeInInches.height} (in)
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

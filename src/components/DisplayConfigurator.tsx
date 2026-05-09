@@ -982,6 +982,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             onWireTypeChange={(wt) => updateConfig({ wireType: wt })}
             nexaVariants={nexaVariants}
             onProductChange={handleProductSelect}
+            nexaAddons={globalConfig.nexaAddons}
+            onNexaAddonsChange={(addons) => updateConfig({ nexaAddons: addons })}
           />
         </div>
 
@@ -1112,7 +1114,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                       <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Category</h4>
                       <p className="text-gray-600 text-xs sm:text-sm">{selectedProduct.category}</p>
                     </div>
-                    {!isJumbo && !isFlexibleSeries && (
+                    {!isJumbo && !isFlexibleSeries && !isNexa && (
                       <>
                         <div>
                           <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Size' : isDigitalStandeeSeries ? 'Cabinet Frame Size' : isFlexibleSeries ? 'Module Size' : 'Cabinet Size'}</h4>
@@ -1256,6 +1258,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                 selectedProduct={selectedProduct}
                 processor={effectiveProcessor}
                 mode={selectedMode}
+                nexaAddons={globalConfig.nexaAddons}
               />
 
               {/* Action Buttons */}

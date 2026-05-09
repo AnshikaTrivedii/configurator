@@ -18,6 +18,8 @@ export interface DisplayConfigState {
   selectedProductName: string | null;
   /** Modular Series only: wire type for pricing. Default 'gold'. */
   wireType: WireType;
+  /** Nexa Series only: selected add-ons */
+  nexaAddons: string[];
 }
 
 interface DisplayConfigContextType {
@@ -42,7 +44,8 @@ const defaultConfig: DisplayConfigState = {
   entryMode: null,
   directProductMode: false,
   selectedProductName: null,
-  wireType: 'gold'
+  wireType: 'gold',
+  nexaAddons: []
 };
 
 const loadFromStorage = (): DisplayConfigState => {
@@ -53,7 +56,8 @@ const loadFromStorage = (): DisplayConfigState => {
       return {
         ...defaultConfig,
         ...parsed,
-        wireType: parsed.wireType === 'copper' ? 'copper' : 'gold'
+        wireType: parsed.wireType === 'copper' ? 'copper' : 'gold',
+        nexaAddons: Array.isArray(parsed.nexaAddons) ? parsed.nexaAddons : []
       };
     }
   } catch (error) {
@@ -82,7 +86,8 @@ const areConfigsEqual = (a: DisplayConfigState, b: DisplayConfigState) => {
     a.entryMode === b.entryMode &&
     a.directProductMode === b.directProductMode &&
     a.selectedProductName === b.selectedProductName &&
-    a.wireType === b.wireType
+    a.wireType === b.wireType &&
+    JSON.stringify(a.nexaAddons) === JSON.stringify(b.nexaAddons)
   );
 };
 

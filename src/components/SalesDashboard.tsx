@@ -878,7 +878,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                                   {quotation.exactProductSpecs.cabinetGrid.columns}x{quotation.exactProductSpecs.cabinetGrid.rows}
                                 </span>
                               )}
-                              {quotation.exactProductSpecs?.displaySize && (
+                              {quotation.exactProductSpecs?.displaySize && !quotation.exactProductSpecs?.isFixed && (
                                 <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
                                   {quotation.exactProductSpecs.displaySize.width?.toFixed(2)}m x {quotation.exactProductSpecs.displaySize.height?.toFixed(2)}m
                                 </span>
