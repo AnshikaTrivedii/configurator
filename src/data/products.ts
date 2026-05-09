@@ -2646,7 +2646,7 @@ export const products: Product[] = [
 
   {
     id: "nexa-p125-108",
-    name: "Nexa Series 108\" P1.25",
+    name: "Nexa Series 108\" P1.25 (Astra)",
     category: "Nexa Series",
     isFixed: true,
     enabled: true,
@@ -2690,7 +2690,7 @@ export const products: Product[] = [
   },
   {
     id: "nexa-p125-216",
-    name: "Nexa Series 216\" P1.25",
+    name: "Nexa Series 216\" P1.25 (Astra)",
     category: "Nexa Series",
     isFixed: true,
     enabled: true,
@@ -2734,7 +2734,7 @@ export const products: Product[] = [
   },
   {
     id: "nexa-p156-135",
-    name: "Nexa Series 135\" P1.56",
+    name: "Nexa Series 135\" P1.56 (Astra)",
     category: "Nexa Series",
     isFixed: true,
     enabled: true,
@@ -2778,7 +2778,7 @@ export const products: Product[] = [
   },
   {
     id: "nexa-p1875-162",
-    name: "Nexa Series 162\" P1.875",
+    name: "Nexa Series 162\" P1.875 (Astra)",
     category: "Nexa Series",
     isFixed: true,
     enabled: true,
@@ -2822,7 +2822,7 @@ export const products: Product[] = [
   },
   {
     id: "nexa-p09-162-cob",
-    name: "Nexa Series 162\" P0.9 (COB)",
+    name: "Nexa Series 162\" P0.9 (Sigma)",
     category: "Nexa Series",
     isFixed: true,
     enabled: true,
