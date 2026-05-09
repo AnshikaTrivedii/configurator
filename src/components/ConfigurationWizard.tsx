@@ -122,7 +122,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       case 5:
         return ['Prime Series'];
       case 3:
-        return ['Edge Series'];
+        return ['Edge Series', 'Nexa Series'];
       case 2:
         return ['Core Series', 'Jumbo Series', 'Module/ Grid Series', 'Modular Series'];
       default:
@@ -175,6 +175,10 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       
       const pitchMatch = pixelPitch === null || Math.abs(selectedProduct.pixelPitch - pixelPitch) < 0.3;
       
+      // Override dimensions for fixed products
+      const finalWidthMM = selectedProduct.isFixed ? selectedProduct.cabinetDimensions.width : widthMM;
+      const finalHeightMM = selectedProduct.isFixed ? selectedProduct.cabinetDimensions.height : heightMM;
+      
       if (!envMatch) {
 
       }
@@ -184,8 +188,8 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       }
 
       onComplete({
-        width: widthMM,
-        height: heightMM,
+        width: finalWidthMM,
+        height: finalHeightMM,
         unit,
         viewingDistance,
         viewingDistanceUnit,

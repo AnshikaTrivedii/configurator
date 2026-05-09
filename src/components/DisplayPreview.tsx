@@ -243,6 +243,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
 
   const isJumbo = selectedProduct?.category?.toLowerCase().includes('jumbo') ?? false;
   const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible') ?? false;
+  const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
 
   const useModuleGrid = selectedProduct && (
     selectedProduct.category === 'Module/ Grid Series' ||
@@ -478,22 +479,24 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
             accept="image/*,video/*"
           />
           {!(backgroundImage || backgroundVideo) && (isJumbo ? renderJumboPreview() : (useModuleGrid ? renderModuleGrid() : renderCabinetGrid()))}
-          {!(backgroundImage || backgroundVideo) && !selectedProduct?.category?.toLowerCase().includes('jumbo') && (
+          {!(backgroundImage || backgroundVideo) && !isJumbo && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="bg-black bg-opacity-60 text-white p-1 sm:p-2 lg:p-4 rounded-lg backdrop-blur-sm text-center">
                 <h3 className="text-xs sm:text-sm lg:text-lg font-bold mb-1">
-                  {useModuleGrid
+                  {isNexa ? selectedProduct?.name : (useModuleGrid
                     ? `${moduleGrid?.columns ?? 0} × ${moduleGrid?.rows ?? 0} Module Grid`
-                    : `${cabinetGrid.columns} × ${cabinetGrid.rows} Grid`}
+                    : `${cabinetGrid.columns} × ${cabinetGrid.rows} Grid`)}
                 </h3>
                 <p className="text-xs sm:text-sm">
-                  {useModuleGrid ? `${(moduleGrid?.columns ?? 0) * (moduleGrid?.rows ?? 0)} Modules Total` : `${cabinetGrid.columns * cabinetGrid.rows} Cabinets Total`}
+                  {isNexa ? 'All-in-One Unit' : (useModuleGrid ? `${(moduleGrid?.columns ?? 0) * (moduleGrid?.rows ?? 0)} Modules Total` : `${cabinetGrid.columns * cabinetGrid.rows} Cabinets Total`)}
                 </p>
                 {selectedProduct && (
                   <p className="text-xs mt-1 opacity-90">                                   
-                    {useModuleGrid
-                      ? `${selectedProduct.moduleDimensions.width}×${selectedProduct.moduleDimensions.height}mm each`
-                      : `${selectedProduct.cabinetDimensions.width}×${selectedProduct.cabinetDimensions.height}mm each`}
+                    {isNexa 
+                      ? `${selectedProduct.cabinetDimensions.width}×${selectedProduct.cabinetDimensions.height}mm`
+                      : (useModuleGrid
+                        ? `${selectedProduct.moduleDimensions.width}×${selectedProduct.moduleDimensions.height}mm each`
+                        : `${selectedProduct.cabinetDimensions.width}×${selectedProduct.cabinetDimensions.height}mm each`)}
                   </p>
                 )}
               </div>
@@ -623,22 +626,24 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
           />
           {/* Cabinet grid, overlays, and corners only if no background. Jumbo: single centered logo, no grid. */}
           {!(backgroundImage || backgroundVideo) && (isJumbo ? renderJumboPreview() : (useModuleGrid ? renderModuleGrid() : renderCabinetGrid()))}
-          {!(backgroundImage || backgroundVideo) && !selectedProduct?.category?.toLowerCase().includes('jumbo') && (
+          {!(backgroundImage || backgroundVideo) && !isJumbo && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="bg-black bg-opacity-60 text-white p-1 sm:p-2 lg:p-4 rounded-lg backdrop-blur-sm text-center">
                 <h3 className="text-xs sm:text-sm lg:text-lg font-bold mb-1">
-                  {useModuleGrid
+                  {isNexa ? selectedProduct?.name : (useModuleGrid
                     ? `${moduleGrid?.columns ?? 0} × ${moduleGrid?.rows ?? 0} Module Grid`
-                    : `${cabinetGrid.columns} × ${cabinetGrid.rows} Grid`}
+                    : `${cabinetGrid.columns} × ${cabinetGrid.rows} Grid`)}
                 </h3>
                 <p className="text-xs sm:text-sm">
-                  {useModuleGrid ? `${(moduleGrid?.columns ?? 0) * (moduleGrid?.rows ?? 0)} Modules Total` : `${cabinetGrid.columns * cabinetGrid.rows} Cabinets Total`}
+                  {isNexa ? 'All-in-One Unit' : (useModuleGrid ? `${(moduleGrid?.columns ?? 0) * (moduleGrid?.rows ?? 0)} Modules Total` : `${cabinetGrid.columns * cabinetGrid.rows} Cabinets Total`)}
                 </p>
                 {selectedProduct && (
                   <p className="text-xs mt-1 opacity-90">                                   
-                    {useModuleGrid
-                      ? `${selectedProduct.moduleDimensions.width}×${selectedProduct.moduleDimensions.height}mm each`
-                      : `${selectedProduct.cabinetDimensions.width}×${selectedProduct.cabinetDimensions.height}mm each`}
+                    {isNexa 
+                      ? `${selectedProduct.cabinetDimensions.width}×${selectedProduct.cabinetDimensions.height}mm`
+                      : (useModuleGrid
+                        ? `${selectedProduct.moduleDimensions.width}×${selectedProduct.moduleDimensions.height}mm each`
+                        : `${selectedProduct.cabinetDimensions.width}×${selectedProduct.cabinetDimensions.height}mm each`)}
                   </p>
                 )}
               </div>

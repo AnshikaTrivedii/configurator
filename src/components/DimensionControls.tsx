@@ -74,8 +74,9 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
 
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
+  const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
   const hasConstraints = selectedProduct ? hasDimensionConstraints(selectedProduct) : false;
-  const isFixedGrid = isDigitalStandee || (isJumbo && !hasConstraints);
+  const isFixedGrid = isDigitalStandee || isNexa || (isJumbo && !hasConstraints);
 
   const dimensionValidation = selectedProduct
     ? validateDimensions(selectedProduct, config.width, config.height)

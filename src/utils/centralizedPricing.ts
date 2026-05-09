@@ -64,6 +64,13 @@ function isModularSeriesProduct(product: Product): boolean {
   return product.category?.toLowerCase().includes('modular') ?? false;
 }
 
+/**
+ * Check if product is fixed (Nexa Series)
+ */
+function isFixedProduct(product: Product): boolean {
+  return product.isFixed === true || product.category?.toLowerCase().includes('nexa') || false;
+}
+
 /** Modular Series pricing by pixel pitch (mm) -> wire type -> End User, SI Channel, Reseller */
 const MODULAR_PRICING: Record<number, { gold: [number, number, number]; copper: [number, number, number] }> = {
   3.91: { gold: [19800, 17900, 16800], copper: [9900, 9000, 8400] },
@@ -165,7 +172,7 @@ function calculateQuantity(
     if (product.category?.toLowerCase().includes('rental')) {
 
       return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-    } else if (product.category?.toLowerCase().includes('digital standee')) {
+    } else if (product.category?.toLowerCase().includes('digital standee') || isFixedProduct(product)) {
       return 1;
     } else if (isJumboSeriesProduct(product)) {
       // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
@@ -345,8 +352,8 @@ export function calculateCentralizedPricing(
       installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 500);
     }
 
-    // Digital Standee: quotations are product-only (no structure / installation add-ons).
-    if (isDigitalStandeeProduct(product)) {
+    // Digital Standee & Fixed Products: quotations are product-only (no structure / installation add-ons).
+    if (isDigitalStandeeProduct(product) || isFixedProduct(product)) {
       structureBasePrice = 0;
       installationBasePrice = 0;
     }

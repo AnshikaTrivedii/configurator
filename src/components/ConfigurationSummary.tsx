@@ -84,7 +84,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
   const isModularSeries = selectedProduct.category?.toLowerCase().includes('modular');
   const isFlexibleSeries = selectedProduct.category?.toLowerCase().includes('flexible');
-  const useModuleTerminology = isJumboSeries || isModuleGridSeries || isDigitalStandee || isFlexibleSeries;
+  const isNexa = selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa');
+  const useModuleTerminology = isJumboSeries || isModuleGridSeries || isDigitalStandee || isFlexibleSeries || isNexa;
 
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
   const MM_TO_FEET = 1 / FEET_TO_MM;
@@ -235,7 +236,9 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Display Diagonal</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-indigo-700 break-words">
-                {diagonalM.toFixed(2)} m ({diagonalFt.toFixed(2)} ft)
+                {isNexa && selectedProduct.name.includes('"') 
+                  ? selectedProduct.name.split(' ').find(word => word.includes('"')) 
+                  : `${diagonalM.toFixed(2)} m (${diagonalFt.toFixed(2)} ft)`}
               </p>
             </div>
           </div>
@@ -392,8 +395,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
         </div>
       </div>
 
-      {/* Controller Information - Hidden for Jumbo Series (prices include controllers) and Digital Standee */}
-      {!isJumboSeries && !isDigitalStandee && (processor || mode) && (
+      {/* Controller Information - Hidden for Jumbo Series (prices include controllers), Digital Standee, and Nexa Series */}
+      {!isJumboSeries && !isDigitalStandee && !isNexa && (processor || mode) && (
         <div className="bg-indigo-50 rounded-xl p-3 sm:p-4 transition-all duration-200 hover:shadow-md">
           <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
             <div className="p-1.5 sm:p-2 rounded-lg bg-indigo-100 text-indigo-500 bg-opacity-50">

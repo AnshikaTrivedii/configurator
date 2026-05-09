@@ -33,7 +33,9 @@ interface ProductSidebarProps {
   /** Modular Series only: wire type for pricing */
   wireType?: 'gold' | 'copper';
   onWireTypeChange?: (wireType: 'gold' | 'copper') => void;
-
+  /** Nexa Series only: variants for the same pitch */
+  nexaVariants?: Product[];
+  onProductChange?: (product: Product) => void;
 }
 
 export const ProductSidebar: React.FC<ProductSidebarProps> = ({
@@ -51,7 +53,8 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   processorDropdownOptions,
   wireType = 'gold',
   onWireTypeChange,
-
+  nexaVariants,
+  onProductChange
 }) => {
   const [activeTab, setActiveTab] = useState<'dimensions' | 'processing'>('dimensions');
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
@@ -76,9 +79,10 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
 
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
+  const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
   const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible');
-  const useModuleLabel = isJumbo || isModuleGridSeries || isDigitalStandee || isFlexibleSeries;
+  const useModuleLabel = isJumbo || isModuleGridSeries || isDigitalStandee || isFlexibleSeries || isNexa;
 
   React.useEffect(() => {
     if (isJumbo && activeTab === 'processing') setActiveTab('dimensions');
@@ -168,7 +172,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(Math.max(1, cabinetGrid.columns - 1))}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee}
+                      disabled={isDigitalStandee || isNexa}
                     >
                       -
                     </button>
@@ -178,7 +182,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(cabinetGrid.columns + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee}
+                      disabled={isDigitalStandee || isNexa}
                     >
                       +
                     </button>
@@ -193,7 +197,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(Math.max(1, cabinetGrid.rows - 1))}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee}
+                      disabled={isDigitalStandee || isNexa}
                     >
                       -
                     </button>
@@ -203,7 +207,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(cabinetGrid.rows + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee}
+                      disabled={isDigitalStandee || isNexa}
                     >
                       +
                     </button>
@@ -211,6 +215,29 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                 </div>
               </div>
             </div>
+
+            {isNexa && nexaVariants && nexaVariants.length > 1 && onProductChange && (
+              <div className="pt-2 sm:pt-3 border-t border-gray-200">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Diagonal Size</h3>
+                <div className="flex flex-wrap gap-3">
+                  {nexaVariants.map((variant) => {
+                    const diagonal = variant.name.split(' ').find(word => word.includes('"'));
+                    return (
+                      <label key={variant.id} className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="nexaDiagonal"
+                          checked={selectedProduct.id === variant.id}
+                          onChange={() => onProductChange(variant)}
+                          className="text-black focus:ring-black"
+                        />
+                        <span className="text-xs sm:text-sm">{diagonal || variant.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {isModularSeries && onWireTypeChange && (
               <div className="pt-2 sm:pt-3 border-t border-gray-200">

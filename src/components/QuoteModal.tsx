@@ -30,6 +30,10 @@ function isModularSeriesProduct(product: ProductWithPricing): boolean {
   return product.category?.toLowerCase().includes('modular') ?? false;
 }
 
+function isFixedProduct(product: ProductWithPricing): boolean {
+  return product.isFixed || product.category?.toLowerCase().includes('nexa');
+}
+
 function calculateCorrectTotalPrice(
   product: ProductWithPricing,
   cabinetGrid: { columns: number; rows: number } | null | undefined,
@@ -89,7 +93,7 @@ function calculateCorrectTotalPrice(
   if (product.category?.toLowerCase().includes('rental')) {
 
     quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-  } else if (product.category?.toLowerCase().includes('digital standee')) {
+  } else if (product.category?.toLowerCase().includes('digital standee') || isFixedProduct(product)) {
     quantity = 1;
   } else if (isJumboSeriesProduct(product)) {
     // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
@@ -130,7 +134,7 @@ function calculateCorrectTotalPrice(
   const gstProcessor = 0;
   const totalProcessor = processorPrice;
 
-  if (product.category?.toLowerCase().includes('digital standee')) {
+  if (product.category?.toLowerCase().includes('digital standee') || isFixedProduct(product)) {
     return Math.round(totalProduct + totalProcessor);
   }
 
@@ -532,9 +536,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         }
 
         let quantity = 0;
+        const isFixed = isFixedProduct(selectedProduct as any);
         if (selectedProduct.category?.toLowerCase().includes('rental')) {
           quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-        } else if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
+        } else if (selectedProduct.category?.toLowerCase().includes('digital standee') || isFixed) {
           quantity = 1;
         } else if (isJumboSeriesProduct(selectedProduct as any)) {
           // Jumbo: prices per ft² (controller included). Quantity = display area in sq ft.
@@ -573,7 +578,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         const heightInMeters = configForCalc.height / 1000;
         const screenAreaSqFt = Math.round((widthInMeters * METERS_TO_FEET * heightInMeters * METERS_TO_FEET) * 100) / 100;
 
-        if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
+        if (selectedProduct.category?.toLowerCase().includes('digital standee') || isFixed) {
           structureBasePrice = 0;
           installationBasePrice = 0;
         } else if (customPricingObj?.enabled && customPricingObj.structurePrice !== null) {

@@ -24,6 +24,7 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
   });
 
   const updateWidth = (newWidth: number, addCabinets = 0) => {
+    if (selectedProduct?.isFixed || selectedProduct?.category?.toLowerCase().includes('nexa')) return;
     setConfig(prev => {
       const cabinet = getCabinetDimensions();
       let width = newWidth;
@@ -54,6 +55,7 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
   };
 
   const updateHeight = (newHeight: number, addCabinets = 0) => {
+    if (selectedProduct?.isFixed || selectedProduct?.category?.toLowerCase().includes('nexa')) return;
     setConfig(prev => {
       const cabinet = getCabinetDimensions();
       let height = newHeight;
@@ -129,6 +131,14 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
   };
 
   const calculateCabinetGrid = (selectedProduct: Product | undefined): CabinetGrid => {
+    if (selectedProduct?.isFixed || selectedProduct?.category?.toLowerCase().includes('nexa')) {
+      return {
+        columns: 1,
+        rows: 1,
+        totalWidth: selectedProduct.cabinetDimensions.width,
+        totalHeight: selectedProduct.cabinetDimensions.height
+      };
+    }
     const c = selectedProduct?.dimensionConstraints;
     const cabinet = c
       ? { width: c.moduleWidth, height: c.moduleHeight }

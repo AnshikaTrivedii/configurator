@@ -29,7 +29,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 }) => {
   const { updateConfig } = useDisplayConfig();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series' | 'Digital Standee Series' | 'Modular Series' | 'Flexible Series'>('All');
+  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series' | 'Digital Standee Series' | 'Modular Series' | 'Flexible Series' | 'Nexa Series'>('All');
   const [flexibleSubType, setFlexibleSubType] = useState<'Module Base' | 'Cabinet Base' | null>(null);
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
   const [pendingRentalProduct, setPendingRentalProduct] = useState<ProductWithOptionalSize | null>(null);
@@ -140,6 +140,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const isFlexibleSeries = (product: Product) =>
     product.category && product.category.toLowerCase().includes('flexible');
 
+  const isNexaSeries = (product: Product) =>
+    product.isFixed || (product.category && product.category.toLowerCase().includes('nexa'));
+
   const recommendedPixelPitches = useMemo(() => {
     if (!viewingDistanceValue) return [];
     const env = selectedFilter === 'Indoor' || selectedFilter === 'Outdoor' ? selectedFilter : null;
@@ -163,6 +166,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       tempProducts = tempProducts.filter((p) => isModularSeries(p));
     } else if (selectedFilter === 'Flexible Series') {
       tempProducts = tempProducts.filter((p) => isFlexibleSeries(p));
+    } else if (selectedFilter === 'Nexa Series') {
+      tempProducts = tempProducts.filter((p) => isNexaSeries(p));
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
@@ -206,6 +211,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
         return [];
       }
       // Module Base (or no sub-type yet selected) shows all flexible products
+    } else if (selectedFilter === 'Nexa Series') {
+      filtered = filtered.filter((p) => isNexaSeries(p));
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
@@ -395,6 +402,20 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 }`}
               >
                 Flexible Series
+              </button>
+              <button
+                onClick={() => {
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('Nexa Series');
+                  setIndoorType('All');
+                }}
+                className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'Nexa Series'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                Nexa Series
               </button>
             </div>
 

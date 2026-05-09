@@ -100,6 +100,11 @@ export interface Product {
   screenResolution?: string;
   activeDisplayArea?: string;
   rentalOption?: 'cabinet' | 'curve lock' | string;
+  isFixed?: boolean;
+  audioInterface?: string;
+  videoInterface?: string;
+  signalInterface?: string;
+  installationMode?: string;
   prices?: {
     cabinet: { endCustomer: number; siChannel: number; reseller: number };
     curveLock?: { endCustomer: number; siChannel: number; reseller: number };

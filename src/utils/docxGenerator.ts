@@ -368,12 +368,13 @@ export const generateConfigurationHtml = (
     selectedProduct.name?.toLowerCase().includes('jumbo series');
 
   const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
+  const isFixed = selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa');
 
   let quantity: number;
   if (selectedProduct.category?.toLowerCase().includes('rental')) {
 
     quantity = cabinetGrid.columns * cabinetGrid.rows;
-  } else if (isDigitalStandee) {
+  } else if (isDigitalStandee || isFixed) {
     quantity = 1;
   } else if (isJumboSeries) {
     // Jumbo: quantity = display area in sq ft (from config dimensions in mm)
@@ -405,7 +406,7 @@ export const generateConfigurationHtml = (
   let gstProduct = 0;
 
   let controllerPrice = 0;
-  if (processor && !isJumboSeries && !isDigitalStandee) {
+  if (processor && !isJumboSeries && !isDigitalStandee && !isFixed) {
     controllerPrice = getProcessorPrice(processor, userInfo?.userType || 'End User');
   }
   let gstController = 0;
@@ -557,12 +558,12 @@ export const generateConfigurationHtml = (
     grandTotal = totalProduct + totalController;
   }
 
-  if (isDigitalStandee) {
-    // Digital standee quotations: product price only (no controller, structure, or installation).
+  if (isDigitalStandee || isFixed) {
+    // Digital standee and Fixed products: quotations are product-only (no controller, structure, or installation).
     controllerPrice = 0;
     gstController = 0;
     totalController = 0;
-    totalProduct = unitPrice;
+    totalProduct = subtotal; // subtotal already uses unitPrice * quantity(1)
     structureBasePrice = 0;
     installationBasePrice = 0;
     totalStructure = 0;
@@ -941,7 +942,7 @@ export const generateConfigurationHtml = (
                 </div>
             </div>
             
-            ${!isJumboSeries && !isDigitalStandee ? `
+            ${!isJumboSeries && !isDigitalStandee && !isFixed ? `
             <!-- Section B: Control System - Clean Layout -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 4px 5px; border-radius: 3px; margin: 0 0 3px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 3px 0; font-size: 13px; border-bottom: 2px solid #2563eb; padding-bottom: 2px; font-weight: bold;">
@@ -1073,7 +1074,7 @@ export const generateConfigurationHtml = (
             <div class="quotation-section" style="background: rgba(51, 51, 51, 0.95); color: white; padding: 5px 8px; border-radius: 3px; margin: 3px 0 0 40px; text-align: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); width: calc(100% - 40px); min-height: auto; box-sizing: border-box;">
                 <h2 style="margin: 0 0 2px 0; font-size: 13px; font-weight: bold; line-height: 1.1;">GRAND TOTAL</h2>
                 <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatTotalWithDecimals(grandTotal)} (GST Extra)</p>
-                ${isDigitalStandee
+                ${(isDigitalStandee || isFixed)
   ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A = Product)</p>`
   : !isJumboSeries
   ? (isRentalProduct

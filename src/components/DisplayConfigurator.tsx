@@ -25,6 +25,7 @@ import { SuperUserDashboard } from './SuperUserDashboard';
 import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } from '../utils/dimensionConstraints';
+import { products } from '../data/products';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
@@ -334,6 +335,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
   const isDigitalStandeeSeries = selectedProduct?.category === 'Digital Standee Series';
   const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible') ?? false;
+  const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
 
   // When switching to Jumbo or Digital Standee, show Preview (Data/Power tabs are hidden)
   React.useEffect(() => {
@@ -430,6 +432,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       setSelectedController(getAutoSelectedController(selectedProduct, grid));
     }
   }, [selectedProduct, config.width, config.height]);
+
+  const nexaVariants = selectedProduct && isNexa
+    ? products.filter(p => 
+        p.category === 'Nexa Series' && 
+        p.pixelPitch === selectedProduct.pixelPitch && 
+        p.enabled !== false
+      )
+    : [];
 
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
@@ -970,6 +980,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             redundancyEnabled={redundancyEnabled}
             wireType={wireType}
             onWireTypeChange={(wt) => updateConfig({ wireType: wt })}
+            nexaVariants={nexaVariants}
+            onProductChange={handleProductSelect}
           />
         </div>
 
@@ -1005,11 +1017,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   onUnitChange={updateUnit}
                   selectedProduct={selectedProduct}
                 />
-                <AspectRatioSelector
-                  aspectRatios={aspectRatios}
-                  selectedRatio={config.aspectRatio}
-                  onRatioChange={updateAspectRatio}
-                />
+                {!isNexa && !(selectedProduct?.category?.toLowerCase().includes('digital standee')) && (
+                  <AspectRatioSelector
+                    aspectRatios={aspectRatios}
+                    selectedRatio={config.aspectRatio}
+                    onRatioChange={updateAspectRatio}
+                  />
+                )}
               </div>
             </div>
 
