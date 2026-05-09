@@ -1061,11 +1061,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
               <div className="bg-white rounded-xl shadow-sm border p-2 sm:p-4">
                 {activeTab === 'preview' && (
-                  <DisplayPreview
+                   <DisplayPreview
                     config={config}
                     displayDimensions={displayDimensions}
                     selectedProduct={selectedProduct}
                     cabinetGrid={fixedCabinetGrid}
+                    nexaAddons={globalConfig.nexaAddons}
                   />
                 )}
 
