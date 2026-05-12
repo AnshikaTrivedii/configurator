@@ -958,6 +958,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       exactPricingBreakdown,
       originalPricingBreakdown, // Added field
       exactProductSpecs,
+      quotationData,
       pdfPage6HTML,
       createdAt,
       // PDF data (base64 encoded)
@@ -1126,9 +1127,10 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       pdfS3Url: pdfS3Url || null,
       // Store the exact data as JSON for perfect reproduction
       quotationData: {
+        ...(quotationData || {}),
         exactPricingBreakdown,
         exactProductSpecs,
-        config: productDetails?.config || null,
+        config: quotationData?.config || productDetails?.config || null,
         createdAt: createdAt || new Date().toISOString(),
         savedAt: new Date().toISOString()
       }
@@ -2241,4 +2243,3 @@ router.post('/assign', authenticateToken, async (req, res) => {
 });
 
 export default router;
-

@@ -255,7 +255,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           } : null,
           quotation.quotationId,
           quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
-          quotation.exactPricingBreakdown
+          quotation.exactPricingBreakdown,
+          quotation.quotationData?.wireType,
+          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
         );
 
         setPdfHtmlContent(htmlContent);
@@ -1005,6 +1007,8 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             quotationId={selectedQuotation.quotationId}
             clientId={selectedQuotation.clientId as string | undefined} // Fix type error here if clientId is object
             exactPricingBreakdown={selectedQuotation.exactPricingBreakdown}
+            wireType={selectedQuotation.quotationData?.wireType}
+            nexaAddons={selectedQuotation.quotationData?.nexaAddons || selectedQuotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)}
           />
         );
       })()}
@@ -1170,4 +1174,3 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     </div>
   );
 };
-

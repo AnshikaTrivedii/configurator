@@ -443,6 +443,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
+    const productIsNexa = product.isFixed || product.category?.toLowerCase().includes('nexa');
 
     if (product.category?.toLowerCase().includes('digital standee')) {
       updateWidth(product.cabinetDimensions.width);
@@ -461,7 +462,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         ? 'Indoor'
         : normalizedEnv === 'outdoor'
           ? 'Outdoor'
-          : globalConfig.environment
+          : globalConfig.environment,
+      nexaAddons: productIsNexa ? globalConfig.nexaAddons : []
     });
 
     setIsProductSelectorOpen(false);
@@ -630,7 +632,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         quotationId,
         customPricing.enabled ? customPricing : undefined,
         undefined,
-        selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined
+        selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
+        globalConfig.nexaAddons
       );
 
       const url = window.URL.createObjectURL(blob);
@@ -686,7 +689,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         quotationId,
         customPricing.enabled ? customPricing : undefined,
         undefined,
-        selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined
+        selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
+        globalConfig.nexaAddons
       );
 
       const url = window.URL.createObjectURL(blob);
@@ -1028,6 +1032,48 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                 )}
               </div>
             </div>
+
+            {isNexa && (
+              <div className="bg-white rounded-xl shadow-sm border p-3 sm:p-6">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900">Nexa Add-ons</h3>
+                  <span className="text-xs text-gray-500">
+                    {globalConfig.nexaAddons.length} selected
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    'IR Touch',
+                    'Floor Mount Stand'
+                  ].map((addon) => {
+                    const checked = globalConfig.nexaAddons.includes(addon);
+                    return (
+                      <label
+                        key={addon}
+                        className={`flex items-center justify-between gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
+                          checked ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(event) => {
+                              const nextAddons = event.target.checked
+                                ? [...globalConfig.nexaAddons, addon]
+                                : globalConfig.nexaAddons.filter(item => item !== addon);
+                              updateConfig({ nexaAddons: nextAddons });
+                            }}
+                            className="rounded border-gray-300 text-black focus:ring-black"
+                          />
+                          <span className="text-sm font-medium text-gray-900 truncate">{addon}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Tabs Section */}
             <div className="mb-3 sm:mb-6 lg:mb-8">
@@ -1406,7 +1452,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             quotationId,
             customPricing.enabled ? customPricing : undefined,
             undefined,
-            selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined
+            selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
+            globalConfig.nexaAddons
           )}
           customPricing={customPricing.enabled ? customPricing : undefined}
           onDownload={handleDownloadPdf}
@@ -1423,6 +1470,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           userRole={userRole}
           quotationId={quotationId || undefined}
           isEditing={!!activeQuotation}
+          wireType={selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined}
+          nexaAddons={globalConfig.nexaAddons}
         />
       )}
 

@@ -34,6 +34,25 @@ function isFixedProduct(product: ProductWithPricing): boolean {
   return product.isFixed || product.category?.toLowerCase().includes('nexa');
 }
 
+function isNexaSeriesProduct(product: ProductWithPricing): boolean {
+  return product.category?.toLowerCase().includes('nexa') ||
+    product.name?.toLowerCase().includes('nexa series') ||
+    product.id?.toLowerCase().startsWith('nexa-') ||
+    false;
+}
+
+const NEXA_ADDON_PRICES: Record<string, number> = {
+  'IR Touch': 75000,
+  'Floor Mount Stand': 85000
+};
+
+function getNexaAddonsWithPrices(product: ProductWithPricing, addons: string[] = []) {
+  if (!isNexaSeriesProduct(product)) return [];
+  return addons
+    .filter(addon => Object.prototype.hasOwnProperty.call(NEXA_ADDON_PRICES, addon))
+    .map(name => ({ name, price: NEXA_ADDON_PRICES[name] }));
+}
+
 function calculateCorrectTotalPrice(
   product: ProductWithPricing,
   cabinetGrid: { columns: number; rows: number } | null | undefined,
@@ -45,10 +64,11 @@ function calculateCorrectTotalPrice(
     structurePrice: number | null;
     installationPrice: number | null;
   },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): number {
   if (isModularSeriesProduct(product) && wireType) {
-    const result = calculateCentralizedPricing(product, cabinetGrid, processor, userType, config, customPricing, wireType);
+    const result = calculateCentralizedPricing(product, cabinetGrid, processor, userType, config, customPricing, wireType, nexaAddons);
     return result.grandTotal;
   }
 
@@ -134,8 +154,11 @@ function calculateCorrectTotalPrice(
   const gstProcessor = 0;
   const totalProcessor = processorPrice;
 
+  let addonsCost = 0;
+  addonsCost = getNexaAddonsWithPrices(product, nexaAddons).reduce((sum, addon) => sum + addon.price, 0);
+
   if (product.category?.toLowerCase().includes('digital standee') || isFixedProduct(product)) {
-    return Math.round(totalProduct + totalProcessor);
+    return Math.round(totalProduct + totalProcessor + addonsCost);
   }
 
   const widthInMeters = config.width / 1000;
@@ -172,7 +195,7 @@ function calculateCorrectTotalPrice(
   const installationGST = 0;
   const totalInstallation = installationBasePrice;
 
-  const grandTotal = totalProduct + totalProcessor + totalStructure + totalInstallation;
+  const grandTotal = totalProduct + totalProcessor + totalStructure + totalInstallation + addonsCost;
 
   return Math.round(grandTotal);
 }
@@ -281,6 +304,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 }) => {
   const { config: globalConfig } = useDisplayConfig();
   const wireType = globalConfig.wireType ?? 'gold';
+  const nexaAddons = globalConfig.nexaAddons ?? [];
 
   const isSuperAdminUser = userRole === 'super' || userRole === 'super_admin';
   const isPublicUser = !salesUser && !isSuperAdminUser && (!userRole || userRole === 'normal');
@@ -517,7 +541,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           userType,
           configForCalc,
           customPricingObj,
-          selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined
+          selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
+          nexaAddons
         );
 
         const pdfUserType = selectedUserType === 'Reseller' ? 'Reseller' : (selectedUserType === 'SI/Channel Partner' ? 'Channel' : 'End User');
@@ -606,6 +631,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         const installationGST = 0;
         const totalInstallation = installationBasePrice;
 
+        let addonsCost = 0;
+        const appliedAddons: { name: string; price: number }[] = [];
+        appliedAddons.push(...getNexaAddonsWithPrices(selectedProduct as any, nexaAddons));
+        addonsCost = appliedAddons.reduce((sum, addon) => sum + addon.price, 0);
+
         const breakdown = {
           unitPrice,
           quantity,
@@ -628,6 +658,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           installationCost: installationBasePrice,
           installationGST: 0,
           installationTotal: totalInstallation,
+
+          addonsCost: addonsCost,
+          addonsGST: 0,
+          addonsTotal: addonsCost,
+          appliedAddons: appliedAddons,
 
           grandTotal: Math.round(newTotalPrice)
         };
@@ -663,11 +698,23 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           },
 
           quotationData: {
-
+            userInfo: {
+              fullName: customerName,
+              email: customerEmail,
+              phoneNumber: customerPhone,
+              userType: getUserType(),
+              projectTitle: userInfo?.projectTitle || '',
+              address: customerLocation.trim() || userInfo?.address || '',
+              validity: userInfo?.validity || undefined,
+              paymentTerms: userInfo?.paymentTerms || undefined,
+              warranty: userInfo?.warranty || undefined
+            },
             config: configForCalc,
             customPricing: customPricingObj,
+            wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
+            nexaAddons: appliedAddons.map(addon => addon.name),
+            nexaAddonsWithPrices: appliedAddons,
             updatedAt: new Date().toISOString(),
-
             discountApplied: false,
             discountInfo: null
           }
@@ -735,7 +782,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             processorPrice: breakdown.processorPrice,
             processorGst: breakdown.processorGST,
             grandTotal: breakdown.grandTotal,
-            discount: (breakdown as any).discount
+            discount: (breakdown as any).discount,
+            addonsCost: (breakdown as any).addonsCost,
+            addonsGST: (breakdown as any).addonsGST,
+            addonsTotal: (breakdown as any).addonsTotal,
+            appliedAddons: (breakdown as any).appliedAddons
           };
 
           const pdfBlob = await generateConfigurationPdf(
@@ -759,7 +810,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             existingQuotation.quotationId,
             customPricingObj,
             exactPricingBreakdownForPdf,
-            selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined
+            selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
+            nexaAddons
           );
 
           // Convert blob to base64
@@ -933,7 +985,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             userType,
             configForCalc,
             customPricingObj,
-            selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined
+            selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
+            nexaAddons
           );
 
           const pricingResult = calculateCentralizedPricing(
@@ -943,7 +996,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             userType,
             configForCalc,
             customPricingObj,
-            selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined
+            selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
+            nexaAddons
           );
 
           if (!pricingResult.isAvailable) {
@@ -999,6 +1053,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 installationPrice: customInstallationPrice
               } : undefined,
 
+              addonsCost: finalPricingResult.addonsCost,
+              addonsGST: finalPricingResult.addonsGST,
+              addonsTotal: finalPricingResult.addonsTotal,
+              appliedAddons: finalPricingResult.appliedAddons,
+
               discount: discountInfo ? {
                 discountType: discountInfo.discountType,
                 discountPercent: discountInfo.discountPercent,
@@ -1028,6 +1087,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               installationCost: pricingResult.installationCost,
               installationGST: pricingResult.installationGST,
               installationTotal: pricingResult.installationTotal,
+              addonsCost: pricingResult.addonsCost,
+              addonsGST: pricingResult.addonsGST,
+              addonsTotal: pricingResult.addonsTotal,
+              appliedAddons: pricingResult.appliedAddons,
               grandTotal: pricingResult.grandTotal // Always clean total
             },
 
@@ -1081,7 +1144,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 structurePrice: customStructurePrice,
                 installationPrice: customInstallationPrice
               } : undefined,
-              wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined
+              wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
+              nexaAddons: pricingResult.appliedAddons.map(addon => addon.name),
+              nexaAddonsWithPrices: pricingResult.appliedAddons
             },
 
             createdAt: new Date().toISOString()

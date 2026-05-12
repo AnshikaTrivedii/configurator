@@ -2725,11 +2725,11 @@ export const products: Product[] = [
     installationMode: "Moveable(standard-stand)/ Wall mount (optional)",
     controller: "Novastar",
     lifeTime: 100000,
-    price: 0,
-    siChannelPrice: 0,
-    resellerPrice: 0,
+    price: 5440000,
+    siChannelPrice: 5170000,
+    resellerPrice: 4900000,
     prices: {
-      cabinet: { endCustomer: 0, siChannel: 0, reseller: 0 }
+      cabinet: { endCustomer: 5440000, siChannel: 5170000, reseller: 4900000 }
     }
   },
   {
@@ -2857,11 +2857,11 @@ export const products: Product[] = [
     installationMode: "Moveable(standard-stand)/ Wall mount (optional)",
     controller: "Novastar",
     lifeTime: 100000,
-    price: 0,
-    siChannelPrice: 0,
-    resellerPrice: 0,
+    price: 5440000,
+    siChannelPrice: 5170000,
+    resellerPrice: 4900000,
     prices: {
-      cabinet: { endCustomer: 0, siChannel: 0, reseller: 0 }
+      cabinet: { endCustomer: 5440000, siChannel: 5170000, reseller: 4900000 }
     }
   },
 ];

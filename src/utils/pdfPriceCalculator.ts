@@ -26,6 +26,11 @@ export interface PricingBreakdown {
   processorGST: number;
   processorTotal: number;
 
+  addonsCost: number;
+  addonsGST: number;
+  addonsTotal: number;
+  appliedAddons: { name: string; price: number }[];
+
   grandTotal: number;
 
   userType: string;
@@ -166,7 +171,8 @@ export function calculatePricingBreakdown(
   processor: string | null,
   userType: string,
   config: { width: number; height: number; unit: string },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): PricingBreakdown {
   try {
 
@@ -177,7 +183,8 @@ export function calculatePricingBreakdown(
       userType,
       config,
       undefined,
-      wireType
+      wireType,
+      nexaAddons
     );
 
     const breakdown: PricingBreakdown = {
@@ -189,6 +196,10 @@ export function calculatePricingBreakdown(
       processorPrice: pricingResult.processorPrice,
       processorGST: pricingResult.processorGST,
       processorTotal: pricingResult.processorTotal,
+      addonsCost: pricingResult.addonsCost,
+      addonsGST: pricingResult.addonsGST,
+      addonsTotal: pricingResult.addonsTotal,
+      appliedAddons: pricingResult.appliedAddons,
       grandTotal: pricingResult.grandTotal,
       userType: pricingResult.userType,
       productName: pricingResult.productName,
@@ -210,6 +221,10 @@ export function calculatePricingBreakdown(
       processorPrice: 0,
       processorGST: 0,
       processorTotal: 0,
+      addonsCost: 0,
+      addonsGST: 0,
+      addonsTotal: 0,
+      appliedAddons: [],
       grandTotal: 5300,
       userType: 'End User',
       productName: product.name
@@ -227,10 +242,12 @@ export function validatePriceConsistency(
   cabinetGrid: { columns: number; rows: number } | null,
   processor: string | null,
   userType: string,
-  config: { width: number; height: number; unit: string }
+  config: { width: number; height: number; unit: string },
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): { isValid: boolean; calculatedPrice: number; difference: number; message: string } {
   try {
-    const calculatedBreakdown = calculatePricingBreakdown(product, cabinetGrid, processor, userType, config);
+    const calculatedBreakdown = calculatePricingBreakdown(product, cabinetGrid, processor, userType, config, wireType, nexaAddons);
     const calculatedPrice = calculatedBreakdown.grandTotal;
     const difference = Math.abs(storedPrice - calculatedPrice);
     const tolerance = 1; // Allow 1 rupee difference for rounding

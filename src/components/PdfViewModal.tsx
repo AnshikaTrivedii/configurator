@@ -58,7 +58,8 @@ function calculateCorrectTotalPrice(
     structurePrice: number | null;
     installationPrice: number | null;
   },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): number | null {
   try {
 
@@ -69,7 +70,8 @@ function calculateCorrectTotalPrice(
       userType,
       config,
       customPricing,
-      wireType
+      wireType,
+      nexaAddons
     );
 
     if (!pricingResult.isAvailable) {
@@ -97,6 +99,24 @@ const getUserTypeDisplayName = (type: string): string => {
       return 'End Customer';
   }
 };
+
+const NEXA_ADDON_PRICES: Record<string, number> = {
+  'IR Touch': 75000,
+  'Floor Mount Stand': 85000
+};
+
+const isNexaSeriesProduct = (product: any): boolean =>
+  product?.category?.toLowerCase().includes('nexa') ||
+  product?.name?.toLowerCase().includes('nexa series') ||
+  product?.id?.toLowerCase().startsWith('nexa-') ||
+  false;
+
+const getNexaAddonsWithPrices = (product: any, addons: string[] = []) =>
+  isNexaSeriesProduct(product)
+    ? addons
+      .filter(addon => Object.prototype.hasOwnProperty.call(NEXA_ADDON_PRICES, addon))
+      .map(name => ({ name, price: NEXA_ADDON_PRICES[name] }))
+    : [];
 
 const calculateAspectRatio = (width: number, height: number): string => {
   const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
@@ -130,7 +150,8 @@ interface PdfViewModalProps {
   };
 
   exactPricingBreakdown?: any;
-
+  wireType?: 'gold' | 'copper';
+  nexaAddons?: string[];
 }
 
 export const PdfViewModal: React.FC<PdfViewModalProps> = ({
@@ -153,12 +174,16 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   clientId: propClientId,
   customPricing,
   exactPricingBreakdown,
-
+  wireType: propWireType,
+  nexaAddons: propNexaAddons
 }) => {
   const { config: globalConfig } = useDisplayConfig();
   const wireTypeFromContext = globalConfig.wireType ?? 'gold';
+  const wireType = propWireType ?? wireTypeFromContext;
+  const nexaAddons = propNexaAddons ?? globalConfig.nexaAddons ?? [];
+  const selectedNexaAddonsWithPrices = getNexaAddonsWithPrices(selectedProduct, nexaAddons);
   const isModularProduct = (p: any) => p?.category?.toLowerCase().includes('modular');
-  const effectiveWireType = (product: any) => (product && isModularProduct(product) ? wireTypeFromContext : undefined);
+  const effectiveWireType = (product: any) => (product && isModularProduct(product) ? wireType : undefined);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -385,6 +410,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             processorGst: exactPricingBreakdown.processorGst || exactPricingBreakdown.processorGST,
             structureCost: exactPricingBreakdown.structureCost,
             installationCost: exactPricingBreakdown.installationCost,
+            addonsCost: exactPricingBreakdown.addonsCost || 0,
+            addonsGST: exactPricingBreakdown.addonsGST || 0,
+            addonsTotal: exactPricingBreakdown.addonsTotal || 0,
+            appliedAddons: exactPricingBreakdown.appliedAddons || selectedNexaAddonsWithPrices,
             grandTotal: exactPricingBreakdown.grandTotal,
             customPricing: exactPricingBreakdown.customPricing || (customPricing?.enabled ? {
               enabled: true,
@@ -411,7 +440,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             userTypeForCalc,
             config || { width: 2400, height: 1010, unit: 'mm' },
             customPricing,
-            effectiveWireType(fullProduct)
+            effectiveWireType(fullProduct),
+            nexaAddons
           );
 
           console.log('Pricing result:', {
@@ -435,6 +465,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             processorGst: pricingResult.processorGST,
             structureCost: pricingResult.structureCost,
             installationCost: pricingResult.installationCost,
+            addonsCost: pricingResult.addonsCost,
+            addonsGST: pricingResult.addonsGST,
+            addonsTotal: pricingResult.addonsTotal,
+            appliedAddons: pricingResult.appliedAddons,
             grandTotal: pricingResult.grandTotal,
             customPricing: customPricing?.enabled ? {
               enabled: true,
@@ -461,7 +495,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           quotationId,
           customPricing,
           exactPricingBreakdownForPdf,
-          effectiveWireType(selectedProduct)
+          effectiveWireType(selectedProduct),
+          nexaAddons
         );
 
         pdfUrl = window.URL.createObjectURL(pdfBlob);
@@ -611,7 +646,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         userTypeForCalc,
         config || { width: 2400, height: 1010, unit: 'mm' },
         customPricing,
-        effectiveWireType(fullProduct)
+        effectiveWireType(fullProduct),
+        nexaAddons
       );
 
       if (correctTotalPrice === null) {
@@ -636,7 +672,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         userTypeForCalc,
         config || { width: 2400, height: 1010, unit: 'mm' },
         customPricing,
-        effectiveWireType(fullProduct)
+        effectiveWireType(fullProduct),
+        nexaAddons
       );
 
       if (!pricingResult.isAvailable) {
@@ -715,6 +752,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         installationCost: finalPricingResult.installationCost,
         installationGST: finalPricingResult.installationGST,
         installationTotal: finalPricingResult.installationTotal,
+        addonsCost: finalPricingResult.addonsCost || 0,
+        addonsGST: finalPricingResult.addonsGST || 0,
+        addonsTotal: finalPricingResult.addonsTotal || 0,
+        appliedAddons: finalPricingResult.appliedAddons || selectedNexaAddonsWithPrices,
         grandTotal: finalTotalPrice,
         customPricing: customPricing?.enabled ? {
           enabled: true,
@@ -729,7 +770,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           enabled: true,
           structurePrice: customPricing.structurePrice,
           installationPrice: customPricing.installationPrice
-        } : undefined
+        } : undefined,
+        wireType: selectedProduct && isModularProduct(selectedProduct) ? wireType : undefined,
+        nexaAddons: selectedNexaAddonsWithPrices.map(addon => addon.name),
+        nexaAddonsWithPrices: selectedNexaAddonsWithPrices
       },
 
       exactProductSpecs: {
@@ -774,6 +818,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           processorGst: finalPricingResult.processorGST,
           structureCost: finalPricingResult.structureCost,
           installationCost: finalPricingResult.installationCost,
+          addonsCost: finalPricingResult.addonsCost || 0,
+          addonsGST: finalPricingResult.addonsGST || 0,
+          addonsTotal: finalPricingResult.addonsTotal || 0,
+          appliedAddons: finalPricingResult.appliedAddons || selectedNexaAddonsWithPrices,
           grandTotal: finalTotalPrice,
           customPricing: customPricing?.enabled ? {
             enabled: true,
@@ -800,7 +848,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           quotationId,
           customPricing,
           exactPricingBreakdownForPdf,
-          effectiveWireType(selectedProduct)
+          effectiveWireType(selectedProduct),
+          nexaAddons
         );
 
       } catch (pdfError: any) {
@@ -1063,7 +1112,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                         userTypeForCalc,
                         config || { width: 2400, height: 1010, unit: 'mm' },
                         customPricing,
-                        effectiveWireType(selectedProduct)
+                        effectiveWireType(selectedProduct),
+                        nexaAddons
                       );
 
                       let finalPricingResult = pricingResult as any;
@@ -1077,6 +1127,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                         processorGst: finalPricingResult.processorGST,
                         structureCost: finalPricingResult.structureCost,
                         installationCost: finalPricingResult.installationCost,
+                        addonsCost: finalPricingResult.addonsCost || 0,
+                        addonsGST: finalPricingResult.addonsGST || 0,
+                        addonsTotal: finalPricingResult.addonsTotal || 0,
+                        appliedAddons: finalPricingResult.appliedAddons || selectedNexaAddonsWithPrices,
                         grandTotal: finalPricingResult.grandTotal,
                         customPricing: customPricing?.enabled ? {
                           enabled: true,
@@ -1102,7 +1156,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                         quotationId,
                         customPricing,
                         exactPricingBreakdownForPdf,
-                        effectiveWireType(selectedProduct)
+                        effectiveWireType(selectedProduct),
+                        nexaAddons
                       );
 
                       if (!pdfBlob || pdfBlob.size === 0) {

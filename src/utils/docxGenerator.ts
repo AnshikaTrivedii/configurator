@@ -86,6 +86,10 @@ export const generateConfigurationDocx = async (
     processorPrice?: number;
     processorGst?: number;
     grandTotal?: number;
+    addonsCost?: number;
+    addonsGST?: number;
+    addonsTotal?: number;
+    appliedAddons?: { name: string; price: number }[];
     discount?: {
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
@@ -294,6 +298,10 @@ export const generateConfigurationHtml = (
       discountedProcessorTotal?: number;
       discountedGrandTotal?: number;
     };
+    addonsCost?: number;
+    addonsGST?: number;
+    addonsTotal?: number;
+    appliedAddons?: { name: string; price: number }[];
   },
   wireType?: 'gold' | 'copper',
   nexaAddons?: string[]
@@ -372,6 +380,24 @@ export const generateConfigurationHtml = (
 
   const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
   const isFixed = selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa');
+  const isNexaSeries = selectedProduct.category?.toLowerCase().includes('nexa') ||
+    selectedProduct.name?.toLowerCase().includes('nexa series') ||
+    selectedProduct.id?.toLowerCase().startsWith('nexa-') ||
+    false;
+  const nexaAddonPrices: Record<string, number> = {
+    'IR Touch': 75000,
+    'Floor Mount Stand': 85000
+  };
+  const selectedNexaAddons = isNexaSeries
+    ? (nexaAddons && nexaAddons.length > 0
+      ? nexaAddons
+      : (exactPricingBreakdown?.appliedAddons || []).map(addon => addon.name))
+        .filter(addon => Object.prototype.hasOwnProperty.call(nexaAddonPrices, addon))
+    : [];
+  const appliedNexaAddons = selectedNexaAddons.map(name => ({
+    name,
+    price: nexaAddonPrices[name]
+  }));
 
   let quantity: number;
   if (selectedProduct.category?.toLowerCase().includes('rental')) {
@@ -407,6 +433,11 @@ export const generateConfigurationHtml = (
   let safeQuantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
   let subtotal = unitPrice * safeQuantity;
   let gstProduct = 0;
+
+  let addonsTotal = 0;
+  if (appliedNexaAddons.length > 0) {
+    addonsTotal = appliedNexaAddons.reduce((sum, addon) => sum + addon.price, 0);
+  }
 
   let controllerPrice = 0;
   if (processor && !isJumboSeries && !isDigitalStandee && !isFixed) {
@@ -551,7 +582,7 @@ export const generateConfigurationHtml = (
     totalStructure = structureBasePrice;
     totalInstallation = installationBasePrice;
 
-    grandTotal = totalProduct + totalController + totalStructure + totalInstallation;
+    grandTotal = totalProduct + totalController + totalStructure + totalInstallation + addonsTotal;
   }
 
   const isRentalProduct = selectedProduct.category?.toLowerCase().includes('rental');
@@ -571,7 +602,8 @@ export const generateConfigurationHtml = (
     installationBasePrice = 0;
     totalStructure = 0;
     totalInstallation = 0;
-    grandTotal = totalProduct;
+    // For Fixed products, Grand Total = Product + Add-ons
+    grandTotal = totalProduct + addonsTotal;
   }
 
   const formatIndianNumber = (x: number): string => {
@@ -913,10 +945,10 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-value">${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'}</span>
                             </div>`
                               : ''}
-                            ${isFixed && nexaAddons && nexaAddons.length > 0
+                            ${appliedNexaAddons.length > 0
                               ? `<div class="quotation-row">
                                 <span class="quotation-label">Add-ons:</span>
-                                <span class="quotation-value">${nexaAddons.join(', ')}</span>
+                                <span class="quotation-value">${appliedNexaAddons.map(addon => addon.name).join(', ')}</span>
                             </div>`
                               : ''}
                         </div>
@@ -1076,6 +1108,26 @@ export const generateConfigurationHtml = (
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+            ` : ''}
+
+            ${appliedNexaAddons.length > 0 ? `
+            <!-- Add on Section for Nexa -->
+            <div class="quotation-section" style="background: rgba(255, 255, 255, 0.96); padding: 5px 6px; border-radius: 3px; margin: 0 0 5px 0; border: 1px solid rgba(233, 236, 239, 0.9);">
+                <h2 style="color: #2563eb; margin: 0 0 5px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
+                    Add on
+                </h2>
+                <div class="quotation-card" style="display: flex; flex-direction: column; padding: 0; overflow: hidden;">
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 5px 8px; background: rgba(37, 99, 235, 0.08); border-bottom: 1px solid rgba(37, 99, 235, 0.18);">
+                        <span style="font-weight: 700; color: #333; font-size: 11px; text-align: left;">Selected Add-on</span>
+                        <span style="font-weight: 700; color: #333; font-size: 11px; text-align: right;">Price</span>
+                    </div>
+                    ${appliedNexaAddons.map(addon => `
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 7px 8px; border-bottom: 1px solid rgba(233, 236, 239, 0.75); background: rgba(255, 255, 255, 0.98);">
+                        <span style="font-weight: 700; color: #333; font-size: 12px; text-align: left;">${addon.name}</span>
+                        <span style="font-weight: 700; color: #333; font-size: 12px; text-align: right; white-space: nowrap;">₹${formatTotalWithDecimals(addon.price)}</span>
+                    </div>`).join('')}
                 </div>
             </div>
             ` : ''}
@@ -1554,4 +1606,3 @@ export const generateAlternatePdf = async (
     throw new Error(`Failed to generate alternate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
-

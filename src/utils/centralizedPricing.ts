@@ -30,6 +30,11 @@ export interface PricingCalculationResult {
   installationGST: number;
   installationTotal: number;
 
+  addonsCost: number;
+  addonsGST: number;
+  addonsTotal: number;
+  appliedAddons: { name: string; price: number }[];
+
   grandTotal: number;
 
   userType: string;
@@ -70,6 +75,18 @@ function isModularSeriesProduct(product: Product): boolean {
 function isFixedProduct(product: Product): boolean {
   return product.isFixed === true || product.category?.toLowerCase().includes('nexa') || false;
 }
+
+function isNexaSeriesProduct(product: Product): boolean {
+  return product.category?.toLowerCase().includes('nexa') ||
+    product.name?.toLowerCase().includes('nexa series') ||
+    product.id?.toLowerCase().startsWith('nexa-') ||
+    false;
+}
+
+const NEXA_ADDON_PRICES: Record<string, number> = {
+  'IR Touch': 75000,
+  'Floor Mount Stand': 85000
+};
 
 /** Modular Series pricing by pixel pitch (mm) -> wire type -> End User, SI Channel, Reseller */
 const MODULAR_PRICING: Record<number, { gold: [number, number, number]; copper: [number, number, number] }> = {
@@ -267,7 +284,8 @@ export function calculateCentralizedPricing(
     structurePrice: number | null;
     installationPrice: number | null;
   },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): PricingCalculationResult {
   try {
 
@@ -297,6 +315,10 @@ export function calculateCentralizedPricing(
         installationCost: 0,
         installationGST: 0,
         installationTotal: 0,
+        addonsCost: 0,
+        addonsGST: 0,
+        addonsTotal: 0,
+        appliedAddons: [],
         grandTotal: 0,
         userType: pdfUserType,
         productName: product.name,
@@ -364,7 +386,20 @@ export function calculateCentralizedPricing(
     const installationGST = 0;
     const installationTotal = installationBasePrice;
 
-    const grandTotal = Math.round(productTotal + processorTotal + structureTotal + installationTotal);
+    let addonsCost = 0;
+    const appliedAddons: { name: string; price: number }[] = [];
+    if (nexaAddons && nexaAddons.length > 0 && isNexaSeriesProduct(product)) {
+      Object.entries(NEXA_ADDON_PRICES).forEach(([name, price]) => {
+        if (nexaAddons.includes(name)) {
+          addonsCost += price;
+          appliedAddons.push({ name, price });
+        }
+      });
+    }
+    const addonsGST = 0;
+    const addonsTotal = addonsCost;
+
+    const grandTotal = Math.round(productTotal + processorTotal + structureTotal + installationTotal + addonsTotal);
 
     const result: PricingCalculationResult = {
       unitPrice,
@@ -381,6 +416,10 @@ export function calculateCentralizedPricing(
       installationCost: installationBasePrice,
       installationGST,
       installationTotal,
+      addonsCost,
+      addonsGST,
+      addonsTotal,
+      appliedAddons,
       grandTotal,
       userType: pdfUserType,
       productName: product.name,
@@ -412,6 +451,10 @@ export function calculateCentralizedPricing(
       installationCost: 0,
       installationGST: 0,
       installationTotal: 0,
+      addonsCost: 0,
+      addonsGST: 0,
+      addonsTotal: 0,
+      appliedAddons: [],
       grandTotal: 6254,
       userType: 'End User',
       productName: product.name,
@@ -430,10 +473,11 @@ export function validatePriceConsistency(
   processor: string | null | undefined,
   userType: string,
   config: { width: number; height: number; unit: string },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): { isValid: boolean; calculatedPrice: number; difference: number; message: string } {
   try {
-    const calculatedResult = calculateCentralizedPricing(product, cabinetGrid, processor, userType, config, undefined, wireType);
+    const calculatedResult = calculateCentralizedPricing(product, cabinetGrid, processor, userType, config, undefined, wireType, nexaAddons);
     const calculatedPrice = calculatedResult.grandTotal;
     const difference = Math.abs(storedPrice - calculatedPrice);
     const tolerance = 1; // Allow 1 rupee difference for rounding

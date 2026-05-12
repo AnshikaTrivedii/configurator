@@ -202,8 +202,10 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
             location: salesPerson.location
           } : null,
           quotation.quotationId,
-          undefined,
-          quotation.exactPricingBreakdown
+          quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
+          quotation.exactPricingBreakdown,
+          quotation.quotationData?.wireType,
+          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
         );
 
         setPdfHtmlContent(htmlContent);
@@ -340,7 +342,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           processor,
           userType,
           config,
-          customPricing
+          customPricing,
+          quotation.quotationData?.wireType,
+          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
         );
 
         if (pricingResult.isAvailable) {
@@ -523,7 +527,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         } : null,
         quotation.quotationId,
         quotation.quotationData?.customPricing,
-        newExactPricingBreakdown
+        newExactPricingBreakdown,
+        quotation.quotationData?.wireType,
+        quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
       );
 
       const pdfBase64 = await new Promise<string>((resolve, reject) => {
