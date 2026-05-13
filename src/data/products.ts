@@ -2106,9 +2106,9 @@ export const products: Product[] = [
 
   {
     id: 'transparent-front-glass-p3.91',
-    name: 'Transparent Adhesive in Front of Glass P3.91',
+    name: 'Crystal Blaze P3.91',
     category: 'Transparent Series',
-    enabled: false,
+    enabled: true,
     image: '/products/transparent-series/Transparent Series P3.91 Adhesive Front Glass.png',
     resolution: {
       width: 64,
@@ -2145,9 +2145,9 @@ export const products: Product[] = [
   },
   {
     id: 'transparent-front-glass-p6.25',
-    name: 'Transparent Adhesive in Front of Glass P6.25',
+    name: 'Crystal Blaze P6.25',
     category: 'Transparent Series',
-    enabled: false,
+    enabled: true,
     image: '/products/transparent-series/Transparent Series P6.25 Adhesive Front Glass.png',
     resolution: {
       width: 40,
@@ -2185,9 +2185,9 @@ export const products: Product[] = [
 
   {
     id: 'transparent-behind-glass-p6.5',
-    name: 'Transparent Adhesive Behind Glass P6.5',
+    name: 'Crystal Elite P6.5',
     category: 'Transparent Series',
-    enabled: false,
+    enabled: true,
     image: '/products/transparent-series/Transparent Series P6.5 Adhesive Behind Glass.png',
     resolution: {
       width: 32,
@@ -2225,9 +2225,9 @@ export const products: Product[] = [
 
   {
     id: 'transparent-rollable-film-p5',
-    name: 'Transparent Rollable Film Behind Glass P5',
+    name: 'Crystal Flex P5',
     category: 'Transparent Series',
-    enabled: false,
+    enabled: true,
     image: '/products/transparent-series/Transparent Series P5 Rollable Film Behind Glass.png',
     resolution: {
       width: 64,
@@ -2264,9 +2264,9 @@ export const products: Product[] = [
   },
   {
     id: 'transparent-rollable-film-p6.25',
-    name: 'Transparent Rollable Film Behind Glass P6.25',
+    name: 'Crystal Flex P6.25',
     category: 'Transparent Series',
-    enabled: false,
+    enabled: true,
     image: '/products/transparent-series/Transparent Series P6.25 Rollable Film Behind Glass.png',
     resolution: {
       width: 64,
@@ -2303,9 +2303,9 @@ export const products: Product[] = [
   },
   {
     id: 'transparent-rollable-film-p8',
-    name: 'Transparent Rollable Film Behind Glass P8',
+    name: 'Crystal Flex P8',
     category: 'Transparent Series',
-    enabled: false,
+    enabled: true,
     image: '/products/transparent-series/Transparent Series P8 Rollable Film Behind Glass.png',
     resolution: {
       width: 50,
@@ -2342,9 +2342,9 @@ export const products: Product[] = [
   },
   {
     id: 'transparent-rollable-film-p10',
-    name: 'Transparent Rollable Film Behind Glass P10',
+    name: 'Crystal Flex P10',
     category: 'Transparent Series',
-    enabled: false,
+    enabled: true,
     image: '/products/transparent-series/Transparent Series P10 Rollable Film Behind Glass.png',
     resolution: {
       width: 40,
@@ -2381,9 +2381,9 @@ export const products: Product[] = [
   },
   {
     id: 'transparent-rollable-film-p15',
-    name: 'Transparent Rollable Film Behind Glass P15',
+    name: 'Crystal Flex P15',
     category: 'Transparent Series',
-    enabled: false,
+    enabled: true,
     image: '/products/transparent-series/Transparent Series P15 Rollable Film Behind Glass.png',
     resolution: {
       width: 26,
@@ -2420,9 +2420,9 @@ export const products: Product[] = [
   },
   {
     id: 'transparent-rollable-film-p20',
-    name: 'Transparent Rollable Film Behind Glass P20',
+    name: 'Crystal Flex P20',
     category: 'Transparent Series',
-    enabled: false,
+    enabled: true,
     image: '/products/transparent-series/Transparent Series P20 Rollable Film Behind Glass.png',
     resolution: {
       width: 20,
@@ -2460,9 +2460,9 @@ export const products: Product[] = [
 
   {
     id: 'transparent-standard-p3.91-7.82-256x128',
-    name: 'Standard Transparent Screen P3.91-7.82 (256x128)',
+    name: 'Crystal Go P3.91-7.82',
     category: 'Transparent Series',
-    enabled: false,
+    enabled: true,
     image: '/products/transparent-series/Transparent Series P3.91-7.82 Standard (256x128).png',
     resolution: {
       width: 256,
@@ -2499,9 +2499,9 @@ export const products: Product[] = [
   },
   {
     id: 'transparent-standard-p3.91-7.82-256x64',
-    name: 'Standard Transparent Screen P3.91-7.82 (256x64)',
+    name: 'Crystal Go P3.91-7.82',
     category: 'Transparent Series',
-    enabled: false,
+    enabled: true,
     image: '/products/transparent-series/Transparent Series P3.91-7.82 Standard (256x64).png',
     resolution: {
       width: 256,

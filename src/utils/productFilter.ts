@@ -76,10 +76,7 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
     filtered = filtered.filter((p) => p.enabled === true); // Only enabled: true, not false or undefined
   }
 
-  filtered = filtered.filter((p) => {
-    const category = (p.category || '').toLowerCase();
-    return !category.includes('transparent');
-  });
+  // Transparent Series products are now supported and should not be excluded.
 
   if (environment) {
     filtered = filtered.filter((p) => {

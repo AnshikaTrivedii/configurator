@@ -29,8 +29,15 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 }) => {
   const { updateConfig } = useDisplayConfig();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series' | 'Digital Standee Series' | 'Modular Series' | 'Flexible Series' | 'Nexa Series'>('All');
+  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series' | 'Digital Standee Series' | 'Modular Series' | 'Flexible Series' | 'Nexa Series' | 'Transparent Series'>('All');
   const [flexibleSubType, setFlexibleSubType] = useState<'Module Base' | 'Cabinet Base' | null>(null);
+  const [transparentSubType, setTransparentSubType] = useState<
+    | 'Transparent adhesive infront of glass'
+    | 'Transparent adhesive behind glass'
+    | 'Transparent adhesive rollable film behind glass'
+    | 'Standard Transparent screen (Indoor behind glass version)'
+    | null
+  >(null);
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
   const [pendingRentalProduct, setPendingRentalProduct] = useState<ProductWithOptionalSize | null>(null);
   const [rentalOption, setRentalOption] = useState<'cabinet' | 'curve lock' | null>(null);
@@ -143,6 +150,35 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const isNexaSeries = (product: Product) =>
     product.isFixed || (product.category && product.category.toLowerCase().includes('nexa'));
 
+  const isTransparentSeries = (product: Product) =>
+    product.category && product.category.toLowerCase().includes('transparent');
+
+  const usesModuleSizeInsteadOfCabinetSize = (product: Product) => {
+    const id = (product.id || '').toLowerCase();
+    return (
+      id.startsWith('transparent-front-glass-') ||
+      id.startsWith('transparent-behind-glass-') ||
+      id.startsWith('transparent-rollable-film-')
+    );
+  };
+
+  const matchesTransparentSubType = (product: Product) => {
+    if (!transparentSubType) return true;
+    const id = (product.id || '').toLowerCase();
+    switch (transparentSubType) {
+      case 'Transparent adhesive infront of glass':
+        return id.startsWith('transparent-front-glass');
+      case 'Transparent adhesive behind glass':
+        return id.startsWith('transparent-behind-glass');
+      case 'Transparent adhesive rollable film behind glass':
+        return id.startsWith('transparent-rollable-film');
+      case 'Standard Transparent screen (Indoor behind glass version)':
+        return id.startsWith('transparent-standard');
+      default:
+        return true;
+    }
+  };
+
   const recommendedPixelPitches = useMemo(() => {
     if (!viewingDistanceValue) return [];
     const env = selectedFilter === 'Indoor' || selectedFilter === 'Outdoor' ? selectedFilter : null;
@@ -168,6 +204,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       tempProducts = tempProducts.filter((p) => isFlexibleSeries(p));
     } else if (selectedFilter === 'Nexa Series') {
       tempProducts = tempProducts.filter((p) => isNexaSeries(p));
+    } else if (selectedFilter === 'Transparent Series') {
+      tempProducts = tempProducts.filter((p) => isTransparentSeries(p)).filter(matchesTransparentSubType);
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
@@ -213,6 +251,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       // Module Base (or no sub-type yet selected) shows all flexible products
     } else if (selectedFilter === 'Nexa Series') {
       filtered = filtered.filter((p) => isNexaSeries(p));
+    } else if (selectedFilter === 'Transparent Series') {
+      filtered = filtered.filter((p) => isTransparentSeries(p)).filter(matchesTransparentSubType);
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
@@ -249,6 +289,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   }, [
     selectedFilter,
     flexibleSubType,
+    transparentSubType,
     indoorType,
     selectedCategory,
     selectedPixelPitch,
@@ -408,6 +449,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   hasEnvironmentInteraction.current = true;
                   setSelectedFilter('Nexa Series');
                   setIndoorType('All');
+                  setTransparentSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Nexa Series'
@@ -417,7 +459,71 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               >
                 Nexa Series
               </button>
+              <button
+                onClick={() => {
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('Transparent Series');
+                  setIndoorType('All');
+                  setFlexibleSubType(null);
+                  setTransparentSubType(null);
+                  setSelectedCategory('All');
+                }}
+                className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'Transparent Series'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                Transparent Series
+              </button>
             </div>
+
+            {/* Transparent Series sub-type filter */}
+            {selectedFilter === 'Transparent Series' && (
+              <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
+                <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Type:</span>
+                <button
+                  onClick={() => setTransparentSubType('Transparent adhesive infront of glass')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    transparentSubType === 'Transparent adhesive infront of glass'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Transparent adhesive infront of glass
+                </button>
+                <button
+                  onClick={() => setTransparentSubType('Transparent adhesive behind glass')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    transparentSubType === 'Transparent adhesive behind glass'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Transparent adhesive behind glass
+                </button>
+                <button
+                  onClick={() => setTransparentSubType('Transparent adhesive rollable film behind glass')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    transparentSubType === 'Transparent adhesive rollable film behind glass'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Transparent adhesive rollable film behind glass
+                </button>
+                <button
+                  onClick={() => setTransparentSubType('Standard Transparent screen (Indoor behind glass version)')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    transparentSubType === 'Standard Transparent screen (Indoor behind glass version)'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Standard Transparent screen (Indoor behind glass version)
+                </button>
+              </div>
+            )}
 
             {/* Flexible Series sub-type filter */}
             {selectedFilter === 'Flexible Series' && (
@@ -631,7 +737,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 category !== 'Jumbo Series' &&
                 category !== 'Digital Standee Series' &&
                 category !== 'Modular Series' &&
-                category !== 'Flexible Series'
+                category !== 'Flexible Series' &&
+                category !== 'Transparent Series'
               )
               .map((category) => (
               <button
@@ -753,9 +860,20 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                     </div>
                     {!isNexaSeries(product) && (
                       <div className="col-span-2">
-                        <p className="text-gray-500">{(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo')) ? 'Module Dimension (W × H)' : product.category === 'Digital Standee Series' ? 'Cabinet Frame Size (W × H)' : product.category?.toLowerCase().includes('flexible') ? 'Module Size (W × H)' : 'Cabinet Size (W × H)'}</p>
-                        <p className="font-medium text-gray-800">
+                        <p className="text-gray-500">
                           {(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo'))
+                            ? 'Module Dimension (W × H)'
+                            : product.category === 'Digital Standee Series'
+                              ? 'Cabinet Frame Size (W × H)'
+                              : (product.category?.toLowerCase().includes('flexible') || usesModuleSizeInsteadOfCabinetSize(product))
+                                ? 'Module Size (W × H)'
+                                : 'Cabinet Size (W × H)'}
+                        </p>
+                        <p className="font-medium text-gray-800">
+                          {(product.category === 'Module/ Grid Series' ||
+                            product.category?.toLowerCase().includes('jumbo') ||
+                            product.category?.toLowerCase().includes('flexible') ||
+                            usesModuleSizeInsteadOfCabinetSize(product))
                             ? `${product.moduleDimensions.width} × ${product.moduleDimensions.height}`
                             : `${product.cabinetDimensions.width} × ${product.cabinetDimensions.height}`} mm
                         </p>
