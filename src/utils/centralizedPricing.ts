@@ -340,7 +340,8 @@ export function calculateCentralizedPricing(
     const productTotal = productSubtotal;
 
     let processorPrice = 0;
-    if (processor && !isJumboSeriesProduct(product) && !isDigitalStandeeProduct(product)) {
+    // Nexa / fixed products: quotations are product + Nexa add-ons only (controller not billed), same as UI.
+    if (processor && !isJumboSeriesProduct(product) && !isDigitalStandeeProduct(product) && !isFixedProduct(product)) {
       processorPrice = getProcessorPrice(processor, pdfUserType);
     }
 

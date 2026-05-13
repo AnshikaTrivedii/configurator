@@ -602,8 +602,11 @@ export const generateConfigurationHtml = (
     installationBasePrice = 0;
     totalStructure = 0;
     totalInstallation = 0;
-    // For Fixed products, Grand Total = Product + Add-ons
-    grandTotal = totalProduct + addonsTotal;
+    // When a saved quotation breakdown exists, keep its grandTotal (matches dashboard totalPrice). Recomputing
+    // product + add-ons here dropped processor for legacy Nexa rows where centralized pricing still added it.
+    if (!exactPricingBreakdown) {
+      grandTotal = totalProduct + addonsTotal;
+    }
   }
 
   const formatIndianNumber = (x: number): string => {
