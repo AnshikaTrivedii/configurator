@@ -421,11 +421,11 @@ export const products: Product[] = [
     category: 'Core Series',
     enabled: true,
     image: '/products/bellatrix-series/Bellatrix Series Outdoor SMD P3.png',
-    resolution: { width: 256, height: 256 },
-    cabinetDimensions: { width: 768, height: 768 },
-    moduleDimensions: { width: 192, height: 192 },
-    moduleResolution: { width: 64, height: 64 },
-    moduleQuantity: 16, // 4x4
+    resolution: { width: 312, height: 312 },
+    cabinetDimensions: { width: 960, height: 960 },
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 104, height: 52 },
+    moduleQuantity: 18, // 3x6
     pixelPitch: 3.0,
     pixelDensity: 111000,
     brightness: 4500,
@@ -433,11 +433,15 @@ export const products: Product[] = [
     environment: 'outdoor',
     maxPowerConsumption: 450,
     avgPowerConsumption: 250,
-    weightPerCabinet: 16,
+    weightPerCabinet: 27,
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/bellatrix/6_Bellatrix+Series+Outdoor+SMD+P3.pdf',
     price: 10600,
     siChannelPrice: 9540,
     resellerPrice: 9010,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 312, height: 312 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 208, height: 208 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
   {
     id: 'bellatrix-outdoor-smd-p4',
@@ -860,11 +864,11 @@ export const products: Product[] = [
     category: 'Edge Series',
     enabled: true,
     image: '/products/rigel-series/Outdoor P3.png',
-    resolution: { width: 256, height: 256 },
-    cabinetDimensions: { width: 768, height: 768 },
-    moduleDimensions: { width: 192, height: 192 },
-    moduleResolution: { width: 64, height: 64 },
-    moduleQuantity: 16, // 4x4 modules
+    resolution: { width: 312, height: 312 },
+    cabinetDimensions: { width: 960, height: 960 },
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 104, height: 52 },
+    moduleQuantity: 18, // 3x6 modules
     pixelPitch: 3.0,
     pixelDensity: 111000,
     brightness: 5500,
@@ -872,11 +876,15 @@ export const products: Product[] = [
     environment: 'outdoor',
     maxPowerConsumption: 450,
     avgPowerConsumption: 200,
-    weightPerCabinet: 16,
+    weightPerCabinet: 27,
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/rigel-series/6_Rigel+Outdoor+SMD+P3.pdf',
     price: 13200,
     siChannelPrice: 11880,
     resellerPrice: 11220,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 312, height: 312 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 208, height: 208 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
 
   {
@@ -1593,12 +1601,12 @@ export const products: Product[] = [
     name: 'Astra Prime-O P3',
     category: 'Prime Series',
     enabled: true,
-    image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P3.png',
-    resolution: { width: 192, height: 192 },
-    cabinetDimensions: { width: 768, height: 768 },
-    moduleDimensions: { width: 192, height: 192 },
-    moduleResolution: { width: 64, height: 64 },
-    moduleQuantity: 16, // 4x4
+    image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P3.jpg',
+    resolution: { width: 312, height: 312 },
+    cabinetDimensions: { width: 960, height: 960 },
+    moduleDimensions: { width: 320, height: 160 },
+    moduleResolution: { width: 104, height: 52 },
+    moduleQuantity: 18, // 3x6
     pixelPitch: 3.0,
     pixelDensity: 111000,
     brightness: 6000,
@@ -1606,7 +1614,7 @@ export const products: Product[] = [
     environment: 'outdoor',
     maxPowerConsumption: 450,
     avgPowerConsumption: 200,
-    weightPerCabinet: 16,
+    weightPerCabinet: 27,
     pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/betel-series/6_Betelgeuse+Outdoor+SMD+P3.pdf',
     viewingAngle: '160/160',
     colorDepth: '16 Bit',
@@ -1626,6 +1634,10 @@ export const products: Product[] = [
     price: 18400,
     siChannelPrice: 16560,
     resellerPrice: 15640,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 312, height: 312 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 208, height: 208 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
 
   {
