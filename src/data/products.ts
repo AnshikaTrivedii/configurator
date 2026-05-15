@@ -410,6 +410,10 @@ export const products: Product[] = [
     price: 13200,
     siChannelPrice: 11880,
     resellerPrice: 11220,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 384, height: 384 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 256, height: 256 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
   {
     id: 'bellatrix-outdoor-smd-p3',
@@ -458,6 +462,10 @@ export const products: Product[] = [
     price: 8100,
     siChannelPrice: 7290,
     resellerPrice: 6885,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 240, height: 240 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 160, height: 160 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
   {
     id: 'bellatrix-outdoor-smd-p6.6',
@@ -482,6 +490,10 @@ export const products: Product[] = [
     price: 7100,
     siChannelPrice: 6390,
     resellerPrice: 6035,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 144, height: 144 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 96, height: 96 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
   {
     id: 'bellatrix-outdoor-smd-p10',
@@ -506,6 +518,10 @@ export const products: Product[] = [
     price: 5900,
     siChannelPrice: 5310,
     resellerPrice: 5015,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 96, height: 96 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 64, height: 64 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
 
   {
@@ -832,6 +848,10 @@ export const products: Product[] = [
     price: 15400,
     siChannelPrice: 13860,
     resellerPrice: 13090,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 384, height: 384 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 256, height: 256 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
 
   {
@@ -882,6 +902,10 @@ export const products: Product[] = [
     price: 10300,
     siChannelPrice: 9270,
     resellerPrice: 8755,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 240, height: 240 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 160, height: 160 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
 
   {
@@ -907,6 +931,10 @@ export const products: Product[] = [
     price: 8300,
     siChannelPrice: 7470,
     resellerPrice: 7055,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 144, height: 144 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 96, height: 96 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
 
   {
@@ -932,6 +960,10 @@ export const products: Product[] = [
     price: 6600,
     siChannelPrice: 5940,
     resellerPrice: 5610,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 96, height: 96 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 64, height: 64 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
 
   {
@@ -1550,6 +1582,10 @@ export const products: Product[] = [
     price: 27900,
     siChannelPrice: 25110,
     resellerPrice: 23715,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 384, height: 384 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 256, height: 256 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
 
   {
@@ -1630,6 +1666,10 @@ export const products: Product[] = [
     price: 15400,
     siChannelPrice: 13860,
     resellerPrice: 13090,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 240, height: 240 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 160, height: 160 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
 
   {
@@ -1670,6 +1710,10 @@ export const products: Product[] = [
     price: 9400,
     siChannelPrice: 8460,
     resellerPrice: 7990,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 144, height: 144 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 96, height: 96 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
 
   {
@@ -1710,6 +1754,10 @@ export const products: Product[] = [
     price: 8100,
     siChannelPrice: 7290,
     resellerPrice: 6885,
+    cabinetVariations: [
+      { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 96, height: 96 }, weightPerCabinet: 27, moduleQuantity: 18 },
+      { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 64, height: 64 }, weightPerCabinet: 20, moduleQuantity: 8 }
+    ],
   },
 
   {

@@ -129,7 +129,7 @@ app.use((error, req, res, next) => {
 // Start server
 // Listen on 0.0.0.0 to accept connections from other Docker containers
 app.listen(PORT, '0.0.0.0', () => {
-
+  console.log(`🚀 Server running on port ${PORT}`);
 });
 
 export default app;

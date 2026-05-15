@@ -27,6 +27,14 @@ export interface DigitalStandeeMatrixVariantInfo {
   };
 }
 
+export interface CabinetVariation {
+  label: string; // e.g. "960x960" or "640x640"
+  cabinetDimensions: { width: number; height: number };
+  resolution: { width: number; height: number };
+  weightPerCabinet: number;
+  moduleQuantity?: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -126,6 +134,9 @@ export interface Product {
     /** Optional custom validation message when dimensions are invalid. */
     validationMessage?: string;
   };
+
+  /** Optional cabinet size variations (e.g. 960x960 and 640x640 for outdoor products) */
+  cabinetVariations?: CabinetVariation[];
 
   enabled?: boolean; // If false, product is hidden from UI but kept in codebase
 

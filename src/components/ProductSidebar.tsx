@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Product, CabinetGrid } from '../types';
+import { Product, CabinetGrid, CabinetVariation } from '../types';
 import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
 
 const MM_TO_FEET = 1 / 304.8;
@@ -38,6 +38,9 @@ interface ProductSidebarProps {
   onProductChange?: (product: Product) => void;
   nexaAddons?: string[];
   onNexaAddonsChange?: (addons: string[]) => void;
+  /** Cabinet size variation selection (for outdoor products with multiple cabinet sizes) */
+  selectedCabinetSize?: string | null;
+  onCabinetSizeChange?: (label: string) => void;
 }
 
 export const ProductSidebar: React.FC<ProductSidebarProps> = ({
@@ -58,7 +61,9 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   nexaVariants,
   onProductChange,
   nexaAddons = [],
-  onNexaAddonsChange
+  onNexaAddonsChange,
+  selectedCabinetSize,
+  onCabinetSizeChange
 }) => {
   const [activeTab, setActiveTab] = useState<'dimensions' | 'processing'>('dimensions');
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
@@ -219,6 +224,27 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Cabinet Size Variation Selector */}
+            {selectedProduct.cabinetVariations && selectedProduct.cabinetVariations.length > 1 && onCabinetSizeChange && (
+              <div className="pt-2 sm:pt-3 border-t border-gray-200">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Cabinet Size</h3>
+                <div className="flex flex-wrap gap-3">
+                  {selectedProduct.cabinetVariations.map((variation: CabinetVariation) => (
+                    <label key={variation.label} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="cabinetSize"
+                        checked={(selectedCabinetSize || selectedProduct.cabinetVariations![0].label) === variation.label}
+                        onChange={() => onCabinetSizeChange(variation.label)}
+                        className="text-black focus:ring-black"
+                      />
+                      <span className="text-xs sm:text-sm">{variation.label} mm</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {isNexa && nexaVariants && nexaVariants.length > 1 && onProductChange && (
               <div className="pt-2 sm:pt-3 border-t border-gray-200">

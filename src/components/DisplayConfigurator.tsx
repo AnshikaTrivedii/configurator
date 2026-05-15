@@ -26,6 +26,7 @@ import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } from '../utils/dimensionConstraints';
 import { products } from '../data/products';
+import { hasCabinetVariations, applySelectedCabinetVariation, getDefaultCabinetVariationLabel, getVariationLabelFromDimensions } from '../utils/cabinetVariation';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
@@ -76,6 +77,17 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const [showLeftPanel, setShowLeftPanel] = useState(!!initialConfig?.selectedProduct);
   const isInitialMount = useRef(true);
 
+  // --- Cabinet Variation Logic ---
+  // When a product has cabinetVariations (e.g. outdoor products in Core/Edge/Prime),
+  // apply the selected variation to create an effective product with overridden dimensions/resolution/weight.
+  const selectedCabinetSize = globalConfig.selectedCabinetSize;
+  const effectiveProduct = React.useMemo(() => {
+    if (!selectedProduct) return undefined;
+    if (!hasCabinetVariations(selectedProduct)) return selectedProduct;
+    const label = selectedCabinetSize || getDefaultCabinetVariationLabel(selectedProduct);
+    return applySelectedCabinetVariation(selectedProduct, label);
+  }, [selectedProduct, selectedCabinetSize]);
+
   const {
     config,
     aspectRatios,
@@ -86,7 +98,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     displayDimensions,
     calculateCabinetGrid,
     setConfig
-  } = useDisplayCalculations(selectedProduct);
+  } = useDisplayCalculations(effectiveProduct);
+
+
 
   useEffect(() => {
 
@@ -254,8 +268,18 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       if (activeQuotation.quotationData?.customPricing) {
         setCustomPricing(activeQuotation.quotationData.customPricing);
       }
+
+      // Restore cabinet size variation if present in quotation data
+      const savedProductSpecs = activeQuotation.exactProductSpecs || (activeQuotation as any).product;
+      if (savedProductSpecs?.cabinetDimensions && selectedProduct) {
+        const variationLabel = getVariationLabelFromDimensions(selectedProduct, savedProductSpecs.cabinetDimensions);
+        if (variationLabel) {
+          console.log('Restoring cabinet size variation:', variationLabel);
+          updateConfig({ selectedCabinetSize: variationLabel });
+        }
+      }
     }
-  }, [activeQuotation]);
+  }, [activeQuotation, selectedProduct]);
 
   useEffect(() => {
 
@@ -325,7 +349,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   });
   const [redundancyEnabled, setRedundancyEnabled] = useState(false);
 
-  const cabinetGrid = calculateCabinetGrid(selectedProduct);
+
+
+  const cabinetGrid = calculateCabinetGrid(effectiveProduct);
 
   const dimensionValidation = selectedProduct
     ? validateDimensions(selectedProduct, config.width, config.height)
@@ -365,9 +391,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   ];
 
   const createControllerSelection = () => {
-    if (!selectedProduct) return null;
+    const prod = effectiveProduct || selectedProduct;
+    if (!prod) return null;
 
-    const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
+    const totalPixels = prod.resolution.width * cabinetGrid.columns * prod.resolution.height * cabinetGrid.rows;
     const dataHubPorts = Math.ceil(totalPixels / 655000);
     const requiredPorts = redundancyEnabled ? dataHubPorts * 2 : dataHubPorts;
     const backupPorts = redundancyEnabled ? dataHubPorts : 0;
@@ -408,8 +435,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const effectiveProcessor = controllerSelection?.selectedController?.name ?? selectedController;
 
   // For dropdown: processors with capacity >= totalPixels, suggested first, then higher capacity only
-  const totalPixelsForProcessor = selectedProduct
-    ? selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows
+  const totalPixelsForProcessor = (effectiveProduct || selectedProduct)
+    ? (effectiveProduct || selectedProduct)!.resolution.width * cabinetGrid.columns * (effectiveProduct || selectedProduct)!.resolution.height * cabinetGrid.rows
     : 0;
   const processorDropdownOptions = selectedProduct
     ? ALLOWED_PROCESSORS
@@ -427,11 +454,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   useEffect(() => {
-    if (selectedProduct) {
-      const grid = calculateCabinetGrid(selectedProduct);
-      setSelectedController(getAutoSelectedController(selectedProduct, grid));
+    if (effectiveProduct) {
+      const grid = calculateCabinetGrid(effectiveProduct);
+      setSelectedController(getAutoSelectedController(effectiveProduct, grid));
     }
-  }, [selectedProduct, config.width, config.height]);
+  }, [effectiveProduct, config.width, config.height]);
 
   const nexaVariants = selectedProduct && isNexa
     ? products.filter(p => 
@@ -440,6 +467,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         p.enabled !== false
       )
     : [];
+
+
 
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
@@ -463,7 +492,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         : normalizedEnv === 'outdoor'
           ? 'Outdoor'
           : globalConfig.environment,
-      nexaAddons: productIsNexa ? globalConfig.nexaAddons : []
+      nexaAddons: productIsNexa ? globalConfig.nexaAddons : [],
+      // Reset cabinet size selection when switching products
+      selectedCabinetSize: hasCabinetVariations(product) ? getDefaultCabinetVariationLabel(product) : null
     });
 
     setIsProductSelectorOpen(false);
@@ -621,7 +652,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
       const blob = await generateConfigurationPdf(
         config,
-        selectedProduct,
+        effectiveProduct || selectedProduct!,
         fixedCabinetGrid,
         effectiveProcessor,
         selectedMode,
@@ -632,14 +663,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         quotationId,
         customPricing.enabled ? customPricing : undefined,
         undefined,
-        selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
         globalConfig.nexaAddons
       );
 
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.pdf`;
+      link.download = `${effectiveProduct?.name || selectedProduct?.name}-Configuration-${new Date().toISOString().split('T')[0]}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -672,7 +702,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
       const blob = await generateConfigurationDocx(
         config,
-        selectedProduct,
+        effectiveProduct || selectedProduct!,
         fixedCabinetGrid,
         effectiveProcessor,
         selectedMode,
@@ -696,7 +726,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.docx`;
+      link.download = `${effectiveProduct?.name || selectedProduct?.name}-Configuration-${new Date().toISOString().split('T')[0]}.docx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -988,6 +1018,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             onProductChange={handleProductSelect}
             nexaAddons={globalConfig.nexaAddons}
             onNexaAddonsChange={(addons) => updateConfig({ nexaAddons: addons })}
+            selectedCabinetSize={selectedCabinetSize}
+            onCabinetSizeChange={(label) => {
+              updateConfig({ selectedCabinetSize: label });
+            }}
           />
         </div>
 
@@ -1021,7 +1055,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   onWidthChange={updateWidth}
                   onHeightChange={updateHeight}
                   onUnitChange={updateUnit}
-                  selectedProduct={selectedProduct}
+                  selectedProduct={effectiveProduct}
                 />
                 {!isNexa && !(selectedProduct?.category?.toLowerCase().includes('digital standee')) && (
                   <AspectRatioSelector
@@ -1107,10 +1141,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
               <div className="bg-white rounded-xl shadow-sm border p-2 sm:p-4">
                 {activeTab === 'preview' && (
-                   <DisplayPreview
+                  <DisplayPreview
                     config={config}
                     displayDimensions={displayDimensions}
-                    selectedProduct={selectedProduct}
+                    selectedProduct={effectiveProduct}
                     cabinetGrid={fixedCabinetGrid}
                     nexaAddons={globalConfig.nexaAddons}
                   />
@@ -1118,7 +1152,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
                 {selectedProduct && !isJumbo && !(selectedProduct.category?.toLowerCase().includes('digital standee')) && activeTab === 'data' && (
                   <DataWiringView
-                    product={selectedProduct}
+                    product={effectiveProduct || selectedProduct}
                     cabinetGrid={fixedCabinetGrid}
                     redundancyEnabled={redundancyEnabled}
                     onRedundancyChange={setRedundancyEnabled}
@@ -1127,7 +1161,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                 )}
 
                 {selectedProduct && !isJumbo && !(selectedProduct.category?.toLowerCase().includes('digital standee')) && activeTab === 'power' && (
-                  <PowerWiringView product={selectedProduct} cabinetGrid={fixedCabinetGrid} />
+                  <PowerWiringView product={effectiveProduct || selectedProduct} cabinetGrid={fixedCabinetGrid} />
                 )}
               </div>
             </div>
@@ -1166,13 +1200,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                         <div>
                           <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Size' : isDigitalStandeeSeries ? 'Cabinet Frame Size' : isFlexibleSeries ? 'Module Size' : 'Cabinet Size'}</h4>
                           <p className="text-gray-600 text-xs sm:text-sm">
-                            {selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm
+                            {(effectiveProduct || selectedProduct).cabinetDimensions.width} × {(effectiveProduct || selectedProduct).cabinetDimensions.height} mm
                           </p>
                         </div>
                         <div>
                           <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Resolution' : isDigitalStandeeSeries ? 'Screen Resolution' : 'Cabinet Resolution'}</h4>
                           <p className="text-gray-600 text-xs sm:text-sm">
-                            {selectedProduct.resolution.width} × {selectedProduct.resolution.height}
+                            {(effectiveProduct || selectedProduct).resolution.width} × {(effectiveProduct || selectedProduct).resolution.height}
                           </p>
                         </div>
                       </>
@@ -1302,7 +1336,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               <ConfigurationSummary
                 config={config}
                 cabinetGrid={fixedCabinetGrid}
-                selectedProduct={selectedProduct}
+                selectedProduct={effectiveProduct}
                 processor={effectiveProcessor}
                 mode={selectedMode}
                 nexaAddons={globalConfig.nexaAddons}
@@ -1388,7 +1422,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         isOpen={isProductSelectorOpen}
         onClose={() => setIsProductSelectorOpen(false)}
         onSelectProduct={handleProductSelect}
-        selectedProduct={selectedProduct}
+        selectedProduct={effectiveProduct || selectedProduct!}
       />
       {/* Quote Modal */}
       {selectedProduct && (
@@ -1399,7 +1433,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
             setIsQuoteModalOpen(false);
           }}
-          selectedProduct={selectedProduct}
+          selectedProduct={effectiveProduct || selectedProduct!}
           config={config}
           cabinetGrid={fixedCabinetGrid}
           processor={effectiveProcessor}
@@ -1430,7 +1464,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           onClose={() => setIsPdfViewModalOpen(false)}
           htmlContent={generateConfigurationHtml(
             config,
-            selectedProduct,
+            effectiveProduct || selectedProduct!,
             fixedCabinetGrid,
             effectiveProcessor,
             selectedMode,
@@ -1459,7 +1493,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           onDownload={handleDownloadPdf}
           onDownloadDocx={handleDownloadDocx}
           fileName={`${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.pdf`}
-          selectedProduct={selectedProduct}
+          selectedProduct={effectiveProduct || selectedProduct!}
           config={config}
           cabinetGrid={fixedCabinetGrid}
           processor={effectiveProcessor}

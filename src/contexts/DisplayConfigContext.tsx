@@ -20,6 +20,8 @@ export interface DisplayConfigState {
   wireType: WireType;
   /** Nexa Series only: selected add-ons */
   nexaAddons: string[];
+  /** Selected cabinet size variation label (e.g. '960x960', '640x640') for outdoor products */
+  selectedCabinetSize: string | null;
 }
 
 interface DisplayConfigContextType {
@@ -45,7 +47,8 @@ const defaultConfig: DisplayConfigState = {
   directProductMode: false,
   selectedProductName: null,
   wireType: 'gold',
-  nexaAddons: []
+  nexaAddons: [],
+  selectedCabinetSize: null
 };
 
 const loadFromStorage = (): DisplayConfigState => {
@@ -57,7 +60,8 @@ const loadFromStorage = (): DisplayConfigState => {
         ...defaultConfig,
         ...parsed,
         wireType: parsed.wireType === 'copper' ? 'copper' : 'gold',
-        nexaAddons: Array.isArray(parsed.nexaAddons) ? parsed.nexaAddons : []
+        nexaAddons: Array.isArray(parsed.nexaAddons) ? parsed.nexaAddons : [],
+        selectedCabinetSize: parsed.selectedCabinetSize ?? null
       };
     }
   } catch (error) {
@@ -87,7 +91,8 @@ const areConfigsEqual = (a: DisplayConfigState, b: DisplayConfigState) => {
     a.directProductMode === b.directProductMode &&
     a.selectedProductName === b.selectedProductName &&
     a.wireType === b.wireType &&
-    JSON.stringify(a.nexaAddons) === JSON.stringify(b.nexaAddons)
+    JSON.stringify(a.nexaAddons) === JSON.stringify(b.nexaAddons) &&
+    a.selectedCabinetSize === b.selectedCabinetSize
   );
 };
 
