@@ -1183,7 +1183,7 @@ export const generateConfigurationHtml = (
                         </tr>
                         <tr>
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Bank Account Details</td>
-                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">A/C Holder Name - Atenti Origins Photoelectricity Consort Pvt Ltd.<br/>Branch Name- ICICI Bank. Sector 50, Noida<br/>A/C Number - 628405020381<br/>IFSC Code - ICIC0006284</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">A/C Holder Name - Atenti Origins Photoelectricity Consort Pvt Ltd.<br/>Branch Name- ICICI Bank. Sector 50, Noida<br/>A/C Number - 167105002140<br/>IFSC Code - ICIC0000214</td>
                         </tr>
                         <tr style="background: rgba(248, 249, 250, 0.5);">
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Freight & Insurance</td>
