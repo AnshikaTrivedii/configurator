@@ -1601,7 +1601,7 @@ export const products: Product[] = [
     name: 'Astra Prime-O P3',
     category: 'Prime Series',
     enabled: true,
-    image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P3.jpg',
+    image: '/products/Betel-series/Betelgeuse Series Outdoor SMD P3.png',
     resolution: { width: 312, height: 312 },
     cabinetDimensions: { width: 960, height: 960 },
     moduleDimensions: { width: 320, height: 160 },
