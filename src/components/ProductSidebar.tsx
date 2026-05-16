@@ -91,11 +91,12 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
   const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible');
+  const hideProcessorTab = !!(isJumbo || isNexa || isDigitalStandee);
   const useModuleLabel = isJumbo || isModuleGridSeries || isDigitalStandee || isFlexibleSeries || isNexa;
 
   React.useEffect(() => {
-    if (isJumbo && activeTab === 'processing') setActiveTab('dimensions');
-  }, [isJumbo, activeTab]);
+    if (hideProcessorTab && activeTab === 'processing') setActiveTab('dimensions');
+  }, [hideProcessorTab, activeTab]);
 
   const standeeGrid = selectedProduct?.digitalStandeeCabinetGrid;
   const displayColumns = isDigitalStandee ? (standeeGrid?.columns ?? 2) : cabinetGrid.columns;
@@ -138,7 +139,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
         </div>
       </div>
 
-      {/* Tabs - hide Processor tab for Jumbo series (controller included in price) */}
+      {/* Tabs - hide Processor tab for Jumbo, Digital Standee, and Nexa series */}
       <div className="border-b border-gray-200">
         <nav className="flex">
           <button 
@@ -151,7 +152,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
           >
             Dimensions
           </button>
-          {!isJumbo && (
+          {!hideProcessorTab && (
             <button 
               onClick={() => setActiveTab('processing')}
               className={`flex-1 py-2 sm:py-3 lg:py-4 px-3 sm:px-4 lg:px-6 text-center text-xs sm:text-sm font-medium ${
@@ -166,9 +167,9 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
         </nav>
       </div>
 
-      {/* Content - for Jumbo only Dimensions is shown (no Processor tab) */}
+      {/* Content - for Jumbo, Digital Standee, and Nexa only Dimensions is shown (no Processor tab) */}
       <div className="flex-1 px-3 sm:px-4 lg:px-6 py-2">
-        {(activeTab === 'dimensions' || isJumbo) ? (
+        {(activeTab === 'dimensions' || hideProcessorTab) ? (
           <div className="space-y-3 sm:space-y-4 lg:space-y-6">
             <div>
               <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">{isFlexibleSeries ? 'Module Size' : 'Screen Size'}</h3>

@@ -360,16 +360,17 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const isJumbo = selectedProduct?.category?.toLowerCase().includes('jumbo') ?? false;
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
   const isDigitalStandeeSeries = selectedProduct?.category === 'Digital Standee Series';
+  const isDigitalStandee = selectedProduct?.category?.toLowerCase().includes('digital standee') ?? false;
   const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible') ?? false;
   const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
+  const hideWiringTabs = isJumbo || isDigitalStandee || !!isNexa;
 
-  // When switching to Jumbo or Digital Standee, show Preview (Data/Power tabs are hidden)
+  // When switching to Jumbo, Digital Standee, or Nexa, show Preview (Data/Power tabs are hidden)
   React.useEffect(() => {
-    if ((isJumbo || (selectedProduct?.category?.toLowerCase().includes('digital standee') ?? false)) &&
-      (activeTab === 'data' || activeTab === 'power')) {
+    if (hideWiringTabs && (activeTab === 'data' || activeTab === 'power')) {
       setActiveTab('preview');
     }
-  }, [isJumbo, activeTab]);
+  }, [hideWiringTabs, activeTab]);
 
   // Allowed processors only (names and capacities). minPortsForRedundancy: 0 = cannot support redundancy, >= 2 = can.
   const ALLOWED_PROCESSORS = [
@@ -742,7 +743,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setIsPdfViewModalOpen(true);
   };
 
-  const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   const moduleWidth = selectedProduct?.dimensionConstraints?.moduleWidth ?? selectedProduct?.cabinetDimensions?.width ?? 600;
   const moduleHeight = selectedProduct?.dimensionConstraints?.moduleHeight ?? selectedProduct?.cabinetDimensions?.height ?? 337.5;
 
@@ -1057,7 +1057,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   onUnitChange={updateUnit}
                   selectedProduct={effectiveProduct}
                 />
-                {!isNexa && !(selectedProduct?.category?.toLowerCase().includes('digital standee')) && (
+                {!isNexa && !isDigitalStandee && (
                   <AspectRatioSelector
                     aspectRatios={aspectRatios}
                     selectedRatio={config.aspectRatio}
@@ -1120,8 +1120,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   Preview
                 </button>
 
-                {/* Show Data/Power tabs only when product is selected and not Jumbo and not Digital Standee */}
-                {selectedProduct && !isJumbo && !(selectedProduct.category?.toLowerCase().includes('digital standee')) && (
+                {/* Show Data/Power tabs only when product is selected and not Jumbo, Digital Standee, or Nexa */}
+                {selectedProduct && !hideWiringTabs && (
                   <>
                     <button
                       className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'data' ? 'bg-black text-white' : 'bg-gray-200'}`}
@@ -1150,7 +1150,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   />
                 )}
 
-                {selectedProduct && !isJumbo && !(selectedProduct.category?.toLowerCase().includes('digital standee')) && activeTab === 'data' && (
+                {selectedProduct && !hideWiringTabs && activeTab === 'data' && (
                   <DataWiringView
                     product={effectiveProduct || selectedProduct}
                     cabinetGrid={fixedCabinetGrid}
@@ -1160,7 +1160,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   />
                 )}
 
-                {selectedProduct && !isJumbo && !(selectedProduct.category?.toLowerCase().includes('digital standee')) && activeTab === 'power' && (
+                {selectedProduct && !hideWiringTabs && activeTab === 'power' && (
                   <PowerWiringView product={effectiveProduct || selectedProduct} cabinetGrid={fixedCabinetGrid} />
                 )}
               </div>
