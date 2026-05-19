@@ -223,7 +223,7 @@ export const products: Product[] = [
     name: "Nebula Series Cabinet Base P2.9",
     category: "Flexible Series",
     enabled: true,
-    image: "/products/flexible-series/Flexible Series Indoor P2.5.png", // Using existing placeholder, update if new image provided
+    image: "/products/flexible-series/1 (1).png", // Using existing placeholder, update if new image provided
     resolution: {
       width: 168,
       height: 168
@@ -252,6 +252,7 @@ export const products: Product[] = [
     maxPowerConsumption: 800,
     avgPowerConsumption: 280,
     weightPerCabinet: 8,
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Nebula+Series/Nebula+Series-+P2.9mm.pdf',
     ledType: "Black SMD 2121 / Black SMD 2020",
     driveMethod: "1/21",
     viewingAngle: "H 140°, V 140°",
