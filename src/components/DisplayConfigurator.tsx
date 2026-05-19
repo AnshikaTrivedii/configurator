@@ -745,8 +745,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setIsPdfViewModalOpen(true);
   };
 
-  const moduleWidth = selectedProduct?.dimensionConstraints?.moduleWidth ?? selectedProduct?.cabinetDimensions?.width ?? 600;
-  const moduleHeight = selectedProduct?.dimensionConstraints?.moduleHeight ?? selectedProduct?.cabinetDimensions?.height ?? 337.5;
+  const currentProdForDim = effectiveProduct || selectedProduct;
+  const moduleWidth = currentProdForDim?.dimensionConstraints?.moduleWidth ?? currentProdForDim?.cabinetDimensions?.width ?? 600;
+  const moduleHeight = currentProdForDim?.dimensionConstraints?.moduleHeight ?? currentProdForDim?.cabinetDimensions?.height ?? 337.5;
 
   const standeeColumns = isDigitalStandee
     ? (selectedProduct?.digitalStandeeCabinetGrid?.columns ?? 2)

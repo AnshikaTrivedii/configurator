@@ -107,17 +107,17 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     return meters.toFixed(2);
   };
 
-  const displayedWidth = parseFloat(toDisplayUnit(config.width, config.unit));
-  const displayedHeight = parseFloat(toDisplayUnit(config.height, config.unit));
+  const displayedWidth = parseFloat(toDisplayUnit(cabinetGrid.totalWidth || config.width, config.unit));
+  const displayedHeight = parseFloat(toDisplayUnit(cabinetGrid.totalHeight || config.height, config.unit));
 
   // Display Area: ft² derived from the rounded/displayed m² value
-  const rawAreaM2 = (config.width / 1000) * (config.height / 1000);
+  const rawAreaM2 = ((cabinetGrid.totalWidth || config.width) / 1000) * ((cabinetGrid.totalHeight || config.height) / 1000);
   const areaM2 = parseFloat(rawAreaM2.toFixed(2));
   const areaFt2 = areaM2 * 10.764;
 
   // Display Diagonal: from width/height in meters, then feet
-  const width = config.width / 1000;  // mm to m
-  const height = config.height / 1000; // mm to m
+  const width = (cabinetGrid.totalWidth || config.width) / 1000;  // mm to m
+  const height = (cabinetGrid.totalHeight || config.height) / 1000; // mm to m
   const diagonalM = Math.sqrt(width * width + height * height);
   const diagonalFt = diagonalM * 3.28084;
 
@@ -154,8 +154,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
               <div className="min-w-0">
                 <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Size (w × h)</h3>
                 <p className="mt-1 text-sm sm:text-lg font-semibold text-blue-700 break-words">
-                  {toDisplayUnit(config.width, config.unit)} {config.unit}<br />
-                  {toDisplayUnit(config.height, config.unit)} {config.unit}
+                  {toDisplayUnit(cabinetGrid.totalWidth || config.width, config.unit)} {config.unit}<br />
+                  {toDisplayUnit(cabinetGrid.totalHeight || config.height, config.unit)} {config.unit}
                 </p>
               </div>
             </div>

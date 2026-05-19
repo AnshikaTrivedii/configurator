@@ -193,8 +193,10 @@ function calculateQuantity(
       return 1;
     } else if (isJumboSeriesProduct(product)) {
       // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
-      const widthInMeters = config.width / 1000;
-      const heightInMeters = config.height / 1000;
+      const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
+      const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
+      const widthInMeters = effectiveWidth / 1000;
+      const heightInMeters = effectiveHeight / 1000;
       const widthInFeet = widthInMeters * METERS_TO_FEET;
       const heightInFeet = heightInMeters * METERS_TO_FEET;
       const quantity = widthInFeet * heightInFeet;
@@ -202,8 +204,10 @@ function calculateQuantity(
       return isNaN(roundedQuantity) || roundedQuantity <= 0 ? 1 : Math.max(0.01, Math.min(roundedQuantity, 10000));
     } else {
 
-      const widthInMeters = config.width / 1000;
-      const heightInMeters = config.height / 1000;
+      const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
+      const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
+      const widthInMeters = effectiveWidth / 1000;
+      const heightInMeters = effectiveHeight / 1000;
       const widthInFeet = widthInMeters * METERS_TO_FEET;
       const heightInFeet = heightInMeters * METERS_TO_FEET;
       const quantity = widthInFeet * heightInFeet;
@@ -325,8 +329,8 @@ export function calculateCentralizedPricing(
         processorName: processor || undefined,
         cabinetGrid: cabinetGrid || undefined,
         displaySize: {
-          width: Number((config.width / 1000).toFixed(2)),
-          height: Number((config.height / 1000).toFixed(2))
+          width: Number(((cabinetGrid?.totalWidth ?? config.width) / 1000).toFixed(2)),
+          height: Number(((cabinetGrid?.totalHeight ?? config.height) / 1000).toFixed(2))
         },
         isAvailable: false
       };
@@ -349,8 +353,10 @@ export function calculateCentralizedPricing(
     const processorTotal = processorPrice;
 
     const METERS_TO_FEET = 3.2808399;
-    const widthInMeters = config.width / 1000;
-    const heightInMeters = config.height / 1000;
+    const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
+    const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
+    const widthInMeters = effectiveWidth / 1000;
+    const heightInMeters = effectiveHeight / 1000;
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
     const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
@@ -427,8 +433,8 @@ export function calculateCentralizedPricing(
       processorName: processor || undefined,
       cabinetGrid: cabinetGrid || undefined,
       displaySize: {
-        width: Number((config.width / 1000).toFixed(2)),
-        height: Number((config.height / 1000).toFixed(2))
+        width: Number(((cabinetGrid?.totalWidth ?? config.width) / 1000).toFixed(2)),
+        height: Number(((cabinetGrid?.totalHeight ?? config.height) / 1000).toFixed(2))
       },
       isAvailable: true
     };

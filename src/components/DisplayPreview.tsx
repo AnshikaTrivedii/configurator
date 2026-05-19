@@ -62,9 +62,9 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
 
-    const baseWidth = displayDimensions.width;
-    const baseHeight = displayDimensions.height;
-    const aspectRatio = baseWidth / baseHeight;
+    const baseWidth = cabinetGrid?.totalWidth || displayDimensions.width;
+    const baseHeight = cabinetGrid?.totalHeight || displayDimensions.height;
+    const aspectRatio = baseHeight > 0 ? (baseWidth / baseHeight) : 1;
 
     let maxWidth, maxHeight;
     
@@ -352,8 +352,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     return meters.toFixed(2);
   };
 
-  let previewWidthMM = config.width;
-  let previewHeightMM = config.height;
+  let previewWidthMM = cabinetGrid?.totalWidth || config.width;
+  let previewHeightMM = cabinetGrid?.totalHeight || config.height;
   if (isDigitalStandee && !standeeHasConstraints && selectedProduct?.cabinetDimensions) {
     previewWidthMM = selectedProduct.cabinetDimensions.width;
     previewHeightMM = selectedProduct.cabinetDimensions.height;

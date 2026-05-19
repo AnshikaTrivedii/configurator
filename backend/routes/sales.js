@@ -367,6 +367,7 @@ router.post('/login', validateLogin, async (req, res) => {
       .lean(); // Use lean() for better performance
 
     if (!user) {
+      console.log(`Login failed for ${email}: User not found.`);
       return res.status(400).json({
         success: false,
         message: 'Invalid email or password'
@@ -376,11 +377,14 @@ router.post('/login', validateLogin, async (req, res) => {
     // Check password using bcrypt directly for better performance
     const isPasswordValid = bcrypt.compareSync(password, user.passwordHash);
     if (!isPasswordValid) {
+      console.log(`Login failed for ${email}: Invalid password. Password length was ${password.length}`);
       return res.status(400).json({
         success: false,
         message: 'Invalid email or password'
       });
     }
+
+    console.log(`Login successful for ${email}`);
 
     // Ensure role is set (default to 'sales' if not set)
     // This handles cases where users were created before role field was added

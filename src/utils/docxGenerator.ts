@@ -316,11 +316,13 @@ export const generateConfigurationHtml = (
     return meters.toFixed(2);
   };
 
-  const displayedWidth = parseFloat(toDisplayUnit(config.width, config.unit));
-  const displayedHeight = parseFloat(toDisplayUnit(config.height, config.unit));
+  const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
+  const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
+  const displayedWidth = parseFloat(toDisplayUnit(effectiveWidth, config.unit));
+  const displayedHeight = parseFloat(toDisplayUnit(effectiveHeight, config.unit));
   void displayedWidth; void displayedHeight;
 
-  const diagonalMeters = Math.sqrt(Math.pow(config.width / 1000, 2) + Math.pow(config.height / 1000, 2));
+  const diagonalMeters = Math.sqrt(Math.pow(effectiveWidth / 1000, 2) + Math.pow(effectiveHeight / 1000, 2));
   void diagonalMeters;
 
   const avgPowerPerCabinet = selectedProduct.avgPowerConsumption || 91.7;
@@ -410,16 +412,16 @@ export const generateConfigurationHtml = (
     quantity = 1;
   } else if (isJumboSeries) {
     // Jumbo: quantity = display area in sq ft (from config dimensions in mm)
-    const widthInMeters = config.width / 1000;
-    const heightInMeters = config.height / 1000;
+    const widthInMeters = effectiveWidth / 1000;
+    const heightInMeters = effectiveHeight / 1000;
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
     const rawQuantity = widthInFeet * heightInFeet;
     quantity = Math.round(rawQuantity * 100) / 100;
   } else {
 
-    const widthInMeters = config.width / 1000;
-    const heightInMeters = config.height / 1000;
+    const widthInMeters = effectiveWidth / 1000;
+    const heightInMeters = effectiveHeight / 1000;
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
     const rawQuantity = widthInFeet * heightInFeet;
@@ -448,8 +450,8 @@ export const generateConfigurationHtml = (
   }
   let gstController = 0;
 
-  const widthInMeters = config.width / 1000;
-  const heightInMeters = config.height / 1000;
+  const widthInMeters = effectiveWidth / 1000;
+  const heightInMeters = effectiveHeight / 1000;
   const widthInFeet = widthInMeters * METERS_TO_FEET;
   const heightInFeet = heightInMeters * METERS_TO_FEET;
   const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
