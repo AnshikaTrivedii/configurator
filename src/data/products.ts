@@ -219,6 +219,56 @@ export const products: Product[] = [
   },
 
   {
+    id: "nebula-cabinet-p2.9",
+    name: "Nebula Series Cabinet Base P2.9",
+    category: "Flexible Series",
+    enabled: true,
+    image: "/products/flexible-series/Flexible Series Indoor P2.5.png", // Using existing placeholder, update if new image provided
+    resolution: {
+      width: 168,
+      height: 168
+    },
+    price: 0, // Needs pricing info, setting to 0 for now
+    siChannelPrice: 0,
+    resellerPrice: 0,
+    cabinetDimensions: {
+      width: 500,
+      height: 500
+    },
+    moduleDimensions: {
+      width: 250,
+      height: 250
+    },
+    moduleResolution: {
+      width: 84,
+      height: 84
+    },
+    moduleQuantity: 4, // 2x2
+    pixelPitch: 2.97,
+    pixelDensity: 112896,
+    brightness: 800,
+    refreshRate: 3840,
+    environment: "Indoor",
+    maxPowerConsumption: 800,
+    avgPowerConsumption: 280,
+    weightPerCabinet: 8,
+    ledType: "Black SMD 2121 / Black SMD 2020",
+    driveMethod: "1/21",
+    viewingAngle: "H 140°, V 140°",
+    serviceAccess: "FRONT",
+    ipGrade: "IP31/43",
+    operatingTemperature: "0°C~50°C",
+    operatingHumidity: "10~90%RH",
+    storageTempHumidity: "0°C~60°C, 10~90%RH",
+    cabinetMaterial: "Die-casting Aluminum",
+    controller: "Novastar",
+    contrastRatio: "10000:1",
+    colorTemperature: "3200-9300 Optional",
+    frameChangingFrequently: "50/60",
+    certificates: "CE/BIS/CCC/FCC/CB"
+  },
+
+  {
     id: 'bellatrix-indoor-cob-p0.9',
     name: 'Sigma Core P0.9',
     category: 'Core Series',

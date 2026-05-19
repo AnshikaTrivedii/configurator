@@ -244,11 +244,11 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       filtered = filtered.filter((p) => isModularSeries(p));
     } else if (selectedFilter === 'Flexible Series') {
       filtered = filtered.filter((p) => isFlexibleSeries(p));
-      // Cabinet Base has no products yet — return empty list
       if (flexibleSubType === 'Cabinet Base') {
-        return [];
+        filtered = filtered.filter((p) => p.name.includes('Cabinet Base'));
+      } else if (flexibleSubType === 'Module Base') {
+        filtered = filtered.filter((p) => !p.name.includes('Cabinet Base'));
       }
-      // Module Base (or no sub-type yet selected) shows all flexible products
     } else if (selectedFilter === 'Nexa Series') {
       filtered = filtered.filter((p) => isNexaSeries(p));
     } else if (selectedFilter === 'Transparent Series') {
@@ -766,16 +766,6 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               </div>
               <div className="text-gray-400 text-sm">
                 Choose <strong>Module Base</strong> or <strong>Cabinet Base</strong> to view products.
-              </div>
-            </div>
-          ) : selectedFilter === 'Flexible Series' && flexibleSubType === 'Cabinet Base' ? (
-            <div className="text-center py-12">
-              <div className="text-gray-400 text-4xl mb-4">🚧</div>
-              <div className="text-gray-600 text-base font-medium mb-2">
-                Cabinet Base products coming soon
-              </div>
-              <div className="text-gray-400 text-sm">
-                Products for this category will be added shortly.
               </div>
             </div>
           ) : filteredProducts.length === 0 ? (
