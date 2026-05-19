@@ -7,7 +7,7 @@ export const products: Product[] = [
     name: "Nebula Series Indoor P1.53",
     category: "Flexible Series",
     enabled: true,
-    image: "/products/flexible-series/Flexible Series Indoor P1.5.png",
+    image: "/products/flexible-series/Flexible Series Indoor P1.5.jpeg",
     resolution: {
       width: 208,
       height: 104
@@ -53,7 +53,7 @@ export const products: Product[] = [
     storageTempHumidity: "0°C~60°C, 10~90%RH",
     lifeTime: 100000,
     cabinetMaterial: "Sheet metal",
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/1_Flexible+Series+Indoor+P1.53.pdf"
+    pdf: "https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Nebula+Series/Nebula+Series-+P1.53mm.pdf"
   },
 
   {
@@ -61,7 +61,7 @@ export const products: Product[] = [
     name: "Nebula Series Indoor P1.86",
     category: "Flexible Series",
     enabled: true,
-    image: "/products/flexible-series/Flexible Series Indoor P1.8.png",
+    image: "/products/flexible-series/Flexible Series Indoor P1.8.jpeg",
     resolution: {
       width: 172,
       height: 86
@@ -107,7 +107,7 @@ export const products: Product[] = [
     storageTempHumidity: "0°C~60°C, 10~90%RH",
     lifeTime: 100000,
     cabinetMaterial: "Sheet metal",
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/2_Flexible+Series+Indoor+P1.86.pdf"
+    pdf: "https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Nebula+Series/Nebula+Series-+P1.86mm.pdf"
   },
 
   {
@@ -115,7 +115,7 @@ export const products: Product[] = [
     name: "Nebula Series Indoor P2.5",
     category: "Flexible Series",
     enabled: true,
-    image: "/products/flexible-series/Flexible Series Indoor P2.5.png",
+    image: "/products/flexible-series/Flexible Series Indoor P2.5.jpeg",
     resolution: {
       width: 128,
       height: 64
@@ -161,7 +161,7 @@ export const products: Product[] = [
     storageTempHumidity: "0°C~60°C, 10~90%RH",
     lifeTime: 100000,
     cabinetMaterial: "Sheet metal",
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/3_Flexible+Series+Indoor+P2.5.pdf"
+    pdf: "https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Nebula+Series/Nebula+Series-+P2.5mm.pdf"
   },
 
   {
@@ -169,7 +169,7 @@ export const products: Product[] = [
     name: "Nebula Series Indoor P3",
     category: "Flexible Series",
     enabled: true,
-    image: "/products/flexible-series/Flexible Series Indoor P3.png",
+    image: "/products/flexible-series/Flexible Series Indoor P3.jpeg",
     resolution: {
       width: 80,
       height: 40
@@ -215,7 +215,7 @@ export const products: Product[] = [
     storageTempHumidity: "0°C~60°C, 10~90%RH",
     lifeTime: 100000,
     cabinetMaterial: "Sheet metal",
-    pdf: "https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/flexible-series/4_Flexible+Series+Indoor+P3.pdf"
+    pdf: "https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Nebula+Series/Nebula+Series-+P3mm.pdf"
   },
 
   {
@@ -584,7 +584,7 @@ export const products: Product[] = [
     category: 'Digital Standee Series',
     enabled: true,
     digitalStandeeCabinetGrid: { columns: 2, rows: 11 },
-    image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.10 (1).jpeg',
+    image: '/products/standee-series/Indoor Lite P1.8.png',
     resolution: { width: 344, height: 946 },
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
     moduleDimensions: { width: 320, height: 160 },
@@ -598,7 +598,7 @@ export const products: Product[] = [
     maxPowerConsumption: 400, // <400W
     avgPowerConsumption: 120, // <120W
     weightPerCabinet: 45, // kg
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/1_Digital+Standee+Series++SMD+P1.8.pdf',
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Omega+Series/Omega-I+Lite+-+P1.8mm.pdf',
     ledType: 'SMD',
     driverIC: 'ICN/MBI/SM',
     viewingAngle: 'H140°, V140°',
@@ -634,7 +634,7 @@ export const products: Product[] = [
     category: 'Digital Standee Series',
     enabled: true,
     digitalStandeeCabinetGrid: { columns: 3, rows: 11 },
-    image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.10 (1) - Copy.jpeg',
+    image: '/products/standee-series/Indoor Plus P1.8.png',
     resolution: { width: 516, height: 946 },
     cabinetDimensions: { width: 985, height: 1785 },
     moduleDimensions: { width: 320, height: 160 },
@@ -648,7 +648,7 @@ export const products: Product[] = [
     maxPowerConsumption: 400,
     avgPowerConsumption: 120,
     weightPerCabinet: 65,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P1.8+(Model+B).pdf',
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Omega+Series/Omega-I+Plus-+P1.8mm.pdf',
     ledType: 'SMD',
     driverIC: 'ICN/MBI/SM',
     viewingAngle: 'H140°, V140°',
@@ -684,7 +684,7 @@ export const products: Product[] = [
     category: 'Digital Standee Series',
     enabled: true,
     digitalStandeeCabinetGrid: { columns: 2, rows: 11 },
-    image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.10.jpeg',
+    image: '/products/standee-series/Indoor Lite P2.5.png',
     resolution: { width: 256, height: 704 },
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
     moduleDimensions: { width: 320, height: 160 },
@@ -698,7 +698,7 @@ export const products: Product[] = [
     maxPowerConsumption: 400, // <400W
     avgPowerConsumption: 120, // <120W
     weightPerCabinet: 45, // kg
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/2_Digital+Standee+Series++SMD+P2.5.pdf',
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Omega+Series/Omega-I+Lite+-+P2.5mm.pdf',
     ledType: 'SMD',
     driverIC: 'ICN/MBI/SM',
     viewingAngle: 'H140°, V140°',
@@ -734,7 +734,7 @@ export const products: Product[] = [
     category: 'Digital Standee Series',
     enabled: true,
     digitalStandeeCabinetGrid: { columns: 3, rows: 11 },
-    image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.10 - Copy.jpeg',
+    image: '/products/standee-series/Indoor Plus P2.5.png',
     resolution: { width: 384, height: 704 },
     cabinetDimensions: { width: 985, height: 1785 },
     moduleDimensions: { width: 320, height: 160 },
@@ -748,7 +748,7 @@ export const products: Product[] = [
     maxPowerConsumption: 400,
     avgPowerConsumption: 120,
     weightPerCabinet: 65,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P2.5+(Model+B).pdf',
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Omega+Series/Omega-I+Plus+-+P2.5mm.pdf',
     ledType: 'SMD',
     driverIC: 'ICN/MBI/SM',
     viewingAngle: 'H140°, V140°',
@@ -784,7 +784,7 @@ export const products: Product[] = [
     category: 'Digital Standee Series',
     enabled: true,
     digitalStandeeCabinetGrid: { columns: 2, rows: 11 },
-    image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.11.jpeg',
+    image: '/products/standee-series/Outdoor Lite P4.png',
     resolution: { width: 160, height: 440 },
     cabinetDimensions: { width: 665, height: 1785 }, // 665mm x 1785mm
     moduleDimensions: { width: 320, height: 160 },
@@ -798,7 +798,7 @@ export const products: Product[] = [
     maxPowerConsumption: 750, // <750W
     avgPowerConsumption: 400, // <400W
     weightPerCabinet: 60, // kg
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P4(Model+B).pdf',
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Omega+Series/Omega-O+Lite+-+P4mm.pdf',
     ledType: 'SMD',
     driverIC: 'ICN/MBI/SM',
     viewingAngle: 'H140°, V140°',
@@ -834,7 +834,7 @@ export const products: Product[] = [
     category: 'Digital Standee Series',
     enabled: true,
     digitalStandeeCabinetGrid: { columns: 3, rows: 11 },
-    image: '/products/standee-series/WhatsApp Image 2026-03-12 at 14.27.11 - Copy.jpeg',
+    image: '/products/standee-series/Outdoor Plus P4mm.png',
     resolution: { width: 240, height: 440 },
     cabinetDimensions: { width: 985, height: 1785 },
     moduleDimensions: { width: 320, height: 160 },
@@ -848,7 +848,7 @@ export const products: Product[] = [
     maxPowerConsumption: 750,
     avgPowerConsumption: 400,
     weightPerCabinet: 90,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/standee-series/Digital+Standee+Series++SMD+P4.pdf',
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Omega+Series/Omega-O+Plus+-+P4mm.pdf',
     ledType: 'SMD',
     driverIC: 'ICN/MBI/SM',
     viewingAngle: 'H140°, V140°',

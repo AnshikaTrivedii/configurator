@@ -264,7 +264,7 @@ function generateQuoteRequestEmail(data) {
                 <span>${data.product.resolution.width} × ${data.product.resolution.height}</span>
               </div>
               <div class="info-item">
-                <strong>${data.product.category === 'Module/ Grid Series' ? 'Module Dimensions' : 'Cabinet Dimensions'}</strong>
+                <strong>${(data.product.category === 'Module/ Grid Series' || (data.product.name || '').toLowerCase().includes('crystal') || (data.product.category || '').toLowerCase().includes('transparent')) ? 'Module Dimensions' : 'Cabinet Dimensions'}</strong>
                 <span>${data.product.cabinetDimensions.width}mm × ${data.product.cabinetDimensions.height}mm</span>
               </div>
               <div class="info-item">
@@ -438,7 +438,7 @@ function generatePlainTextQuoteRequest(data) {
   text += `DISPLAY SPECIFICATIONS\n`;
   text += `=====================\n`;
   text += `Resolution: ${data.product.resolution.width} × ${data.product.resolution.height}\n`;
-  text += `${data.product.category === 'Module/ Grid Series' ? 'Module Dimensions' : 'Cabinet Dimensions'}: ${data.product.cabinetDimensions.width}mm × ${data.product.cabinetDimensions.height}mm\n`;
+  text += `${(data.product.category === 'Module/ Grid Series' || (data.product.name || '').toLowerCase().includes('crystal') || (data.product.category || '').toLowerCase().includes('transparent')) ? 'Module Dimensions' : 'Cabinet Dimensions'}: ${(data.product.category === 'Module/ Grid Series' || (data.product.name || '').toLowerCase().includes('crystal') || (data.product.category || '').toLowerCase().includes('transparent')) ? `${data.product.moduleDimensions.width}mm × ${data.product.moduleDimensions.height}mm` : `${data.product.cabinetDimensions.width}mm × ${data.product.cabinetDimensions.height}mm`}\n`;
   text += `Module Dimensions: ${data.product.moduleDimensions.width}mm × ${data.product.moduleDimensions.height}mm\n`;
   text += `Module Resolution: ${data.product.moduleResolution.width} × ${data.product.moduleResolution.height}\n`;
   text += `Module Quantity: ${data.product.moduleQuantity}\n`;

@@ -21,6 +21,7 @@ import { PdfViewModal } from './PdfViewModal';
 import { SalesUser } from '../api/sales';
 import { clientAPI } from '../api/clients';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
+import { isCrystalSeries } from '../utils/productSeries';
 import { SuperUserDashboard } from './SuperUserDashboard';
 import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
@@ -363,6 +364,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const isDigitalStandee = selectedProduct?.category?.toLowerCase().includes('digital standee') ?? false;
   const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible') ?? false;
   const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
+  const crystalSeries = isCrystalSeries(selectedProduct);
   const hideWiringTabs = isJumbo || isDigitalStandee || !!isNexa;
 
   // When switching to Jumbo, Digital Standee, or Nexa, show Preview (Data/Power tabs are hidden)
@@ -1198,15 +1200,23 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                     {!isJumbo && !isFlexibleSeries && !isNexa && (
                       <>
                         <div>
-                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Size' : isDigitalStandeeSeries ? 'Cabinet Frame Size' : isFlexibleSeries ? 'Module Size' : 'Cabinet Size'}</h4>
+                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries || crystalSeries || isFlexibleSeries ? 'Module Size' : isDigitalStandeeSeries ? 'Cabinet Frame Size' : 'Cabinet Size'}</h4>
                           <p className="text-gray-600 text-xs sm:text-sm">
-                            {(effectiveProduct || selectedProduct).cabinetDimensions.width} × {(effectiveProduct || selectedProduct).cabinetDimensions.height} mm
+                            {(crystalSeries || isFlexibleSeries
+                              ? (effectiveProduct || selectedProduct).moduleDimensions
+                              : (effectiveProduct || selectedProduct).cabinetDimensions).width} × {(crystalSeries || isFlexibleSeries
+                              ? (effectiveProduct || selectedProduct).moduleDimensions
+                              : (effectiveProduct || selectedProduct).cabinetDimensions).height} mm
                           </p>
                         </div>
                         <div>
-                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Resolution' : isDigitalStandeeSeries ? 'Screen Resolution' : 'Cabinet Resolution'}</h4>
+                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries || crystalSeries || isFlexibleSeries ? 'Module Resolution' : isDigitalStandeeSeries ? 'Screen Resolution' : 'Cabinet Resolution'}</h4>
                           <p className="text-gray-600 text-xs sm:text-sm">
-                            {(effectiveProduct || selectedProduct).resolution.width} × {(effectiveProduct || selectedProduct).resolution.height}
+                            {(crystalSeries && (effectiveProduct || selectedProduct).moduleResolution
+                              ? (effectiveProduct || selectedProduct).moduleResolution!
+                              : (effectiveProduct || selectedProduct).resolution).width} × {(crystalSeries && (effectiveProduct || selectedProduct).moduleResolution
+                              ? (effectiveProduct || selectedProduct).moduleResolution!
+                              : (effectiveProduct || selectedProduct).resolution).height}
                           </p>
                         </div>
                       </>
@@ -1240,7 +1250,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                     END PRICING SECTION */}
                     {!isJumbo && !isFlexibleSeries && (
                       <div>
-                        <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries || isDigitalStandeeSeries ? 'Total Modules' : 'Total Cabinets'}</h4>
+                        <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries || isDigitalStandeeSeries || crystalSeries ? 'Total Modules' : 'Total Cabinets'}</h4>
                         <p className="text-gray-600 text-xs sm:text-sm">{cabinetGrid.columns * cabinetGrid.rows} units</p>
                       </div>
                     )}

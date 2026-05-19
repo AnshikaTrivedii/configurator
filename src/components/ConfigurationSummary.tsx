@@ -5,6 +5,7 @@ import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { getControllerPdfUrl } from '../utils/controllerPdfMap';
 import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
 import { getDisplayPower } from '../utils/displayPower';
+import { usesModuleSizeInsteadOfCabinetSize } from '../utils/productSeries';
 
 // Processor specifications - matches DisplayConfigurator.tsx
 const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
@@ -87,13 +88,10 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const isModularSeries = selectedProduct.category?.toLowerCase().includes('modular');
   const isFlexibleSeries = selectedProduct.category?.toLowerCase().includes('flexible');
   const isNexa = selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa');
-  const usesModuleSizeInsteadOfCabinetSize =
-    selectedProduct.id?.toLowerCase().startsWith('transparent-front-glass-') ||
-    selectedProduct.id?.toLowerCase().startsWith('transparent-behind-glass-') ||
-    selectedProduct.id?.toLowerCase().startsWith('transparent-rollable-film-');
+  const moduleSizeProduct = usesModuleSizeInsteadOfCabinetSize(selectedProduct);
 
   const useModuleTerminology =
-    isJumboSeries || isModuleGridSeries || isDigitalStandee || isFlexibleSeries || isNexa || !!usesModuleSizeInsteadOfCabinetSize;
+    isJumboSeries || isModuleGridSeries || isDigitalStandee || isFlexibleSeries || isNexa || moduleSizeProduct;
 
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
   const MM_TO_FEET = 1 / FEET_TO_MM;
@@ -383,12 +381,12 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
                       ? 'Screen Size'
                       : isDigitalStandee
                         ? 'Cabinet Frame Size'
-                        : (isFlexibleSeries || usesModuleSizeInsteadOfCabinetSize)
+                        : (isFlexibleSeries || moduleSizeProduct)
                           ? 'Module Size'
                           : 'Cabinet Size'}
                 </div>
                 <div className="font-medium text-gray-900 text-xs sm:text-sm">
-                  {(isFlexibleSeries || usesModuleSizeInsteadOfCabinetSize)
+                  {(isFlexibleSeries || moduleSizeProduct)
                     ? `${selectedProduct.moduleDimensions.width} × ${selectedProduct.moduleDimensions.height} mm`
                     : `${selectedProduct.cabinetDimensions.width} × ${selectedProduct.cabinetDimensions.height} mm`}
                 </div>

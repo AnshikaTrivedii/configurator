@@ -662,7 +662,7 @@ const createQuotationContent = (data) => {
                 }),
                 new Paragraph({
                   children: [
-                    new TextRun({ text: `${selectedProduct.category === 'Module/ Grid Series' ? 'Module Dimension' : isDigitalStandee ? 'Frame Size' : 'Cabinet Dimension'}: ${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm`, size: 20 }),
+                    new TextRun({ text: `${(selectedProduct.category === 'Module/ Grid Series' || (selectedProduct.name || '').toLowerCase().includes('crystal') || (selectedProduct.category || '').toLowerCase().includes('transparent')) ? 'Module Dimension' : isDigitalStandee ? 'Frame Size' : 'Cabinet Dimension'}: ${(selectedProduct.category === 'Module/ Grid Series' || (selectedProduct.name || '').toLowerCase().includes('crystal') || (selectedProduct.category || '').toLowerCase().includes('transparent')) ? `${selectedProduct.moduleDimensions.width} x ${selectedProduct.moduleDimensions.height}` : `${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height}`} mm`, size: 20 }),
                   ],
                   spacing: { after: 80 },
                 }),

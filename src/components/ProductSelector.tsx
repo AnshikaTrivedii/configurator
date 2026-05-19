@@ -11,6 +11,7 @@ interface ProductWithOptionalSize extends Product {
   };
 }
 import { products as productsImport, categories } from '../data/products';
+import { usesModuleSizeInsteadOfCabinetSize } from '../utils/productSeries';
 
 const products: Product[] = Array.isArray(productsImport) ? productsImport : [];
 
@@ -152,15 +153,6 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
   const isTransparentSeries = (product: Product) =>
     product.category && product.category.toLowerCase().includes('transparent');
-
-  const usesModuleSizeInsteadOfCabinetSize = (product: Product) => {
-    const id = (product.id || '').toLowerCase();
-    return (
-      id.startsWith('transparent-front-glass-') ||
-      id.startsWith('transparent-behind-glass-') ||
-      id.startsWith('transparent-rollable-film-')
-    );
-  };
 
   const matchesTransparentSubType = (product: Product) => {
     if (!transparentSubType) return true;
