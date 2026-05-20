@@ -101,6 +101,25 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setConfig
   } = useDisplayCalculations(effectiveProduct);
 
+  // Synchronize and snap config width & height to the cabinet grid total dimensions when effectiveProduct's cabinet size changes
+  useEffect(() => {
+    if (effectiveProduct && !isInitialMount.current) {
+      const grid = calculateCabinetGrid(effectiveProduct);
+      if (config.width !== grid.totalWidth || config.height !== grid.totalHeight) {
+        setConfig(prev => ({
+          ...prev,
+          width: grid.totalWidth,
+          height: grid.totalHeight
+        }));
+      }
+    }
+  }, [
+    effectiveProduct?.id,
+    effectiveProduct?.cabinetDimensions?.width,
+    effectiveProduct?.cabinetDimensions?.height
+  ]);
+
+
 
 
   useEffect(() => {
