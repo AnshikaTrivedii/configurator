@@ -89,9 +89,10 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const isFlexibleSeries = selectedProduct.category?.toLowerCase().includes('flexible');
   const isNexa = selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa');
   const moduleSizeProduct = usesModuleSizeInsteadOfCabinetSize(selectedProduct);
+  const isStandardTransparent = selectedProduct.id?.startsWith('transparent-standard-') || false;
 
   const useModuleTerminology =
-    isJumboSeries || isModuleGridSeries || isDigitalStandee || isFlexibleSeries || isNexa || moduleSizeProduct;
+    isJumboSeries || isModuleGridSeries || isDigitalStandee || isFlexibleSeries || isNexa || (moduleSizeProduct && !isStandardTransparent);
 
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
   const MM_TO_FEET = 1 / FEET_TO_MM;
@@ -381,12 +382,12 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
                       ? 'Screen Size'
                       : isDigitalStandee
                         ? 'Cabinet Frame Size'
-                        : (isFlexibleSeries || moduleSizeProduct)
+                        : (isFlexibleSeries || (moduleSizeProduct && !isStandardTransparent))
                           ? 'Module Size'
                           : 'Cabinet Size'}
                 </div>
                 <div className="font-medium text-gray-900 text-xs sm:text-sm">
-                  {(isFlexibleSeries || moduleSizeProduct)
+                  {(isFlexibleSeries || (moduleSizeProduct && !isStandardTransparent))
                     ? `${selectedProduct.moduleDimensions.width} × ${selectedProduct.moduleDimensions.height} mm`
                     : `${selectedProduct.cabinetDimensions.width} × ${selectedProduct.cabinetDimensions.height} mm`}
                 </div>

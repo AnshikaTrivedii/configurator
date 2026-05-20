@@ -385,6 +385,11 @@ export const generateConfigurationHtml = (
     selectedProduct.name?.toLowerCase().includes('crystal') ||
     selectedProduct.category?.toLowerCase().includes('transparent');
   const isFixed = selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa');
+  const isFlexibleSeries = selectedProduct.category?.toLowerCase().includes('flexible') ||
+    selectedProduct.name?.toLowerCase().includes('flexible series') ||
+    selectedProduct.id?.toLowerCase().startsWith('flexible-') ||
+    false;
+  const isStandardTransparent = selectedProduct.id?.startsWith('transparent-standard-') || false;
   const isNexaSeries = selectedProduct.category?.toLowerCase().includes('nexa') ||
     selectedProduct.name?.toLowerCase().includes('nexa series') ||
     selectedProduct.id?.toLowerCase().startsWith('nexa-') ||
@@ -921,8 +926,8 @@ export const generateConfigurationHtml = (
                             </div>
                             ${!isFixed ? `
                             <div class="quotation-row">
-                                <span class="quotation-label">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series' || isCrystalSeriesProduct) ? 'Module Dimension:' : isDigitalStandee ? 'Frame Size:' : 'Cabinet Dimension:'}</span>
-                                <span class="quotation-value">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series' || isCrystalSeriesProduct) ? `${selectedProduct.moduleDimensions.width} x ${selectedProduct.moduleDimensions.height}` : `${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height}`} mm</span>
+                                <span class="quotation-label">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series' || (isCrystalSeriesProduct && !isStandardTransparent) || isFlexibleSeries) ? 'Module Dimension:' : isDigitalStandee ? 'Frame Size:' : 'Cabinet Dimension:'}</span>
+                                <span class="quotation-value">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series' || (isCrystalSeriesProduct && !isStandardTransparent) || isFlexibleSeries) ? `${selectedProduct.moduleDimensions.width} x ${selectedProduct.moduleDimensions.height}` : `${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height}`} mm</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Display Size (m):</span>

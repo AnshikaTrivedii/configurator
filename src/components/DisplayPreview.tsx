@@ -250,7 +250,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   const useModuleGrid = selectedProduct && (
     selectedProduct.category === 'Module/ Grid Series' ||
     selectedProduct.category?.toLowerCase().includes('digital standee') ||
-    selectedProduct.category?.toLowerCase().includes('jumbo')
+    selectedProduct.category?.toLowerCase().includes('jumbo') ||
+    selectedProduct.category?.toLowerCase().includes('flexible')
   );
 
   /** Jumbo only: one logo centered on the whole screen, no grid lines */
@@ -324,7 +325,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
                   if (parent && !parent.querySelector('.fallback-text')) {
                     const fallback = document.createElement('div');
                     fallback.className = 'fallback-text w-full h-full flex items-center justify-center bg-gray-200 text-gray-600 text-xs text-center p-2';
-                    fallback.textContent = 'LED Cabinet';
+                    fallback.textContent = (selectedProduct?.category?.toLowerCase().includes('flexible') || selectedProduct?.category === 'Module/ Grid Series') ? 'LED Module' : 'LED Cabinet';
                     parent.appendChild(fallback);
                   }
                 }}
@@ -650,7 +651,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
                   </h3>
                   <div className="flex flex-col items-center">
                     <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-blue-400 mb-1">
-                      {useModuleGrid ? 'Modular LED System' : 'Cabinet LED System'}
+                      {isFlexibleSeries ? 'Module LED System' : useModuleGrid ? 'Modular LED System' : 'Cabinet LED System'}
                     </span>
                     <p className="text-xs sm:text-sm opacity-80">
                       {useModuleGrid ? `${(moduleGrid?.columns ?? 0) * (moduleGrid?.rows ?? 0)} Modules Total` : `${cabinetGrid.columns * cabinetGrid.rows} Cabinets Total`}
