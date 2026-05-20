@@ -926,11 +926,11 @@ export const generateConfigurationHtml = (
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Display Size (m):</span>
-                                <span class="quotation-value">${toDisplayUnit(config.width, 'm')} x ${toDisplayUnit(config.height, 'm')}</span>
+                                <span class="quotation-value">${toDisplayUnit(effectiveWidth, 'm')} x ${toDisplayUnit(effectiveHeight, 'm')}</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Display Size (ft):</span>
-                                <span class="quotation-value">${toDisplayUnit(config.width, 'ft')} x ${toDisplayUnit(config.height, 'ft')}</span>
+                                <span class="quotation-value">${toDisplayUnit(effectiveWidth, 'ft')} x ${toDisplayUnit(effectiveHeight, 'ft')}</span>
                             </div>
                             ` : ''}
                             <div class="quotation-row">
