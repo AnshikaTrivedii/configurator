@@ -56,6 +56,22 @@ export function getDisplayPower(
     };
   }
 
+  const isFlexibleCabinetBase =
+    product?.category?.toLowerCase().includes('flexible') &&
+    product?.moduleQuantity > 1 &&
+    (product.cabinetDimensions.width !== product.moduleDimensions.width ||
+      product.cabinetDimensions.height !== product.moduleDimensions.height);
+  if (isFlexibleCabinetBase && product) {
+    const avgPerCabinet = product.avgPowerConsumption ?? 120;
+    const maxPerCabinet = product.maxPowerConsumption ?? 400;
+    return {
+      avgPower: Math.round(avgPerCabinet * modules * 100) / 100,
+      maxPower: Math.round(maxPerCabinet * modules * 100) / 100,
+      avgPowerPerCabinet: avgPerCabinet,
+      maxPowerPerCabinet: maxPerCabinet
+    };
+  }
+
   const isFlexibleSeries = product?.category?.toLowerCase().includes('flexible');
   if ((isModuleGridSeries || isFlexibleSeries) && product) {
     // Module/ Grid Series & Flexible Series: power = (modules/8) × (avg/max spec W)

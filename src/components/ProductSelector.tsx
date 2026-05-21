@@ -847,14 +847,14 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                             ? 'Module Dimension (W × H)'
                             : product.category === 'Digital Standee Series'
                               ? 'Cabinet Frame Size (W × H)'
-                              : (product.category?.toLowerCase().includes('flexible') || usesModuleSizeInsteadOfCabinetSize(product))
+                              : ((product.category?.toLowerCase().includes('flexible') && !product.name?.includes('Cabinet Base')) || usesModuleSizeInsteadOfCabinetSize(product))
                                 ? 'Module Size (W × H)'
                                 : 'Cabinet Size (W × H)'}
                         </p>
                         <p className="font-medium text-gray-800">
                           {(product.category === 'Module/ Grid Series' ||
                             product.category?.toLowerCase().includes('jumbo') ||
-                            product.category?.toLowerCase().includes('flexible') ||
+                            (product.category?.toLowerCase().includes('flexible') && !product.name?.includes('Cabinet Base')) ||
                             usesModuleSizeInsteadOfCabinetSize(product))
                             ? `${product.moduleDimensions.width} × ${product.moduleDimensions.height}`
                             : `${product.cabinetDimensions.width} × ${product.cabinetDimensions.height}`} mm

@@ -173,7 +173,7 @@ function calculateCorrectTotalPrice(
   const normalizedEnv = product.environment?.toLowerCase().trim();
   if (customPricing?.enabled && customPricing.structurePrice !== null) {
     structureBasePrice = customPricing.structurePrice;
-  } else if (product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('flexible')) {
+  } else if (product.category === 'Module/ Grid Series' || (product.category?.toLowerCase().includes('flexible') && !product.name?.includes('Cabinet Base'))) {
     const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
     structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
   } else if (normalizedEnv === 'indoor') {
@@ -608,7 +608,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           installationBasePrice = 0;
         } else if (customPricingObj?.enabled && customPricingObj.structurePrice !== null) {
           structureBasePrice = customPricingObj.structurePrice;
-        } else if (selectedProduct.category === 'Module/ Grid Series' || selectedProduct.category?.toLowerCase().includes('flexible')) {
+        } else if (selectedProduct.category === 'Module/ Grid Series' || (selectedProduct.category?.toLowerCase().includes('flexible') && !selectedProduct.name?.includes('Cabinet Base'))) {
           const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
           structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
         } else if (selectedProduct.environment?.toLowerCase().trim() === 'indoor') {

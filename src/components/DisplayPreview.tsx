@@ -244,14 +244,23 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   };
 
   const isJumbo = selectedProduct?.category?.toLowerCase().includes('jumbo') ?? false;
-  const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible') ?? false;
+  const isFlexibleSeries = !!(selectedProduct?.category?.toLowerCase().includes('flexible') && !selectedProduct?.name?.includes('Cabinet Base'));
   const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
+
+  // Transparent adhesive (front/behind glass) and rollable film products use module-based preview
+  const isTransparentModuleBased = selectedProduct && (() => {
+    const id = (selectedProduct.id || '').toLowerCase();
+    return id.startsWith('transparent-front-glass') ||
+           id.startsWith('transparent-behind-glass') ||
+           id.startsWith('transparent-rollable-film');
+  })();
 
   const useModuleGrid = selectedProduct && (
     selectedProduct.category === 'Module/ Grid Series' ||
     selectedProduct.category?.toLowerCase().includes('digital standee') ||
     selectedProduct.category?.toLowerCase().includes('jumbo') ||
-    selectedProduct.category?.toLowerCase().includes('flexible')
+    selectedProduct.category?.toLowerCase().includes('flexible') ||
+    isTransparentModuleBased
   );
 
   /** Jumbo only: one logo centered on the whole screen, no grid lines */
@@ -276,7 +285,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   );
 
   const moduleGrid = useModuleGrid && selectedProduct ? (
-    selectedProduct.category === 'Module/ Grid Series' || selectedProduct.category?.toLowerCase().includes('flexible')
+    selectedProduct.category === 'Module/ Grid Series' || selectedProduct.category?.toLowerCase().includes('flexible') || isTransparentModuleBased
       ? { columns: cabinetGrid.columns, rows: cabinetGrid.rows, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
       : selectedProduct.category?.toLowerCase().includes('digital standee')
       ? { columns: cabinetGrid.columns, rows: cabinetGrid.rows, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
@@ -482,28 +491,12 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
               className="hidden"
               accept="image/*,video/*"
             />
-            {!(backgroundImage || backgroundVideo) && (isJumbo ? renderJumboPreview() : (useModuleGrid ? renderModuleGrid() : renderCabinetGrid()))}
-            {!(backgroundImage || backgroundVideo) && !isJumbo && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="bg-black bg-opacity-60 text-white p-1 sm:p-2 lg:p-4 rounded-lg backdrop-blur-sm text-center">
-                  <h3 className="text-xs sm:text-sm lg:text-lg font-bold mb-1">
-                    {isNexa ? selectedProduct?.name : (useModuleGrid
-                      ? `${moduleGrid?.columns ?? 0} × ${moduleGrid?.rows ?? 0} Module Grid`
-                      : `${cabinetGrid.columns} × ${cabinetGrid.rows} Grid`)}
-                  </h3>
-                  <p className="text-xs sm:text-sm">
-                    {isNexa ? 'All-in-One Unit' : (useModuleGrid ? `${(moduleGrid?.columns ?? 0) * (moduleGrid?.rows ?? 0)} Modules Total` : `${cabinetGrid.columns * cabinetGrid.rows} Cabinets Total`)}
-                  </p>
-                  {selectedProduct && (
-                    <p className="text-xs mt-1 opacity-90">                                   
-                      {isNexa 
-                        ? `${selectedProduct.cabinetDimensions.width}×${selectedProduct.cabinetDimensions.height}mm`
-                        : (useModuleGrid
-                          ? `${selectedProduct.moduleDimensions.width}×${selectedProduct.moduleDimensions.height}mm each`
-                          : `${selectedProduct.cabinetDimensions.width}×${selectedProduct.cabinetDimensions.height}mm each`)}
-                    </p>
-                  )}
-                </div>
+            {!(backgroundImage || backgroundVideo) && (isJumbo || isTransparentModuleBased ? renderJumboPreview() : (useModuleGrid ? renderModuleGrid() : renderCabinetGrid()))}
+            {!(backgroundImage || backgroundVideo) && !isJumbo && selectedProduct && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <h3 className="text-xs sm:text-sm lg:text-lg font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-center px-2">
+                  {selectedProduct.name}
+                </h3>
               </div>
             )}
             {!(backgroundImage || backgroundVideo) && (
@@ -642,34 +635,12 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
               />
             )}
             {/* Cabinet grid, overlays, and corners only if no background. Jumbo: single centered logo, no grid. */}
-            {!(backgroundImage || backgroundVideo) && (isJumbo ? renderJumboPreview() : (useModuleGrid ? (isNexa ? renderJumboPreview() : renderModuleGrid()) : (isNexa ? renderJumboPreview() : renderCabinetGrid())))}
-            {!(backgroundImage || backgroundVideo) && !isJumbo && !isNexa && (
+            {!(backgroundImage || backgroundVideo) && (isJumbo || isTransparentModuleBased ? renderJumboPreview() : (useModuleGrid ? (isNexa ? renderJumboPreview() : renderModuleGrid()) : (isNexa ? renderJumboPreview() : renderCabinetGrid())))}
+            {!(backgroundImage || backgroundVideo) && !isJumbo && !isNexa && selectedProduct && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <div className="bg-black bg-opacity-40 text-white p-2 sm:p-3 lg:p-6 rounded-xl backdrop-blur-[2px] text-center border border-white/10 shadow-2xl">
-                  <h3 className="text-sm sm:text-base lg:text-2xl font-extrabold mb-1 tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
-                    {selectedProduct?.name}
-                  </h3>
-                  <div className="flex flex-col items-center">
-                    <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-blue-400 mb-1">
-                      {isFlexibleSeries ? 'Module LED System' : useModuleGrid ? 'Modular LED System' : 'Cabinet LED System'}
-                    </span>
-                    <p className="text-xs sm:text-sm opacity-80">
-                      {useModuleGrid ? `${(moduleGrid?.columns ?? 0) * (moduleGrid?.rows ?? 0)} Modules Total` : `${cabinetGrid.columns * cabinetGrid.rows} Cabinets Total`}
-                    </p>
-                  </div>
-                  {selectedProduct && (
-                    <div className="mt-2 pt-2 border-t border-white/10">
-                      <p className="text-[10px] sm:text-xs font-medium tracking-wide opacity-70">
-                        Resolution: {selectedProduct.resolution.width} × {selectedProduct.resolution.height} px
-                      </p>
-                      <p className="text-[10px] sm:text-xs font-medium tracking-wide opacity-70">
-                        Dimensions: {useModuleGrid
-                            ? `${selectedProduct.moduleDimensions.width} × ${selectedProduct.moduleDimensions.height} mm each`
-                            : `${selectedProduct.cabinetDimensions.width} × ${selectedProduct.cabinetDimensions.height} mm each`}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <h3 className="text-sm sm:text-base lg:text-2xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-center px-4">
+                  {selectedProduct.name}
+                </h3>
               </div>
             )}
             {!(backgroundImage || backgroundVideo) && (

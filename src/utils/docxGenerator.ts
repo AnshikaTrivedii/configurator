@@ -385,10 +385,10 @@ export const generateConfigurationHtml = (
     selectedProduct.name?.toLowerCase().includes('crystal') ||
     selectedProduct.category?.toLowerCase().includes('transparent');
   const isFixed = selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa');
-  const isFlexibleSeries = selectedProduct.category?.toLowerCase().includes('flexible') ||
+  const isFlexibleSeries = (selectedProduct.category?.toLowerCase().includes('flexible') ||
     selectedProduct.name?.toLowerCase().includes('flexible series') ||
     selectedProduct.id?.toLowerCase().startsWith('flexible-') ||
-    false;
+    false) && !selectedProduct.name?.includes('Cabinet Base');
   const isStandardTransparent = selectedProduct.id?.startsWith('transparent-standard-') || false;
   const isNexaSeries = selectedProduct.category?.toLowerCase().includes('nexa') ||
     selectedProduct.name?.toLowerCase().includes('nexa series') ||

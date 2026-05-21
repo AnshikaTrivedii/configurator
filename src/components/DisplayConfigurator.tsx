@@ -381,7 +381,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
   const isDigitalStandeeSeries = selectedProduct?.category === 'Digital Standee Series';
   const isDigitalStandee = selectedProduct?.category?.toLowerCase().includes('digital standee') ?? false;
-  const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible') ?? false;
+  const isFlexibleSeries = !!(selectedProduct?.category?.toLowerCase().includes('flexible') && !selectedProduct?.name?.includes('Cabinet Base'));
   const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
   const crystalSeries = isCrystalSeries(selectedProduct);
   const isStandardTransparent = selectedProduct?.id?.startsWith('transparent-standard-') ?? false;

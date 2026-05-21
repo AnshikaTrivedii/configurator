@@ -86,7 +86,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const isModuleGridSeries = selectedProduct.category === 'Module/ Grid Series';
   const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
   const isModularSeries = selectedProduct.category?.toLowerCase().includes('modular');
-  const isFlexibleSeries = selectedProduct.category?.toLowerCase().includes('flexible');
+  const isFlexibleSeries = !!(selectedProduct.category?.toLowerCase().includes('flexible') && !selectedProduct.name?.includes('Cabinet Base'));
   const isNexa = selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa');
   const moduleSizeProduct = usesModuleSizeInsteadOfCabinetSize(selectedProduct);
   const isStandardTransparent = selectedProduct.id?.startsWith('transparent-standard-') || false;

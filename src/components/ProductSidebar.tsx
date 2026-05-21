@@ -90,7 +90,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
   const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
-  const isFlexibleSeries = selectedProduct?.category?.toLowerCase().includes('flexible');
+  const isFlexibleSeries = !!(selectedProduct?.category?.toLowerCase().includes('flexible') && !selectedProduct?.name?.includes('Cabinet Base'));
   const hideProcessorTab = !!(isJumbo || isNexa || isDigitalStandee);
   const useModuleLabel = isJumbo || isModuleGridSeries || isDigitalStandee || isFlexibleSeries || isNexa;
 
