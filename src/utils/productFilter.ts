@@ -25,6 +25,7 @@ export interface ProductFilterOptions {
   viewingDistanceUnit?: 'meters' | 'feet';
   viewingDistanceValue?: number | null; // Single value
   enabled?: boolean; // Default: true (only enabled products)
+  rigelVariant?: 'plus' | 'lite' | null;
 }
 
 /**
@@ -67,7 +68,8 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
     viewingDistance = null,
     viewingDistanceUnit = 'meters',
     viewingDistanceValue = null,
-    enabled = true
+    enabled = true,
+    rigelVariant = null
   } = options;
 
   let filtered = [...products];
@@ -93,6 +95,10 @@ export function filterProducts(options: ProductFilterOptions = {}): Product[] {
 
   if (category) {
     filtered = filtered.filter((p) => p.category === category);
+  }
+
+  if (rigelVariant) {
+    filtered = filtered.filter((p) => p.rigelVariant === rigelVariant);
   }
 
   if (pixelPitch !== null) {
@@ -274,4 +280,3 @@ export function getRecommendedPixelPitchesForViewingDistanceRange(
 ): number[] {
   return getPixelPitchesForViewingDistanceRange(range, unit, environment);
 }
-

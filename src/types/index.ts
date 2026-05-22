@@ -139,6 +139,7 @@ export interface Product {
   cabinetVariations?: CabinetVariation[];
 
   enabled?: boolean; // If false, product is hidden from UI but kept in codebase
+  rigelVariant?: 'plus' | 'lite';
 
   /**
    * Digital Standee Matrix Variants

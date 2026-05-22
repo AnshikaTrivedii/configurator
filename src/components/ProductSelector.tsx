@@ -31,6 +31,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   const { updateConfig } = useDisplayConfig();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series' | 'Digital Standee Series' | 'Modular Series' | 'Flexible Series' | 'Nexa Series' | 'Transparent Series'>('All');
+  const [modularRigelVariant, setModularRigelVariant] = useState<'plus' | 'lite' | null>(null);
   const [flexibleSubType, setFlexibleSubType] = useState<'Module Base' | 'Cabinet Base' | null>(null);
   const [transparentSubType, setTransparentSubType] = useState<
     | 'Transparent adhesive infront of glass'
@@ -144,6 +145,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
   const isModularSeries = (product: Product) =>
     product.category && product.category.toLowerCase().includes('modular');
+  const matchesRigelVariant = (product: Product) =>
+    modularRigelVariant ? product.rigelVariant === modularRigelVariant : false;
 
   const isFlexibleSeries = (product: Product) =>
     product.category && product.category.toLowerCase().includes('flexible');
@@ -192,6 +195,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       tempProducts = tempProducts.filter((p) => isDigitalStandeeSeries(p));
     } else if (selectedFilter === 'Modular Series') {
       tempProducts = tempProducts.filter((p) => isModularSeries(p));
+      tempProducts = tempProducts.filter((p) => matchesRigelVariant(p));
     } else if (selectedFilter === 'Flexible Series') {
       tempProducts = tempProducts.filter((p) => isFlexibleSeries(p));
     } else if (selectedFilter === 'Nexa Series') {
@@ -217,7 +221,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     );
 
     return Array.from(new Set(tempProducts.map(p => p.pixelPitch))).sort((a, b) => a - b);
-  }, [selectedFilter, indoorType, selectedCategory]);
+  }, [selectedFilter, indoorType, selectedCategory, modularRigelVariant]);
 
   const filteredProducts = useMemo(() => {
     let filtered = [...products].filter((p) => p.enabled !== false); // Only show enabled products
@@ -234,6 +238,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       filtered = filtered.filter((p) => isDigitalStandeeSeries(p));
     } else if (selectedFilter === 'Modular Series') {
       filtered = filtered.filter((p) => isModularSeries(p));
+      filtered = filtered.filter((p) => matchesRigelVariant(p));
     } else if (selectedFilter === 'Flexible Series') {
       filtered = filtered.filter((p) => isFlexibleSeries(p));
       if (flexibleSubType === 'Cabinet Base') {
@@ -281,6 +286,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   }, [
     selectedFilter,
     flexibleSubType,
+    modularRigelVariant,
     transparentSubType,
     indoorType,
     selectedCategory,
@@ -293,6 +299,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     if (!isOpen) {
       setPendingRentalProduct(null);
       setRentalOption(null);
+      setModularRigelVariant(null);
     }
   }, [isOpen]);
 
@@ -411,6 +418,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => {
                   hasEnvironmentInteraction.current = true;
                   setSelectedFilter('Modular Series');
+                  setModularRigelVariant(null);
                   setIndoorType('All');
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
@@ -513,6 +521,32 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   }`}
                 >
                   Standard Transparent screen (Indoor behind glass version)
+                </button>
+              </div>
+            )}
+
+            {selectedFilter === 'Modular Series' && (
+              <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
+                <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Rigel Variant:</span>
+                <button
+                  onClick={() => setModularRigelVariant('plus')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    modularRigelVariant === 'plus'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Rigel Plus
+                </button>
+                <button
+                  onClick={() => setModularRigelVariant('lite')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    modularRigelVariant === 'lite'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Rigel Lite
                 </button>
               </div>
             )}
@@ -750,7 +784,17 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
         {/* Products grid */}
         <div className="p-3 sm:p-4 lg:p-6">
-          {selectedFilter === 'Flexible Series' && flexibleSubType === null ? (
+          {selectedFilter === 'Modular Series' && modularRigelVariant === null ? (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-4xl mb-4">🧩</div>
+              <div className="text-gray-600 text-base font-medium mb-2">
+                Please select a Rigel variant above
+              </div>
+              <div className="text-gray-400 text-sm">
+                Choose <strong>Rigel Plus</strong> or <strong>Rigel Lite</strong> to view products.
+              </div>
+            </div>
+          ) : selectedFilter === 'Flexible Series' && flexibleSubType === null ? (
             <div className="text-center py-12">
               <div className="text-gray-400 text-4xl mb-4">🔲</div>
               <div className="text-gray-600 text-base font-medium mb-2">
