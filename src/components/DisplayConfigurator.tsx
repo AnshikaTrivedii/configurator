@@ -385,9 +385,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
   const crystalSeries = isCrystalSeries(selectedProduct);
   const isStandardTransparent = selectedProduct?.id?.startsWith('transparent-standard-') ?? false;
-  const hideWiringTabs = isJumbo || isDigitalStandee || !!isNexa;
+  const hideWiringTabs = isJumbo || isDigitalStandee || !!isNexa || crystalSeries;
 
-  // When switching to Jumbo, Digital Standee, or Nexa, show Preview (Data/Power tabs are hidden)
+  // When switching to Jumbo, Digital Standee, Nexa, or Transparent series, show Preview (Data/Power tabs are hidden)
   React.useEffect(() => {
     if (hideWiringTabs && (activeTab === 'data' || activeTab === 'power')) {
       setActiveTab('preview');
@@ -1143,7 +1143,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   Preview
                 </button>
 
-                {/* Show Data/Power tabs only when product is selected and not Jumbo, Digital Standee, or Nexa */}
+                {/* Show Data/Power tabs only when product is selected and not Jumbo, Digital Standee, Nexa, or Transparent */}
                 {selectedProduct && !hideWiringTabs && (
                   <>
                     <button
@@ -1578,6 +1578,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         allowedCustomerTypes={salesUser?.allowedCustomerTypes}
         customPricing={customPricing}
         onCustomPricingChange={setCustomPricing}
+        selectedProduct={selectedProduct}
       />
 
     </div>

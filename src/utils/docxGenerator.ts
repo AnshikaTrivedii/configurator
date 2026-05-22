@@ -471,6 +471,8 @@ export const generateConfigurationHtml = (
     structureBasePrice = exactPricingBreakdown.structureCost;
   } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.structurePrice !== null) {
     structureBasePrice = effectiveCustomPricing.structurePrice;
+  } else if (isCrystalSeriesProduct) {
+    structureBasePrice = 0;
   } else if (selectedProduct.category === 'Module/ Grid Series' || selectedProduct.category?.toLowerCase().includes('flexible')) {
     const pdfUserType = normalizeLegacyUserType(userInfo?.userType);
     const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
@@ -486,6 +488,8 @@ export const generateConfigurationHtml = (
     installationBasePrice = exactPricingBreakdown.installationCost;
   } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null) {
     installationBasePrice = effectiveCustomPricing.installationPrice;
+  } else if (isCrystalSeriesProduct) {
+    installationBasePrice = Math.round(screenAreaSqFt * 800 * 100) / 100;
   } else {
     installationBasePrice = screenAreaSqFt * 500;
   }
@@ -495,7 +499,7 @@ export const generateConfigurationHtml = (
 
   // Modular Series: pricing depends on wireType. When exactPricingBreakdown isn't provided (common for ad-hoc PDF downloads),
   // use centralized pricing so PDF always matches the app's pricing logic.
-  if (!exactPricingBreakdown && selectedProduct.category?.toLowerCase().includes('modular') && wireType) {
+  if (!exactPricingBreakdown && ((selectedProduct.category?.toLowerCase().includes('modular') && wireType) || isCrystalSeriesProduct)) {
     const normalizedUserType = normalizeLegacyUserType(userInfo?.userType);
     const userTypeForCalc = normalizedUserType === 'Reseller'
       ? 'reseller'
@@ -619,6 +623,23 @@ export const generateConfigurationHtml = (
     }
   }
 
+  if (isCrystalSeriesProduct) {
+    structureBasePrice = 0;
+    structureGST = 0;
+    totalStructure = 0;
+    if (exactPricingBreakdown?.installationCost !== undefined) {
+      installationBasePrice = exactPricingBreakdown.installationCost;
+      totalInstallation = exactPricingBreakdown.installationTotal ?? installationBasePrice;
+    } else if (!(effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null)) {
+      installationBasePrice = Math.round(screenAreaSqFt * 800 * 100) / 100;
+      totalInstallation = installationBasePrice;
+    }
+    installationGST = installationBasePrice * 0.18;
+    if (!exactPricingBreakdown?.grandTotal && !exactPricingBreakdown?.discount) {
+      grandTotal = totalProduct + totalController + totalInstallation + addonsTotal;
+    }
+  }
+
   const formatIndianNumber = (x: number): string => {
 
     const rounded = Math.round(x);
@@ -641,9 +662,9 @@ export const generateConfigurationHtml = (
   const GST_RATE = '18%';
 
   // Jumbo PDF skips control section B; structure/installation is the second section → label as B not C.
-  const structureInstallationSectionTitle = isJumboSeries
-    ? 'B. STRUCTURE AND INSTALLATION PRICE'
-    : 'C. STRUCTURE AND INSTALLATION PRICE';
+  const structureInstallationSectionTitle = isCrystalSeriesProduct
+    ? (isJumboSeries ? 'B. INSTALLATION PRICE' : 'C. INSTALLATION PRICE')
+    : (isJumboSeries ? 'B. STRUCTURE AND INSTALLATION PRICE' : 'C. STRUCTURE AND INSTALLATION PRICE');
 
   // Use the product name, stripping pixel pitch, SMD, Indoor/Outdoor to avoid duplication
   const environmentLabel = selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1);
@@ -1065,8 +1086,45 @@ export const generateConfigurationHtml = (
                     ${structureInstallationSectionTitle}
                 </h2>
                 
+                ${isCrystalSeriesProduct ? `
+                <div class="quotation-grid" style="grid-template-columns: 1fr; gap: 8px; align-items: stretch;">
+                    <div class="quotation-card" style="display: flex; flex-direction: column;">
+                        <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">INSTALLATION COST</h4>
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            <div class="quotation-row">
+                                <span class="quotation-label">Area:</span>
+                                <span class="quotation-value">${screenAreaSqFt.toFixed(2)} Ft²</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Rate:</span>
+                                <span class="quotation-value">₹800 per Ft²</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Base Cost:</span>
+                                <span class="quotation-value" style="font-weight: 700;">${(effectiveCustomPricing?.enabled && installationBasePrice === 0)
+      ? "In Client Scope"
+      : "₹" + formatIndianNumber(installationBasePrice)
+    }</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">GST</span>
+                                <span class="quotation-value" style="color: #333; font-weight: 700;">${GST_RATE}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 4px; display: flex; justify-content: flex-end;">
+                    <div class="quotation-card" style="display: flex; flex-direction: column; padding: 5px 6px; width: 100%; max-width: 50%;">
+                        <div class="quotation-total-row" style="padding: 5px 6px; margin-top: 0; min-height: 35px;">
+                            <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; padding: 3px 2px; border-bottom: none;">
+                                <span style="font-weight: 700; color: #333; font-size: 11px; text-align: left;">INSTALLATION TOTAL:</span>
+                                <span style="color: #333; font-weight: 700; font-size: 11px; text-align: right; white-space: nowrap;">₹${formatTotalWithDecimals(totalInstallation)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : `
                 <div class="quotation-grid" style="grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch;">
-                    <!-- Structure Cost Card -->
                     <div class="quotation-card" style="display: flex; flex-direction: column;">
                         <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">STRUCTURE COST</h4>
                         <div style="flex: 1; display: flex; flex-direction: column;">
@@ -1087,8 +1145,6 @@ export const generateConfigurationHtml = (
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Installation Cost Card -->
                     <div class="quotation-card" style="display: flex; flex-direction: column;">
                         <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">INSTALLATION COST</h4>
                         <div style="flex: 1; display: flex; flex-direction: column;">
@@ -1110,8 +1166,6 @@ export const generateConfigurationHtml = (
                         </div>
                     </div>
                 </div>
-                
-                <!-- Combined Total Row for Structure + Installation (positioned at bottom right, aligned with Installation Cost card) -->
                 <div style="margin-top: 4px; display: flex; justify-content: flex-end;">
                     <div class="quotation-card" style="display: flex; flex-direction: column; padding: 5px 6px; width: calc(50% - 4px);">
                         <div class="quotation-total-row" style="padding: 5px 6px; margin-top: 0; min-height: 35px;">
@@ -1122,6 +1176,7 @@ export const generateConfigurationHtml = (
                         </div>
                     </div>
                 </div>
+                `}
             </div>
             ` : ''}
 
@@ -1155,6 +1210,8 @@ export const generateConfigurationHtml = (
   : !isJumboSeries
   ? (isRentalProduct
     ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Processor)</p>`
+    : isCrystalSeriesProduct
+    ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Installation)</p>`
     : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Structure + Installation)</p>`)
   : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Structure + Installation)</p>`}
             </div>

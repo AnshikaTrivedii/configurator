@@ -12,6 +12,7 @@ import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { applyDiscount, DiscountInfo } from '../utils/discountCalculator';
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
+import { isCrystalSeries } from '../utils/productSeries';
 
 interface ProductWithPricing extends Product {
   prices?: {
@@ -173,6 +174,8 @@ function calculateCorrectTotalPrice(
   const normalizedEnv = product.environment?.toLowerCase().trim();
   if (customPricing?.enabled && customPricing.structurePrice !== null) {
     structureBasePrice = customPricing.structurePrice;
+  } else if (isCrystalSeries(product)) {
+    structureBasePrice = 0;
   } else if (product.category === 'Module/ Grid Series' || (product.category?.toLowerCase().includes('flexible') && !product.name?.includes('Cabinet Base'))) {
     const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
     structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
@@ -185,6 +188,8 @@ function calculateCorrectTotalPrice(
 
   if (customPricing?.enabled && customPricing.installationPrice !== null) {
     installationBasePrice = customPricing.installationPrice;
+  } else if (isCrystalSeries(product)) {
+    installationBasePrice = Math.round(screenAreaSqFt * 800 * 100) / 100;
   } else {
     installationBasePrice = screenAreaSqFt * 500;
   }
@@ -305,6 +310,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const { config: globalConfig } = useDisplayConfig();
   const wireType = globalConfig.wireType ?? 'gold';
   const nexaAddons = globalConfig.nexaAddons ?? [];
+  const installationOnlyCustomPricing = isCrystalSeries(selectedProduct);
 
   const isSuperAdminUser = userRole === 'super' || userRole === 'super_admin';
   const isPublicUser = !salesUser && !isSuperAdminUser && (!userRole || userRole === 'normal');
@@ -377,6 +383,19 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       setInternalCustomStructurePrice(structurePrice);
       setInternalCustomInstallationPrice(installationPrice);
     }
+  };
+
+  const buildCustomPricingObj = () => {
+    if (!customPricingEnabled) return undefined;
+    const hasValues = installationOnlyCustomPricing
+      ? customInstallationPrice !== null
+      : customStructurePrice !== null || customInstallationPrice !== null;
+    if (!hasValues) return undefined;
+    return {
+      enabled: true as const,
+      structurePrice: installationOnlyCustomPricing ? null : customStructurePrice,
+      installationPrice: customInstallationPrice
+    };
   };
 
   React.useEffect(() => {
@@ -526,13 +545,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
         const configForCalc = config || { width: 2400, height: 1010, unit: 'mm' };
 
-        const customPricingObj = customPricingEnabled && (customStructurePrice !== null || customInstallationPrice !== null)
-          ? {
-            enabled: true,
-            structurePrice: customStructurePrice,
-            installationPrice: customInstallationPrice
-          }
-          : undefined;
+        const customPricingObj = buildCustomPricingObj();
 
         const newTotalPrice = calculateCorrectTotalPrice(
           selectedProduct as any,
@@ -608,6 +621,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           installationBasePrice = 0;
         } else if (customPricingObj?.enabled && customPricingObj.structurePrice !== null) {
           structureBasePrice = customPricingObj.structurePrice;
+        } else if (isCrystalSeries(selectedProduct)) {
+          structureBasePrice = 0;
         } else if (selectedProduct.category === 'Module/ Grid Series' || (selectedProduct.category?.toLowerCase().includes('flexible') && !selectedProduct.name?.includes('Cabinet Base'))) {
           const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
           structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
@@ -621,6 +636,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         if (!selectedProduct.category?.toLowerCase().includes('digital standee')) {
           if (customPricingObj?.enabled && customPricingObj.installationPrice !== null) {
             installationBasePrice = customPricingObj.installationPrice;
+          } else if (isCrystalSeries(selectedProduct)) {
+            installationBasePrice = Math.round(screenAreaSqFt * 800 * 100) / 100;
           } else {
             installationBasePrice = screenAreaSqFt * 500;
           }
@@ -970,13 +987,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
           const configForCalc = config || { width: 2400, height: 1010, unit: 'mm' };
 
-          const customPricingObj = customPricingEnabled && (customStructurePrice !== null || customInstallationPrice !== null)
-            ? {
-              enabled: true,
-              structurePrice: customStructurePrice,
-              installationPrice: customInstallationPrice
-            }
-            : undefined;
+          const customPricingObj = buildCustomPricingObj();
 
           const correctTotalPrice = calculateCorrectTotalPrice(
             selectedProduct,
@@ -1047,11 +1058,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               processorGst: finalPricingResult.processorGST,
               grandTotal: finalTotalPrice, // Use finalTotalPrice which includes discount if applied
 
-              customPricing: customPricingObj ? {
-                enabled: true,
-                structurePrice: customStructurePrice,
-                installationPrice: customInstallationPrice
-              } : undefined,
+              customPricing: buildCustomPricingObj(),
 
               addonsCost: finalPricingResult.addonsCost,
               addonsGST: finalPricingResult.addonsGST,
@@ -1116,11 +1123,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
             productDetails: comprehensiveProductDetails,
 
-            customPricing: customPricingObj ? {
-              enabled: true,
-              structurePrice: customStructurePrice,
-              installationPrice: customInstallationPrice
-            } : undefined,
+            customPricing: buildCustomPricingObj(),
 
             quotationData: {
               userInfo: {
@@ -1139,11 +1142,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               cabinetGrid: cabinetGrid,
               processor: processor,
               mode: mode,
-              customPricing: customPricingObj ? {
-                enabled: true,
-                structurePrice: customStructurePrice,
-                installationPrice: customInstallationPrice
-              } : undefined,
+              customPricing: buildCustomPricingObj(),
               wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
               nexaAddons: pricingResult.appliedAddons.map(addon => addon.name),
               nexaAddonsWithPrices: pricingResult.appliedAddons
@@ -1551,19 +1550,24 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   const enabled = e.target.checked;
                                   updateCustomPricing(
                                     enabled,
-                                    enabled ? customStructurePrice : null,
+                                    installationOnlyCustomPricing ? null : (enabled ? customStructurePrice : null),
                                     enabled ? customInstallationPrice : null
                                   );
                                 }}
                                 disabled={isSubmitting}
                                 className="w-5 h-5 text-gray-600 border-gray-300 rounded focus:ring-gray-500 mr-3"
                               />
-                              <span>Do you want to enter custom structure & installation pricing?</span>
+                              <span>
+                                {installationOnlyCustomPricing
+                                  ? 'Do you want to enter custom installation pricing?'
+                                  : 'Do you want to enter custom structure & installation pricing?'}
+                              </span>
                             </label>
                           </div>
 
                           {customPricingEnabled && (
                             <div className="space-y-4 pl-8">
+                              {!installationOnlyCustomPricing && (
                               <div>
                                 <label htmlFor="customStructurePrice" className="block text-sm font-medium text-gray-700 mb-2">
                                   Custom Structure Price (₹)
@@ -1585,6 +1589,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   disabled={isSubmitting}
                                 />
                               </div>
+                              )}
 
                               <div>
                                 <label htmlFor="customInstallationPrice" className="block text-sm font-medium text-gray-700 mb-2">
@@ -1602,7 +1607,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   onChange={(e) => {
                                     const value = e.target.value === '' ? null : parseFloat(e.target.value);
                                     const newValue = value && !isNaN(value) ? value : null;
-                                    updateCustomPricing(customPricingEnabled, customStructurePrice, newValue);
+                                    updateCustomPricing(
+                                      customPricingEnabled,
+                                      installationOnlyCustomPricing ? null : customStructurePrice,
+                                      newValue
+                                    );
                                   }}
                                   disabled={isSubmitting}
                                 />

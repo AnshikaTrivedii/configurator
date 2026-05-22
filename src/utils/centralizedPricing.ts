@@ -366,6 +366,9 @@ export function calculateCentralizedPricing(
 
     if (customPricing?.enabled && customPricing.structurePrice !== null) {
       structureBasePrice = customPricing.structurePrice;
+    } else if (product.category?.toLowerCase().includes('transparent')) {
+      // Transparent Series: No structure price
+      structureBasePrice = 0;
     } else if (product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('flexible')) {
       // Module/Grid & Flexible Series: structure per ft² — End User & Channel ₹700, Reseller ₹600
       const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
@@ -376,6 +379,9 @@ export function calculateCentralizedPricing(
 
     if (customPricing?.enabled && customPricing.installationPrice !== null) {
       installationBasePrice = customPricing.installationPrice;
+    } else if (product.category?.toLowerCase().includes('transparent')) {
+      // Transparent Series: ₹800 per ft²
+      installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 800);
     } else {
       // Installation: ₹500 per ft² for all user types (End User, SI/Channel, Reseller)
       installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 500);

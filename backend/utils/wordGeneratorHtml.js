@@ -223,20 +223,26 @@ const generateWordHtml = (data) => {
     installationBasePrice = customPricing.installationPrice;
   } else {
     // Structure Price: Module/Grid Series = per ft² (700 or 600), Indoor = ₹4000 per cabinet, Outdoor = ₹2500 per sq.ft
+    // Transparent Series = No structure price
     const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
-    if (selectedProduct.category === 'Module/ Grid Series') {
+    if (selectedProduct.category === 'Transparent Series') {
+      structureBasePrice = 0;
+      installationBasePrice = screenAreaSqFt * 800;
+    } else if (selectedProduct.category === 'Module/ Grid Series') {
       const normalized = normalizeLegacyUserType(userType);
       const structurePerSqFt = normalized === 'Reseller' ? 600 : 700;
       structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
+      installationBasePrice = screenAreaSqFt * 500;
     } else if (normalizedEnv === 'indoor') {
       // Indoor: ₹4000 per cabinet
       const numberOfCabinets = cabinetGrid.columns * cabinetGrid.rows;
       structureBasePrice = numberOfCabinets * 4000;
+      installationBasePrice = screenAreaSqFt * 500;
     } else {
       // Outdoor: ₹2500 per sq.ft
       structureBasePrice = screenAreaSqFt * 2500;
+      installationBasePrice = screenAreaSqFt * 500;
     }
-    installationBasePrice = screenAreaSqFt * 500;
   }
   
   const structureGST = Math.round((structureBasePrice * 0.18) * 100) / 100;
