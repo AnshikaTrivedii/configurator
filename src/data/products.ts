@@ -2803,50 +2803,7 @@ export const products: Product[] = [
       cabinet: { endCustomer: 1670000, siChannel: 1590000, reseller: 1500000 }
     }
   },
-  {
-    id: "nexa-p125-216",
-    name: "Nexa Series 216\" P1.25 (Astra)",
-    category: "Nexa Series",
-    isFixed: true,
-    enabled: true,
-    image: "/products/nexa-series/WhatsApp Image 2026-05-09 at 11.55.13.jpeg",
-    resolution: { width: 3840, height: 2160 },
-    pixelPitch: 1.25,
-    pixelDensity: 640000,
-    cabinetDimensions: { width: 4782, height: 2690 }, // ~216" diagonal 16:9
-    moduleDimensions: { width: 320, height: 160 },
-    moduleResolution: { width: 256, height: 128 },
-    moduleQuantity: 1,
-    brightness: 600,
-    contrastRatio: "10000:1",
-    refreshRate: 3840,
-    environment: "Indoor",
-    maxPowerConsumption: 3000,
-    avgPowerConsumption: 1000,
-    weightPerCabinet: 320,
-    ledType: "SMD1010",
-    viewingAngle: "H 160°, V 160°",
-    ipGrade: "IP31",
-    operatingTemperature: "-20°C~60°C",
-    operatingHumidity: "10-85%RH",
-    storageTempHumidity: "-20°C~60°C, 10-85%RH",
-    driveMethod: "1/45",
-    serviceAccess: "Front service",
-    cabinetMaterial: "Die-Cast Aluminum",
-    colorTemperature: "5000-12000 Optional",
-    videoInterface: "HDMIX3(2 Input, 1 output) USB3.0 USB2.0x2 RF",
-    signalInterface: "RJ45, USB-B, Wifi, Bluetooth, Infrared",
-    audioInterface: "Internal 2x5w speakers, External Audio Interface",
-    installationMode: "Moveable(standard-stand)/ Wall mount (optional)",
-    controller: "Novastar",
-    lifeTime: 100000,
-    price: 5440000,
-    siChannelPrice: 5170000,
-    resellerPrice: 4900000,
-    prices: {
-      cabinet: { endCustomer: 5440000, siChannel: 5170000, reseller: 4900000 }
-    }
-  },
+
   {
     id: "nexa-p156-135",
     name: "Nexa Series 135\" P1.56 (Astra)",
