@@ -3,14 +3,6 @@ import { Controller, ControllerSelection } from '../types';
 
 const CONTROLLERS: Controller[] = [
   {
-    id: 'tb2',
-    name: 'TB2',
-    portCount: 1,
-    pixelCapacity: 0.65,
-    type: 'asynchronous',
-    minPortsForRedundancy: 0, // Cannot support redundancy
-  },
-  {
     id: 'tb40',
     name: 'TB40',
     portCount: 2,

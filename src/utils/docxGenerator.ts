@@ -1034,7 +1034,7 @@ export const generateConfigurationHtml = (
                             <div>
                                 <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
                                     <span class="quotation-label" style="font-size: 10px;">Controller Model:</span>
-                                    <span class="quotation-value" style="font-size: 10px;">${processor || "Nova TB2"}</span>
+                                    <span class="quotation-value" style="font-size: 10px;">${processor || "Nova TB40"}</span>
                             </div>
                                 <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
                                     <span class="quotation-label" style="font-size: 10px;">Quantity:</span>

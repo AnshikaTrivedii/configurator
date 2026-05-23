@@ -1,5 +1,8 @@
 import { Product } from '../types';
 
+// Temporary series-level feature flag: set to true when Jumbo needs to be re-enabled.
+export const JUMBO_SERIES_ACTIVE = false;
+
 export const products: Product[] = [
 
   {
@@ -815,7 +818,7 @@ export const products: Product[] = [
     operatingTemperature: '-0°C~40°C 10-90%RH',
     storageTempHumidity: '-0°C~40°C 10-90%RH',
     lifeTime: 100000,
-    controller: 'Novastar TB2',
+    controller: 'Novastar TB40',
     cabinetMaterial: 'Aluminum',
     screenResolution: '160×440',
     activeDisplayArea: '640mm x 1760mm',
@@ -865,7 +868,7 @@ export const products: Product[] = [
     operatingTemperature: '-0°C~40°C 10-90%RH',
     storageTempHumidity: '-0°C~40°C 10-90%RH',
     lifeTime: 100000,
-    controller: 'Novastar TB2',
+    controller: 'Novastar TB40',
     cabinetMaterial: 'Aluminum',
     screenResolution: '160 dots x 440 dots',
     activeDisplayArea: '640mm x 1760mm',
@@ -1049,7 +1052,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 230,
     weightPerCabinet: 25,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/Modular+series/5_Modular+Series+Outdoor+P3.91mm.pdf',
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/rigel-plus/Rigel+Plus+P3.91mm.pdf',
     ledType: 'SMD',
     ledConfiguration: 'Nationstar SMD1921 Copper Wire / Gold Wire',
     viewingAngle: 'H:140°, V:140°',
@@ -1089,7 +1092,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 230,
     weightPerCabinet: 25,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/Modular+series/3_Modular+Series+Outdoor+P4.81mm.pdf',
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/rigel-plus/Rigel+Plus+P4.81mm.pdf',
     ledType: 'SMD',
     ledConfiguration: 'Nationstar Copper Wire / Gold Wire SMD1921',
     viewingAngle: 'H:140°, V:140°',
@@ -1129,7 +1132,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 230,
     weightPerCabinet: 25,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/Modular+series/4_Modular+Series+Outdoor+P6.25mm.pdf',
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/rigel-plus/Rigel+Plus+P6.25mm.pdf',
     ledType: 'SMD',
     ledConfiguration: 'Nationstar SMD2727 Copper Wire / Gold Wire',
     viewingAngle: 'H:140°, V:140°',
@@ -1169,7 +1172,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 230,
     weightPerCabinet: 25,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/Modular+series/2_Modular+Series+Outdoor+P7.81mm.pdf',
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/rigel-plus/Rigel+Plus+P7.81mm.pdf',
     ledType: 'SMD',
     ledConfiguration: 'Nationstar SMD2727 Copper Wire / Gold Wire',
     viewingAngle: 'H:140°, V:140°',
@@ -1209,7 +1212,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 230,
     weightPerCabinet: 25,
-    pdf: 'https://origin-cms1.s3.ap-south-1.amazonaws.com/products-pdfs/Modular+series/1_Modular+Series+Outdoor+P10.41mm.pdf',
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/rigel-plus/Rigel+Plus+P10.41mm.pdf',
     ledType: 'SMD',
     ledConfiguration: 'Nationstar SMD2727 Copper Wire / Gold Wire',
     viewingAngle: 'H:140°, V:140°',
@@ -1250,6 +1253,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 230,
     weightPerCabinet: 25,
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/rigel-lite/Rigel+Lite+P4mm.pdf',
     ledType: 'SMD',
     ledConfiguration: 'Nationstar SMD1921',
     viewingAngle: 'H:140°, V:140°',
@@ -1287,6 +1291,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 230,
     weightPerCabinet: 25,
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/rigel-lite/Rigel+Lite+P5mm.pdf',
     ledType: 'SMD',
     ledConfiguration: 'Nationstar SMD1921',
     viewingAngle: 'H:140°, V:140°',
@@ -1324,6 +1329,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 230,
     weightPerCabinet: 25,
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/rigel-lite/Rigel+Lite+P6.67mm.pdf',
     ledType: 'SMD',
     ledConfiguration: 'Nationstar SMD2727',
     viewingAngle: 'H:140°, V:140°',
@@ -1361,6 +1367,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 230,
     weightPerCabinet: 25,
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/rigel-lite/Rigel+Lite+P8mm.pdf',
     ledType: 'SMD',
     ledConfiguration: 'Nationstar SMD2727',
     viewingAngle: 'H:140°, V:140°',
@@ -1398,6 +1405,7 @@ export const products: Product[] = [
     maxPowerConsumption: 650,
     avgPowerConsumption: 230,
     weightPerCabinet: 25,
+    pdf: 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/rigel-lite/Rigel+Lite+P10mm.pdf',
     ledType: 'SMD',
     ledConfiguration: 'Nationstar SMD2727',
     viewingAngle: 'H:140°, V:140°',
@@ -2178,7 +2186,7 @@ export const products: Product[] = [
     id: 'jumbo-outdoor-p6',
     name: 'Mega Series Outdoor P6',
     category: 'Jumbo Series',
-    enabled: true,
+    enabled: JUMBO_SERIES_ACTIVE,
     image: '/products/jumbo-series/Jumbo Series Outdoor P6.png',
     resolution: { width: 32, height: 32 }, // Per module: 32×columns × 32×rows (192mm/6mm = 32 px)
     cabinetDimensions: { width: 2109, height: 1536 },
@@ -2237,7 +2245,7 @@ export const products: Product[] = [
     id: 'jumbo-outdoor-p4',
     name: 'Mega Series Outdoor P4',
     category: 'Jumbo Series',
-    enabled: true,
+    enabled: JUMBO_SERIES_ACTIVE,
     image: '/products/jumbo-series/Jumbo Series Outdoor P4.png',
     resolution: { width: 80, height: 40 }, // Per module: (Column × 80) × (Row × 40)
     cabinetDimensions: { width: 2237, height: 1439 }, // Fixed display size: 7.34ft x 4.72ft
@@ -2296,7 +2304,7 @@ export const products: Product[] = [
     id: 'jumbo-outdoor-p3',
     name: 'Mega Series Outdoor P3',
     category: 'Jumbo Series',
-    enabled: true,
+    enabled: JUMBO_SERIES_ACTIVE,
     image: '/products/jumbo-series/Jumbo Series Outdoor P3.png',
     resolution: { width: 64, height: 64 }, // Per module: (Column × 64) × (Row × 64)
     cabinetDimensions: { width: 2109, height: 1536 }, // Fixed display size: 6.92ft x 5.04ft
@@ -2355,7 +2363,7 @@ export const products: Product[] = [
     id: 'jumbo-indoor-p2.5',
     name: 'Mega Series Outdoor P2.5',
     category: 'Jumbo Series',
-    enabled: true,
+    enabled: JUMBO_SERIES_ACTIVE,
     image: '/products/jumbo-series/Jumbo Series Outdoor P2.5.png',
     resolution: { width: 128, height: 64 }, // Per module: (Column × 128) × (Row × 64)
     cabinetDimensions: { width: 2237, height: 1439 }, // Fixed display size: 7.34ft x 4.72ft

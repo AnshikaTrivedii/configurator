@@ -180,11 +180,6 @@ function getProcessorPrice(processorName, userType = 'End User') {
   try {
     // Processor pricing based on user type
     const processorPrices = {
-      'TB2': {
-        endUser: 35000,
-        reseller: 29800,
-        channel: 31500
-      },
       'TB40': {
         endUser: 35000,
         reseller: 29800,

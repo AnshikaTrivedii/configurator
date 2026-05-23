@@ -799,7 +799,7 @@ const createQuotationContent = (data) => {
                 }),
                 new Paragraph({
                   children: [
-                    new TextRun({ text: `Controller Model: ${processor || "Nova TB2"}`, size: 18 }),
+                    new TextRun({ text: `Controller Model: ${processor || "Nova TB40"}`, size: 18 }),
                   ],
                   spacing: { after: 60 },
                 }),

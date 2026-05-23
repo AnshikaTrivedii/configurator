@@ -396,7 +396,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   // Allowed processors only (names and capacities). minPortsForRedundancy: 0 = cannot support redundancy, >= 2 = can.
   const ALLOWED_PROCESSORS = [
-    { name: 'TB2', type: 'asynchronous' as const, portCount: 1, pixelCapacity: 0.65, inputs: 0, outputs: 0, maxResolution: '', minPortsForRedundancy: 0 },
     { name: 'TB40', type: 'asynchronous' as const, portCount: 2, pixelCapacity: 1.3, inputs: 1, outputs: 3, maxResolution: '1920×1080@60Hz', minPortsForRedundancy: 2 },
     { name: 'TB60', type: 'asynchronous' as const, portCount: 4, pixelCapacity: 2.3, inputs: 1, outputs: 5, maxResolution: '1920×1080@60Hz', minPortsForRedundancy: 2 },
     { name: 'VX1', type: 'synchronous' as const, portCount: 2, pixelCapacity: 1.3, inputs: 5, outputs: 2, maxResolution: '1920×1080@60Hz', minPortsForRedundancy: 2 },

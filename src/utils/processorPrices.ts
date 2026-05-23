@@ -24,12 +24,6 @@ export interface ProcessorPrice {
 }
 
 export const PROCESSOR_PRICES: Record<string, ProcessorPrice> = {
-  'TB2': {
-    pixelCapacity: '0.65M',
-    endUser: 35000,
-    si: 31500,
-    reseller: 29800,
-  },
   'VX1': {
     pixelCapacity: '1.3M',
     endUser: 35000,

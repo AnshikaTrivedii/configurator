@@ -10,7 +10,7 @@ interface ProductWithOptionalSize extends Product {
     height: string;
   };
 }
-import { products as productsImport, categories } from '../data/products';
+import { products as productsImport, categories, JUMBO_SERIES_ACTIVE } from '../data/products';
 import { usesModuleSizeInsteadOfCabinetSize } from '../utils/productSeries';
 
 const products: Product[] = Array.isArray(productsImport) ? productsImport : [];
@@ -386,20 +386,22 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               >
                 Rental
               </button>
-              <button
-                onClick={() => { 
-                  hasEnvironmentInteraction.current = true;
-                  setSelectedFilter('Jumbo Series'); 
-                  setIndoorType('All'); 
-                }}
-                className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
-                  selectedFilter === 'Jumbo Series'
-                    ? 'bg-black text-white border-black'
-                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
-                }`}
-              >
-                Jumbo Series
-              </button>
+              {JUMBO_SERIES_ACTIVE && (
+                <button
+                  onClick={() => { 
+                    hasEnvironmentInteraction.current = true;
+                    setSelectedFilter('Jumbo Series'); 
+                    setIndoorType('All'); 
+                  }}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    selectedFilter === 'Jumbo Series'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Jumbo Series
+                </button>
+              )}
               <button
                 onClick={() => {
                   hasEnvironmentInteraction.current = true;

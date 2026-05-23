@@ -115,7 +115,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
    * Map warranty years to product series
    * Prime Series → 5 Years
    * Edge Series → 3 Years
-   * Core Series, Jumbo Series, Module/ Grid Series, Modular Series → 2 Years
+   * Core Series, Module/ Grid Series, Modular Series → 2 Years
    */
   const getSeriesForWarranty = (warrantyYears: number): string[] => {
     switch (warrantyYears) {
@@ -124,15 +124,11 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       case 3:
         return ['Edge Series', 'Nexa Series'];
       case 2:
-        return ['Core Series', 'Jumbo Series', 'Module/ Grid Series', 'Modular Series'];
+        return ['Core Series', 'Module/ Grid Series', 'Modular Series'];
       default:
         return [];
     }
   };
-
-  /** Jumbo series: always treat as outdoor for environment filtering */
-  const isJumbo = (product: Product): boolean =>
-    (product.category || '').toLowerCase().includes('jumbo');
 
   /**
    * Check if a product belongs to a specific warranty
@@ -171,7 +167,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 
       const productEnv = selectedProduct.environment?.toLowerCase().trim();
       const selectedEnv = environment?.toLowerCase().trim();
-      const envMatch = !environment || productEnv === selectedEnv || (isJumbo(selectedProduct) && selectedEnv === 'outdoor');
+      const envMatch = !environment || productEnv === selectedEnv;
       
       const pitchMatch = pixelPitch === null || Math.abs(selectedProduct.pixelPitch - pixelPitch) < 0.3;
       
@@ -291,7 +287,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
           const targetPitch = normalize(pitch);
           if (productPitch === null || targetPitch === null) return false;
           const pitchMatch = Math.abs(productPitch - targetPitch) < 0.1;
-          const envMatch = productEnv === normalizedEnv || (isJumbo(product) && normalizedEnv === 'outdoor');
+          const envMatch = productEnv === normalizedEnv;
           return pitchMatch && envMatch;
         });
         
@@ -321,7 +317,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     if (product.enabled === false) return false;
 
     const productEnv = product.environment?.toLowerCase().trim();
-    const envMatch = !environment || productEnv === selectedEnv || (isJumbo(product) && selectedEnv === 'outdoor');
+    const envMatch = !environment || productEnv === selectedEnv;
 
     if (environment && !envMatch) {
       return false;
@@ -522,7 +518,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 
                       const matchingProducts = products.filter(p => {
                         if (p.enabled === false) return false; // Only enabled products
-                        const envMatch = !environment || p.environment?.toLowerCase().trim() === environment.toLowerCase().trim() || (isJumbo(p) && environment.toLowerCase() === 'outdoor');
+                        const envMatch = !environment || p.environment?.toLowerCase().trim() === environment.toLowerCase().trim();
 
                         const productPitch = normalize(p.pixelPitch);
                         const targetPitch = normalize(pitch);
@@ -566,7 +562,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                         }}
                         className="px-4 py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors"
                       >
-                        Skip — see all products (including Jumbo Series)
+                        Skip — see all products
                       </button>
                     </div>
                   )}
@@ -649,11 +645,10 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Select Warranty</h3>
                 <p className="text-gray-600">Choose your preferred warranty period</p>
                 {environment === 'Outdoor' && (
-                  <p className="text-sm text-blue-600 mt-1">Select <strong>2 Years</strong> to include Jumbo Series (outdoor) products.</p>
+                  <p className="text-sm text-blue-600 mt-1">Select <strong>2 Years</strong> for Core Series, Module/ Grid Series, and Modular Series products.</p>
                 )}
                 {environment === 'Indoor' && (
                   <>
-                    <p className="text-sm text-gray-500 mt-1">Jumbo Series appears only when <strong>Outdoor</strong> is selected (step 1).</p>
                     <p className="text-sm text-blue-600 mt-1">Select <strong>2 Years</strong> to include Module/ Grid Series (P1.8, P2.5, P4).</p>
                   </>
                 )}
@@ -662,21 +657,21 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {([5, 3, 2] as const).map((years) => {
                   const allowedSeries = getSeriesForWarranty(years);
-                  const seriesLabel = years === 5 ? 'Prime Series' : years === 3 ? 'Edge Series' : 'Core Series, Jumbo Series, Module/ Grid Series, Modular Series';
+                  const seriesLabel = years === 5 ? 'Prime Series' : years === 3 ? 'Edge Series' : 'Core Series, Module/ Grid Series, Modular Series';
                   const cardSelectedEnv = environment?.toLowerCase().trim();
 
-                  // Calculate matching products with all previous filters + warranty (pixel pitch applies to all series including Jumbo)
+                  // Calculate matching products with all previous filters + warranty.
                   const matchingProducts = products.filter(p => {
                     if (p.enabled === false) return false;
 
-                    // Environment filter (Jumbo always counts as outdoor)
+                    // Environment filter
                     const productEnv = p.environment?.toLowerCase().trim();
-                    const envMatch = !environment || productEnv === cardSelectedEnv || (isJumbo(p) && cardSelectedEnv === 'outdoor');
+                    const envMatch = !environment || productEnv === cardSelectedEnv;
                     if (environment && !envMatch) {
                       return false;
                     }
 
-                    // Pixel pitch: same rules for all series (including Jumbo)
+                    // Pixel pitch: same rules for all series
                     if (pixelPitch !== null) {
                       const productPitch = normalize(p.pixelPitch);
                       const selectedPitch = normalize(pixelPitch);
@@ -695,7 +690,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                       if (!matchesRecommended) return false;
                     }
 
-                    // Warranty filter (series-based; 2 years = Bellatrix + Jumbo)
+                    // Warranty filter (series-based)
                     const productCategory = (p.category || '').trim();
                     if (allowedSeries.length === 0 || !allowedSeries.some(series => productCategory.includes(series))) {
                       return false;
@@ -720,9 +715,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                       <div className="text-2xl font-bold mb-2">{years} Years</div>
                       <div className="text-sm text-gray-600 mb-2">
                         {seriesLabel}
-                        {years === 2 && cardSelectedEnv === 'outdoor' && (
-                          <span className="block text-xs text-blue-600 mt-0.5">(includes Jumbo outdoor)</span>
-                        )}
                         {years === 2 && cardSelectedEnv === 'indoor' && (
                           <span className="block text-xs text-blue-600 mt-0.5">(includes Module/ Grid P1.8, P2.5, P4)</span>
                         )}
@@ -881,9 +873,6 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                   <div className="text-gray-500 mb-4">
                     No products found matching your criteria.
                   </div>
-                  {environment === 'Outdoor' && selectedWarranty !== 2 && (
-                    <p className="text-sm text-blue-600 mb-2">To see Jumbo Series (outdoor) products, go back and select <strong>2 Years</strong> warranty.</p>
-                  )}
                   <div className="text-sm text-gray-400 mb-6">
                     Current filters: {environment || 'Any'} environment, {pixelPitch !== null ? `P${pixelPitch}mm` : 'Any pixel pitch'}
                     {viewingDistance && `, ${viewingDistance} ${viewingDistanceUnit}`}
@@ -953,4 +942,3 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     </div>
   );
 };
-
