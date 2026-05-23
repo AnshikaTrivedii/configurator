@@ -90,11 +90,17 @@ const NEXA_ADDON_PRICES: Record<string, number> = {
 
 /** Modular Series pricing by pixel pitch (mm) -> wire type -> End User, SI Channel, Reseller */
 const MODULAR_PRICING: Record<number, { gold: [number, number, number]; copper: [number, number, number] }> = {
-  3.91: { gold: [19800, 17900, 16800], copper: [9900, 9000, 8400] },
-  4.81: { gold: [15100, 13700, 12800], copper: [8400, 7700, 7200] },
-  6.25: { gold: [12200, 11100, 10400], copper: [8300, 7500, 7000] },
-  7.81: { gold: [9900, 9000, 8400], copper: [7400, 6700, 6300] },
-  10.41: { gold: [8000, 7300, 6800], copper: [6600, 6000, 5600] }
+  3.91: { gold: [19810, 18820, 17829], copper: [9900, 9405, 8910] },
+  4.81: { gold: [15130, 14374, 13617], copper: [8450, 8028, 7605] },
+  6.25: { gold: [12200, 11590, 10980], copper: [8260, 7847, 7434] },
+  7.81: { gold: [9920, 9424, 8928], copper: [7380, 7011, 6642] },
+  10.41: { gold: [8010, 7610, 7209], copper: [6580, 6251, 5922] }
+  ,
+  4: { gold: [19210, 18250, 17289], copper: [9570, 9092, 8613] },
+  5: { gold: [14310, 13595, 12879], copper: [8140, 7733, 7326] },
+  6.67: { gold: [11500, 10925, 10350], copper: [8030, 7629, 7227] },
+  8: { gold: [9900, 9405, 8910], copper: [7480, 7106, 6732] },
+  10: { gold: [8370, 7852, 7533], copper: [6810, 6470, 6129] }
 };
 
 function getModularUnitPrice(pixelPitch: number, wireType: 'gold' | 'copper', userType: 'End User' | 'Reseller' | 'Channel'): number | null {
