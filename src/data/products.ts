@@ -2620,7 +2620,7 @@ export const products: Product[] = [
     name: 'Crystal Flex P8',
     category: 'Transparent Series',
     enabled: true,
-    image: '/products/transparent-series/Transparent Series P8 Rollable Film Behind Glass.png',
+    image: '/products/transparent-series/P5-5mm.png',
     resolution: {
       width: 50,
       height: 125
@@ -2659,7 +2659,7 @@ export const products: Product[] = [
     name: 'Crystal Flex P10',
     category: 'Transparent Series',
     enabled: true,
-    image: '/products/transparent-series/Transparent Series P10 Rollable Film Behind Glass.png',
+    image: '/products/transparent-series/P6.25-6.25mm.png',
     resolution: {
       width: 40,
       height: 100
@@ -2698,7 +2698,7 @@ export const products: Product[] = [
     name: 'Crystal Flex P15',
     category: 'Transparent Series',
     enabled: true,
-    image: '/products/transparent-series/Transparent Series P15 Rollable Film Behind Glass.png',
+    image: '/products/transparent-series/P5-5mm.png',
     resolution: {
       width: 26,
       height: 66
@@ -2737,7 +2737,7 @@ export const products: Product[] = [
     name: 'Crystal Flex P20',
     category: 'Transparent Series',
     enabled: true,
-    image: '/products/transparent-series/Transparent Series P20 Rollable Film Behind Glass.png',
+    image: '/products/transparent-series/P6.25-6.25mm.png',
     resolution: {
       width: 20,
       height: 50
