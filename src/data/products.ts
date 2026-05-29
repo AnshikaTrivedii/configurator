@@ -2423,7 +2423,7 @@ export const products: Product[] = [
     name: 'Crystal Blaze P3.91',
     category: 'Transparent Series',
     enabled: true,
-    image: '/products/transparent-series/Transparent Series P3.91 Adhesive Front Glass.png',
+    image: '/products/transparent-series/P3.91.avif',
     resolution: {
       width: 64,
       height: 300
@@ -2462,7 +2462,7 @@ export const products: Product[] = [
     name: 'Crystal Blaze P6.25',
     category: 'Transparent Series',
     enabled: true,
-    image: '/products/transparent-series/Transparent Series P6.25 Adhesive Front Glass.png',
+    image: '/products/transparent-series/P6.25.avif',
     resolution: {
       width: 40,
       height: 188
@@ -2502,7 +2502,7 @@ export const products: Product[] = [
     name: 'Crystal Elite P6.5',
     category: 'Transparent Series',
     enabled: true,
-    image: '/products/transparent-series/Transparent Series P6.5 Adhesive Behind Glass.png',
+    image: '/products/transparent-series/image (3).png',
     resolution: {
       width: 32,
       height: 148
@@ -2542,7 +2542,7 @@ export const products: Product[] = [
     name: 'Crystal Flex P5',
     category: 'Transparent Series',
     enabled: true,
-    image: '/products/transparent-series/Transparent Series P5 Rollable Film Behind Glass.png',
+    image: '/products/transparent-series/P5-5mm.png',
     resolution: {
       width: 64,
       height: 200
@@ -2581,7 +2581,7 @@ export const products: Product[] = [
     name: 'Crystal Flex P6.25',
     category: 'Transparent Series',
     enabled: true,
-    image: '/products/transparent-series/Transparent Series P6.25 Rollable Film Behind Glass.png',
+    image: '/products/transparent-series/P6.25-6.25mm.png',
     resolution: {
       width: 64,
       height: 160
@@ -2777,7 +2777,7 @@ export const products: Product[] = [
     name: 'Crystal Go P3.91-7.82',
     category: 'Transparent Series',
     enabled: true,
-    image: '/products/transparent-series/Transparent Series P3.91-7.82 Standard (256x128).png',
+    image: '/products/transparent-series/Crystal Go.png',
     resolution: {
       width: 256,
       height: 128
@@ -2816,7 +2816,7 @@ export const products: Product[] = [
     name: 'Crystal Go P3.91-7.82',
     category: 'Transparent Series',
     enabled: true,
-    image: '/products/transparent-series/Transparent Series P3.91-7.82 Standard (256x64).png',
+    image: '/products/transparent-series/Crystal GO Lite.png',
     resolution: {
       width: 256,
       height: 64
