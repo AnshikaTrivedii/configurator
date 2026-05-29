@@ -8,9 +8,6 @@ import { ProductSelector } from './ProductSelector';
 import { ConfigurationSummary } from './ConfigurationSummary';
 import { ProductSidebar } from './ProductSidebar';
 import { Product, CabinetGrid, Quotation, DigitalStandeeMatrixKey } from '../types';
-import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
 import DataWiringView from './DataWiringView';
 import PowerWiringView from './PowerWiringView';
 import { QuoteModal } from './QuoteModal';
@@ -28,8 +25,7 @@ import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } from '../utils/dimensionConstraints';
 import { products } from '../data/products';
 import { hasCabinetVariations, applySelectedCabinetVariation, getDefaultCabinetVariationLabel, getVariationLabelFromDimensions } from '../utils/cabinetVariation';
-
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+import { getProductPdfUrl } from '../utils/productPdfMap';
 
 interface DisplayConfiguratorProps {
   userRole: 'normal' | 'sales' | 'super' | 'super_admin' | 'partner';
@@ -337,9 +333,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       return () => clearTimeout(timer);
     }
   }, [initialConfig, selectedProduct]);
-  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
-  const [numPages, setNumPages] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState('preview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar state
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
@@ -386,6 +379,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const crystalSeries = isCrystalSeries(selectedProduct);
   const isStandardTransparent = selectedProduct?.id?.startsWith('transparent-standard-') ?? false;
   const hideWiringTabs = isJumbo || isDigitalStandee || !!isNexa || crystalSeries;
+  const selectedProductPdfUrl = getProductPdfUrl(selectedProduct);
+
+  const handleReadMoreClick = () => {
+    if (!selectedProductPdfUrl) {
+      alert('Product specification PDF not available.');
+      return;
+    }
+    window.open(selectedProductPdfUrl, '_blank', 'noopener,noreferrer');
+  };
 
   // When switching to Jumbo, Digital Standee, Nexa, or Transparent series, show Preview (Data/Power tabs are hidden)
   React.useEffect(() => {
@@ -1299,61 +1301,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                     )}
                   </div>
                   {/* Read More Button */}
-                  {selectedProduct.pdf && (
+                  {selectedProduct && (
                     <div className="mt-3 sm:mt-4 flex justify-end">
                       <button
                         className="bg-blue-600 text-white px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 text-xs sm:text-sm lg:text-base"
-                        onClick={() => setIsPdfModalOpen(true)}
+                        onClick={handleReadMoreClick}
                       >
                         Read More
                       </button>
-                    </div>
-                  )}
-                  {/* PDF Modal */}
-                  {isPdfModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4">
-                      <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[90vh] overflow-hidden">
-                        <div className="flex items-center justify-between p-3 sm:p-4 border-b">
-                          <h3 className="text-base sm:text-lg lg:text-xl font-semibold">Product PDF</h3>
-                          <button
-                            className="text-gray-500 hover:text-gray-800 p-2"
-                            onClick={() => setIsPdfModalOpen(false)}
-                            aria-label="Close"
-                          >
-                            <X size={18} />
-                          </button>
-                        </div>
-                        <div className="h-[70vh] overflow-auto p-2 sm:p-4">
-                          {/* PDF Viewer */}
-                          <Document
-                            file={selectedProduct.pdf}
-                            onLoadSuccess={({ numPages }) => {
-                              setNumPages(numPages);
-                              setPdfError(null);
-                            }}
-                            onLoadError={(error) => {
-
-                              setPdfError('Failed to load PDF. Please check the browser console for more details.');
-                            }}
-                            loading={<div className="text-center py-6">Loading PDF...</div>}
-                          >
-                            {Array.from(new Array(numPages || 0), (_, index) => (
-                              <React.Fragment key={`page_${index + 1}`}>
-                                <Page
-                                  pageNumber={index + 1}
-                                  width={Math.min(700, window.innerWidth - 32)}
-                                  renderAnnotationLayer={false}
-                                  renderTextLayer={false}
-                                />
-                                {(numPages && index < numPages - 1) && <div className="h-4 bg-gray-200" />}
-                              </React.Fragment>
-                            ))}
-                          </Document>
-                          {pdfError && <div className="p-4 text-red-600 bg-red-100 rounded-md">{pdfError}</div>}
-
-                          <div className="mt-2 text-xs sm:text-sm text-gray-500">For full details, <a href={selectedProduct.pdf} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">open PDF in new tab</a>.</div>
-                        </div>
-                      </div>
                     </div>
                   )}
                 </div>
