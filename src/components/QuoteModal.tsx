@@ -9,7 +9,7 @@ import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
 import { getProcessorPrice } from '../utils/processorPrices';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
-import { applyDiscount, DiscountInfo } from '../utils/discountCalculator';
+import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel } from '../utils/discountCalculator';
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { isCrystalSeries } from '../utils/productSeries';
@@ -360,8 +360,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
     }
   }, [isPartner, allowedCustomerTypes, availableUserTypes, selectedUserType]);
 
-  const [discountType, setDiscountType] = useState<'led' | 'controller' | 'total' | null>(null);
+  const [discountType, setDiscountType] = useState<'led' | 'controller' | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [discountAmountPerUnit, setDiscountAmountPerUnit] = useState<number>(0);
 
   const [internalCustomPricingEnabled, setInternalCustomPricingEnabled] = useState(externalCustomPricing?.enabled || false);
   const [internalCustomStructurePrice, setInternalCustomStructurePrice] = useState<number | null>(externalCustomPricing?.structurePrice || null);
@@ -1020,16 +1021,34 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           let finalTotalPrice = correctTotalPrice;
           let discountInfo: DiscountInfo | null = null;
 
-          if (isSuperAdmin && discountType && discountPercent > 0) {
+          const configForDiscount = config || { width: 2400, height: 1010, unit: 'mm' };
+
+          if (isSuperAdmin && discountType === 'led' && discountAmountPerUnit > 0) {
+            const ledMode = getLedDiscountMode(selectedProduct);
+            const units = getDiscountUnits(selectedProduct, cabinetGrid, configForDiscount);
             discountInfo = {
-              discountType,
-              discountPercent
+              discountType: 'led',
+              discountPercent: 0,
+              discountAmountPerUnit,
+              numberOfUnits: units,
+              ledDiscountMode: ledMode
             };
 
             const discountedResult = applyDiscount(pricingResult, discountInfo);
             finalPricingResult = discountedResult;
             finalTotalPrice = discountedResult.grandTotal;
+          } else if (isSuperAdmin && discountType === 'controller' && discountPercent > 0) {
+            discountInfo = {
+              discountType: 'controller',
+              discountPercent,
+              discountAmountPerUnit: 0,
+              numberOfUnits: 0,
+              ledDiscountMode: 'none'
+            };
 
+            const discountedResult = applyDiscount(pricingResult, discountInfo);
+            finalPricingResult = discountedResult;
+            finalTotalPrice = discountedResult.grandTotal;
           }
 
           exactQuotationData = {
@@ -1068,6 +1087,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               discount: discountInfo ? {
                 discountType: discountInfo.discountType,
                 discountPercent: discountInfo.discountPercent,
+                discountAmountPerUnit: discountInfo.discountAmountPerUnit,
+                numberOfUnits: discountInfo.numberOfUnits,
+                ledDiscountMode: discountInfo.ledDiscountMode,
 
                 originalProductTotal: 'originalProductTotal' in finalPricingResult ? finalPricingResult.originalProductTotal : finalPricingResult.productTotal,
                 originalProcessorTotal: 'originalProcessorTotal' in finalPricingResult ? finalPricingResult.originalProcessorTotal : finalPricingResult.processorTotal,
@@ -1103,6 +1125,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
             discountType: discountInfo?.discountType || null,
             discountPercent: discountInfo?.discountPercent || 0,
+            discountAmountPerUnit: discountInfo?.discountAmountPerUnit || 0,
+            numberOfUnits: discountInfo?.numberOfUnits || 0,
+            ledDiscountMode: discountInfo?.ledDiscountMode || 'none',
 
             exactProductSpecs: {
               productName: selectedProduct.name,
@@ -1463,7 +1488,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   name="discountType"
                                   value="led"
                                   checked={discountType === 'led'}
-                                  onChange={(e) => setDiscountType(e.target.value as 'led')}
+                                  onChange={() => setDiscountType('led')}
                                   disabled={isSubmitting}
                                   className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
                                 />
@@ -1475,7 +1500,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   name="discountType"
                                   value="controller"
                                   checked={discountType === 'controller'}
-                                  onChange={(e) => setDiscountType(e.target.value as 'controller')}
+                                  onChange={() => setDiscountType('controller')}
                                   disabled={isSubmitting}
                                   className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
                                 />
@@ -1485,21 +1510,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                 <input
                                   type="radio"
                                   name="discountType"
-                                  value="total"
-                                  checked={discountType === 'total'}
-                                  onChange={(e) => setDiscountType(e.target.value as 'total')}
-                                  disabled={isSubmitting}
-                                  className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
-                                />
-                                <span className="text-sm text-gray-700">Discount on Total Amount</span>
-                              </label>
-                              <label className="flex items-center">
-                                <input
-                                  type="radio"
-                                  name="discountType"
                                   value=""
                                   checked={discountType === null}
-                                  onChange={(e) => setDiscountType(null)}
+                                  onChange={() => setDiscountType(null)}
                                   disabled={isSubmitting}
                                   className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
                                 />
@@ -1508,8 +1521,69 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                             </div>
                           </div>
 
-                          {/* Discount Percentage Input */}
-                          {discountType && (
+                          {/* LED Discount — product-type-aware amount input */}
+                          {discountType === 'led' && selectedProduct && (() => {
+                            const ledMode = getLedDiscountMode(selectedProduct);
+                            const configForDiscount = config || { width: 2400, height: 1010, unit: 'mm' };
+                            const units = getDiscountUnits(selectedProduct, cabinetGrid, configForDiscount);
+                            const unitLabel = getDiscountUnitLabel(selectedProduct);
+                            const totalDiscount = Math.round((discountAmountPerUnit * units) * 100) / 100;
+
+                            if (ledMode === 'none') {
+                              return (
+                                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                  <p className="text-sm text-yellow-700 font-medium">
+                                    ⚠️ No discount available for Jumbo / Digital Standee products.
+                                  </p>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="space-y-3">
+                                <div>
+                                  <label htmlFor="discountAmountPerUnit" className="block text-sm font-medium text-gray-700 mb-2">
+                                    Discount Amount (₹ {unitLabel})
+                                  </label>
+                                  <input
+                                    type="number"
+                                    id="discountAmountPerUnit"
+                                    min="0"
+                                    step="1"
+                                    value={discountAmountPerUnit || ''}
+                                    onChange={(e) => {
+                                      const value = parseFloat(e.target.value) || 0;
+                                      setDiscountAmountPerUnit(Math.max(0, value));
+                                    }}
+                                    disabled={isSubmitting}
+                                    placeholder={`Enter ₹ amount ${unitLabel}`}
+                                    className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base"
+                                  />
+                                </div>
+                                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-1">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">
+                                      {ledMode === 'per_cabinet' ? 'Total Cabinets:' : 'Total Sq Ft:'}
+                                    </span>
+                                    <span className="font-medium text-gray-900">
+                                      {ledMode === 'per_cabinet' ? Math.round(units) : units}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Amount {unitLabel}:</span>
+                                    <span className="font-medium text-gray-900">₹{discountAmountPerUnit.toLocaleString('en-IN')}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm font-semibold border-t border-blue-300 pt-1">
+                                    <span className="text-blue-700">Total Discount:</span>
+                                    <span className="text-blue-700">₹{totalDiscount.toLocaleString('en-IN')}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Controller Discount — percentage input (unchanged) */}
+                          {discountType === 'controller' && (
                             <div>
                               <label htmlFor="discountPercent" className="block text-sm font-medium text-gray-700 mb-2">
                                 Discount Percentage (%)

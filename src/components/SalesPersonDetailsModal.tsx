@@ -3,7 +3,7 @@ import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, 
 import { salesAPI } from '../api/sales';
 import { PdfViewModal } from './PdfViewModal';
 import { generateConfigurationHtml, generateConfigurationPdf } from '../utils/docxGenerator';
-import { applyDiscount, DiscountInfo } from '../utils/discountCalculator';
+import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel } from '../utils/discountCalculator';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { Save as SaveIcon } from 'lucide-react';
 
@@ -93,8 +93,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
   const [pdfHtmlContent, setPdfHtmlContent] = useState<string>('');
 
   const [editingDiscountQuotationId, setEditingDiscountQuotationId] = useState<string | null>(null);
-  const [discountType, setDiscountType] = useState<'led' | 'controller' | 'total' | null>(null);
+  const [discountType, setDiscountType] = useState<'led' | 'controller' | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [discountAmountPerUnit, setDiscountAmountPerUnit] = useState<number>(0);
   const [isUpdatingDiscount, setIsUpdatingDiscount] = useState(false);
 
   useEffect(() => {
@@ -229,8 +230,16 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
   };
 
   const handleApplyDiscount = async (quotation: Quotation) => {
-    if (!discountType || discountPercent < 0) {
-      alert('Please select a discount type and enter a valid percentage >= 0');
+    if (!discountType) {
+      alert('Please select a discount type');
+      return;
+    }
+    if (discountType === 'led' && discountAmountPerUnit <= 0) {
+      alert('Please enter a valid discount amount per unit');
+      return;
+    }
+    if (discountType === 'controller' && discountPercent < 0) {
+      alert('Please enter a valid discount percentage >= 0');
       return;
     }
 
@@ -471,10 +480,28 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
       }
 
-      const discountInfo: DiscountInfo = {
-        discountType,
-        discountPercent
-      };
+      // Build DiscountInfo based on type
+      let discountInfo: DiscountInfo;
+      if (discountType === 'led') {
+        const ledMode = getLedDiscountMode(product);
+        const cabinetGrid = exactSpecs?.cabinetGrid || productDetails?.cabinetGrid;
+        const units = getDiscountUnits(product, cabinetGrid, config);
+        discountInfo = {
+          discountType: 'led',
+          discountPercent: 0,
+          discountAmountPerUnit,
+          numberOfUnits: units,
+          ledDiscountMode: ledMode
+        };
+      } else {
+        discountInfo = {
+          discountType: 'controller',
+          discountPercent,
+          discountAmountPerUnit: 0,
+          numberOfUnits: 0,
+          ledDiscountMode: 'none'
+        };
+      }
 
       const discountedPricing = applyDiscount(finalPricingResult, discountInfo);
 
@@ -551,11 +578,14 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         quotationData: {
           ...quotation.quotationData,
           updatedAt: new Date().toISOString(),
-          discountApplied: discountPercent > 0,
+          discountApplied: discountedPricing.discountAmount > 0,
           discountInfo: {
             type: discountType,
-            percent: discountPercent,
-            amount: discountedPricing.discountAmount
+            percent: discountType === 'controller' ? discountPercent : 0,
+            amount: discountedPricing.discountAmount,
+            amountPerUnit: discountType === 'led' ? discountAmountPerUnit : 0,
+            numberOfUnits: discountType === 'led' ? discountInfo.numberOfUnits : 0,
+            ledDiscountMode: discountType === 'led' ? discountInfo.ledDiscountMode : 'none'
           }
         }
       };
@@ -565,6 +595,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       setEditingDiscountQuotationId(null);
       setDiscountType(null);
       setDiscountPercent(0);
+      setDiscountAmountPerUnit(0);
 
       fetchSalesPersonDetails();
 
@@ -1003,42 +1034,119 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                       <label className="text-xs text-gray-600 block mb-1">Discount Type</label>
                                                       <select
                                                         value={discountType || ''}
-                                                        onChange={(e) => setDiscountType(e.target.value as any)}
+                                                        onChange={(e) => setDiscountType(e.target.value as any || null)}
                                                         className="w-full text-xs border border-gray-300 rounded p-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                                       >
                                                         <option value="">Select Type</option>
                                                         <option value="led">LED Screen Price</option>
                                                         <option value="controller">Controller Price</option>
-                                                        <option value="total">Grand Total</option>
                                                       </select>
                                                     </div>
-                                                    <div>
-                                                      <label className="text-xs text-gray-600 block mb-1">Percentage (%)</label>
-                                                      <div className="flex items-center space-x-2">
-                                                        <input
-                                                          type="number"
-                                                          min="0"
-                                                          max="100"
-                                                          step="0.1"
-                                                          value={discountPercent}
-                                                          onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
-                                                          className="flex-1 text-xs border border-gray-300 rounded p-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                                          placeholder="0-100"
-                                                        />
-                                                        <button
-                                                          onClick={() => handleApplyDiscount(quotation)}
-                                                          disabled={isUpdatingDiscount || !discountType || discountPercent < 0}
-                                                          className="bg-blue-600 text-white min-w-[32px] h-[32px] flex items-center justify-center rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                                                          title="Apply Discount"
-                                                        >
-                                                          {isUpdatingDiscount ? (
-                                                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                                          ) : (
-                                                            <SaveIcon className="w-4 h-4" />
-                                                          )}
-                                                        </button>
+
+                                                    {/* LED Discount — product-type-aware */}
+                                                    {discountType === 'led' && (() => {
+                                                      const product = quotation.productDetails?.product || quotation.productDetails;
+                                                      const ledMode = getLedDiscountMode(product);
+                                                      const cabinetGrid = quotation.exactProductSpecs?.cabinetGrid || quotation.productDetails?.cabinetGrid;
+                                                      let configForUnits = quotation.quotationData?.config;
+                                                      if (!configForUnits && quotation.exactProductSpecs?.displaySize) {
+                                                        configForUnits = {
+                                                          width: (quotation.exactProductSpecs.displaySize.width * 1000) || 0,
+                                                          height: (quotation.exactProductSpecs.displaySize.height * 1000) || 0,
+                                                          unit: 'mm'
+                                                        };
+                                                      }
+                                                      if (!configForUnits && quotation.productDetails?.displaySize) {
+                                                        configForUnits = {
+                                                          width: (quotation.productDetails.displaySize.width * 1000) || 0,
+                                                          height: (quotation.productDetails.displaySize.height * 1000) || 0,
+                                                          unit: 'mm'
+                                                        };
+                                                      }
+                                                      const units = getDiscountUnits(product, cabinetGrid, configForUnits);
+                                                      const unitLabel = getDiscountUnitLabel(product);
+                                                      const totalDiscount = Math.round((discountAmountPerUnit * units) * 100) / 100;
+
+                                                      if (ledMode === 'none') {
+                                                        return (
+                                                          <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700 font-medium">
+                                                            ⚠️ No discount available for Jumbo / Digital Standee products.
+                                                          </div>
+                                                        );
+                                                      }
+
+                                                      return (
+                                                        <div className="space-y-2">
+                                                          <div>
+                                                            <label className="text-xs text-gray-600 block mb-1">Amount (₹ {unitLabel})</label>
+                                                            <div className="flex items-center space-x-2">
+                                                              <input
+                                                                type="number"
+                                                                min="0"
+                                                                step="1"
+                                                                value={discountAmountPerUnit || ''}
+                                                                onChange={(e) => setDiscountAmountPerUnit(parseFloat(e.target.value) || 0)}
+                                                                className="flex-1 text-xs border border-gray-300 rounded p-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                                placeholder={`₹ ${unitLabel}`}
+                                                              />
+                                                              <button
+                                                                onClick={() => handleApplyDiscount(quotation)}
+                                                                disabled={isUpdatingDiscount || !discountType || discountAmountPerUnit <= 0}
+                                                                className="bg-blue-600 text-white min-w-[32px] h-[32px] flex items-center justify-center rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                                                title="Apply Discount"
+                                                              >
+                                                                {isUpdatingDiscount ? (
+                                                                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                                ) : (
+                                                                  <SaveIcon className="w-4 h-4" />
+                                                                )}
+                                                              </button>
+                                                            </div>
+                                                          </div>
+                                                          <div className="p-2 bg-blue-100 rounded text-xs space-y-0.5">
+                                                            <div className="flex justify-between">
+                                                              <span>{ledMode === 'per_cabinet' ? 'Cabinets:' : 'Sq Ft:'}</span>
+                                                              <span className="font-medium">{ledMode === 'per_cabinet' ? Math.round(units) : units}</span>
+                                                            </div>
+                                                            <div className="flex justify-between font-semibold text-blue-700">
+                                                              <span>Total Discount:</span>
+                                                              <span>₹{totalDiscount.toLocaleString('en-IN')}</span>
+                                                            </div>
+                                                          </div>
+                                                        </div>
+                                                      );
+                                                    })()}
+
+                                                    {/* Controller Discount — percentage (unchanged) */}
+                                                    {discountType === 'controller' && (
+                                                      <div>
+                                                        <label className="text-xs text-gray-600 block mb-1">Percentage (%)</label>
+                                                        <div className="flex items-center space-x-2">
+                                                          <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="100"
+                                                            step="0.1"
+                                                            value={discountPercent}
+                                                            onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
+                                                            className="flex-1 text-xs border border-gray-300 rounded p-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                            placeholder="0-100"
+                                                          />
+                                                          <button
+                                                            onClick={() => handleApplyDiscount(quotation)}
+                                                            disabled={isUpdatingDiscount || !discountType || discountPercent < 0}
+                                                            className="bg-blue-600 text-white min-w-[32px] h-[32px] flex items-center justify-center rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                                            title="Apply Discount"
+                                                          >
+                                                            {isUpdatingDiscount ? (
+                                                              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                            ) : (
+                                                              <SaveIcon className="w-4 h-4" />
+                                                            )}
+                                                          </button>
+                                                        </div>
                                                       </div>
-                                                    </div>
+                                                    )}
                                                   </div>
                                                 </div>
                                               ) : (
@@ -1047,11 +1155,14 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                     setEditingDiscountQuotationId(quotation.quotationId);
 
                                                     if (quotation.quotationData?.discountApplied) {
-                                                      setDiscountType(quotation.quotationData.discountInfo?.type || null);
-                                                      setDiscountPercent(quotation.quotationData.discountInfo?.percent || 0);
+                                                      const di = quotation.quotationData.discountInfo;
+                                                      setDiscountType(di?.type || null);
+                                                      setDiscountPercent(di?.percent || 0);
+                                                      setDiscountAmountPerUnit(di?.amountPerUnit || 0);
                                                     } else {
                                                       setDiscountType(null);
                                                       setDiscountPercent(0);
+                                                      setDiscountAmountPerUnit(0);
                                                     }
                                                   }}
                                                   className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 rounded-md border border-indigo-200 transition-all shadow-sm text-xs font-semibold"
