@@ -10,7 +10,14 @@ export interface ViewingDistanceRange {
   maxFeet: number;
   displayText: string;
   environment?: 'Indoor' | 'Outdoor'; // Optional environment filter
+  guidedOnly?: boolean; // Only shown in guided configurator dropdown
 }
+
+/** Extra indoor buckets for guided configurator only */
+export const INDOOR_GUIDED_VIEWING_DISTANCE_EXTRAS: ViewingDistanceRange[] = [
+  { pixelPitch: 0.9, minMeters: 0, maxMeters: 0.9, minFeet: 0, maxFeet: 3, displayText: '0.9m or less', environment: 'Indoor', guidedOnly: true },
+  { pixelPitch: 3, minMeters: 3, maxMeters: 999, minFeet: 10, maxFeet: 3278, displayText: '3m or more', environment: 'Indoor', guidedOnly: true },
+];
 
 export const INDOOR_VIEWING_DISTANCE_RANGES: ViewingDistanceRange[] = [
   { pixelPitch: 0.9,  minMeters: 0.9,  maxMeters: 1.5,  minFeet: 3,   maxFeet: 4.9,  displayText: '0.9-1.5m (3-4.9ft)', environment: 'Indoor' },
@@ -27,9 +34,12 @@ export const OUTDOOR_VIEWING_DISTANCE_RANGES: ViewingDistanceRange[] = [
   { pixelPitch: 4,    minMeters: 4,    maxMeters: 8,    minFeet: 13.1, maxFeet: 26.2, displayText: '4-8m (13.1-26.2ft)', environment: 'Outdoor' },
   { pixelPitch: 6,    minMeters: 4,    maxMeters: 8,    minFeet: 13.1, maxFeet: 26.2, displayText: '4-8m (13.1-26.2ft)', environment: 'Outdoor' },
   { pixelPitch: 6.6,  minMeters: 4,    maxMeters: 8,    minFeet: 13.1, maxFeet: 26.2, displayText: '4-8m (13.1-26.2ft)', environment: 'Outdoor' },
+  { pixelPitch: 7.81, minMeters: 4,    maxMeters: 8,    minFeet: 13.1, maxFeet: 26.2, displayText: '4-8m (13.1-26.2ft)', environment: 'Outdoor' },
+  { pixelPitch: 8,    minMeters: 4,    maxMeters: 8,    minFeet: 13.1, maxFeet: 26.2, displayText: '4-8m (13.1-26.2ft)', environment: 'Outdoor' },
   { pixelPitch: 6,    minMeters: 10,   maxMeters: 999,  minFeet: 32.8, maxFeet: 3278, displayText: '10m+ (32.8ft+)', environment: 'Outdoor' },
   { pixelPitch: 6.6,  minMeters: 10,   maxMeters: 999,  minFeet: 32.8, maxFeet: 3278, displayText: '10m+ (32.8ft+)', environment: 'Outdoor' },
-  { pixelPitch: 10,   minMeters: 10,   maxMeters: 999,  minFeet: 32.8, maxFeet: 3278, displayText: '10m+ (32.8ft+)', environment: 'Outdoor' }
+  { pixelPitch: 10,   minMeters: 10,   maxMeters: 999,  minFeet: 32.8, maxFeet: 3278, displayText: '10m+ (32.8ft+)', environment: 'Outdoor' },
+  { pixelPitch: 10.41, minMeters: 10,   maxMeters: 999,  minFeet: 32.8, maxFeet: 3278, displayText: '10m+ (32.8ft+)', environment: 'Outdoor' }
 ];
 
 export const VIEWING_DISTANCE_RANGES: ViewingDistanceRange[] = [
@@ -49,7 +59,7 @@ export function getViewingDistanceRange(pixelPitch: number, environment?: 'Indoo
     ? INDOOR_VIEWING_DISTANCE_RANGES
     : VIEWING_DISTANCE_RANGES;
   
-  return ranges.find(range => Math.abs(range.pixelPitch - pixelPitch) < 0.01);
+  return ranges.find(range => !range.guidedOnly && Math.abs(range.pixelPitch - pixelPitch) < 0.01);
 }
 
 /**
@@ -183,34 +193,53 @@ export function getViewingDistanceOptionsForPixelPitch(pixelPitch: number, envir
  * Get viewing distance options based on unit (meters or feet) in min-to-max range format
  * @param unit - The unit ('meters' or 'feet')
  * @param environment - Optional environment filter ('Indoor' or 'Outdoor')
+ * @param guided - When true, include guided-only buckets (e.g. indoor 0.9m or less, 3m or more)
  */
-export function getViewingDistanceOptionsByUnit(unit: 'meters' | 'feet', environment?: 'Indoor' | 'Outdoor' | null): { value: string; label: string; pixelPitch: number }[] {
-  const options: { value: string; label: string; pixelPitch: number }[] = [];
+export function getViewingDistanceOptionsByUnit(
+  unit: 'meters' | 'feet',
+  environment?: 'Indoor' | 'Outdoor' | null,
+  guided = false
+): { value: string; label: string; pixelPitch: number; sortMin: number }[] {
+  const options: { value: string; label: string; pixelPitch: number; sortMin: number }[] = [];
   
-  const ranges = environment === 'Outdoor' 
+  let ranges = environment === 'Outdoor' 
     ? OUTDOOR_VIEWING_DISTANCE_RANGES 
     : environment === 'Indoor'
     ? INDOOR_VIEWING_DISTANCE_RANGES
     : VIEWING_DISTANCE_RANGES;
+
+  if (guided && environment === 'Indoor') {
+    ranges = [...INDOOR_GUIDED_VIEWING_DISTANCE_EXTRAS, ...ranges];
+  }
   
   ranges.forEach(range => {
-    if (unit === 'meters') {
+    if (range.guidedOnly && !guided) return;
 
-      const maxValue = range.maxMeters >= 999 ? '+' : range.maxMeters;
-      const label = range.maxMeters >= 999 ? `${range.minMeters}m+` : `${range.minMeters}-${range.maxMeters}m`;
+    if (unit === 'meters') {
+      const value = range.maxMeters >= 999 ? `${range.minMeters}+` : `${range.minMeters}-${range.maxMeters}`;
+      const label = range.guidedOnly
+        ? range.displayText
+        : range.maxMeters >= 999
+          ? `${range.minMeters}m+`
+          : `${range.minMeters}-${range.maxMeters}m`;
       options.push({
-        value: range.maxMeters >= 999 ? `${range.minMeters}+` : `${range.minMeters}-${range.maxMeters}`,
-        label: label,
-        pixelPitch: range.pixelPitch
+        value,
+        label,
+        pixelPitch: range.pixelPitch,
+        sortMin: range.minMeters
       });
     } else {
-
-      const maxValue = range.maxFeet >= 3278 ? '+' : range.maxFeet;
-      const label = range.maxFeet >= 3278 ? `${range.minFeet}ft+` : `${range.minFeet}-${range.maxFeet}ft`;
+      const value = range.maxFeet >= 3278 ? `${range.minFeet}+` : `${range.minFeet}-${range.maxFeet}`;
+      const label = range.guidedOnly
+        ? (range.minMeters === 0 ? '3ft or less' : '10ft or more')
+        : range.maxFeet >= 3278
+          ? `${range.minFeet}ft+`
+          : `${range.minFeet}-${range.maxFeet}ft`;
       options.push({
-        value: range.maxFeet >= 3278 ? `${range.minFeet}+` : `${range.minFeet}-${range.maxFeet}`,
-        label: label,
-        pixelPitch: range.pixelPitch
+        value,
+        label,
+        pixelPitch: range.pixelPitch,
+        sortMin: range.minFeet
       });
     }
   });
@@ -219,7 +248,9 @@ export function getViewingDistanceOptionsByUnit(unit: 'meters' | 'feet', environ
     index === self.findIndex(o => o.value === option.value)
   );
   
-  return uniqueOptions.sort((a, b) => a.pixelPitch - b.pixelPitch);
+  return uniqueOptions
+    .sort((a, b) => a.sortMin - b.sortMin)
+    .map(({ sortMin: _sortMin, ...option }) => option);
 }
 
 /**
@@ -248,11 +279,14 @@ export function getPixelPitchesForViewingDistanceRange(
 
   const matchingPixelPitches: number[] = [];
   
-  const ranges = environment === 'Outdoor' 
-    ? OUTDOOR_VIEWING_DISTANCE_RANGES 
-    : environment === 'Indoor'
-    ? INDOOR_VIEWING_DISTANCE_RANGES
-    : VIEWING_DISTANCE_RANGES;
+  const ranges = [
+    ...(environment === 'Indoor' ? INDOOR_GUIDED_VIEWING_DISTANCE_EXTRAS : []),
+    ...(environment === 'Outdoor' 
+      ? OUTDOOR_VIEWING_DISTANCE_RANGES 
+      : environment === 'Indoor'
+      ? INDOOR_VIEWING_DISTANCE_RANGES
+      : VIEWING_DISTANCE_RANGES),
+  ];
 
   ranges.forEach(range => {
     let rangeMin: number;

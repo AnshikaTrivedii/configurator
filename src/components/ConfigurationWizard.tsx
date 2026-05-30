@@ -8,6 +8,36 @@ import { getViewingDistanceOptionsByUnit, getPixelPitchesForViewingDistanceRange
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { normalize } from '../utils/pixelPitchRecommendation';
 import { getAvailablePixelPitches as getAvailablePixelPitchesFromFilter } from '../utils/productFilter';
+import {
+  DIGITAL_STANDEE_SUBCATEGORIES,
+  GUIDED_TECHNOLOGY_CATEGORIES,
+  FLEXIBLE_SUBCATEGORIES,
+  MODULAR_SUBCATEGORIES,
+  RENTAL_SUBCATEGORIES,
+  TRANSPARENT_SUBCATEGORIES,
+  formatGuidedTechnologyFilterLabel,
+  getDigitalStandeeSubcategoryDescription,
+  getDigitalStandeeSubcategoryLabel,
+  getGuidedTechnologyCategoryDescription,
+  getFlexibleSubcategoryDescription,
+  getModularSubcategoryDescription,
+  getRentalSubcategoryDescription,
+  getTransparentSubcategoryDescription,
+  hasRequiredSubcategory,
+  productMatchesDigitalStandeeSubcategory,
+  productMatchesGuidedTechnologyCategory,
+  productMatchesFlexibleSubcategory,
+  productMatchesModularSubcategory,
+  productMatchesRentalSubcategory,
+  productMatchesTransparentSubcategory,
+  type DigitalStandeeSubcategory,
+  type FlexibleSubcategory,
+  type GuidedSubcategoryOptions,
+  type GuidedTechnologyCategory,
+  type ModularSubcategory,
+  type RentalSubcategory,
+  type TransparentSubcategory,
+} from '../utils/guidedTechnologyCategory';
 
 interface ConfigurationWizardProps {
   isOpen: boolean;
@@ -15,7 +45,7 @@ interface ConfigurationWizardProps {
   onComplete: (config: {
     width: number;
     height: number;
-    unit: 'mm' | 'cm' | 'm' | 'ft';
+    unit: 'mm' | 'm' | 'ft';
     viewingDistance: string;
     viewingDistanceUnit: 'meters' | 'feet';
     environment: 'Indoor' | 'Outdoor';
@@ -25,7 +55,7 @@ interface ConfigurationWizardProps {
   }) => void;
 }
 
-type Step = 'dimensions' | 'viewingDistance' | 'environment' | 'pixelPitch' | 'warranty' | 'product';
+type Step = 'dimensions' | 'viewingDistance' | 'environment' | 'pixelPitch' | 'technology' | 'product';
 
 export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   isOpen,
@@ -36,16 +66,42 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
   const [currentStep, setCurrentStep] = useState<Step>('environment');
   const [width, setWidth] = useState<string>('');
   const [height, setHeight] = useState<string>('');
-  const [unit, setUnit] = useState<'mm' | 'cm' | 'm' | 'ft'>('m');
+  const [unit, setUnit] = useState<'mm' | 'm' | 'ft'>('m');
   const [viewingDistance, setViewingDistance] = useState<string>('');
   const [viewingDistanceUnit, setViewingDistanceUnit] = useState<'meters' | 'feet'>('meters');
   const [environment, setEnvironment] = useState<'Indoor' | 'Outdoor' | ''>('');
   const [pixelPitch, setPixelPitch] = useState<number | null>(null);
-  const [selectedWarranty, setSelectedWarranty] = useState<number | null>(null);
-  const [selectedSeriesCategory, setSelectedSeriesCategory] = useState<string | null>(null); // 'Module/ Grid Series' when that option is chosen
+  const [selectedTechnologyCategory, setSelectedTechnologyCategory] = useState<GuidedTechnologyCategory | null>(null);
+  const [selectedRentalSubcategory, setSelectedRentalSubcategory] = useState<RentalSubcategory | null>(null);
+  const [selectedDigitalStandeeSubcategory, setSelectedDigitalStandeeSubcategory] =
+    useState<DigitalStandeeSubcategory | null>(null);
+  const [selectedModularSubcategory, setSelectedModularSubcategory] = useState<ModularSubcategory | null>(null);
+  const [selectedFlexibleSubcategory, setSelectedFlexibleSubcategory] = useState<FlexibleSubcategory | null>(null);
+  const [selectedTransparentSubcategory, setSelectedTransparentSubcategory] =
+    useState<TransparentSubcategory | null>(null);
+
+  const technologySubcategories: GuidedSubcategoryOptions = {
+    rentalSubcategory: selectedRentalSubcategory,
+    digitalStandeeSubcategory: selectedDigitalStandeeSubcategory,
+    modularSubcategory: selectedModularSubcategory,
+    flexibleSubcategory: selectedFlexibleSubcategory,
+    transparentSubcategory: selectedTransparentSubcategory,
+  };
+
+  const clearTechnologySubcategories = () => {
+    setSelectedRentalSubcategory(null);
+    setSelectedDigitalStandeeSubcategory(null);
+    setSelectedModularSubcategory(null);
+    setSelectedFlexibleSubcategory(null);
+    setSelectedTransparentSubcategory(null);
+  };
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [wireType, setWireType] = useState<'gold' | 'copper'>('gold');
+  const [hasSkippedEnvironment, setHasSkippedEnvironment] = useState(false);
+  const [hasSkippedViewingDistance, setHasSkippedViewingDistance] = useState(false);
   const [hasSkippedPixelPitch, setHasSkippedPixelPitch] = useState<boolean>(false);
+
+  const isTransparentSeriesPath = selectedTechnologyCategory === 'Transparent series';
   const isModularSeries = selectedProduct?.category?.toLowerCase().includes('modular') ?? false;
 
   const getTechnologyLabelForGuidedCard = (product: Product): string | null => {
@@ -67,7 +123,7 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     { key: 'viewingDistance', label: 'Viewing Distance' },
     { key: 'pixelPitch', label: 'Pixel Pitch' },
     { key: 'dimensions', label: 'Dimensions' },
-    { key: 'warranty', label: 'Warranty' },
+    { key: 'technology', label: 'Technology / Product Category' },
     { key: 'product', label: 'Product' }
   ];
 
@@ -83,62 +139,32 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       setViewingDistanceUnit('meters');
       setEnvironment('');
       setPixelPitch(null);
-      setSelectedWarranty(null);
-      setSelectedSeriesCategory(null);
+      setSelectedTechnologyCategory(null);
+      clearTechnologySubcategories();
       setSelectedProduct(null);
       setWireType('gold');
+      setHasSkippedEnvironment(false);
+      setHasSkippedViewingDistance(false);
       setHasSkippedPixelPitch(false);
     }
   }, [isOpen]);
 
-  const convertToMM = (value: number, fromUnit: 'mm' | 'cm' | 'm' | 'ft'): number => {
+  const convertToMM = (value: number, fromUnit: 'mm' | 'm' | 'ft'): number => {
     switch (fromUnit) {
       case 'mm': return value;
-      case 'cm': return value * 10;
       case 'm': return value * 1000;
       case 'ft': return value * 304.8; // Exact conversion: 1 ft = 304.8 mm
       default: return value;
     }
   };
 
-  const convertFromMM = (mm: number, toUnit: 'mm' | 'cm' | 'm' | 'ft'): number => {
+  const convertFromMM = (mm: number, toUnit: 'mm' | 'm' | 'ft'): number => {
     switch (toUnit) {
       case 'mm': return mm;
-      case 'cm': return mm / 10;
       case 'm': return mm / 1000;
       case 'ft': return mm / 304.8; // Exact conversion: 1 ft = 304.8 mm
       default: return mm;
     }
-  };
-
-  /**
-   * Map warranty years to product series
-   * Prime Series → 5 Years
-   * Edge Series → 3 Years
-   * Core Series, Module/ Grid Series, Modular Series → 2 Years
-   */
-  const getSeriesForWarranty = (warrantyYears: number): string[] => {
-    switch (warrantyYears) {
-      case 5:
-        return ['Prime Series'];
-      case 3:
-        return ['Edge Series', 'Nexa Series'];
-      case 2:
-        return ['Core Series', 'Module/ Grid Series', 'Modular Series'];
-      default:
-        return [];
-    }
-  };
-
-  /**
-   * Check if a product belongs to a specific warranty
-   */
-  const productMatchesWarranty = (product: Product, warrantyYears: number | null): boolean => {
-    if (warrantyYears === null) return true;
-    const allowedSeries = getSeriesForWarranty(warrantyYears);
-    if (allowedSeries.length === 0) return true;
-    const productCategory = (product.category || '').trim();
-    return allowedSeries.some(series => productCategory.includes(series));
   };
 
   const handleNext = () => {
@@ -153,6 +179,24 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       const prevStep = steps[currentStepIndex - 1].key;
       setCurrentStep(prevStep);
     }
+  };
+
+  const handleSkipEnvironment = () => {
+    setHasSkippedEnvironment(true);
+    setEnvironment('');
+    setCurrentStep('viewingDistance');
+  };
+
+  const handleSkipViewingDistance = () => {
+    setHasSkippedViewingDistance(true);
+    setViewingDistance('');
+    setCurrentStep('pixelPitch');
+  };
+
+  const handleSkipPixelPitch = () => {
+    setPixelPitch(null);
+    setHasSkippedPixelPitch(true);
+    setCurrentStep('dimensions');
   };
 
   const handleComplete = () => {
@@ -183,13 +227,17 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 
       }
 
+      const resolvedEnvironment =
+        environment ||
+        (selectedProduct.environment?.toLowerCase().trim() === 'outdoor' ? 'Outdoor' : 'Indoor');
+
       onComplete({
         width: finalWidthMM,
         height: finalHeightMM,
         unit,
         viewingDistance,
         viewingDistanceUnit,
-        environment: environment as 'Indoor' | 'Outdoor',
+        environment: resolvedEnvironment as 'Indoor' | 'Outdoor',
         pixelPitch,
         selectedProduct,
         wireType: isModularSeries ? wireType : undefined
@@ -233,28 +281,41 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
     });
   }, [pixelPitch, isOpen, updateConfig]);
 
-  // Reset product selection when warranty or series category changes
+  // Reset product selection when technology category changes
   useEffect(() => {
     if (selectedProduct === null) return;
-    if (selectedSeriesCategory === 'Module/ Grid Series') {
-      if (selectedProduct.category !== 'Module/ Grid Series') setSelectedProduct(null);
-    } else if (selectedWarranty !== null && !productMatchesWarranty(selectedProduct, selectedWarranty)) {
+    if (
+      selectedTechnologyCategory !== null &&
+      !productMatchesGuidedTechnologyCategory(
+        selectedProduct,
+        selectedTechnologyCategory,
+        technologySubcategories
+      )
+    ) {
       setSelectedProduct(null);
     }
-  }, [selectedWarranty, selectedSeriesCategory, selectedProduct]);
+  }, [
+    selectedTechnologyCategory,
+    selectedRentalSubcategory,
+    selectedDigitalStandeeSubcategory,
+    selectedModularSubcategory,
+    selectedFlexibleSubcategory,
+    selectedTransparentSubcategory,
+    selectedProduct,
+  ]);
 
   const canProceed = () => {
     switch (currentStep) {
       case 'dimensions':
         return width && height && parseFloat(width) > 0 && parseFloat(height) > 0;
       case 'viewingDistance':
-        return viewingDistance !== '';
+        return viewingDistance !== '' || hasSkippedViewingDistance;
       case 'environment':
-        return environment !== '';
+        return environment !== '' || hasSkippedEnvironment;
       case 'pixelPitch':
         return true; // Pixel pitch is optional, can proceed without selection
-      case 'warranty':
-        return selectedWarranty !== null || selectedSeriesCategory === 'Module/ Grid Series';
+      case 'technology':
+        return hasRequiredSubcategory(selectedTechnologyCategory, technologySubcategories);
       case 'product':
         return selectedProduct !== null;
       default:
@@ -311,31 +372,19 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 
   const selectedEnv = environment?.toLowerCase().trim();
 
-  // Product list: warranty/series filter; pixel pitch applies to all except Module/ Grid Series
-  const filteredProducts = products.filter(product => {
-
+  const productMatchesPreviousSteps = (product: Product): boolean => {
     if (product.enabled === false) return false;
 
+    if (isTransparentSeriesPath) return true;
+
     const productEnv = product.environment?.toLowerCase().trim();
-    const envMatch = !environment || productEnv === selectedEnv;
+    if (environment && productEnv !== selectedEnv) return false;
 
-    if (environment && !envMatch) {
-      return false;
-    }
-
-    // Filter by warranty (series-based) or Module/ Grid Series
-    if (selectedSeriesCategory === 'Module/ Grid Series') {
-      if (product.category !== 'Module/ Grid Series') return false;
-    }
-
-    // Pixel pitch (and viewing-distance recommendations): apply to all series including Module/ Grid
     if (pixelPitch !== null) {
       const productPitch = normalize(product.pixelPitch);
       const selectedPitch = normalize(pixelPitch);
       if (productPitch === null || selectedPitch === null) return false;
-      if (Math.abs(productPitch - selectedPitch) >= 0.1) {
-        return false;
-      }
+      if (Math.abs(productPitch - selectedPitch) >= 0.1) return false;
     } else if (recommendedPixelPitches.length > 0 && !hasSkippedPixelPitch) {
       const productPitch = normalize(product.pixelPitch);
       if (productPitch === null) return false;
@@ -347,10 +396,20 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
       if (!matchesRecommended) return false;
     }
 
-    if (selectedSeriesCategory !== 'Module/ Grid Series' && !productMatchesWarranty(product, selectedWarranty)) {
+    return true;
+  };
+
+  const filteredProducts = products.filter(product => {
+    if (!productMatchesPreviousSteps(product)) return false;
+    if (
+      !productMatchesGuidedTechnologyCategory(
+        product,
+        selectedTechnologyCategory,
+        technologySubcategories
+      )
+    ) {
       return false;
     }
-
     return true;
   });
 
@@ -414,13 +473,19 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
               <div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Select Environment</h3>
                 <p className="text-gray-600">Where will the display be installed?</p>
+                <p className="text-sm text-blue-600 mt-1">
+                  Configuring Transparent series? You can skip environment, viewing distance, and pixel pitch.
+                </p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(['Indoor', 'Outdoor'] as const).map((env) => (
                     <button
                     key={env}
-                    onClick={() => setEnvironment(env)}
+                    onClick={() => {
+                      setEnvironment(env);
+                      setHasSkippedEnvironment(false);
+                    }}
                     className={`p-6 rounded-xl border-2 transition-all text-left ${
                       environment === env
                         ? 'border-blue-600 bg-blue-50 shadow-lg'
@@ -435,6 +500,15 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                     </div>
                     </button>
                   ))}
+              </div>
+              <div className="pt-2 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handleSkipEnvironment}
+                  className="px-4 py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  Skip — continue to Transparent series
+                </button>
               </div>
             </div>
           )}
@@ -473,16 +547,28 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                 <label className="block text-sm font-medium text-gray-700 mb-2">Viewing Distance Range</label>
                 <select
                   value={viewingDistance}
-                  onChange={(e) => setViewingDistance(e.target.value)}
+                  onChange={(e) => {
+                    setViewingDistance(e.target.value);
+                    if (e.target.value) setHasSkippedViewingDistance(false);
+                  }}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select viewing distance...</option>
-                  {getViewingDistanceOptionsByUnit(viewingDistanceUnit, environment as 'Indoor' | 'Outdoor' | null).map((option) => (
+                  {getViewingDistanceOptionsByUnit(viewingDistanceUnit, environment as 'Indoor' | 'Outdoor' | null, true).map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="pt-2 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handleSkipViewingDistance}
+                  className="px-4 py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  Skip — continue to Transparent series
+                </button>
               </div>
             </div>
           )}
@@ -552,20 +638,15 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                       );
                     })}
                   </div>
-                  {environment === 'Outdoor' && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPixelPitch(null);
-                          setHasSkippedPixelPitch(true);
-                        }}
-                        className="px-4 py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        Skip — see all products
-                      </button>
-                    </div>
-                  )}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <button
+                      type="button"
+                      onClick={handleSkipPixelPitch}
+                      className="px-4 py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      Skip — continue to Transparent series
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div className="text-center py-8">
@@ -574,6 +655,13 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                       ? 'No pixel pitches available for this viewing distance'
                       : 'Select viewing distance to see recommended pixel pitches'}
                   </div>
+                  <button
+                    type="button"
+                    onClick={handleSkipPixelPitch}
+                    className="px-4 py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    Skip — continue to Transparent series
+                  </button>
                 </div>
               )}
             </div>
@@ -619,8 +707,8 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Unit</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {(['mm', 'cm', 'm', 'ft'] as const).map((u) => (
+                <div className="grid grid-cols-3 gap-2">
+                  {(['mm', 'm', 'ft'] as const).map((u) => (
                     <button
                       key={u}
                       onClick={() => setUnit(u)}
@@ -638,101 +726,301 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
             </div>
           )}
 
-          {/* Step 5: Warranty */}
-          {currentStep === 'warranty' && (
+          {/* Step 5: Technology / Product Category */}
+          {currentStep === 'technology' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Select Warranty</h3>
-                <p className="text-gray-600">Choose your preferred warranty period</p>
-                {environment === 'Outdoor' && (
-                  <p className="text-sm text-blue-600 mt-1">Select <strong>2 Years</strong> for Core Series, Module/ Grid Series, and Modular Series products.</p>
-                )}
-                {environment === 'Indoor' && (
-                  <>
-                    <p className="text-sm text-blue-600 mt-1">Select <strong>2 Years</strong> to include Module/ Grid Series (P1.8, P2.5, P4).</p>
-                  </>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Select Technology / Product Category</h3>
+                <p className="text-gray-600">Choose the technology or product line for your display</p>
+                {(selectedTechnologyCategory === 'SMD' || selectedTechnologyCategory === 'COB') && environment && (
+                  <p className="text-sm text-blue-600 mt-1">
+                    Showing {selectedTechnologyCategory === 'SMD' ? 'Astra' : 'Sigma'} products for your{' '}
+                    <strong>{environment.toLowerCase()}</strong> environment.
+                  </p>
                 )}
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {([5, 3, 2] as const).map((years) => {
-                  const allowedSeries = getSeriesForWarranty(years);
-                  const seriesLabel = years === 5 ? 'Prime Series' : years === 3 ? 'Edge Series' : 'Core Series, Module/ Grid Series, Modular Series';
-                  const cardSelectedEnv = environment?.toLowerCase().trim();
 
-                  // Calculate matching products with all previous filters + warranty.
-                  const matchingProducts = products.filter(p => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {GUIDED_TECHNOLOGY_CATEGORIES.map((category) => {
+                  const matchingProducts = products.filter((p) => {
                     if (p.enabled === false) return false;
-
-                    // Environment filter
-                    const productEnv = p.environment?.toLowerCase().trim();
-                    const envMatch = !environment || productEnv === cardSelectedEnv;
-                    if (environment && !envMatch) {
-                      return false;
+                    if (category === 'Transparent series') {
+                      return p.category?.includes('Transparent Series');
                     }
-
-                    // Pixel pitch: same rules for all series
-                    if (pixelPitch !== null) {
-                      const productPitch = normalize(p.pixelPitch);
-                      const selectedPitch = normalize(pixelPitch);
-                      if (productPitch === null || selectedPitch === null) return false;
-                      if (Math.abs(productPitch - selectedPitch) >= 0.1) {
-                        return false;
-                      }
-                    } else if (recommendedPixelPitches.length > 0 && !hasSkippedPixelPitch) {
-                      const productPitch = normalize(p.pixelPitch);
-                      if (productPitch === null) return false;
-                      const matchesRecommended = recommendedPixelPitches.some(pitch => {
-                        const target = normalize(pitch);
-                        if (target === null) return false;
-                        return Math.abs(productPitch - target) < 0.1;
-                      });
-                      if (!matchesRecommended) return false;
+                    if (!productMatchesPreviousSteps(p)) return false;
+                    if (category === 'Rental') {
+                      return p.category?.includes('Rental Series');
                     }
-
-                    // Warranty filter (series-based)
-                    const productCategory = (p.category || '').trim();
-                    if (allowedSeries.length === 0 || !allowedSeries.some(series => productCategory.includes(series))) {
-                      return false;
+                    if (category === 'Digital Standee') {
+                      return p.category?.includes('Digital Standee Series');
                     }
-
-                    return true;
+                    if (category === 'Modular') {
+                      return p.category?.includes('Modular Series');
+                    }
+                    if (category === 'Flexible') {
+                      return p.category?.includes('Flexible Series');
+                    }
+                    return productMatchesGuidedTechnologyCategory(p, category);
                   });
 
                   return (
                     <button
-                      key={years}
+                      key={category}
                       onClick={() => {
-                        setSelectedWarranty(years);
-                        setSelectedSeriesCategory(null);
+                        setSelectedTechnologyCategory(category);
+                        if (category === 'Rental') {
+                          setSelectedDigitalStandeeSubcategory(null);
+                          setSelectedModularSubcategory(null);
+                          setSelectedFlexibleSubcategory(null);
+                          setSelectedTransparentSubcategory(null);
+                        } else if (category === 'Digital Standee') {
+                          setSelectedRentalSubcategory(null);
+                          setSelectedModularSubcategory(null);
+                          setSelectedFlexibleSubcategory(null);
+                          setSelectedTransparentSubcategory(null);
+                        } else if (category === 'Modular') {
+                          setSelectedRentalSubcategory(null);
+                          setSelectedDigitalStandeeSubcategory(null);
+                          setSelectedFlexibleSubcategory(null);
+                          setSelectedTransparentSubcategory(null);
+                        } else if (category === 'Flexible') {
+                          setSelectedRentalSubcategory(null);
+                          setSelectedDigitalStandeeSubcategory(null);
+                          setSelectedModularSubcategory(null);
+                          setSelectedTransparentSubcategory(null);
+                        } else if (category === 'Transparent series') {
+                          setSelectedRentalSubcategory(null);
+                          setSelectedDigitalStandeeSubcategory(null);
+                          setSelectedModularSubcategory(null);
+                          setSelectedFlexibleSubcategory(null);
+                        } else {
+                          clearTechnologySubcategories();
+                        }
                       }}
-                      className={`p-6 rounded-xl border-2 transition-all text-left ${
-                        selectedWarranty === years
+                      className={`p-5 rounded-xl border-2 transition-all text-left ${
+                        selectedTechnologyCategory === category
                           ? 'border-blue-600 bg-blue-50 shadow-lg'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <div className="text-2xl font-bold mb-2">{years} Years</div>
+                      <div className="text-lg font-bold mb-2">{category}</div>
                       <div className="text-sm text-gray-600 mb-2">
-                        {seriesLabel}
-                        {years === 2 && cardSelectedEnv === 'indoor' && (
-                          <span className="block text-xs text-blue-600 mt-0.5">(includes Module/ Grid P1.8, P2.5, P4)</span>
-                        )}
+                        {getGuidedTechnologyCategoryDescription(category, environment)}
                       </div>
-                      {matchingProducts.length > 0 && (
-                        <div className="text-xs text-blue-600 mt-1 font-medium">
+                      {category === 'Rental' ||
+                      category === 'Digital Standee' ||
+                      category === 'Modular' ||
+                      category === 'Flexible' ||
+                      category === 'Transparent series' ? (
+                        <div className="text-xs text-blue-600 font-medium">Select a subcategory below</div>
+                      ) : matchingProducts.length > 0 ? (
+                        <div className="text-xs text-blue-600 font-medium">
                           {matchingProducts.length} product{matchingProducts.length !== 1 ? 's' : ''} available
                         </div>
-                      )}
-                      {matchingProducts.length === 0 && (
-                        <div className="text-xs text-gray-400 mt-1">
-                          No products match filters
-                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-400">No products match filters</div>
                       )}
                     </button>
                   );
                 })}
               </div>
+
+              {selectedTechnologyCategory === 'Rental' && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <p className="text-sm font-medium text-gray-700">Select Rental subcategory</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+                    {RENTAL_SUBCATEGORIES.map((subcategory) => {
+                      const matchingProducts = products.filter(
+                        (p) =>
+                          productMatchesPreviousSteps(p) &&
+                          productMatchesRentalSubcategory(p, subcategory)
+                      );
+
+                      return (
+                        <button
+                          key={subcategory}
+                          onClick={() => setSelectedRentalSubcategory(subcategory)}
+                          className={`p-5 rounded-xl border-2 transition-all text-left ${
+                            selectedRentalSubcategory === subcategory
+                              ? 'border-blue-600 bg-blue-50 shadow-lg'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="text-lg font-bold mb-1">{subcategory}</div>
+                          <div className="text-sm text-gray-600 mb-2">
+                            {getRentalSubcategoryDescription(subcategory)}
+                          </div>
+                          {matchingProducts.length > 0 ? (
+                            <div className="text-xs text-blue-600 font-medium">
+                              {matchingProducts.length} product{matchingProducts.length !== 1 ? 's' : ''} available
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-400">No products match filters</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {selectedTechnologyCategory === 'Digital Standee' && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <p className="text-sm font-medium text-gray-700">Select Digital Standee size</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+                    {DIGITAL_STANDEE_SUBCATEGORIES.map((subcategory) => {
+                      const matchingProducts = products.filter(
+                        (p) =>
+                          productMatchesPreviousSteps(p) &&
+                          productMatchesDigitalStandeeSubcategory(p, subcategory)
+                      );
+
+                      return (
+                        <button
+                          key={subcategory}
+                          onClick={() => setSelectedDigitalStandeeSubcategory(subcategory)}
+                          className={`p-5 rounded-xl border-2 transition-all text-left ${
+                            selectedDigitalStandeeSubcategory === subcategory
+                              ? 'border-blue-600 bg-blue-50 shadow-lg'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="text-lg font-bold mb-1">
+                            {getDigitalStandeeSubcategoryLabel(subcategory)}
+                          </div>
+                          <div className="text-sm text-gray-600 mb-2">
+                            {getDigitalStandeeSubcategoryDescription(subcategory)}
+                          </div>
+                          {matchingProducts.length > 0 ? (
+                            <div className="text-xs text-blue-600 font-medium">
+                              {matchingProducts.length} product{matchingProducts.length !== 1 ? 's' : ''} available
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-400">No products match filters</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {selectedTechnologyCategory === 'Modular' && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <p className="text-sm font-medium text-gray-700">Select Modular subcategory</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+                    {MODULAR_SUBCATEGORIES.map((subcategory) => {
+                      const matchingProducts = products.filter(
+                        (p) =>
+                          productMatchesPreviousSteps(p) &&
+                          productMatchesModularSubcategory(p, subcategory)
+                      );
+
+                      return (
+                        <button
+                          key={subcategory}
+                          onClick={() => setSelectedModularSubcategory(subcategory)}
+                          className={`p-5 rounded-xl border-2 transition-all text-left ${
+                            selectedModularSubcategory === subcategory
+                              ? 'border-blue-600 bg-blue-50 shadow-lg'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="text-lg font-bold mb-1">{subcategory}</div>
+                          <div className="text-sm text-gray-600 mb-2">
+                            {getModularSubcategoryDescription(subcategory)}
+                          </div>
+                          {matchingProducts.length > 0 ? (
+                            <div className="text-xs text-blue-600 font-medium">
+                              {matchingProducts.length} product{matchingProducts.length !== 1 ? 's' : ''} available
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-400">No products match filters</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {selectedTechnologyCategory === 'Flexible' && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <p className="text-sm font-medium text-gray-700">Select Flexible subcategory</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+                    {FLEXIBLE_SUBCATEGORIES.map((subcategory) => {
+                      const matchingProducts = products.filter(
+                        (p) =>
+                          productMatchesPreviousSteps(p) &&
+                          productMatchesFlexibleSubcategory(p, subcategory)
+                      );
+
+                      return (
+                        <button
+                          key={subcategory}
+                          onClick={() => setSelectedFlexibleSubcategory(subcategory)}
+                          className={`p-5 rounded-xl border-2 transition-all text-left ${
+                            selectedFlexibleSubcategory === subcategory
+                              ? 'border-blue-600 bg-blue-50 shadow-lg'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="text-lg font-bold mb-1">{subcategory}</div>
+                          <div className="text-sm text-gray-600 mb-2">
+                            {getFlexibleSubcategoryDescription(subcategory)}
+                          </div>
+                          {matchingProducts.length > 0 ? (
+                            <div className="text-xs text-blue-600 font-medium">
+                              {matchingProducts.length} product{matchingProducts.length !== 1 ? 's' : ''} available
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-400">No products match filters</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {selectedTechnologyCategory === 'Transparent series' && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <p className="text-sm font-medium text-gray-700">Select Transparent series line</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl">
+                    {TRANSPARENT_SUBCATEGORIES.map((subcategory) => {
+                      const matchingProducts = products.filter(
+                        (p) =>
+                          p.enabled !== false &&
+                          productMatchesTransparentSubcategory(p, subcategory)
+                      );
+
+                      return (
+                        <button
+                          key={subcategory}
+                          onClick={() => setSelectedTransparentSubcategory(subcategory)}
+                          className={`p-5 rounded-xl border-2 transition-all text-left ${
+                            selectedTransparentSubcategory === subcategory
+                              ? 'border-blue-600 bg-blue-50 shadow-lg'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="text-lg font-bold mb-1">{subcategory}</div>
+                          <div className="text-sm text-gray-600 mb-2">
+                            {getTransparentSubcategoryDescription(subcategory)}
+                          </div>
+                          {matchingProducts.length > 0 ? (
+                            <div className="text-xs text-blue-600 font-medium">
+                              {matchingProducts.length} product{matchingProducts.length !== 1 ? 's' : ''} available
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-400">No products available</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -744,13 +1032,19 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                 <p className="text-gray-600">
                   Choose from available products matching your criteria
                 </p>
-                {(environment || pixelPitch !== null || viewingDistance || selectedWarranty !== null || selectedSeriesCategory !== null) && (
+                {(environment || pixelPitch !== null || viewingDistance || selectedTechnologyCategory) && (
                   <div className="mt-2 text-sm text-blue-600">
                     Filters: {environment && <span className="font-medium">{environment}</span>}
                     {pixelPitch !== null && <span className="ml-2 font-medium">P{pixelPitch}mm</span>}
                     {viewingDistance && <span className="ml-2 font-medium">{viewingDistance} {viewingDistanceUnit}</span>}
-                    {selectedSeriesCategory === 'Module/ Grid Series' && <span className="ml-2 font-medium">Module/ Grid Series</span>}
-                    {selectedWarranty !== null && <span className="ml-2 font-medium">{selectedWarranty} Years Warranty</span>}
+                    {selectedTechnologyCategory && (
+                      <span className="ml-2 font-medium">
+                        {formatGuidedTechnologyFilterLabel(
+                          selectedTechnologyCategory,
+                          technologySubcategories
+                        )}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -876,8 +1170,8 @@ export const ConfigurationWizard: React.FC<ConfigurationWizardProps> = ({
                   <div className="text-sm text-gray-400 mb-6">
                     Current filters: {environment || 'Any'} environment, {pixelPitch !== null ? `P${pixelPitch}mm` : 'Any pixel pitch'}
                     {viewingDistance && `, ${viewingDistance} ${viewingDistanceUnit}`}
-                    {selectedSeriesCategory === 'Module/ Grid Series' && ', Module/ Grid Series'}
-                    {selectedWarranty !== null && `, ${selectedWarranty} Years Warranty`}
+                    {selectedTechnologyCategory &&
+                      `, ${formatGuidedTechnologyFilterLabel(selectedTechnologyCategory, technologySubcategories)}`}
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     {pixelPitch !== null && (

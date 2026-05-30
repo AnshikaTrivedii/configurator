@@ -8,7 +8,7 @@ export type WireType = 'gold' | 'copper';
 export interface DisplayConfigState {
   width: number;
   height: number;
-  unit: 'mm' | 'cm' | 'm' | 'ft';
+  unit: 'mm' | 'm' | 'ft';
   environment: EnvironmentType;
   viewingDistance: string | null;
   viewingDistanceUnit: 'meters' | 'feet';
@@ -26,7 +26,7 @@ export interface DisplayConfigState {
 
 interface DisplayConfigContextType {
   config: DisplayConfigState;
-  updateDimensions: (width: number, height: number, unit?: 'mm' | 'cm' | 'm' | 'ft') => void;
+  updateDimensions: (width: number, height: number, unit?: 'mm' | 'm' | 'ft') => void;
   updateConfig: (values: Partial<DisplayConfigState>) => void;
   clearDimensions: () => void;
 }

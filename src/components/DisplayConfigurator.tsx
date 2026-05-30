@@ -35,7 +35,7 @@ interface DisplayConfiguratorProps {
   initialConfig?: {
     width: number;
     height: number;
-    unit: 'mm' | 'cm' | 'm' | 'ft';
+    unit: 'mm' | 'm' | 'ft';
     viewingDistance: string;
     viewingDistanceUnit: 'meters' | 'feet';
     environment: 'Indoor' | 'Outdoor';
