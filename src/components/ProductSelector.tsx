@@ -107,6 +107,21 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
   const normalizeEnv = (env: string) => env.trim().toLowerCase();
   const normalizeType = (type: string | undefined) => (type || '').toLowerCase();
+  const getTechnologyForFamily = (product: Product): 'COB' | 'SMD' | null => {
+    const name = (product.name || '').toLowerCase();
+    const ledType = normalizeType(product.ledType);
+    const isNexa = product.isFixed || (product.category || '').toLowerCase().includes('nexa');
+    const isSigmaFamily = name.includes('sigma core') || name.includes('sigma edge') || name.includes('sigma prime');
+    const isAstraFamily = name.includes('astra core') || name.includes('astra edge') || name.includes('astra prime');
+    const isNexaSigma = isNexa && (name.includes('(sigma)') || ledType.includes('cob'));
+    const isNexaAstra = isNexa && (name.includes('(astra)') || ledType.includes('smd'));
+
+    if (isNexaSigma) return 'COB';
+    if (isNexaAstra) return 'SMD';
+    if (isSigmaFamily) return 'COB';
+    if (isAstraFamily) return 'SMD';
+    return null;
+  };
 
   const getProductType = (product: Product) => {
 
@@ -822,9 +837,12 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
               {filteredProducts.map((product: ProductWithOptionalSize) => (
+              (() => {
+                const technology = getTechnologyForFamily(product);
+                return (
               <div
                 key={product.id}
-                className={`relative bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
+                className={`relative h-full bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all hover:shadow-lg flex flex-col ${
                   selectedProduct?.id === product.id
                     ? 'border-blue-500 shadow-lg'
                     : 'border-gray-200 hover:border-gray-300'
@@ -854,40 +872,44 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 </div>
 
                 {/* Product info */}
-                <div className="p-2 sm:p-3 lg:p-4">
+                <div className="p-2 sm:p-3 lg:p-4 flex-1 flex flex-col">
                   <h3 className="font-semibold text-gray-900 text-xs sm:text-sm lg:text-lg mb-1 sm:mb-2">{product.name}</h3>
                   <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">{product.category}</p>
 
-                  <div className="grid grid-cols-2 gap-x-1 sm:gap-x-2 lg:gap-x-4 gap-y-1 sm:gap-y-2 lg:gap-y-3 text-xs sm:text-sm">
+                  <div className="grid grid-cols-2 gap-x-2 sm:gap-x-3 lg:gap-x-4 gap-y-3 text-xs sm:text-sm content-start flex-1">
                     <div>
                       <p className="text-gray-500">Resolution</p>
-                      <p className="font-medium text-gray-800">
+                      <p className="font-semibold text-gray-800 mt-0.5">
                         {product.resolution.width} × {product.resolution.height} px
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-500">Pixel Pitch</p>
-                      <p className="font-medium text-gray-800">{product.pixelPitch} mm</p>
-                      {(() => {
-                        const env = product.environment === 'Indoor' || product.environment === 'Outdoor' ? product.environment : null;
-                        const range = getViewingDistanceRange(product.pixelPitch, env);
-                        return range ? (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Viewing: {range.maxMeters >= 999 ? `${range.minMeters}m+` : `${range.minMeters}-${range.maxMeters}m`} ({range.maxFeet >= 3278 ? `${range.minFeet}ft+` : `${range.minFeet}-${range.maxFeet}ft`})
-                          </p>
-                        ) : null;
-                      })()}
+                      <p className="font-semibold text-gray-800 mt-0.5">{product.pixelPitch} mm</p>
                     </div>
                     <div>
                       <p className="text-gray-500">Brightness</p>
-                      <p className="font-medium text-gray-800">{product.brightness} nits</p>
+                      <p className="font-semibold text-gray-800 mt-0.5">{product.brightness} nits</p>
                     </div>
                     <div>
                       <p className="text-gray-500">Refresh Rate</p>
-                      <p className="font-medium text-gray-800">{product.refreshRate} Hz</p>
+                      <p className="font-semibold text-gray-800 mt-0.5">{product.refreshRate} Hz</p>
+                    </div>
+                    <div>
+                      {technology ? (
+                        <>
+                          <p className="text-gray-500">Technology</p>
+                          <p className="font-semibold text-gray-800 mt-0.5">{technology}</p>
+                        </>
+                      ) : (
+                        <div className="invisible select-none" aria-hidden="true">
+                          <p>Technology</p>
+                          <p className="mt-0.5">-</p>
+                        </div>
+                      )}
                     </div>
                     {!isNexaSeries(product) && (
-                      <div className="col-span-2">
+                      <div>
                         <p className="text-gray-500">
                           {(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo'))
                             ? 'Module Dimension (W × H)'
@@ -897,7 +919,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                                 ? 'Module Size (W × H)'
                                 : 'Cabinet Size (W × H)'}
                         </p>
-                        <p className="font-medium text-gray-800">
+                        <p className="font-semibold text-gray-800 mt-0.5">
                           {(product.category === 'Module/ Grid Series' ||
                             product.category?.toLowerCase().includes('jumbo') ||
                             (product.category?.toLowerCase().includes('flexible') && !product.name?.includes('Cabinet Base')) ||
@@ -905,16 +927,35 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                             ? `${product.moduleDimensions.width} × ${product.moduleDimensions.height}`
                             : `${product.cabinetDimensions.width} × ${product.cabinetDimensions.height}`} mm
                         </p>
-                        {product.sizeInInches && (
-                          <p className="text-gray-500 text-xs mt-1">
-                            {product.sizeInInches.width} × {product.sizeInInches.height} (in)
-                          </p>
-                        )}
                       </div>
                     )}
+                    {isNexaSeries(product) && (
+                      <div className="invisible select-none" aria-hidden="true">
+                        <p>Cabinet Size (W × H)</p>
+                        <p className="mt-0.5">-</p>
+                      </div>
+                    )}
+                    {product.sizeInInches && !isNexaSeries(product) && (
+                      <div className="col-span-2">
+                        <p className="text-gray-500 text-xs">
+                          {product.sizeInInches.width} × {product.sizeInInches.height} (in)
+                        </p>
+                      </div>
+                    )}
+                    <div className="col-span-2 text-xs text-gray-500">
+                      {(() => {
+                        const env = product.environment === 'Indoor' || product.environment === 'Outdoor' ? product.environment : null;
+                        const range = getViewingDistanceRange(product.pixelPitch, env);
+                        return range
+                          ? `Viewing: ${range.maxMeters >= 999 ? `${range.minMeters}m+` : `${range.minMeters}-${range.maxMeters}m`} (${range.maxFeet >= 3278 ? `${range.minFeet}ft+` : `${range.minFeet}-${range.maxFeet}ft`})`
+                          : '';
+                      })()}
+                    </div>
                   </div>
                 </div>
               </div>
+                );
+              })()
               ))}
             </div>
           )}
