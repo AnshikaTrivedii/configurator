@@ -19,9 +19,10 @@ import { Product } from '../types';
  * Determines which discount mode the LED option should use based on product type.
  * - 'per_cabinet': Rental products — discount entered as ₹ per cabinet
  * - 'per_sqft': Standard products — discount entered as ₹ per sq ft
- * - 'none': Jumbo & Standee products — no discount allowed
+ * - 'per_unit': Fixed/Standee products — override is applied on a single unit
+ * - 'none': Jumbo products — no override allowed
  */
-export type LedDiscountMode = 'per_cabinet' | 'per_sqft' | 'none';
+export type LedDiscountMode = 'per_cabinet' | 'per_sqft' | 'per_unit' | 'none';
 
 export function getLedDiscountMode(product: Product | any): LedDiscountMode {
   const category = (product?.category || '').toLowerCase();
@@ -33,9 +34,9 @@ export function getLedDiscountMode(product: Product | any): LedDiscountMode {
     return 'none';
   }
 
-  // Digital Standee — no discount
+  // Digital Standee — unit-level override
   if (category.includes('digital standee')) {
-    return 'none';
+    return 'per_unit';
   }
 
   // Rental — per cabinet
@@ -72,6 +73,10 @@ export function getDiscountUnits(
     return Math.round((widthInFeet * heightInFeet) * 100) / 100;
   }
 
+  if (mode === 'per_unit') {
+    return 1;
+  }
+
   return 0; // 'none' mode — no discount
 }
 
@@ -82,6 +87,7 @@ export function getDiscountUnitLabel(product: Product | any): string {
   const mode = getLedDiscountMode(product);
   if (mode === 'per_cabinet') return 'per Cabinet';
   if (mode === 'per_sqft') return 'per Sq Ft';
+  if (mode === 'per_unit') return 'per Unit';
   return '';
 }
 
@@ -89,7 +95,7 @@ export interface DiscountInfo {
   discountType: 'led' | 'controller' | null;
   // For 'controller': percentage-based (0-100)
   discountPercent: number;
-  // For 'led': amount-based per unit (₹ per cabinet or ₹ per sqft)
+  // For 'led': unit price override value (₹ per cabinet or ₹ per sqft)
   discountAmountPerUnit: number;
   // For 'led': calculated number of units
   numberOfUnits: number;
@@ -151,22 +157,26 @@ export function applyDiscount(
 
   switch (discountInfo.discountType) {
     case 'led': {
-      // LED discount: amount-based per unit
+      // LED override: entered value is NEW UNIT PRICE
       const { discountAmountPerUnit, numberOfUnits, ledDiscountMode } = discountInfo;
 
       if (ledDiscountMode === 'none' || discountAmountPerUnit <= 0 || numberOfUnits <= 0) {
-        // No discount for jumbo/standee or invalid values
+        // No override for jumbo/standee or invalid values
         break;
       }
 
-      discountAmount = Math.round((discountAmountPerUnit * numberOfUnits) * 100) / 100;
-      discountedProductTotal = Math.round((originalProductTotal - discountAmount) * 100) / 100;
+      const quantityForRecalc = pricingResult.quantity > 0 ? pricingResult.quantity : numberOfUnits;
+      const gstRate = pricingResult.productSubtotal > 0
+        ? (pricingResult.productGST / pricingResult.productSubtotal)
+        : 0;
 
-      // Don't let product total go below 0
-      if (discountedProductTotal < 0) {
-        discountAmount = originalProductTotal;
-        discountedProductTotal = 0;
-      }
+      const overriddenUnitPrice = Math.round(discountAmountPerUnit * 100) / 100;
+      const overriddenSubtotal = Math.round((quantityForRecalc * overriddenUnitPrice) * 100) / 100;
+      const overriddenGst = Math.round((overriddenSubtotal * gstRate) * 100) / 100;
+      discountedProductTotal = Math.round((overriddenSubtotal + overriddenGst) * 100) / 100;
+
+      // Keep discountAmount for compatibility with existing stored payloads/UI.
+      discountAmount = Math.round((originalProductTotal - discountedProductTotal) * 100) / 100;
 
       discountedGrandTotal = Math.round(
         discountedProductTotal +
@@ -175,7 +185,25 @@ export function applyDiscount(
         pricingResult.installationTotal +
         unaccountedDifference
       );
-      break;
+
+      return {
+        ...pricingResult,
+        unitPrice: overriddenUnitPrice,
+        quantity: quantityForRecalc,
+        productSubtotal: overriddenSubtotal,
+        productGST: overriddenGst,
+        productTotal: discountedProductTotal,
+        processorTotal: discountedProcessorTotal,
+        grandTotal: discountedGrandTotal,
+        originalProductTotal,
+        originalProcessorTotal,
+        originalGrandTotal,
+        discountedProductTotal,
+        discountedProcessorTotal,
+        discountedGrandTotal,
+        discountInfo,
+        discountAmount
+      };
     }
 
     case 'controller': {
