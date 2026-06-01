@@ -4,8 +4,7 @@ const quotationSchema = new mongoose.Schema({
   quotationId: {
     type: String,
     required: true,
-    unique: true,
-    index: true
+    unique: true
   },
   salesUserId: {
     type: mongoose.Schema.Types.ObjectId,

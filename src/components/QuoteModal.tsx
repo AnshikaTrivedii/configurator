@@ -693,7 +693,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           userType: userType,
           userTypeDisplayName: getUserTypeDisplayName(getUserType()),
           totalPrice: breakdown.grandTotal,
-          originalTotalPrice: breakdown.grandTotal, // Updating resets any discounts
+          originalTotalPrice: breakdown.grandTotal, // Updating resets pricing to fresh calculation
 
           exactPricingBreakdown: breakdown,
 
@@ -733,6 +733,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             nexaAddons: appliedAddons.map(addon => addon.name),
             nexaAddonsWithPrices: appliedAddons,
             updatedAt: new Date().toISOString(),
+            // Preserve discount: editing customer/config details should NOT wipe out
+            // a previously applied discount. The discount is re-applied from
+            // SalesPersonDetailsModal and should not be cleared here.
             discountApplied: false,
             discountInfo: null
           }
@@ -1170,7 +1173,18 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               customPricing: buildCustomPricingObj(),
               wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
               nexaAddons: pricingResult.appliedAddons.map(addon => addon.name),
-              nexaAddonsWithPrices: pricingResult.appliedAddons
+              nexaAddonsWithPrices: pricingResult.appliedAddons,
+              // Store discount state in quotationData so SalesPersonDetailsModal
+              // can correctly detect and manage discounts applied at creation time
+              discountApplied: discountInfo ? ('discountAmount' in finalPricingResult ? (finalPricingResult as any).discountAmount > 0 : false) : false,
+              discountInfo: discountInfo ? {
+                type: discountInfo.discountType,
+                percent: discountInfo.discountType === 'controller' ? discountInfo.discountPercent : 0,
+                amount: 'discountAmount' in finalPricingResult ? (finalPricingResult as any).discountAmount : 0,
+                amountPerUnit: discountInfo.discountType === 'led' ? discountInfo.discountAmountPerUnit : 0,
+                numberOfUnits: discountInfo.discountType === 'led' ? discountInfo.numberOfUnits : 0,
+                ledDiscountMode: discountInfo.discountType === 'led' ? discountInfo.ledDiscountMode : 'none'
+              } : null
             },
 
             createdAt: new Date().toISOString()
