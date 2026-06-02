@@ -17,6 +17,10 @@ export const productPdfMap: Record<string, string> = {
   'Crystal Blaze P6.25-6.25mm': 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Crystal-series/Crystal+Blaze+P6.25-6.25mm.pdf',
   'Crystal Blaze P3.91mm': 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/Crystal-series/Crystal+Blaze+P3.91mm.pdf',
   'Nexa-C P0.9mm': 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/nexa+series+/Nexa-C+P0.9mm.pdf',
+  'Nexa-C P1.25mm': 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/nexa+series+/Nexa-C+P1.25mm.pdf',
+  'Nexa-C P1.25 216"': 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/nexa+series+/Nexa-C+P1.25+216.pdf',
+  'Nexa-C P1.56mm': 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/nexa+series+/Nexa-C+P1.56mm.pdf',
+  'Nexa-C P1.875mm': 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/nexa+series+/Nexa-C+P1.875mm.pdf',
   'Nexa-S P1.25mm': 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/nexa+series+/Nexa-S+P1.25mm.pdf',
   'Nexa-S P1.56mm': 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/nexa+series+/Nexa-S+P1.56mm.pdf',
   'Nexa-S P1.875mm': 'https://orion-led-quotations.s3.ap-south-1.amazonaws.com/Product+specs+pdf+/nexa+series+/Nexa-S+P1.875mm.pdf'
@@ -49,7 +53,11 @@ const productNameAliasMap: Record<string, string> = {
   'Nexa Series 108" P1.25 (Astra)': 'Nexa-S P1.25mm',
   'Nexa Series 135" P1.56 (Astra)': 'Nexa-S P1.56mm',
   'Nexa Series 162" P1.875 (Astra)': 'Nexa-S P1.875mm',
-  'Nexa Series 162" P0.9 (Sigma)': 'Nexa-C P0.9mm'
+  'Nexa Series 162" P0.9 (Sigma)': 'Nexa-C P0.9mm',
+  'Nexa-C P1.25': 'Nexa-C P1.25mm',
+  'Nexa-C P1.25 216"': 'Nexa-C P1.25 216"',
+  'Nexa-C P1.56': 'Nexa-C P1.56mm',
+  'Nexa-C P1.875': 'Nexa-C P1.875mm'
 };
 
 /**

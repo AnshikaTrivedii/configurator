@@ -1446,7 +1446,7 @@ export const generateConfigurationPdf = async (
       let canvas;
       try {
         canvas = await html2canvas(pageEl, {
-          scale: 1.5, // Reduced from 2 for faster processing
+          scale: 2, // Improved from 1.5 for better quality
           useCORS: true, // Allow cross-origin images
           backgroundColor: '#ffffff',
           logging: false,
@@ -1464,10 +1464,10 @@ export const generateConfigurationPdf = async (
         throw new Error(`Failed to render page ${i + 1} to canvas: ${canvasError?.message || 'Unknown error'}`);
       }
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       if (i > 0) pdf.addPage();
 
-      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'FAST');
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'NONE');
     }
 
     const blob = pdf.output('blob');
@@ -1638,7 +1638,7 @@ export const generateAlternatePdf = async (
       let canvas;
       try {
         canvas = await html2canvas(pageEl, {
-          scale: 1.5,
+          scale: 2, // Improved from 1.5 for better quality
           useCORS: true,
           backgroundColor: '#ffffff',
           logging: false,
@@ -1655,10 +1655,10 @@ export const generateAlternatePdf = async (
         throw new Error(`Failed to render page ${pageIndex + 1} to canvas: ${canvasError?.message || 'Unknown error'}`);
       }
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       if (pageIndex !== pagesToInclude[0]) pdf.addPage();
 
-      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'FAST');
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'NONE');
     }
 
     const blob = pdf.output('blob');

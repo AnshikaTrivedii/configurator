@@ -247,29 +247,6 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               </div>
             )}
 
-            {isNexa && nexaVariants && nexaVariants.length > 1 && onProductChange && (
-              <div className="pt-2 sm:pt-3 border-t border-gray-200">
-                <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Diagonal Size</h3>
-                <div className="flex flex-wrap gap-3">
-                  {nexaVariants.map((variant) => {
-                    const diagonal = variant.name.split(' ').find(word => word.includes('"'));
-                    return (
-                      <label key={variant.id} className="flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="nexaDiagonal"
-                          checked={selectedProduct.id === variant.id}
-                          onChange={() => onProductChange(variant)}
-                          className="text-black focus:ring-black"
-                        />
-                        <span className="text-xs sm:text-sm">{diagonal || variant.name}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {isNexa && onNexaAddonsChange && (
               <div className="pt-2 sm:pt-3 border-t border-gray-200">
                 <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Add ons</h3>
