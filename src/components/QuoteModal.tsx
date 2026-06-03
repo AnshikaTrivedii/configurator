@@ -1040,12 +1040,12 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             const discountedResult = applyDiscount(pricingResult, discountInfo);
             finalPricingResult = discountedResult;
             finalTotalPrice = discountedResult.grandTotal;
-          } else if (isSuperAdmin && discountType === 'controller' && discountPercent > 0) {
+          } else if (isSuperAdmin && discountType === 'controller' && discountAmountPerUnit > 0) {
             discountInfo = {
               discountType: 'controller',
-              discountPercent,
-              discountAmountPerUnit: 0,
-              numberOfUnits: 0,
+              discountPercent: 0,
+              discountAmountPerUnit,
+              numberOfUnits: 1,
               ledDiscountMode: 'none'
             };
 
@@ -1596,30 +1596,28 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                             );
                           })()}
 
-                          {/* Controller Discount — percentage input (unchanged) */}
+                          {/* Controller Discount — override price input */}
                           {discountType === 'controller' && (
-                            <div>
-                              <label htmlFor="discountPercent" className="block text-sm font-medium text-gray-700 mb-2">
-                                Discount Percentage (%)
-                              </label>
-                              <input
-                                type="number"
-                                id="discountPercent"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                value={discountPercent}
-                                onChange={(e) => {
-                                  const value = parseFloat(e.target.value) || 0;
-                                  setDiscountPercent(Math.max(0, Math.min(100, value)));
-                                }}
-                                disabled={isSubmitting}
-                                placeholder="Enter discount %"
-                                className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base"
-                              />
-                              <p className="mt-1 text-xs text-gray-500">
-                                Enter a value between 0 and 100
-                              </p>
+                            <div className="space-y-3">
+                              <div>
+                                <label htmlFor="controllerOverride" className="block text-sm font-medium text-gray-700 mb-2">
+                                  Override Controller Price (₹)
+                                </label>
+                                <input
+                                  type="number"
+                                  id="controllerOverride"
+                                  min="0"
+                                  step="1"
+                                  value={discountAmountPerUnit || ''}
+                                  onChange={(e) => {
+                                    const value = parseFloat(e.target.value) || 0;
+                                    setDiscountAmountPerUnit(Math.max(0, value));
+                                  }}
+                                  disabled={isSubmitting}
+                                  placeholder="Enter new controller price"
+                                  className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base"
+                                />
+                              </div>
                             </div>
                           )}
                         </div>

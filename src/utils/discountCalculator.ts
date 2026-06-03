@@ -207,15 +207,15 @@ export function applyDiscount(
     }
 
     case 'controller': {
-      // Controller discount: percentage-based (unchanged from original)
-      const { discountPercent } = discountInfo;
+      // Controller override: entered value is NEW CONTROLLER PRICE
+      const { discountAmountPerUnit } = discountInfo;
 
-      if (discountPercent <= 0 || discountPercent > 100) {
+      if (discountAmountPerUnit <= 0) {
         break;
       }
 
-      discountAmount = Math.round((originalProcessorTotal * discountPercent / 100) * 100) / 100;
-      discountedProcessorTotal = Math.round((originalProcessorTotal - discountAmount) * 100) / 100;
+      discountedProcessorTotal = Math.round(discountAmountPerUnit * 100) / 100;
+      discountAmount = Math.round((originalProcessorTotal - discountedProcessorTotal) * 100) / 100;
 
       discountedGrandTotal = Math.round(
         originalProductTotal +

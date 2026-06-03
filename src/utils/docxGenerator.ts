@@ -998,7 +998,7 @@ export const generateConfigurationHtml = (
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Quantity:</span>
-                                <span class="quotation-value">${isDigitalStandee ? '1' : selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}</span>
+                                <span class="quotation-value">${(isDigitalStandee || isFixed) ? '1' : selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}</span>
                             </div>
                             ${!isDigitalStandee ? `<div class="quotation-row">
                                 <span class="quotation-label">Subtotal:</span>

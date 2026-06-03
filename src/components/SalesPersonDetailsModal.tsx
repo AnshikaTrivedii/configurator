@@ -238,8 +238,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       alert('Please enter a valid discount amount per unit');
       return;
     }
-    if (discountType === 'controller' && discountPercent < 0) {
-      alert('Please enter a valid discount percentage >= 0');
+    if (discountType === 'controller' && discountAmountPerUnit <= 0) {
+      alert('Please enter a valid controller override price > 0');
       return;
     }
 
@@ -505,9 +505,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       } else {
         discountInfo = {
           discountType: 'controller',
-          discountPercent,
-          discountAmountPerUnit: 0,
-          numberOfUnits: 0,
+          discountPercent: 0,
+          discountAmountPerUnit: discountAmountPerUnit,
+          numberOfUnits: 1,
           ledDiscountMode: 'none'
         };
       }
@@ -590,10 +590,10 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           discountApplied: discountedPricing.discountAmount > 0,
           discountInfo: {
             type: discountType,
-            percent: discountType === 'controller' ? discountPercent : 0,
+            percent: 0,
             amount: discountedPricing.discountAmount,
-            amountPerUnit: discountType === 'led' ? discountAmountPerUnit : 0,
-            numberOfUnits: discountType === 'led' ? discountInfo.numberOfUnits : 0,
+            amountPerUnit: (discountType === 'led' || discountType === 'controller') ? discountAmountPerUnit : 0,
+            numberOfUnits: discountType === 'led' ? discountInfo.numberOfUnits : 1,
             ledDiscountMode: discountType === 'led' ? discountInfo.ledDiscountMode : 'none'
           }
         }
@@ -1007,15 +1007,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                 <span>Grand Total:</span>
                                                 <span className="text-green-600">₹{quotation.exactPricingBreakdown.grandTotal?.toLocaleString('en-IN')}</span>
                                               </div>
-                                              {/* Show discount info if present */}
-                                              {(quotation.quotationData?.discountApplied || quotation.exactPricingBreakdown?.discount) && (
-                                                <div className="mt-2 pt-2 border-t border-dashed border-gray-300">
-                                                  <div className="flex justify-between text-green-600">
-                                                    <span>Discount ({quotation.quotationData?.discountInfo?.percent || quotation.exactPricingBreakdown?.discount?.discountPercent || 0}%):</span>
-                                                    <span>-₹{(quotation.quotationData?.discountInfo?.amount || quotation.exactPricingBreakdown?.discount?.discountAmount || 0)?.toLocaleString('en-IN')}</span>
-                                                  </div>
-                                                </div>
-                                              )}
+
                                             </div>
                                           </div>
                                         )}
@@ -1126,24 +1118,23 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                       );
                                                     })()}
 
-                                                    {/* Controller Discount — percentage (unchanged) */}
+                                                    {/* Controller Discount — override price */}
                                                     {discountType === 'controller' && (
                                                       <div>
-                                                        <label className="text-xs text-gray-600 block mb-1">Percentage (%)</label>
+                                                        <label className="text-xs text-gray-600 block mb-1">Override Price (₹)</label>
                                                         <div className="flex items-center space-x-2">
                                                           <input
                                                             type="number"
                                                             min="0"
-                                                            max="100"
-                                                            step="0.1"
-                                                            value={discountPercent}
-                                                            onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
+                                                            step="1"
+                                                            value={discountAmountPerUnit || ''}
+                                                            onChange={(e) => setDiscountAmountPerUnit(parseFloat(e.target.value) || 0)}
                                                             className="flex-1 text-xs border border-gray-300 rounded p-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                                            placeholder="0-100"
+                                                            placeholder="New price"
                                                           />
                                                           <button
                                                             onClick={() => handleApplyDiscount(quotation)}
-                                                            disabled={isUpdatingDiscount || !discountType || discountPercent < 0}
+                                                            disabled={isUpdatingDiscount || !discountType || discountAmountPerUnit <= 0}
                                                             className="bg-blue-600 text-white min-w-[32px] h-[32px] flex items-center justify-center rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
                                                             title="Apply Discount"
                                                           >
