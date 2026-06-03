@@ -40,6 +40,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     | 'Standard Transparent screen (Indoor behind glass version)'
     | null
   >(null);
+  const [nexaSubType, setNexaSubType] = useState<'Nexa-S' | 'Nexa-C' | null>(null);
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
   const [pendingRentalProduct, setPendingRentalProduct] = useState<ProductWithOptionalSize | null>(null);
   const [rentalOption, setRentalOption] = useState<'cabinet' | 'curve lock' | null>(null);
@@ -215,6 +216,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       tempProducts = tempProducts.filter((p) => isFlexibleSeries(p));
     } else if (selectedFilter === 'Nexa Series') {
       tempProducts = tempProducts.filter((p) => isNexaSeries(p));
+      if (nexaSubType) {
+        tempProducts = tempProducts.filter((p) => p.category === nexaSubType);
+      }
     } else if (selectedFilter === 'Transparent Series') {
       tempProducts = tempProducts.filter((p) => isTransparentSeries(p)).filter(matchesTransparentSubType);
     }
@@ -231,12 +235,15 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       }
     }
 
-    tempProducts = tempProducts.filter(
-      (p) => selectedCategory === 'All' || p.category === selectedCategory
-    );
+    // Only apply selectedCategory filter if we're not filtering by nexaSubType
+    if (selectedFilter !== 'Nexa Series' || nexaSubType === null) {
+      tempProducts = tempProducts.filter(
+        (p) => selectedCategory === 'All' || p.category === selectedCategory
+      );
+    }
 
     return Array.from(new Set(tempProducts.map(p => p.pixelPitch))).sort((a, b) => a - b);
-  }, [selectedFilter, indoorType, selectedCategory, modularRigelVariant]);
+  }, [selectedFilter, indoorType, selectedCategory, modularRigelVariant, nexaSubType, flexibleSubType, transparentSubType]);
 
   const filteredProducts = useMemo(() => {
     let filtered = [...products].filter((p) => p.enabled !== false); // Only show enabled products
@@ -263,6 +270,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       }
     } else if (selectedFilter === 'Nexa Series') {
       filtered = filtered.filter((p) => isNexaSeries(p));
+      if (nexaSubType) {
+        filtered = filtered.filter((p) => p.category === nexaSubType);
+      }
     } else if (selectedFilter === 'Transparent Series') {
       filtered = filtered.filter((p) => isTransparentSeries(p)).filter(matchesTransparentSubType);
     }
@@ -279,9 +289,12 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       }
     }
 
-    filtered = filtered.filter(
-      (p) => selectedCategory === 'All' || p.category === selectedCategory
-    );
+    // Only apply selectedCategory filter if we're not filtering by nexaSubType
+    if (selectedFilter !== 'Nexa Series' || nexaSubType === null) {
+      filtered = filtered.filter(
+        (p) => selectedCategory === 'All' || p.category === selectedCategory
+      );
+    }
 
     if (selectedPixelPitch !== 'All') {
       const pitchValue = parseFloat(selectedPixelPitch);
@@ -301,6 +314,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
   }, [
     selectedFilter,
     flexibleSubType,
+    nexaSubType,
     modularRigelVariant,
     transparentSubType,
     indoorType,
@@ -349,7 +363,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => { 
                   hasEnvironmentInteraction.current = true;
                   setSelectedFilter('All'); 
-                  setIndoorType('All'); 
+                  setIndoorType('All');
+                  setNexaSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'All'
@@ -363,7 +378,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => { 
                   hasEnvironmentInteraction.current = true;
                   setSelectedFilter('Indoor'); 
-                  setIndoorType('All'); 
+                  setIndoorType('All');
+                  setNexaSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Indoor'
@@ -377,7 +393,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => { 
                   hasEnvironmentInteraction.current = true;
                   setSelectedFilter('Outdoor'); 
-                  setIndoorType('All'); 
+                  setIndoorType('All');
+                  setNexaSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Outdoor'
@@ -391,7 +408,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => { 
                   hasEnvironmentInteraction.current = true;
                   setSelectedFilter('Rental'); 
-                  setIndoorType('All'); 
+                  setIndoorType('All');
+                  setNexaSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Rental'
@@ -406,7 +424,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   onClick={() => { 
                     hasEnvironmentInteraction.current = true;
                     setSelectedFilter('Jumbo Series'); 
-                    setIndoorType('All'); 
+                    setIndoorType('All');
+                    setNexaSubType(null);
                   }}
                   className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                     selectedFilter === 'Jumbo Series'
@@ -422,6 +441,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   hasEnvironmentInteraction.current = true;
                   setSelectedFilter('Digital Standee Series');
                   setIndoorType('All');
+                  setNexaSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Digital Standee Series'
@@ -437,6 +457,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   setSelectedFilter('Modular Series');
                   setModularRigelVariant(null);
                   setIndoorType('All');
+                  setNexaSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Modular Series'
@@ -452,6 +473,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   setSelectedFilter('Flexible Series');
                   setFlexibleSubType(null);
                   setIndoorType('All');
+                  setNexaSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Flexible Series'
@@ -467,6 +489,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   setSelectedFilter('Nexa Series');
                   setIndoorType('All');
                   setTransparentSubType(null);
+                  setFlexibleSubType(null);
+                  setModularRigelVariant(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Nexa Series'
@@ -483,6 +507,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   setIndoorType('All');
                   setFlexibleSubType(null);
                   setTransparentSubType(null);
+                  setNexaSubType(null);
                   setSelectedCategory('All');
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
@@ -591,6 +616,43 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                   }`}
                 >
                   Cabinet Base
+                </button>
+              </div>
+            )}
+
+            {/* Nexa Series sub-type filter */}
+            {selectedFilter === 'Nexa Series' && (
+              <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
+                <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Category:</span>
+                <button
+                  onClick={() => setNexaSubType(null)}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    nexaSubType === null
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setNexaSubType('Nexa-S')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    nexaSubType === 'Nexa-S'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Nexa-S
+                </button>
+                <button
+                  onClick={() => setNexaSubType('Nexa-C')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    nexaSubType === 'Nexa-C'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Nexa-C
                 </button>
               </div>
             )}
@@ -781,7 +843,9 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 category !== 'Digital Standee Series' &&
                 category !== 'Modular Series' &&
                 category !== 'Flexible Series' &&
-                category !== 'Transparent Series'
+                category !== 'Transparent Series' &&
+                category !== 'Nexa-S' &&
+                category !== 'Nexa-C'
               )
               .map((category) => (
               <button

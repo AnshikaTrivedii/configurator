@@ -2961,7 +2961,7 @@ export const products: Product[] = [
   {
     id: "nexa-p125-108",
     name: "Nexa Series 108\" P1.25 (Astra)",
-    category: "Nexa Series",
+    category: "Nexa-S",
     isFixed: true,
     enabled: true,
     image: "/products/nexa-series/P1.25.png",
@@ -3006,7 +3006,7 @@ export const products: Product[] = [
   {
     id: "nexa-p156-135",
     name: "Nexa Series 135\" P1.56 (Astra)",
-    category: "Nexa Series",
+    category: "Nexa-S",
     isFixed: true,
     enabled: true,
     image: "/products/nexa-series/WhatsApp Image 2026-05-09 at 11.55.14 (1).jpeg",
@@ -3050,7 +3050,7 @@ export const products: Product[] = [
   {
     id: "nexa-p1875-162",
     name: "Nexa Series 162\" P1.875 (Astra)",
-    category: "Nexa Series",
+    category: "Nexa-S",
     isFixed: true,
     enabled: true,
     image: "/products/nexa-series/WhatsApp Image 2026-05-09 at 11.55.14.jpeg",
@@ -3094,7 +3094,7 @@ export const products: Product[] = [
   {
     id: "nexa-p09-162-cob",
     name: "Nexa Series 162\" P0.9 (Sigma)",
-    category: "Nexa Series",
+    category: "Nexa-C",
     isFixed: true,
     enabled: true,
     image: "/products/nexa-series/P0.9mm.png",
@@ -3138,7 +3138,7 @@ export const products: Product[] = [
   {
     id: "nexa-c-p125",
     name: "Nexa Series 108\" P1.25 (Sigma)",
-    category: "Nexa Series",
+    category: "Nexa-C",
     isFixed: true,
     enabled: true,
     image: "/products/nexa-series/P1.25 108 inch.png",
@@ -3182,7 +3182,7 @@ export const products: Product[] = [
   {
     id: "nexa-c-p156",
     name: "Nexa Series 135\" P1.56 (Sigma)",
-    category: "Nexa Series",
+    category: "Nexa-C",
     isFixed: true,
     enabled: true,
     image: "/products/nexa-series/P1.56.png",
@@ -3226,7 +3226,7 @@ export const products: Product[] = [
   {
     id: "nexa-c-p1875",
     name: "Nexa Series 162\" P1.875 (Sigma)",
-    category: "Nexa Series",
+    category: "Nexa-C",
     isFixed: true,
     enabled: true,
     image: "/products/nexa-series/P1.87inch.png",
@@ -3270,13 +3270,13 @@ export const products: Product[] = [
   {
     id: "nexa-c-p125-216",
     name: "Nexa Series 216\" P1.25 (Sigma)",
-    category: "Nexa Series",
+    category: "Nexa-C",
     isFixed: true,
     enabled: true,
     image: "/products/nexa-series/P1.25 216 inch.png",
     resolution: { width: 3840, height: 2160 },
     pixelPitch: 1.25,
-    pixelDensity: 640000,
+    pixelDensity: 640000, 
     cabinetDimensions: { width: 4800, height: 2700 }, // 16:9 aspect ratio, ~216" diagonal
     moduleDimensions: { width: 320, height: 160 },
     moduleResolution: { width: 256, height: 128 },
