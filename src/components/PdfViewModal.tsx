@@ -104,6 +104,18 @@ const getUserTypeDisplayName = (type: string): string => {
   }
 };
 
+const normalizeUserInfoForPdf = (
+  userInfo: any,
+  legacyUserType: 'End User' | 'Reseller' | 'Channel'
+) => ({
+  userType: legacyUserType,
+  fullName: userInfo?.fullName?.trim() || userInfo?.customerName?.trim() || '',
+  email: userInfo?.email?.trim() || userInfo?.customerEmail?.trim() || '',
+  phoneNumber: userInfo?.phoneNumber?.trim() || userInfo?.customerPhone?.trim() || '',
+  projectTitle: userInfo?.projectTitle,
+  address: userInfo?.address
+});
+
 const NEXA_ADDON_PRICES: Record<string, number> = {
   'IR Touch': 75000,
   'Floor Mount Stand': 85000
@@ -480,16 +492,16 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
         return await generateConfigurationPdf(
           config || { width: 2400, height: 1010, unit: 'mm' },
-          selectedProduct,
+          fullProduct,
           cabinetGrid,
           processor,
           mode,
-          userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
+          userInfo ? normalizeUserInfoForPdf(userInfo, legacyUserTypeForPricing) : undefined,
           salesUser,
           quotationId,
           customPricing,
           exactPricingBreakdownForPdf,
-          effectiveWireType(selectedProduct),
+          effectiveWireType(fullProduct),
           nexaAddons
         );
     };
@@ -739,11 +751,11 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       exactPricingBreakdown: {
         unitPrice: finalPricingResult.unitPrice,
         quantity: finalPricingResult.quantity,
-        subtotal: finalPricingResult.productSubtotal,
+        subtotal: finalPricingResult.subtotal ?? finalPricingResult.productSubtotal,
         gstRate: 18,
-        gstAmount: finalPricingResult.productGST,
+        gstAmount: finalPricingResult.gstAmount ?? finalPricingResult.productGST,
         processorPrice: finalPricingResult.processorPrice,
-        processorGst: finalPricingResult.processorGST,
+        processorGst: finalPricingResult.processorGst ?? finalPricingResult.processorGST,
         structureCost: finalPricingResult.structureCost,
         structureGST: finalPricingResult.structureGST,
         structureTotal: finalPricingResult.structureTotal,
@@ -755,6 +767,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         addonsTotal: finalPricingResult.addonsTotal || 0,
         appliedAddons: finalPricingResult.appliedAddons || selectedNexaAddonsWithPrices,
         grandTotal: finalTotalPrice,
+        ...(finalPricingResult.discount ? { discount: finalPricingResult.discount } : {}),
         customPricing: customPricing?.enabled ? {
           enabled: true,
           structurePrice: customPricing.structurePrice,
@@ -764,6 +777,13 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
       quotationData: {
         config: config || { width: 2400, height: 1010, unit: 'mm' },
+        userInfo: {
+          projectTitle: userInfo?.projectTitle?.trim() || '',
+          address: userInfo?.address?.trim() || '',
+          validity: userInfo?.validity,
+          paymentTerms: userInfo?.paymentTerms,
+          warranty: userInfo?.warranty
+        },
         customPricing: customPricing?.enabled ? {
           enabled: true,
           structurePrice: customPricing.structurePrice,
@@ -1034,71 +1054,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
               {((salesUser || (userRole === 'super' || userRole === 'super_admin')) && userInfo) ? (
                 <button
                   type="button"
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    if (isSaving) {
-
-                      return;
-                    }
-
-                    setIsSaving(true);
-
-                    try {
-
-                      if (!htmlContent?.trim()) {
-                        throw new Error('Preview HTML is missing. Please close and reopen the PDF view.');
-                      }
-
-                      const { generatePdfFromHtml } = await import('../utils/docxGenerator');
-                      console.log('[PDF Pricing] Save & Download — generating PDF from preview HTML (exact match)');
-
-                      const pdfBlob = await generatePdfFromHtml(htmlContent);
-
-                      if (!pdfBlob || pdfBlob.size === 0) {
-                        throw new Error('PDF generation failed - empty blob');
-                      }
-
-                      const pdfUrl = window.URL.createObjectURL(pdfBlob);
-
-                      const link = document.createElement('a');
-                      link.href = pdfUrl;
-                      link.download = fileName;
-                      link.setAttribute('download', fileName);
-                      link.style.position = 'fixed';
-                      link.style.left = '-9999px';
-                      link.style.top = '-9999px';
-                      link.style.opacity = '0';
-                      link.style.pointerEvents = 'none';
-
-                      document.body.appendChild(link);
-
-                      void link.offsetWidth;
-
-                      link.click();
-
-                      setTimeout(() => {
-                        if (link.parentNode) {
-                          document.body.removeChild(link);
-                        }
-
-                      }, 1000);
-
-                      setGeneratedPdfBlob(pdfBlob);
-                      setPdfDownloadUrl(pdfUrl);
-
-                    } catch (pdfError: any) {
-
-                      alert(`Error generating PDF: ${pdfError.message}. Please check the console for details.`);
-                      setIsSaving(false);
-                      return;
-                    }
-
-                    handleSave(e).catch((saveError: any) => {
-
-                    });
-                  }}
+                  onClick={(e) => handleSave(e)}
                   disabled={isSaving}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >

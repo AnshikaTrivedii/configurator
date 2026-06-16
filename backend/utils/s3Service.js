@@ -43,6 +43,7 @@ const getS3Context = () => {
 };
 
 const PDF_FOLDER = 'quotations/pdfs'; // Folder structure in S3
+const DISCOUNT_PDF_FOLDER = 'Discount pdfs';
 
 // Path structure options:
 // Option 1: By user only (simplest)
@@ -78,6 +79,55 @@ const sanitizeQuotationId = (quotationId) => {
   sanitized = sanitized.replace(/^-+|-+$/g, '');
 
   return sanitized;
+};
+
+/**
+ * Build discount PDF filename from quotation ID (slashes → underscores).
+ * Example: ORION/2026/06/AMISHA/015 → ORION_2026_06_AMISHA_015.pdf
+ */
+export const quotationIdToDiscountPdfFilename = (quotationId) => {
+  if (!quotationId) {
+    throw new Error('Quotation ID is required for discount PDF filename');
+  }
+  return `${quotationId.replace(/\//g, '_').replace(/\s+/g, '_')}.pdf`;
+};
+
+/**
+ * Upload Super Admin–modified quotation PDF to the Discount pdfs folder.
+ * Overwrites any existing file with the same quotation filename.
+ */
+export const uploadDiscountPdfToS3 = async (pdfBuffer, quotationId) => {
+  const { s3Client, BUCKET_NAME } = getS3Context();
+
+  if (!BUCKET_NAME) {
+    throw new Error('ORION_S3_BUCKET_NAME or S3_BUCKET_NAME environment variable is not set');
+  }
+  if (!pdfBuffer || pdfBuffer.length === 0) {
+    throw new Error('PDF buffer is empty or invalid');
+  }
+
+  const filename = quotationIdToDiscountPdfFilename(quotationId);
+  const s3Key = `${DISCOUNT_PDF_FOLDER}/${filename}`;
+
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: s3Key,
+    Body: pdfBuffer,
+    ContentType: 'application/pdf',
+    Metadata: {
+      quotationId,
+      uploadedAt: new Date().toISOString(),
+      pdfType: 'discount'
+    }
+  });
+
+  try {
+    await s3Client.send(command);
+    return s3Key;
+  } catch (error) {
+    console.error('❌ Error uploading discount PDF to S3:', error);
+    throw new Error(`Failed to upload discount PDF to S3: ${error.message}`);
+  }
 };
 
 /**

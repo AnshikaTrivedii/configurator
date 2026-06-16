@@ -20,6 +20,8 @@ interface SalesPerson {
 
 interface Quotation {
   quotationId: string;
+  projectTitle?: string;
+  address?: string;
   productName: string;
   productDetails: any;
   totalPrice: number;
@@ -187,7 +189,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           userType: userTypeForHtml as any,
           fullName: customer?.customerName || '',
           email: customer?.customerEmail || '',
-          phoneNumber: customer?.customerPhone || ''
+          phoneNumber: customer?.customerPhone || '',
+          projectTitle: quotation.quotationData?.userInfo?.projectTitle || quotation.projectTitle || '',
+          address: quotation.quotationData?.userInfo?.address || quotation.address || ''
         };
 
         const htmlContent = generateConfigurationHtml(
@@ -1311,7 +1315,13 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       </div>
 
       {/* PDF View Modal */}
-      {selectedQuotation && (
+      {selectedQuotation && (() => {
+        const customer = customers.find(c =>
+          c.quotations.some(q => q.quotationId === selectedQuotation.quotationId)
+        );
+        const discountPdfFileName = `${selectedQuotation.quotationId.replace(/\//g, '_')}.pdf`;
+
+        return (
         <PdfViewModal
           isOpen={isPdfModalOpen}
           onClose={() => {
@@ -1325,13 +1335,12 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
             try {
               const { generatePdfFromHtml } = await import('../utils/docxGenerator');
-              console.log('[PDF Pricing] SalesPersonDetails download — from preview HTML');
               const blob = await generatePdfFromHtml(pdfHtmlContent);
 
               const url = window.URL.createObjectURL(blob);
               const link = document.createElement('a');
               link.href = url;
-              link.download = `${selectedQuotation.quotationId}.pdf`;
+              link.download = discountPdfFileName;
               link.style.display = 'none';
               document.body.appendChild(link);
               link.click();
@@ -1341,7 +1350,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
               alert('Failed to download PDF. Please try again.');
             }
           }}
-          fileName={`${selectedQuotation.quotationId}.pdf`}
+          fileName={discountPdfFileName}
           selectedProduct={selectedQuotation.productDetails?.product || selectedQuotation.productDetails}
           config={
             selectedQuotation.quotationData?.config ||
@@ -1357,12 +1366,15 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
             selectedQuotation.quotationData?.cabinetGrid
           }
           processor={selectedQuotation.exactProductSpecs?.processor || selectedQuotation.productDetails?.processor || selectedQuotation.quotationData?.processor || null}
+          mode={selectedQuotation.exactProductSpecs?.mode || selectedQuotation.quotationData?.mode}
           customPricing={selectedQuotation.quotationData?.customPricing}
           userInfo={{
-            userType: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.userTypeDisplayName || 'End User',
-            customerName: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerName || '',
-            customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerEmail || '',
-            customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerPhone || ''
+            userType: customer?.userTypeDisplayName || selectedQuotation.userTypeDisplayName || 'End User',
+            fullName: customer?.customerName || selectedQuotation.customerName || '',
+            email: customer?.customerEmail || selectedQuotation.customerEmail || '',
+            phoneNumber: customer?.customerPhone || selectedQuotation.customerPhone || '',
+            projectTitle: selectedQuotation.quotationData?.userInfo?.projectTitle || selectedQuotation.projectTitle || '',
+            address: selectedQuotation.quotationData?.userInfo?.address || selectedQuotation.address || ''
           }}
           salesUser={salesPerson ? {
             _id: salesPerson._id,
@@ -1372,11 +1384,14 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           } : null}
           userRole="super"
           quotationId={selectedQuotation.quotationId}
+          isEditing={true}
+          clientId={selectedQuotation.clientId as string | undefined}
           exactPricingBreakdown={selectedQuotation.exactPricingBreakdown}
           wireType={selectedQuotation.quotationData?.wireType}
           nexaAddons={selectedQuotation.quotationData?.nexaAddons || selectedQuotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)}
         />
-      )}
+        );
+      })()}
     </div>
   );
 };

@@ -980,9 +980,11 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             processor={selectedQuotation.productDetails?.processor || selectedQuotation.quotationData?.processor || null}
             userInfo={{
               userType: selectedQuotation.userTypeDisplayName,
-              customerName: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerName || '',
-              customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerEmail || '',
-              customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerPhone || ''
+              fullName: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerName || selectedQuotation.customerName || '',
+              email: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerEmail || selectedQuotation.customerEmail || '',
+              phoneNumber: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerPhone || selectedQuotation.customerPhone || '',
+              projectTitle: selectedQuotation.quotationData?.userInfo?.projectTitle || '',
+              address: selectedQuotation.quotationData?.userInfo?.address || ''
             }}
             salesUser={salesPerson ? {
               _id: salesPerson._id,

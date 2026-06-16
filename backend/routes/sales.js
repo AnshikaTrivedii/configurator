@@ -8,7 +8,7 @@ import Quotation from '../models/Quotation.js';
 import Client from '../models/Client.js';
 import { authenticateToken, generateToken } from '../middleware/auth.js';
 import { validateLogin, validateSetPassword, validateChangePassword } from '../middleware/validation.js';
-import { uploadPdfToS3, getPdfPresignedUrl } from '../utils/s3Service.js';
+import { uploadPdfToS3, uploadDiscountPdfToS3, getPdfPresignedUrl } from '../utils/s3Service.js';
 
 // NOTE: This function is NOT used for displaying prices in the dashboard.
 // The dashboard displays the stored totalPrice directly from the database,
@@ -1254,11 +1254,15 @@ router.post('/quotation/update', authenticateToken, async (req, res) => {
     if (updateData.pdfBase64) {
       try {
         const pdfBuffer = Buffer.from(updateData.pdfBase64, 'base64');
-        pdfS3Key = await uploadPdfToS3(
-          pdfBuffer,
-          quotationId,
-          quotation.salesUserId.toString()
-        );
+        if (isSuperAdmin) {
+          pdfS3Key = await uploadDiscountPdfToS3(pdfBuffer, quotationId);
+        } else {
+          pdfS3Key = await uploadPdfToS3(
+            pdfBuffer,
+            quotationId,
+            quotation.salesUserId.toString()
+          );
+        }
         pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
       } catch (s3Error) {
         console.error('❌ Error updating PDF in S3:', s3Error);
@@ -1373,14 +1377,15 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
       try {
         const pdfBuffer = Buffer.from(updateData.pdfBase64, 'base64');
 
-        // Upload to S3 (this will overwrite if key is the same)
-        // We use the existing logic to generate/reuse the key
-        // Ideally we keep the same key structure
-        pdfS3Key = await uploadPdfToS3(
-          pdfBuffer,
-          quotationId,
-          quotation.salesUserId.toString()
-        );
+        if (isSuperAdmin) {
+          pdfS3Key = await uploadDiscountPdfToS3(pdfBuffer, quotationId);
+        } else {
+          pdfS3Key = await uploadPdfToS3(
+            pdfBuffer,
+            quotationId,
+            quotation.salesUserId.toString()
+          );
+        }
 
         // Generate new presigned URL
         pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
@@ -1890,6 +1895,10 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
       totalRevenue += quotation.totalPrice || 0;
 
       customerMap.get(customerKey).quotations.push({
+        projectTitle: quotation.quotationData?.userInfo?.projectTitle ||
+          (quotation.clientId ? (clientsMap.get(quotation.clientId.toString())?.projectTitle || '') : ''),
+        address: quotation.quotationData?.userInfo?.address ||
+          (quotation.clientId ? (clientsMap.get(quotation.clientId.toString())?.location || '') : ''),
         quotationId: quotation.quotationId,
         productName: quotation.productName,
         productDetails: quotation.productDetails,
