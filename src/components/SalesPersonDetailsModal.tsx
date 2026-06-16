@@ -32,6 +32,10 @@ interface Quotation {
   pdfS3Url?: string | null;
   userType?: string;
   userTypeDisplayName?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  clientId?: string;
 
   exactPricingBreakdown?: {
     unitPrice: number;
@@ -42,6 +46,35 @@ interface Quotation {
     processorPrice: number;
     processorGst: number;
     grandTotal: number;
+    productSubtotal?: number;
+    productGST?: number;
+    productTotal?: number;
+    processorTotal?: number;
+    structureCost?: number;
+    structureGST?: number;
+    structureTotal?: number;
+    installationCost?: number;
+    installationGST?: number;
+    installationTotal?: number;
+    addonsCost?: number;
+    addonsGST?: number;
+    addonsTotal?: number;
+    appliedAddons?: any[];
+    customPricing?: any;
+    discount?: {
+      discountType?: string;
+      discountPercent?: number;
+      discountAmountPerUnit?: number;
+      discountAmount?: number;
+      numberOfUnits?: number;
+      ledDiscountMode?: string;
+      originalProductTotal?: number;
+      originalProcessorTotal?: number;
+      originalGrandTotal?: number;
+      discountedProductTotal?: number;
+      discountedProcessorTotal?: number;
+      discountedGrandTotal?: number;
+    };
   };
   exactProductSpecs?: {
     productName: string;
@@ -1189,7 +1222,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
                                                     // Check quotationData.discountApplied first, then fallback to exactPricingBreakdown.discount
                                                     const hasDiscountInQuotationData = quotation.quotationData?.discountApplied;
-                                                    const hasDiscountInBreakdown = quotation.exactPricingBreakdown?.discount && quotation.exactPricingBreakdown?.discount?.discountAmount > 0;
+                                                    const hasDiscountInBreakdown = quotation.exactPricingBreakdown?.discount && (quotation.exactPricingBreakdown?.discount?.discountAmount ?? 0) > 0;
 
                                                     if (hasDiscountInQuotationData) {
                                                       const di = quotation.quotationData.discountInfo;
@@ -1199,11 +1232,11 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                     } else if (hasDiscountInBreakdown) {
                                                       // Fallback: discount was applied at creation time via QuoteModal
                                                       // but discountApplied flag wasn't set in quotationData (backward compat)
-                                                      const bd = quotation.exactPricingBreakdown.discount;
-                                                      const type = bd.discountType || (bd.discountPercent > 0 ? 'controller' : 'led');
-                                                      setDiscountType(type);
-                                                      setDiscountPercent(bd.discountPercent || 0);
-                                                      setDiscountAmountPerUnit(bd.discountAmountPerUnit || 0);
+                                                      const bd = quotation.exactPricingBreakdown?.discount;
+                                                      const type = bd?.discountType || (bd?.discountPercent && bd.discountPercent > 0 ? 'controller' : 'led');
+                                                      setDiscountType((type as 'led' | 'controller') || null);
+                                                      setDiscountPercent(bd?.discountPercent || 0);
+                                                      setDiscountAmountPerUnit(bd?.discountAmountPerUnit || 0);
                                                     } else {
                                                       setDiscountType(null);
                                                       setDiscountPercent(0);
@@ -1213,7 +1246,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                   className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 rounded-md border border-indigo-200 transition-all shadow-sm text-xs font-semibold"
                                                 >
                                                   <Percent className="w-3.5 h-3.5" />
-                                                  {(quotation.quotationData?.discountApplied || (quotation.exactPricingBreakdown?.discount && quotation.exactPricingBreakdown?.discount?.discountAmount > 0)) ? 'Edit Discount' : 'Add Discount'}
+                                                  {(quotation.quotationData?.discountApplied || (quotation.exactPricingBreakdown?.discount && (quotation.exactPricingBreakdown?.discount?.discountAmount ?? 0) > 0)) ? 'Edit Discount' : 'Add Discount'}
                                                 </button>
                                               )}
                                             </div>

@@ -236,6 +236,16 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     };
   }, [pdfDownloadUrl]);
 
+  // Reset cached PDF blob whenever preview HTML changes (e.g. after discount applied)
+  // so the download always regenerates from the current content.
+  useEffect(() => {
+    setGeneratedPdfBlob(null);
+    if (pdfDownloadUrl) {
+      window.URL.revokeObjectURL(pdfDownloadUrl);
+      setPdfDownloadUrl(null);
+    }
+  }, [htmlContent]);
+
   const getUserType = (): 'endUser' | 'reseller' | 'siChannel' => {
     switch (userInfo?.userType) {
       case 'Reseller':
