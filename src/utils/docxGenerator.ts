@@ -1301,6 +1301,127 @@ export const generateConfigurationHtml = (
   return html;
 };
 
+/**
+ * Convert quotation HTML (same string shown in preview iframe) into a PDF blob.
+ * Use this for downloads so the file always matches the preview exactly.
+ */
+export const generatePdfFromHtml = async (html: string): Promise<Blob> => {
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-10000px';
+  container.style.top = '0';
+  container.style.width = '210mm';
+  container.style.background = '#ffffff';
+  container.innerHTML = html;
+  document.body.appendChild(container);
+
+  try {
+    const allImages = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
+
+    const imageLoadPromises = allImages.map((img) => {
+      if (img.complete) {
+        return Promise.resolve();
+      }
+
+      return Promise.race([
+        new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        }),
+        new Promise<void>((resolve) => setTimeout(resolve, 5000))
+      ]);
+    });
+
+    try {
+      await Promise.all(imageLoadPromises);
+    } catch {
+      // Continue even if some images fail
+    }
+
+    const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidthMM = 210;
+    const pageHeightMM = 297;
+
+    for (let i = 0; i < pages.length; i++) {
+      const pageEl = pages[i];
+
+      if (i === 0) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      if (pageEl.classList.contains('page-bg') && pageEl.querySelector('.quotation-overlay')) {
+        const overlay = pageEl.querySelector('.quotation-overlay') as HTMLElement;
+        if (overlay) {
+          void overlay.offsetHeight;
+
+          const sections = overlay.querySelectorAll('.quotation-section');
+          let totalContentHeight = 0;
+          sections.forEach((section: Element) => {
+            totalContentHeight += (section as HTMLElement).offsetHeight;
+          });
+
+          const sectionMargin = 8;
+          totalContentHeight += (sections.length - 1) * sectionMargin;
+
+          const availableHeight = overlay.clientHeight;
+
+          if (totalContentHeight > availableHeight) {
+            const scaleFactor = Math.min(0.98, availableHeight / totalContentHeight);
+
+            overlay.style.transform = `scale(${scaleFactor})`;
+            overlay.style.transformOrigin = 'top left';
+
+            const originalWidth = overlay.offsetWidth;
+            const originalHeight = overlay.offsetHeight;
+            overlay.style.width = `${originalWidth / scaleFactor}px`;
+            overlay.style.height = `${originalHeight / scaleFactor}px`;
+          }
+        }
+      }
+
+      let canvas;
+      try {
+        canvas = await html2canvas(pageEl, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          windowWidth: pageEl.offsetWidth,
+          windowHeight: pageEl.offsetHeight,
+          height: pageEl.offsetHeight,
+          width: pageEl.offsetWidth,
+          allowTaint: true,
+          removeContainer: false,
+          foreignObjectRendering: false,
+          imageTimeout: 15000,
+        });
+      } catch (canvasError: any) {
+        throw new Error(`Failed to render page ${i + 1} to canvas: ${canvasError?.message || 'Unknown error'}`);
+      }
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      if (i > 0) pdf.addPage();
+
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'NONE');
+    }
+
+    const blob = pdf.output('blob');
+
+    if (container.parentNode) {
+      document.body.removeChild(container);
+    }
+
+    return blob;
+  } catch (error) {
+    if (container.parentNode) {
+      document.body.removeChild(container);
+    }
+
+    throw new Error(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
 export const generateConfigurationPdf = async (
   config: DisplayConfig,
   selectedProduct: Product,
@@ -1359,131 +1480,7 @@ export const generateConfigurationPdf = async (
     nexaAddons
   );
 
-  const container = document.createElement('div');
-  container.style.position = 'fixed';
-  container.style.left = '-10000px';
-  container.style.top = '0';
-  container.style.width = '210mm';
-  container.style.background = '#ffffff';
-  container.innerHTML = html;
-  document.body.appendChild(container);
-
-  try {
-
-    const allImages = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
-
-    const imageLoadPromises = allImages.map((img, index) => {
-      if (img.complete) {
-        return Promise.resolve();
-      }
-
-      return Promise.race([
-        new Promise<void>((resolve) => {
-          img.onload = () => {
-
-            resolve();
-          };
-          img.onerror = (error) => {
-
-            resolve();
-          };
-        }),
-        new Promise<void>((resolve) => setTimeout(resolve, 5000)) // Increased to 5 seconds for production
-      ]);
-    });
-
-    try {
-      await Promise.all(imageLoadPromises);
-
-    } catch (imageError) {
-
-    }
-
-    const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidthMM = 210;
-    const pageHeightMM = 297;
-
-    for (let i = 0; i < pages.length; i++) {
-      const pageEl = pages[i];
-
-      if (i === 0) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-
-      if (pageEl.classList.contains('page-bg') && pageEl.querySelector('.quotation-overlay')) {
-        const overlay = pageEl.querySelector('.quotation-overlay') as HTMLElement;
-        if (overlay) {
-
-          void overlay.offsetHeight;
-
-          const sections = overlay.querySelectorAll('.quotation-section');
-          let totalContentHeight = 0;
-          sections.forEach((section: Element) => {
-            totalContentHeight += (section as HTMLElement).offsetHeight;
-          });
-
-          const sectionMargin = 8; // 8px margin between sections
-          totalContentHeight += (sections.length - 1) * sectionMargin;
-
-          const availableHeight = overlay.clientHeight;
-
-          if (totalContentHeight > availableHeight) {
-            const scaleFactor = Math.min(0.98, availableHeight / totalContentHeight);
-
-            overlay.style.transform = `scale(${scaleFactor})`;
-            overlay.style.transformOrigin = 'top left';
-
-            const originalWidth = overlay.offsetWidth;
-            const originalHeight = overlay.offsetHeight;
-            overlay.style.width = `${originalWidth / scaleFactor}px`;
-            overlay.style.height = `${originalHeight / scaleFactor}px`;
-          }
-        }
-      }
-
-      let canvas;
-      try {
-        canvas = await html2canvas(pageEl, {
-          scale: 2, // Improved from 1.5 for better quality
-          useCORS: true, // Allow cross-origin images
-          backgroundColor: '#ffffff',
-          logging: false,
-          windowWidth: pageEl.offsetWidth,
-          windowHeight: pageEl.offsetHeight,
-          height: pageEl.offsetHeight,
-          width: pageEl.offsetWidth,
-          allowTaint: true, // Allow tainted canvas for production (needed for some images)
-          removeContainer: false, // Keep container for faster processing
-          foreignObjectRendering: false, // Disable foreign object rendering for better compatibility
-          imageTimeout: 15000, // 15 second timeout for images
-        });
-      } catch (canvasError: any) {
-
-        throw new Error(`Failed to render page ${i + 1} to canvas: ${canvasError?.message || 'Unknown error'}`);
-      }
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      if (i > 0) pdf.addPage();
-
-      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'NONE');
-    }
-
-    const blob = pdf.output('blob');
-
-    if (container.parentNode) {
-      document.body.removeChild(container);
-    }
-
-    return blob;
-  } catch (error) {
-
-    if (container.parentNode) {
-      document.body.removeChild(container);
-    }
-
-    throw new Error(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+  return generatePdfFromHtml(html);
 };
 
 /**

@@ -498,28 +498,20 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     if (!selectedQuotation || !pdfHtmlContent) return;
 
     try {
+      const { generatePdfFromHtml } = await import('../utils/docxGenerator');
+      console.log('[PDF Pricing] SalesDashboard download — from preview HTML');
+      const blob = await generatePdfFromHtml(pdfHtmlContent);
 
-      const html2pdf = (await import('html2pdf.js')).default;
-
-      const element = document.createElement('div');
-      element.innerHTML = pdfHtmlContent;
-      element.style.position = 'absolute';
-      element.style.left = '-9999px';
-      document.body.appendChild(element);
-
-      const opt = {
-        margin: [10, 10, 10, 10],
-        filename: `${selectedQuotation.quotationId}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      await html2pdf().set(opt).from(element).save();
-
-      document.body.removeChild(element);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${selectedQuotation.quotationId}.pdf`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
-
       alert('Failed to download PDF. Please try again.');
     }
   };

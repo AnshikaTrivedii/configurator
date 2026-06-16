@@ -390,10 +390,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     let pdfBlob: Blob | null = generatedPdfBlob || null;
     let pdfUrl: string | null = pdfDownloadUrl || null;
 
-    if (!pdfBlob || !pdfUrl) {
-      try {
+    const generatePdfBlob = async (): Promise<Blob> => {
+      if (htmlContent?.trim()) {
+        console.log('[PDF Pricing] handleSave — generating PDF from preview HTML (exact match)');
+        const { generatePdfFromHtml } = await import('../utils/docxGenerator');
+        return generatePdfFromHtml(htmlContent);
+      }
 
-        const { generateConfigurationPdf } = await import('../utils/docxGenerator');
+      const { generateConfigurationPdf } = await import('../utils/docxGenerator');
 
         const userTypeForCalc = getUserType();
         console.log('PDF Generation - quotationId:', quotationId, 'exactPricingBreakdown exists:', !!exactPricingBreakdown);
@@ -437,9 +441,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           });
 
           if (!pricingResult.isAvailable) {
-            alert('❌ Price is not available for this product configuration. Please contact sales for pricing information.');
-            setIsSaving(false);
-            return;
+            throw new Error('Price is not available for this product configuration.');
           }
 
           logPdfPricingFromCalculation(`handleSave pre-save PDF (quotationId=${quotationId})`, {
@@ -476,7 +478,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             ? 'Channel'
             : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
 
-        pdfBlob = await generateConfigurationPdf(
+        return await generateConfigurationPdf(
           config || { width: 2400, height: 1010, unit: 'mm' },
           selectedProduct,
           cabinetGrid,
@@ -490,7 +492,11 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           effectiveWireType(selectedProduct),
           nexaAddons
         );
+    };
 
+    if (!pdfBlob || !pdfUrl) {
+      try {
+        pdfBlob = await generatePdfBlob();
         pdfUrl = window.URL.createObjectURL(pdfBlob);
         setGeneratedPdfBlob(pdfBlob);
         setPdfDownloadUrl(pdfUrl);
@@ -799,56 +805,9 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       // pdfBlob = null; 
 
       try {
-        const { generateConfigurationPdf } = await import('../utils/docxGenerator');
-
-        const exactPricingBreakdownForPdf =
-          buildExactPricingBreakdownForPdf(finalPricingResult, {
-            customPricing,
-            appliedAddonsFallback: selectedNexaAddonsWithPrices,
-            logContext: `handleSave PDF upload (quotationId=${quotationId})`
-          }) ?? {
-            unitPrice: finalPricingResult.unitPrice,
-            quantity: finalPricingResult.quantity,
-            subtotal: finalPricingResult.productSubtotal ?? finalPricingResult.subtotal,
-            gstAmount: finalPricingResult.productGST ?? finalPricingResult.gstAmount,
-            processorPrice: finalPricingResult.processorPrice,
-            processorGst: finalPricingResult.processorGST ?? finalPricingResult.processorGst,
-            structureCost: finalPricingResult.structureCost,
-            installationCost: finalPricingResult.installationCost,
-            addonsCost: finalPricingResult.addonsCost || 0,
-            addonsGST: finalPricingResult.addonsGST || 0,
-            addonsTotal: finalPricingResult.addonsTotal || 0,
-            appliedAddons: finalPricingResult.appliedAddons || selectedNexaAddonsWithPrices,
-            grandTotal: finalTotalPrice,
-            customPricing: customPricing?.enabled ? {
-              enabled: true,
-              structurePrice: customPricing.structurePrice,
-              installationPrice: customPricing.installationPrice
-            } : undefined,
-            discount: finalPricingResult.discount
-          };
-
-        const uiUserType: string | undefined = userInfo?.userType;
-        const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
-          uiUserType === 'SI/Channel Partner'
-            ? 'Channel'
-            : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
-
-        // Assign to OUTER pdfBlob
-        pdfBlob = await generateConfigurationPdf(
-          config || { width: 2400, height: 1010, unit: 'mm' },
-          selectedProduct,
-          cabinetGrid,
-          processor,
-          mode,
-          userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
-          salesUser,
-          quotationId,
-          customPricing,
-          exactPricingBreakdownForPdf,
-          effectiveWireType(selectedProduct),
-          nexaAddons
-        );
+        if (!pdfBlob) {
+          pdfBlob = await generatePdfBlob();
+        }
 
       } catch (pdfError: any) {
 
@@ -1088,89 +1047,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
                     try {
 
-                      if (!selectedProduct) {
-                        throw new Error('Missing selectedProduct');
-                      }
-                      if (!config) {
-                        throw new Error('Missing config');
-                      }
-                      if (!userInfo) {
-                        throw new Error('Missing userInfo');
+                      if (!htmlContent?.trim()) {
+                        throw new Error('Preview HTML is missing. Please close and reopen the PDF view.');
                       }
 
-                      const { generateConfigurationPdf } = await import('../utils/docxGenerator');
+                      const { generatePdfFromHtml } = await import('../utils/docxGenerator');
+                      console.log('[PDF Pricing] Save & Download — generating PDF from preview HTML (exact match)');
 
-                      const userTypeForCalc = getUserType();
-                      const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
-
-                      let exactPricingBreakdownForPdf: any;
-
-                      if (exactPricingBreakdown) {
-                        exactPricingBreakdownForPdf = buildExactPricingBreakdownForPdf(exactPricingBreakdown, {
-                          customPricing,
-                          appliedAddonsFallback: selectedNexaAddonsWithPrices,
-                          logContext: `Save & Download (quotationId=${quotationId})`
-                        });
-                      } else {
-                        const pricingResult = calculateCentralizedPricing(
-                          selectedProduct,
-                          cabinetGrid,
-                          processor || null,
-                          userTypeForCalc,
-                          config || { width: 2400, height: 1010, unit: 'mm' },
-                          customPricing,
-                          effectiveWireType(selectedProduct),
-                          nexaAddons
-                        );
-
-                        logPdfPricingFromCalculation(`Save & Download (quotationId=${quotationId})`, {
-                          unitPrice: pricingResult.unitPrice,
-                          processorPrice: pricingResult.processorPrice,
-                          grandTotal: pricingResult.grandTotal
-                        });
-
-                        exactPricingBreakdownForPdf = {
-                          unitPrice: pricingResult.unitPrice,
-                          quantity: pricingResult.quantity,
-                          subtotal: pricingResult.productSubtotal,
-                          gstAmount: pricingResult.productGST,
-                          processorPrice: pricingResult.processorPrice,
-                          processorGst: pricingResult.processorGST,
-                          structureCost: pricingResult.structureCost,
-                          installationCost: pricingResult.installationCost,
-                          addonsCost: pricingResult.addonsCost || 0,
-                          addonsGST: pricingResult.addonsGST || 0,
-                          addonsTotal: pricingResult.addonsTotal || 0,
-                          appliedAddons: pricingResult.appliedAddons || selectedNexaAddonsWithPrices,
-                          grandTotal: pricingResult.grandTotal,
-                          customPricing: customPricing?.enabled ? {
-                            enabled: true,
-                            structurePrice: customPricing.structurePrice,
-                            installationPrice: customPricing.installationPrice
-                          } : undefined
-                        };
-                      }
-
-                      const uiUserType: string | undefined = userInfo?.userType;
-                      const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
-                        uiUserType === 'SI/Channel Partner'
-                          ? 'Channel'
-                          : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
-
-                      const pdfBlob = await generateConfigurationPdf(
-                        config || { width: 2400, height: 1010, unit: 'mm' },
-                        selectedProduct,
-                        cabinetGrid,
-                        processor,
-                        mode,
-                        userInfo ? { ...userInfo, userType: legacyUserTypeForPricing } : undefined,
-                        salesUser,
-                        quotationId,
-                        customPricing,
-                        exactPricingBreakdownForPdf,
-                        effectiveWireType(selectedProduct),
-                        nexaAddons
-                      );
+                      const pdfBlob = await generatePdfFromHtml(htmlContent);
 
                       if (!pdfBlob || pdfBlob.size === 0) {
                         throw new Error('PDF generation failed - empty blob');
@@ -1223,7 +1107,20 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                 </button>
               ) : (
                 <button
-                  onClick={() => onDownload()}
+                  onClick={async () => {
+                    if (htmlContent?.trim()) {
+                      try {
+                        const { generatePdfFromHtml } = await import('../utils/docxGenerator');
+                        console.log('[PDF Pricing] Download — generating PDF from preview HTML (exact match)');
+                        const blob = await generatePdfFromHtml(htmlContent);
+                        triggerPdfDownload(blob, fileName, setGeneratedPdfBlob, setPdfDownloadUrl);
+                      } catch (error: any) {
+                        alert(`Failed to download PDF: ${error?.message || 'Unknown error'}`);
+                      }
+                    } else {
+                      onDownload();
+                    }
+                  }}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
                 >
                   <Download className="w-4 h-4 mr-2" />

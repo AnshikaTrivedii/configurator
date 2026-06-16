@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, Clock, MessageSquare, RefreshCw, Percent, Trash2 } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { PdfViewModal } from './PdfViewModal';
-import { generateConfigurationHtml, generateConfigurationPdf } from '../utils/docxGenerator';
+import { generateConfigurationHtml } from '../utils/docxGenerator';
 import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
 import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel } from '../utils/discountCalculator';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
@@ -574,7 +574,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         logContext: `applyDiscount PDF (quotationId=${quotation.quotationId})`
       });
 
-      const pdfBlob = await generateConfigurationPdf(
+      const previewHtml = generateConfigurationHtml(
         config,
         product,
         exactSpecs.cabinetGrid || productDetails?.cabinetGrid,
@@ -593,6 +593,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         quotation.quotationData?.wireType,
         quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
       );
+
+      const { generatePdfFromHtml } = await import('../utils/docxGenerator');
+      const pdfBlob = await generatePdfFromHtml(previewHtml);
 
       const pdfBase64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -1321,25 +1324,19 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
             if (!pdfHtmlContent) return;
 
             try {
-              const html2pdf = (await import('html2pdf.js')).default;
-              const element = document.createElement('div');
-              element.innerHTML = pdfHtmlContent;
-              element.style.position = 'absolute';
-              element.style.left = '-9999px';
-              document.body.appendChild(element);
+              const { generatePdfFromHtml } = await import('../utils/docxGenerator');
+              console.log('[PDF Pricing] SalesPersonDetails download — from preview HTML');
+              const blob = await generatePdfFromHtml(pdfHtmlContent);
 
-              await html2pdf()
-                .set({
-                  margin: [10, 10, 10, 10],
-                  filename: `${selectedQuotation.quotationId}.pdf`,
-                  image: { type: 'jpeg', quality: 0.98 },
-                  html2canvas: { scale: 2, useCORS: true },
-                  jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                })
-                .from(element)
-                .save();
-
-              document.body.removeChild(element);
+              const url = window.URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `${selectedQuotation.quotationId}.pdf`;
+              link.style.display = 'none';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              window.URL.revokeObjectURL(url);
             } catch (error) {
               alert('Failed to download PDF. Please try again.');
             }
