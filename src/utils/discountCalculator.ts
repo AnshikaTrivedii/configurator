@@ -214,7 +214,8 @@ export function applyDiscount(
         break;
       }
 
-      discountedProcessorTotal = Math.round(discountAmountPerUnit * 100) / 100;
+      const overriddenControllerPrice = Math.round(discountAmountPerUnit * 100) / 100;
+      discountedProcessorTotal = overriddenControllerPrice;
       discountAmount = Math.round((originalProcessorTotal - discountedProcessorTotal) * 100) / 100;
 
       discountedGrandTotal = Math.round(
@@ -224,7 +225,23 @@ export function applyDiscount(
         pricingResult.installationTotal +
         unaccountedDifference
       );
-      break;
+
+      return {
+        ...pricingResult,
+        processorPrice: overriddenControllerPrice,
+        processorGST: 0,
+        processorTotal: discountedProcessorTotal,
+        productTotal: discountedProductTotal,
+        grandTotal: discountedGrandTotal,
+        originalProductTotal,
+        originalProcessorTotal,
+        originalGrandTotal,
+        discountedProductTotal,
+        discountedProcessorTotal,
+        discountedGrandTotal,
+        discountInfo,
+        discountAmount
+      };
     }
 
     default:

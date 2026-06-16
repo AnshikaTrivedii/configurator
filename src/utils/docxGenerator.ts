@@ -404,10 +404,13 @@ export const generateConfigurationHtml = (
       : (exactPricingBreakdown?.appliedAddons || []).map(addon => addon.name))
         .filter(addon => Object.prototype.hasOwnProperty.call(nexaAddonPrices, addon))
     : [];
-  const appliedNexaAddons = selectedNexaAddons.map(name => ({
-    name,
-    price: nexaAddonPrices[name]
-  }));
+  const appliedNexaAddons =
+    exactPricingBreakdown?.appliedAddons && exactPricingBreakdown.appliedAddons.length > 0
+      ? exactPricingBreakdown.appliedAddons
+      : selectedNexaAddons.map(name => ({
+          name,
+          price: nexaAddonPrices[name]
+        }));
 
   let quantity: number;
   if (selectedProduct.category?.toLowerCase().includes('rental')) {
@@ -444,8 +447,8 @@ export const generateConfigurationHtml = (
   let subtotal = unitPrice * safeQuantity;
   let gstProduct = 0;
 
-  let addonsTotal = 0;
-  if (appliedNexaAddons.length > 0) {
+  let addonsTotal = exactPricingBreakdown?.addonsTotal ?? 0;
+  if (addonsTotal === 0 && appliedNexaAddons.length > 0) {
     addonsTotal = appliedNexaAddons.reduce((sum, addon) => sum + addon.price, 0);
   }
 
@@ -536,58 +539,54 @@ export const generateConfigurationHtml = (
   }
 
   if (exactPricingBreakdown) {
+    const savedDiscount = exactPricingBreakdown.discount;
 
     if (exactPricingBreakdown.unitPrice !== undefined) unitPrice = exactPricingBreakdown.unitPrice;
+    if (savedDiscount?.discountType === 'led' && savedDiscount.discountAmountPerUnit && savedDiscount.discountAmountPerUnit > 0) {
+      unitPrice = savedDiscount.discountAmountPerUnit;
+    }
+
     if (exactPricingBreakdown.quantity !== undefined) {
       quantity = exactPricingBreakdown.quantity;
-      safeQuantity = quantity; // Update safeQuantity to match
+      safeQuantity = quantity;
     }
 
     if (exactPricingBreakdown.subtotal !== undefined) subtotal = exactPricingBreakdown.subtotal;
-
     if (exactPricingBreakdown.gstAmount !== undefined) gstProduct = exactPricingBreakdown.gstAmount;
 
     if (exactPricingBreakdown.processorPrice !== undefined) controllerPrice = exactPricingBreakdown.processorPrice;
     if (exactPricingBreakdown.processorGst !== undefined) gstController = exactPricingBreakdown.processorGst;
-
-    if (exactPricingBreakdown.discount) {
-
-      const discountedProductTotal = exactPricingBreakdown.discount.discountedProductTotal;
-      const discountedProcessorTotal = exactPricingBreakdown.discount.discountedProcessorTotal;
-      const discountedGrandTotal = exactPricingBreakdown.discount.discountedGrandTotal;
-
-      if (discountedProductTotal !== undefined) {
-        subtotal = discountedProductTotal;
-        gstProduct = 0;
-        totalProduct = discountedProductTotal;
-      } else {
-        totalProduct = subtotal;
-      }
-
-      if (discountedProcessorTotal !== undefined) {
-        controllerPrice = discountedProcessorTotal;
-        gstController = 0;
-        totalController = discountedProcessorTotal;
-      } else {
-        totalController = controllerPrice;
-      }
-
-      grandTotal = discountedGrandTotal || exactPricingBreakdown.grandTotal || 0;
-
-    } else {
-
-      totalProduct = subtotal;
-      totalController = controllerPrice;
-
-      if (exactPricingBreakdown.grandTotal) {
-        grandTotal = exactPricingBreakdown.grandTotal;
-      } else {
-        grandTotal = totalProduct + totalController + structureBasePrice + installationBasePrice;
-      }
+    if (savedDiscount?.discountType === 'controller' && savedDiscount.discountAmountPerUnit && savedDiscount.discountAmountPerUnit > 0) {
+      controllerPrice = savedDiscount.discountAmountPerUnit;
+      gstController = 0;
     }
+
+    totalProduct =
+      savedDiscount?.discountedProductTotal ??
+      (exactPricingBreakdown as { productTotal?: number }).productTotal ??
+      subtotal;
+    totalController =
+      savedDiscount?.discountedProcessorTotal ??
+      (exactPricingBreakdown as { processorTotal?: number }).processorTotal ??
+      controllerPrice;
+    grandTotal =
+      exactPricingBreakdown.grandTotal ??
+      savedDiscount?.discountedGrandTotal ??
+      totalProduct + totalController + structureBasePrice + installationBasePrice + addonsTotal;
 
     totalStructure = exactPricingBreakdown.structureTotal ?? structureBasePrice;
     totalInstallation = exactPricingBreakdown.installationTotal ?? installationBasePrice;
+
+    console.log('[PDF Pricing] generateConfigurationHtml — using saved exactPricingBreakdown', {
+      originalPrice: savedDiscount?.originalProductTotal ?? '(not stored)',
+      overridePrice: savedDiscount?.discountType === 'led' ? savedDiscount.discountAmountPerUnit : undefined,
+      effectiveUnitPrice: unitPrice,
+      controllerOverride: savedDiscount?.discountType === 'controller' ? savedDiscount.discountAmountPerUnit : undefined,
+      effectiveControllerPrice: controllerPrice,
+      totalA: totalProduct,
+      totalB: totalController,
+      grandTotal
+    });
 
   } else {
 

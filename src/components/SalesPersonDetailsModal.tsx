@@ -3,6 +3,7 @@ import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, 
 import { salesAPI } from '../api/sales';
 import { PdfViewModal } from './PdfViewModal';
 import { generateConfigurationHtml, generateConfigurationPdf } from '../utils/docxGenerator';
+import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
 import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel } from '../utils/discountCalculator';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { Save as SaveIcon } from 'lucide-react';
@@ -518,15 +519,36 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         unitPrice: discountedPricing.unitPrice,
         quantity: discountedPricing.quantity,
         subtotal: discountedPricing.productSubtotal,
+        productSubtotal: discountedPricing.productSubtotal,
         gstAmount: discountedPricing.productGST,
+        productGST: discountedPricing.productGST,
+        productTotal: discountedPricing.productTotal,
         gstRate: 18,
         processorPrice: discountedPricing.processorPrice,
         processorGst: discountedPricing.processorGST,
+        processorTotal: discountedPricing.processorTotal,
+        structureCost: discountedPricing.structureCost,
+        structureTotal: discountedPricing.structureTotal,
+        installationCost: discountedPricing.installationCost,
+        installationTotal: discountedPricing.installationTotal,
+        addonsCost: discountedPricing.addonsCost,
+        addonsGST: discountedPricing.addonsGST,
+        addonsTotal: discountedPricing.addonsTotal,
+        appliedAddons: discountedPricing.appliedAddons,
         grandTotal: discountedPricing.grandTotal,
         discount: {
+          discountType: discountType,
+          discountPercent: 0,
+          discountAmountPerUnit,
+          numberOfUnits: discountInfo.numberOfUnits,
+          ledDiscountMode: discountInfo.ledDiscountMode,
+          originalProductTotal: discountedPricing.originalProductTotal,
+          originalProcessorTotal: discountedPricing.originalProcessorTotal,
+          originalGrandTotal: discountedPricing.originalGrandTotal,
           discountedProductTotal: discountedPricing.discountedProductTotal,
           discountedProcessorTotal: discountedPricing.discountedProcessorTotal,
-          discountedGrandTotal: discountedPricing.grandTotal
+          discountedGrandTotal: discountedPricing.grandTotal,
+          discountAmount: discountedPricing.discountAmount
         }
       };
 
@@ -548,6 +570,10 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         phoneNumber: customer?.customerPhone || ''
       };
 
+      const pdfPricingBreakdown = buildExactPricingBreakdownForPdf(newExactPricingBreakdown, {
+        logContext: `applyDiscount PDF (quotationId=${quotation.quotationId})`
+      });
+
       const pdfBlob = await generateConfigurationPdf(
         config,
         product,
@@ -563,7 +589,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         } : null,
         quotation.quotationId,
         quotation.quotationData?.customPricing,
-        newExactPricingBreakdown,
+        pdfPricingBreakdown,
         quotation.quotationData?.wireType,
         quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
       );
@@ -1291,16 +1317,31 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
             setPdfHtmlContent('');
           }}
           htmlContent={pdfHtmlContent}
-          onDownload={() => {
+          onDownload={async () => {
+            if (!pdfHtmlContent) return;
 
-            if (selectedQuotation.pdfS3Key) {
-              salesAPI.getQuotationPdfUrl(selectedQuotation.quotationId)
-                .then(response => {
-                  const link = document.createElement('a');
-                  link.href = response.pdfS3Url;
-                  link.download = `${selectedQuotation.quotationId}.pdf`;
-                  link.click();
-                });
+            try {
+              const html2pdf = (await import('html2pdf.js')).default;
+              const element = document.createElement('div');
+              element.innerHTML = pdfHtmlContent;
+              element.style.position = 'absolute';
+              element.style.left = '-9999px';
+              document.body.appendChild(element);
+
+              await html2pdf()
+                .set({
+                  margin: [10, 10, 10, 10],
+                  filename: `${selectedQuotation.quotationId}.pdf`,
+                  image: { type: 'jpeg', quality: 0.98 },
+                  html2canvas: { scale: 2, useCORS: true },
+                  jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                })
+                .from(element)
+                .save();
+
+              document.body.removeChild(element);
+            } catch (error) {
+              alert('Failed to download PDF. Please try again.');
             }
           }}
           fileName={`${selectedQuotation.quotationId}.pdf`}
@@ -1334,6 +1375,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           } : null}
           userRole="super"
           quotationId={selectedQuotation.quotationId}
+          exactPricingBreakdown={selectedQuotation.exactPricingBreakdown}
+          wireType={selectedQuotation.quotationData?.wireType}
+          nexaAddons={selectedQuotation.quotationData?.nexaAddons || selectedQuotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)}
         />
       )}
     </div>

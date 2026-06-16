@@ -177,18 +177,6 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     try {
       setSelectedQuotation(quotation);
 
-      if (quotation.pdfS3Key || quotation.pdfS3Url) {
-        try {
-
-          const pdfUrlResponse = await salesAPI.getQuotationPdfUrl(quotation.quotationId);
-
-          window.open(pdfUrlResponse.pdfS3Url, '_blank');
-          return;
-        } catch (s3Error) {
-
-        }
-      }
-
       if (quotation.pdfPage6HTML) {
         setPdfHtmlContent(quotation.pdfPage6HTML);
         setIsPdfModalOpen(true);
@@ -262,6 +250,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
 
         setPdfHtmlContent(htmlContent);
         setIsPdfModalOpen(true);
+      } else if (quotation.pdfS3Key || quotation.pdfS3Url) {
+        try {
+          const pdfUrlResponse = await salesAPI.getQuotationPdfUrl(quotation.quotationId);
+          window.open(pdfUrlResponse.pdfS3Url, '_blank');
+        } catch (s3Error) {
+          alert('PDF data not available for this quotation. Please contact support.');
+        }
       } else {
         alert('PDF data not available for this quotation. The quotation may have been created before PDF storage was implemented. Please contact support.');
       }

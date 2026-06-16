@@ -13,6 +13,7 @@ import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getD
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { isCrystalSeries } from '../utils/productSeries';
+import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
 
 interface ProductWithPricing extends Product {
   prices?: {
@@ -776,7 +777,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
         // Generate PDF for update
         try {
-          // Dynamic import to avoid loading heavy libraries initially
           const { generateConfigurationPdf } = await import('../utils/docxGenerator');
 
           // Prepare data for PDF generation
@@ -795,7 +795,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           };
 
           // Use the breakdown we already calculated
-          const exactPricingBreakdownForPdf = {
+          const exactPricingBreakdownForPdf = buildExactPricingBreakdownForPdf(breakdown, {
+            customPricing: customPricingObj,
+            appliedAddonsFallback: (breakdown as any).appliedAddons,
+            logContext: `QuoteModal update PDF (quotationId=${existingQuotation.quotationId})`
+          }) ?? {
             unitPrice: breakdown.unitPrice,
             quantity: breakdown.quantity,
             subtotal: breakdown.productSubtotal,

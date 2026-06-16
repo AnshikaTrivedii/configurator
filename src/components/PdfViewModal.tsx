@@ -9,6 +9,10 @@ const products: import('../types').Product[] = Array.isArray(productsImport) ? p
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
+import {
+  buildExactPricingBreakdownForPdf,
+  logPdfPricingFromCalculation
+} from '../utils/exactPricingBreakdownForPdf';
 
 const triggerPdfDownload = (blob: Blob, fileName: string, setBlob?: (blob: Blob) => void, setUrl?: (url: string) => void) => {
 
@@ -397,30 +401,12 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         // Use exactPricingBreakdown if available (when editing), otherwise calculate
         let exactPricingBreakdownForPdf: any;
 
-        // Always use exactPricingBreakdown if available (when editing/viewing existing quotation)
         if (exactPricingBreakdown) {
-          // Use existing pricing breakdown when editing
-          console.log('✅ Using existing exactPricingBreakdown for PDF generation');
-          exactPricingBreakdownForPdf = {
-            unitPrice: exactPricingBreakdown.unitPrice,
-            quantity: exactPricingBreakdown.quantity,
-            subtotal: exactPricingBreakdown.subtotal || exactPricingBreakdown.productSubtotal,
-            gstAmount: exactPricingBreakdown.gstAmount || exactPricingBreakdown.productGST,
-            processorPrice: exactPricingBreakdown.processorPrice,
-            processorGst: exactPricingBreakdown.processorGst || exactPricingBreakdown.processorGST,
-            structureCost: exactPricingBreakdown.structureCost,
-            installationCost: exactPricingBreakdown.installationCost,
-            addonsCost: exactPricingBreakdown.addonsCost || 0,
-            addonsGST: exactPricingBreakdown.addonsGST || 0,
-            addonsTotal: exactPricingBreakdown.addonsTotal || 0,
-            appliedAddons: exactPricingBreakdown.appliedAddons || selectedNexaAddonsWithPrices,
-            grandTotal: exactPricingBreakdown.grandTotal,
-            customPricing: exactPricingBreakdown.customPricing || (customPricing?.enabled ? {
-              enabled: true,
-              structurePrice: customPricing.structurePrice,
-              installationPrice: customPricing.installationPrice
-            } : undefined)
-          };
+          exactPricingBreakdownForPdf = buildExactPricingBreakdownForPdf(exactPricingBreakdown, {
+            customPricing,
+            appliedAddonsFallback: selectedNexaAddonsWithPrices,
+            logContext: `handleSave pre-save PDF (quotationId=${quotationId})`
+          });
         } else {
           // Calculate new pricing using full product with prices
           console.log('⚠️ Calculating new pricing. Product:', {
@@ -455,6 +441,12 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             setIsSaving(false);
             return;
           }
+
+          logPdfPricingFromCalculation(`handleSave pre-save PDF (quotationId=${quotationId})`, {
+            unitPrice: pricingResult.unitPrice,
+            processorPrice: pricingResult.processorPrice,
+            grandTotal: pricingResult.grandTotal
+          });
 
           exactPricingBreakdownForPdf = {
             unitPrice: pricingResult.unitPrice,
@@ -809,26 +801,32 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       try {
         const { generateConfigurationPdf } = await import('../utils/docxGenerator');
 
-        const exactPricingBreakdownForPdf = {
-          unitPrice: finalPricingResult.unitPrice,
-          quantity: finalPricingResult.quantity,
-          subtotal: finalPricingResult.productSubtotal,
-          gstAmount: finalPricingResult.productGST,
-          processorPrice: finalPricingResult.processorPrice,
-          processorGst: finalPricingResult.processorGST,
-          structureCost: finalPricingResult.structureCost,
-          installationCost: finalPricingResult.installationCost,
-          addonsCost: finalPricingResult.addonsCost || 0,
-          addonsGST: finalPricingResult.addonsGST || 0,
-          addonsTotal: finalPricingResult.addonsTotal || 0,
-          appliedAddons: finalPricingResult.appliedAddons || selectedNexaAddonsWithPrices,
-          grandTotal: finalTotalPrice,
-          customPricing: customPricing?.enabled ? {
-            enabled: true,
-            structurePrice: customPricing.structurePrice,
-            installationPrice: customPricing.installationPrice
-          } : undefined
-        };
+        const exactPricingBreakdownForPdf =
+          buildExactPricingBreakdownForPdf(finalPricingResult, {
+            customPricing,
+            appliedAddonsFallback: selectedNexaAddonsWithPrices,
+            logContext: `handleSave PDF upload (quotationId=${quotationId})`
+          }) ?? {
+            unitPrice: finalPricingResult.unitPrice,
+            quantity: finalPricingResult.quantity,
+            subtotal: finalPricingResult.productSubtotal ?? finalPricingResult.subtotal,
+            gstAmount: finalPricingResult.productGST ?? finalPricingResult.gstAmount,
+            processorPrice: finalPricingResult.processorPrice,
+            processorGst: finalPricingResult.processorGST ?? finalPricingResult.processorGst,
+            structureCost: finalPricingResult.structureCost,
+            installationCost: finalPricingResult.installationCost,
+            addonsCost: finalPricingResult.addonsCost || 0,
+            addonsGST: finalPricingResult.addonsGST || 0,
+            addonsTotal: finalPricingResult.addonsTotal || 0,
+            appliedAddons: finalPricingResult.appliedAddons || selectedNexaAddonsWithPrices,
+            grandTotal: finalTotalPrice,
+            customPricing: customPricing?.enabled ? {
+              enabled: true,
+              structurePrice: customPricing.structurePrice,
+              installationPrice: customPricing.installationPrice
+            } : undefined,
+            discount: finalPricingResult.discount
+          };
 
         const uiUserType: string | undefined = userInfo?.userType;
         const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
@@ -1105,39 +1103,53 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                       const userTypeForCalc = getUserType();
                       const isSuperAdmin = userRole === 'super' || userRole === 'super_admin';
 
-                      const pricingResult = calculateCentralizedPricing(
-                        selectedProduct,
-                        cabinetGrid,
-                        processor || null,
-                        userTypeForCalc,
-                        config || { width: 2400, height: 1010, unit: 'mm' },
-                        customPricing,
-                        effectiveWireType(selectedProduct),
-                        nexaAddons
-                      );
+                      let exactPricingBreakdownForPdf: any;
 
-                      let finalPricingResult = pricingResult as any;
+                      if (exactPricingBreakdown) {
+                        exactPricingBreakdownForPdf = buildExactPricingBreakdownForPdf(exactPricingBreakdown, {
+                          customPricing,
+                          appliedAddonsFallback: selectedNexaAddonsWithPrices,
+                          logContext: `Save & Download (quotationId=${quotationId})`
+                        });
+                      } else {
+                        const pricingResult = calculateCentralizedPricing(
+                          selectedProduct,
+                          cabinetGrid,
+                          processor || null,
+                          userTypeForCalc,
+                          config || { width: 2400, height: 1010, unit: 'mm' },
+                          customPricing,
+                          effectiveWireType(selectedProduct),
+                          nexaAddons
+                        );
 
-                      const exactPricingBreakdownForPdf = {
-                        unitPrice: finalPricingResult.unitPrice,
-                        quantity: finalPricingResult.quantity,
-                        subtotal: finalPricingResult.productSubtotal,
-                        gstAmount: finalPricingResult.productGST,
-                        processorPrice: finalPricingResult.processorPrice,
-                        processorGst: finalPricingResult.processorGST,
-                        structureCost: finalPricingResult.structureCost,
-                        installationCost: finalPricingResult.installationCost,
-                        addonsCost: finalPricingResult.addonsCost || 0,
-                        addonsGST: finalPricingResult.addonsGST || 0,
-                        addonsTotal: finalPricingResult.addonsTotal || 0,
-                        appliedAddons: finalPricingResult.appliedAddons || selectedNexaAddonsWithPrices,
-                        grandTotal: finalPricingResult.grandTotal,
-                        customPricing: customPricing?.enabled ? {
-                          enabled: true,
-                          structurePrice: customPricing.structurePrice,
-                          installationPrice: customPricing.installationPrice
-                        } : undefined
-                      };
+                        logPdfPricingFromCalculation(`Save & Download (quotationId=${quotationId})`, {
+                          unitPrice: pricingResult.unitPrice,
+                          processorPrice: pricingResult.processorPrice,
+                          grandTotal: pricingResult.grandTotal
+                        });
+
+                        exactPricingBreakdownForPdf = {
+                          unitPrice: pricingResult.unitPrice,
+                          quantity: pricingResult.quantity,
+                          subtotal: pricingResult.productSubtotal,
+                          gstAmount: pricingResult.productGST,
+                          processorPrice: pricingResult.processorPrice,
+                          processorGst: pricingResult.processorGST,
+                          structureCost: pricingResult.structureCost,
+                          installationCost: pricingResult.installationCost,
+                          addonsCost: pricingResult.addonsCost || 0,
+                          addonsGST: pricingResult.addonsGST || 0,
+                          addonsTotal: pricingResult.addonsTotal || 0,
+                          appliedAddons: pricingResult.appliedAddons || selectedNexaAddonsWithPrices,
+                          grandTotal: pricingResult.grandTotal,
+                          customPricing: customPricing?.enabled ? {
+                            enabled: true,
+                            structurePrice: customPricing.structurePrice,
+                            installationPrice: customPricing.installationPrice
+                          } : undefined
+                        };
+                      }
 
                       const uiUserType: string | undefined = userInfo?.userType;
                       const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
