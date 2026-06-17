@@ -147,9 +147,10 @@ export function applyDiscount(
   const originalProcessorTotal = (pricingResult as any).originalProcessorTotal || pricingResult.processorTotal;
   const originalGrandTotal = (pricingResult as any).originalGrandTotal || pricingResult.grandTotal;
 
-  let discountedProductTotal = originalProductTotal;
-  let discountedProcessorTotal = originalProcessorTotal;
-  let discountedGrandTotal = originalGrandTotal;
+  // Start from current totals so a second override (e.g. controller after LED) keeps the other component.
+  let discountedProductTotal = pricingResult.productTotal;
+  let discountedProcessorTotal = pricingResult.processorTotal;
+  let discountedGrandTotal = pricingResult.grandTotal;
   let discountAmount = 0;
 
   const sumOfComponents = originalProductTotal + originalProcessorTotal + pricingResult.structureTotal + pricingResult.installationTotal;
@@ -193,6 +194,8 @@ export function applyDiscount(
         productSubtotal: overriddenSubtotal,
         productGST: overriddenGst,
         productTotal: discountedProductTotal,
+        processorPrice: pricingResult.processorPrice,
+        processorGST: pricingResult.processorGST,
         processorTotal: discountedProcessorTotal,
         grandTotal: discountedGrandTotal,
         originalProductTotal,
@@ -219,7 +222,7 @@ export function applyDiscount(
       discountAmount = Math.round((originalProcessorTotal - discountedProcessorTotal) * 100) / 100;
 
       discountedGrandTotal = Math.round(
-        originalProductTotal +
+        discountedProductTotal +
         discountedProcessorTotal +
         pricingResult.structureTotal +
         pricingResult.installationTotal +
@@ -232,6 +235,10 @@ export function applyDiscount(
         processorGST: 0,
         processorTotal: discountedProcessorTotal,
         productTotal: discountedProductTotal,
+        unitPrice: pricingResult.unitPrice,
+        quantity: pricingResult.quantity,
+        productSubtotal: pricingResult.productSubtotal,
+        productGST: pricingResult.productGST,
         grandTotal: discountedGrandTotal,
         originalProductTotal,
         originalProcessorTotal,

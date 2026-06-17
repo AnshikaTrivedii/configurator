@@ -112,6 +112,79 @@ interface SalesPersonDetailsModalProps {
   };
 }
 
+function getBreakdownProductTotal(breakdown: any): number {
+  if (!breakdown) return 0;
+  return breakdown.productTotal
+    ?? breakdown.discount?.discountedProductTotal
+    ?? breakdown.productSubtotal
+    ?? breakdown.subtotal
+    ?? 0;
+}
+
+function getBreakdownProcessorTotal(breakdown: any): number {
+  if (!breakdown) return 0;
+  return breakdown.processorTotal
+    ?? breakdown.discount?.discountedProcessorTotal
+    ?? breakdown.processorPrice
+    ?? 0;
+}
+
+function hasLedPriceOverride(quotation: Quotation): boolean {
+  const eb = quotation.exactPricingBreakdown as any;
+  const ob = quotation.originalPricingBreakdown;
+  if (!eb) return false;
+
+  const ledAmount = quotation.quotationData?.discountInfo?.ledAmountPerUnit
+    ?? (quotation.quotationData?.discountInfo?.type === 'led'
+      ? quotation.quotationData?.discountInfo?.amountPerUnit
+      : undefined)
+    ?? eb.discount?.ledOverride?.amountPerUnit
+    ?? (eb.discount?.discountType === 'led' ? eb.discount?.discountAmountPerUnit : undefined);
+
+  if (ledAmount && ledAmount > 0) return true;
+  if (!ob) return eb.discount?.discountType === 'led';
+
+  if (eb.unitPrice != null && ob.unitPrice != null && eb.unitPrice !== ob.unitPrice) return true;
+
+  const ebSubtotal = eb.productSubtotal ?? eb.subtotal;
+  const obSubtotal = ob.productSubtotal ?? ob.subtotal;
+  return ebSubtotal != null && obSubtotal != null && ebSubtotal !== obSubtotal;
+}
+
+function hasControllerPriceOverride(quotation: Quotation): boolean {
+  const eb = quotation.exactPricingBreakdown as any;
+  const ob = quotation.originalPricingBreakdown;
+  if (!eb) return false;
+
+  const controllerAmount = quotation.quotationData?.discountInfo?.controllerAmountPerUnit
+    ?? (quotation.quotationData?.discountInfo?.type === 'controller'
+      ? quotation.quotationData?.discountInfo?.amountPerUnit
+      : undefined)
+    ?? eb.discount?.controllerOverride?.amountPerUnit
+    ?? (eb.discount?.discountType === 'controller' ? eb.discount?.discountAmountPerUnit : undefined);
+
+  if (controllerAmount && controllerAmount > 0) return true;
+  if (!ob) return eb.discount?.discountType === 'controller';
+
+  return eb.processorPrice != null
+    && ob.processorPrice != null
+    && eb.processorPrice !== ob.processorPrice;
+}
+
+function copyProductPricingFromBreakdown(target: any, source: any) {
+  target.unitPrice = source.unitPrice ?? target.unitPrice;
+  target.quantity = source.quantity ?? target.quantity;
+  target.productSubtotal = source.productSubtotal ?? source.subtotal ?? target.productSubtotal;
+  target.productGST = source.productGST ?? source.gstAmount ?? 0;
+  target.productTotal = getBreakdownProductTotal(source);
+}
+
+function copyProcessorPricingFromBreakdown(target: any, source: any) {
+  target.processorPrice = source.processorPrice ?? target.processorPrice;
+  target.processorGST = source.processorGst ?? source.processorGST ?? 0;
+  target.processorTotal = getBreakdownProcessorTotal(source);
+}
+
 export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = ({
   isOpen,
   onClose,
@@ -339,6 +412,20 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           productName: quotation.productName || 'Unknown Product',
           isAvailable: true
         };
+
+        (finalPricingResult as any).originalProductTotal = getBreakdownProductTotal(ob);
+        (finalPricingResult as any).originalProcessorTotal = getBreakdownProcessorTotal(ob);
+        (finalPricingResult as any).originalGrandTotal = quotation.originalTotalPrice ?? ob.grandTotal ?? finalPricingResult.grandTotal;
+
+        const eb = quotation.exactPricingBreakdown as any;
+        if (eb) {
+          if (discountType === 'controller' && hasLedPriceOverride(quotation)) {
+            copyProductPricingFromBreakdown(finalPricingResult, eb);
+          }
+          if (discountType === 'led' && hasControllerPriceOverride(quotation)) {
+            copyProcessorPricingFromBreakdown(finalPricingResult, eb);
+          }
+        }
       }
 
       else if (quotation.exactPricingBreakdown && !quotation.quotationData?.discountApplied && !(quotation.exactPricingBreakdown as any)?.discount?.discountAmount) {
@@ -486,17 +573,27 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
             finalPricingResult.grandTotal = restoredGrandTotal;
           }
 
-          if (type === 'led') {
+          if (type === 'led' && discountType === 'led') {
             const originalProduct = (finalPricingResult.productTotal || 0) + amount;
             (finalPricingResult as any).originalProductTotal = originalProduct;
-            finalPricingResult.productTotal = originalProduct; // RESET productTotal
-          } else if (type === 'controller') {
+            finalPricingResult.productTotal = originalProduct;
+          } else if (type === 'controller' && discountType === 'controller') {
             const originalProcessor = (finalPricingResult.processorTotal || 0) + amount;
             (finalPricingResult as any).originalProcessorTotal = originalProcessor;
-            finalPricingResult.processorTotal = originalProcessor; // RESET processorTotal
+            finalPricingResult.processorTotal = originalProcessor;
           } else if (type === 'total') {
             (finalPricingResult as any).originalProductTotal = finalPricingResult.productTotal;
             (finalPricingResult as any).originalProcessorTotal = finalPricingResult.processorTotal;
+          }
+
+          const eb = quotation.exactPricingBreakdown as any;
+          if (eb) {
+            if (discountType === 'controller' && hasLedPriceOverride(quotation)) {
+              copyProductPricingFromBreakdown(finalPricingResult, eb);
+            }
+            if (discountType === 'led' && hasControllerPriceOverride(quotation)) {
+              copyProcessorPricingFromBreakdown(finalPricingResult, eb);
+            }
           }
         }
       }
@@ -552,6 +649,27 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
       const discountedPricing = applyDiscount(finalPricingResult, discountInfo);
 
+      const existingDiscountInfo = quotation.quotationData?.discountInfo;
+      const existingDiscount = (quotation.exactPricingBreakdown as any)?.discount;
+      const preservedLedOverride = discountType === 'led'
+        ? {
+            amountPerUnit: discountAmountPerUnit,
+            numberOfUnits: discountInfo.numberOfUnits,
+            ledDiscountMode: discountInfo.ledDiscountMode
+          }
+        : existingDiscount?.ledOverride ?? (hasLedPriceOverride(quotation) ? {
+            amountPerUnit: existingDiscountInfo?.ledAmountPerUnit
+              ?? (existingDiscountInfo?.type === 'led' ? existingDiscountInfo?.amountPerUnit : discountedPricing.unitPrice),
+            numberOfUnits: existingDiscountInfo?.numberOfUnits ?? existingDiscount?.numberOfUnits,
+            ledDiscountMode: existingDiscountInfo?.ledDiscountMode ?? existingDiscount?.ledDiscountMode
+          } : undefined);
+      const preservedControllerOverride = discountType === 'controller'
+        ? { amountPerUnit: discountAmountPerUnit }
+        : existingDiscount?.controllerOverride ?? (hasControllerPriceOverride(quotation) ? {
+            amountPerUnit: existingDiscountInfo?.controllerAmountPerUnit
+              ?? (existingDiscountInfo?.type === 'controller' ? existingDiscountInfo?.amountPerUnit : discountedPricing.processorPrice)
+          } : undefined);
+
       const newExactPricingBreakdown = {
         unitPrice: discountedPricing.unitPrice,
         quantity: discountedPricing.quantity,
@@ -579,6 +697,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           discountAmountPerUnit,
           numberOfUnits: discountInfo.numberOfUnits,
           ledDiscountMode: discountInfo.ledDiscountMode,
+          ledOverride: preservedLedOverride,
+          controllerOverride: preservedControllerOverride,
           originalProductTotal: discountedPricing.originalProductTotal,
           originalProcessorTotal: discountedPricing.originalProcessorTotal,
           originalGrandTotal: discountedPricing.originalGrandTotal,
@@ -660,7 +780,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
             amount: discountedPricing.discountAmount,
             amountPerUnit: (discountType === 'led' || discountType === 'controller') ? discountAmountPerUnit : 0,
             numberOfUnits: discountType === 'led' ? discountInfo.numberOfUnits : 1,
-            ledDiscountMode: discountType === 'led' ? discountInfo.ledDiscountMode : 'none'
+            ledDiscountMode: discountType === 'led' ? discountInfo.ledDiscountMode : 'none',
+            ledAmountPerUnit: preservedLedOverride?.amountPerUnit,
+            controllerAmountPerUnit: preservedControllerOverride?.amountPerUnit
           }
         }
       };
