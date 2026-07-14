@@ -5,6 +5,36 @@ export interface DisplayConfig {
   unit: 'm' | 'ft' | 'mm';
 }
 
+export type DigitalStandeeMatrixKey = string;
+
+export interface DigitalStandeeMatrixVariantInfo {
+  type: string; // Human-readable matrix variant type (e.g. "Non-Model B", "Model B")
+  productId: string; // Product id for this matrix variant
+  cabinetGrid: {
+    columns: number;
+    rows: number;
+  };
+  /**
+   * Optional explicit spec + pricing snapshot for this matrix.
+   * The app currently swaps to the underlying `productId`, but these fields
+   * keep the data model self-describing and easy to extend later.
+   */
+  specifications?: Partial<Product>;
+  price?: {
+    price?: number | string;
+    siChannelPrice?: number | string;
+    resellerPrice?: number | string;
+  };
+}
+
+export interface CabinetVariation {
+  label: string; // e.g. "960x960" or "640x640"
+  cabinetDimensions: { width: number; height: number };
+  resolution: { width: number; height: number };
+  weightPerCabinet: number;
+  moduleQuantity?: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -78,6 +108,11 @@ export interface Product {
   screenResolution?: string;
   activeDisplayArea?: string;
   rentalOption?: 'cabinet' | 'curve lock' | string;
+  isFixed?: boolean;
+  audioInterface?: string;
+  videoInterface?: string;
+  signalInterface?: string;
+  installationMode?: string;
   prices?: {
     cabinet: { endCustomer: number; siChannel: number; reseller: number };
     curveLock?: { endCustomer: number; siChannel: number; reseller: number };
@@ -100,7 +135,22 @@ export interface Product {
     validationMessage?: string;
   };
 
+  /** Optional cabinet size variations (e.g. 960x960 and 640x640 for outdoor products) */
+  cabinetVariations?: CabinetVariation[];
+
   enabled?: boolean; // If false, product is hidden from UI but kept in codebase
+  rigelVariant?: 'plus' | 'lite';
+
+  /**
+   * Digital Standee Matrix Variants
+   * - Only used for "Digital Standee Series" products.
+   * - Allows a single UX product to swap between fixed cabinet grids (e.g. 2x11 vs 3x11)
+   *   by swapping to the correct underlying product definition.
+   */
+  digitalStandeeMatrixKey?: DigitalStandeeMatrixKey; // Current variant key for this product (e.g. "2x11")
+  digitalStandeeCabinetGrid?: { columns: number; rows: number }; // Fixed grid for this variant
+  digitalStandeeVariantOf?: string; // Base product id this variant belongs to
+  digitalStandeeMatrixVariants?: Record<DigitalStandeeMatrixKey, DigitalStandeeMatrixVariantInfo>; // Base product mapping
 }
 
 export interface AspectRatio {

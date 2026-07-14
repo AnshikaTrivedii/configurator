@@ -7,10 +7,7 @@ import { DisplayPreview } from './DisplayPreview';
 import { ProductSelector } from './ProductSelector';
 import { ConfigurationSummary } from './ConfigurationSummary';
 import { ProductSidebar } from './ProductSidebar';
-import { Product, CabinetGrid, Quotation } from '../types';
-import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
+import { Product, CabinetGrid, Quotation, DigitalStandeeMatrixKey } from '../types';
 import DataWiringView from './DataWiringView';
 import PowerWiringView from './PowerWiringView';
 import { QuoteModal } from './QuoteModal';
@@ -21,12 +18,14 @@ import { PdfViewModal } from './PdfViewModal';
 import { SalesUser } from '../api/sales';
 import { clientAPI } from '../api/clients';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
+import { isCrystalSeries } from '../utils/productSeries';
 import { SuperUserDashboard } from './SuperUserDashboard';
 import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } from '../utils/dimensionConstraints';
-
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+import { products } from '../data/products';
+import { hasCabinetVariations, applySelectedCabinetVariation, getDefaultCabinetVariationLabel, getVariationLabelFromDimensions } from '../utils/cabinetVariation';
+import { getProductPdfUrl } from '../utils/productPdfMap';
 
 interface DisplayConfiguratorProps {
   userRole: 'normal' | 'sales' | 'super' | 'super_admin' | 'partner';
@@ -36,7 +35,7 @@ interface DisplayConfiguratorProps {
   initialConfig?: {
     width: number;
     height: number;
-    unit: 'mm' | 'cm' | 'm' | 'ft';
+    unit: 'mm' | 'm' | 'ft';
     viewingDistance: string;
     viewingDistanceUnit: 'meters' | 'feet';
     environment: 'Indoor' | 'Outdoor';
@@ -75,6 +74,17 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const [showLeftPanel, setShowLeftPanel] = useState(!!initialConfig?.selectedProduct);
   const isInitialMount = useRef(true);
 
+  // --- Cabinet Variation Logic ---
+  // When a product has cabinetVariations (e.g. outdoor products in Core/Edge/Prime),
+  // apply the selected variation to create an effective product with overridden dimensions/resolution/weight.
+  const selectedCabinetSize = globalConfig.selectedCabinetSize;
+  const effectiveProduct = React.useMemo(() => {
+    if (!selectedProduct) return undefined;
+    if (!hasCabinetVariations(selectedProduct)) return selectedProduct;
+    const label = selectedCabinetSize || getDefaultCabinetVariationLabel(selectedProduct);
+    return applySelectedCabinetVariation(selectedProduct, label);
+  }, [selectedProduct, selectedCabinetSize]);
+
   const {
     config,
     aspectRatios,
@@ -85,7 +95,28 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     displayDimensions,
     calculateCabinetGrid,
     setConfig
-  } = useDisplayCalculations(selectedProduct);
+  } = useDisplayCalculations(effectiveProduct);
+
+  // Synchronize and snap config width & height to the cabinet grid total dimensions when effectiveProduct's cabinet size changes
+  useEffect(() => {
+    if (effectiveProduct && !isInitialMount.current) {
+      const grid = calculateCabinetGrid(effectiveProduct);
+      if (config.width !== grid.totalWidth || config.height !== grid.totalHeight) {
+        setConfig(prev => ({
+          ...prev,
+          width: grid.totalWidth,
+          height: grid.totalHeight
+        }));
+      }
+    }
+  }, [
+    effectiveProduct?.id,
+    effectiveProduct?.cabinetDimensions?.width,
+    effectiveProduct?.cabinetDimensions?.height
+  ]);
+
+
+
 
   useEffect(() => {
 
@@ -253,8 +284,18 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       if (activeQuotation.quotationData?.customPricing) {
         setCustomPricing(activeQuotation.quotationData.customPricing);
       }
+
+      // Restore cabinet size variation if present in quotation data
+      const savedProductSpecs = activeQuotation.exactProductSpecs || (activeQuotation as any).product;
+      if (savedProductSpecs?.cabinetDimensions && selectedProduct) {
+        const variationLabel = getVariationLabelFromDimensions(selectedProduct, savedProductSpecs.cabinetDimensions);
+        if (variationLabel) {
+          console.log('Restoring cabinet size variation:', variationLabel);
+          updateConfig({ selectedCabinetSize: variationLabel });
+        }
+      }
     }
-  }, [activeQuotation]);
+  }, [activeQuotation, selectedProduct]);
 
   useEffect(() => {
 
@@ -292,9 +333,6 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       return () => clearTimeout(timer);
     }
   }, [initialConfig, selectedProduct]);
-  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
-  const [numPages, setNumPages] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState('preview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar state
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
@@ -324,7 +362,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   });
   const [redundancyEnabled, setRedundancyEnabled] = useState(false);
 
-  const cabinetGrid = calculateCabinetGrid(selectedProduct);
+
+
+  const cabinetGrid = calculateCabinetGrid(effectiveProduct);
 
   const dimensionValidation = selectedProduct
     ? validateDimensions(selectedProduct, config.width, config.height)
@@ -332,17 +372,32 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const dimensionInvalid = selectedProduct ? !dimensionValidation.valid : false;
   const isJumbo = selectedProduct?.category?.toLowerCase().includes('jumbo') ?? false;
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
+  const isDigitalStandeeSeries = selectedProduct?.category === 'Digital Standee Series';
+  const isDigitalStandee = selectedProduct?.category?.toLowerCase().includes('digital standee') ?? false;
+  const isFlexibleSeries = !!(selectedProduct?.category?.toLowerCase().includes('flexible') && !selectedProduct?.name?.includes('Cabinet Base'));
+  const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
+  const crystalSeries = isCrystalSeries(selectedProduct);
+  const isStandardTransparent = selectedProduct?.id?.startsWith('transparent-standard-') ?? false;
+  const hideWiringTabs = isJumbo || isDigitalStandee || !!isNexa || crystalSeries;
+  const selectedProductPdfUrl = getProductPdfUrl(selectedProduct);
 
-  // When switching to Jumbo, show Preview (Data/Power tabs are hidden for Jumbo)
+  const handleReadMoreClick = () => {
+    if (!selectedProductPdfUrl) {
+      alert('Product specification PDF not available.');
+      return;
+    }
+    window.open(selectedProductPdfUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  // When switching to Jumbo, Digital Standee, Nexa, or Transparent series, show Preview (Data/Power tabs are hidden)
   React.useEffect(() => {
-    if (isJumbo && (activeTab === 'data' || activeTab === 'power')) {
+    if (hideWiringTabs && (activeTab === 'data' || activeTab === 'power')) {
       setActiveTab('preview');
     }
-  }, [isJumbo, activeTab]);
+  }, [hideWiringTabs, activeTab]);
 
   // Allowed processors only (names and capacities). minPortsForRedundancy: 0 = cannot support redundancy, >= 2 = can.
   const ALLOWED_PROCESSORS = [
-    { name: 'TB2', type: 'asynchronous' as const, portCount: 1, pixelCapacity: 0.65, inputs: 0, outputs: 0, maxResolution: '', minPortsForRedundancy: 0 },
     { name: 'TB40', type: 'asynchronous' as const, portCount: 2, pixelCapacity: 1.3, inputs: 1, outputs: 3, maxResolution: '1920×1080@60Hz', minPortsForRedundancy: 2 },
     { name: 'TB60', type: 'asynchronous' as const, portCount: 4, pixelCapacity: 2.3, inputs: 1, outputs: 5, maxResolution: '1920×1080@60Hz', minPortsForRedundancy: 2 },
     { name: 'VX1', type: 'synchronous' as const, portCount: 2, pixelCapacity: 1.3, inputs: 5, outputs: 2, maxResolution: '1920×1080@60Hz', minPortsForRedundancy: 2 },
@@ -360,9 +415,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   ];
 
   const createControllerSelection = () => {
-    if (!selectedProduct) return null;
+    const prod = effectiveProduct || selectedProduct;
+    if (!prod) return null;
 
-    const totalPixels = selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows;
+    const totalPixels = prod.resolution.width * cabinetGrid.columns * prod.resolution.height * cabinetGrid.rows;
     const dataHubPorts = Math.ceil(totalPixels / 655000);
     const requiredPorts = redundancyEnabled ? dataHubPorts * 2 : dataHubPorts;
     const backupPorts = redundancyEnabled ? dataHubPorts : 0;
@@ -403,8 +459,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const effectiveProcessor = controllerSelection?.selectedController?.name ?? selectedController;
 
   // For dropdown: processors with capacity >= totalPixels, suggested first, then higher capacity only
-  const totalPixelsForProcessor = selectedProduct
-    ? selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows
+  const totalPixelsForProcessor = (effectiveProduct || selectedProduct)
+    ? (effectiveProduct || selectedProduct)!.resolution.width * cabinetGrid.columns * (effectiveProduct || selectedProduct)!.resolution.height * cabinetGrid.rows
     : 0;
   const processorDropdownOptions = selectedProduct
     ? ALLOWED_PROCESSORS
@@ -422,14 +478,25 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   useEffect(() => {
-    if (selectedProduct) {
-      const grid = calculateCabinetGrid(selectedProduct);
-      setSelectedController(getAutoSelectedController(selectedProduct, grid));
+    if (effectiveProduct) {
+      const grid = calculateCabinetGrid(effectiveProduct);
+      setSelectedController(getAutoSelectedController(effectiveProduct, grid));
     }
-  }, [selectedProduct, config.width, config.height]);
+  }, [effectiveProduct, config.width, config.height]);
+
+  const nexaVariants = selectedProduct && isNexa
+    ? products.filter(p => 
+        p.category === 'Nexa Series' && 
+        p.pixelPitch === selectedProduct.pixelPitch && 
+        p.enabled !== false
+      )
+    : [];
+
+
 
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
+    const productIsNexa = product.isFixed || product.category?.toLowerCase().includes('nexa');
 
     if (product.category?.toLowerCase().includes('digital standee')) {
       updateWidth(product.cabinetDimensions.width);
@@ -448,11 +515,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         ? 'Indoor'
         : normalizedEnv === 'outdoor'
           ? 'Outdoor'
-          : globalConfig.environment
+          : globalConfig.environment,
+      nexaAddons: productIsNexa ? globalConfig.nexaAddons : [],
+      // Reset cabinet size selection when switching products
+      selectedCabinetSize: hasCabinetVariations(product) ? getDefaultCabinetVariationLabel(product) : null
     });
 
     setIsProductSelectorOpen(false);
   };
+
 
   const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string }) => {
     setUserInfo(userData);
@@ -605,7 +676,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
       const blob = await generateConfigurationPdf(
         config,
-        selectedProduct,
+        effectiveProduct || selectedProduct!,
         fixedCabinetGrid,
         effectiveProcessor,
         selectedMode,
@@ -616,13 +687,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         quotationId,
         customPricing.enabled ? customPricing : undefined,
         undefined,
-        selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined
+        globalConfig.nexaAddons
       );
 
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.pdf`;
+      link.download = `${effectiveProduct?.name || selectedProduct?.name}-Configuration-${new Date().toISOString().split('T')[0]}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -655,7 +726,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
       const blob = await generateConfigurationDocx(
         config,
-        selectedProduct,
+        effectiveProduct || selectedProduct!,
         fixedCabinetGrid,
         effectiveProcessor,
         selectedMode,
@@ -672,13 +743,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         quotationId,
         customPricing.enabled ? customPricing : undefined,
         undefined,
-        selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined
+        selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
+        globalConfig.nexaAddons
       );
 
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.docx`;
+      link.download = `${effectiveProduct?.name || selectedProduct?.name}-Configuration-${new Date().toISOString().split('T')[0]}.docx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -694,25 +766,37 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setIsPdfViewModalOpen(true);
   };
 
-  const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
-  const standeeHasConstraints = isDigitalStandee && hasDimensionConstraints(selectedProduct);
+  const currentProdForDim = effectiveProduct || selectedProduct;
+  const moduleWidth = currentProdForDim?.dimensionConstraints?.moduleWidth ?? currentProdForDim?.cabinetDimensions?.width ?? 600;
+  const moduleHeight = currentProdForDim?.dimensionConstraints?.moduleHeight ?? currentProdForDim?.cabinetDimensions?.height ?? 337.5;
 
-  const fixedCabinetGrid = isDigitalStandee && !standeeHasConstraints
-    ? { ...cabinetGrid, columns: 7, rows: 5 }
+  const standeeColumns = isDigitalStandee
+    ? (selectedProduct?.digitalStandeeCabinetGrid?.columns ?? 2)
+    : cabinetGrid.columns;
+  const standeeRows = isDigitalStandee
+    ? (selectedProduct?.digitalStandeeCabinetGrid?.rows ?? 11)
+    : cabinetGrid.rows;
+
+
+  const fixedCabinetGrid = isDigitalStandee
+    ? {
+        ...cabinetGrid,
+        columns: standeeColumns,
+        rows: standeeRows,
+        totalWidth: standeeColumns * moduleWidth,
+        totalHeight: standeeRows * moduleHeight,
+      }
     : cabinetGrid;
 
-  const moduleWidth = selectedProduct?.dimensionConstraints?.moduleWidth ?? selectedProduct?.cabinetDimensions?.width ?? 600;
-  const moduleHeight = selectedProduct?.dimensionConstraints?.moduleHeight ?? selectedProduct?.cabinetDimensions?.height ?? 337.5;
-
   const handleColumnsChange = (columns: number) => {
-    if (isDigitalStandee && !standeeHasConstraints) return;
+    if (isDigitalStandee) return;
     if (!selectedProduct) return;
     const newWidth = columns * moduleWidth;
     updateWidth(newWidth);
   };
 
   const handleRowsChange = (rows: number) => {
-    if (isDigitalStandee && !standeeHasConstraints) return;
+    if (isDigitalStandee) return;
     if (!selectedProduct) return;
     const newHeight = rows * moduleHeight;
     updateHeight(newHeight);
@@ -737,10 +821,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         if (selectedProduct.category?.toLowerCase().includes('digital standee')) {
           if (hasDimensionConstraints(selectedProduct)) {
             const c = selectedProduct.dimensionConstraints!;
+            const grid = selectedProduct.digitalStandeeCabinetGrid ?? { columns: 2, rows: 11 };
+            const baseWidth = c.moduleWidth * grid.columns;
+            const baseHeight = c.moduleHeight * grid.rows;
             const clamped = clampAndSnapDimensions(
               selectedProduct,
-              c.minWidth,
-              c.minHeight
+              baseWidth,
+              baseHeight
             );
             updateWidth(clamped.width);
             updateHeight(clamped.height);
@@ -951,6 +1038,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             redundancyEnabled={redundancyEnabled}
             wireType={wireType}
             onWireTypeChange={(wt) => updateConfig({ wireType: wt })}
+            nexaVariants={nexaVariants}
+            onProductChange={handleProductSelect}
+            nexaAddons={globalConfig.nexaAddons}
+            onNexaAddonsChange={(addons) => updateConfig({ nexaAddons: addons })}
+            selectedCabinetSize={selectedCabinetSize}
+            onCabinetSizeChange={(label) => {
+              updateConfig({ selectedCabinetSize: label });
+            }}
           />
         </div>
 
@@ -984,15 +1079,59 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   onWidthChange={updateWidth}
                   onHeightChange={updateHeight}
                   onUnitChange={updateUnit}
-                  selectedProduct={selectedProduct}
+                  selectedProduct={effectiveProduct}
                 />
-                <AspectRatioSelector
-                  aspectRatios={aspectRatios}
-                  selectedRatio={config.aspectRatio}
-                  onRatioChange={updateAspectRatio}
-                />
+                {!isNexa && !isDigitalStandee && (
+                  <AspectRatioSelector
+                    aspectRatios={aspectRatios}
+                    selectedRatio={config.aspectRatio}
+                    onRatioChange={updateAspectRatio}
+                  />
+                )}
               </div>
             </div>
+
+            {isNexa && (
+              <div className="bg-white rounded-xl shadow-sm border p-3 sm:p-6">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900">Nexa Add-ons</h3>
+                  <span className="text-xs text-gray-500">
+                    {globalConfig.nexaAddons.length} selected
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    'IR Touch',
+                    'Floor Mount Stand'
+                  ].map((addon) => {
+                    const checked = globalConfig.nexaAddons.includes(addon);
+                    return (
+                      <label
+                        key={addon}
+                        className={`flex items-center justify-between gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
+                          checked ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(event) => {
+                              const nextAddons = event.target.checked
+                                ? [...globalConfig.nexaAddons, addon]
+                                : globalConfig.nexaAddons.filter(item => item !== addon);
+                              updateConfig({ nexaAddons: nextAddons });
+                            }}
+                            className="rounded border-gray-300 text-black focus:ring-black"
+                          />
+                          <span className="text-sm font-medium text-gray-900 truncate">{addon}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Tabs Section */}
             <div className="mb-3 sm:mb-6 lg:mb-8">
@@ -1005,8 +1144,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   Preview
                 </button>
 
-                {/* Show Data/Power tabs only when product is selected and not Jumbo */}
-                {selectedProduct && !isJumbo && (
+                {/* Show Data/Power tabs only when product is selected and not Jumbo, Digital Standee, Nexa, or Transparent */}
+                {selectedProduct && !hideWiringTabs && (
                   <>
                     <button
                       className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm lg:text-base ${activeTab === 'data' ? 'bg-black text-white' : 'bg-gray-200'}`}
@@ -1029,14 +1168,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   <DisplayPreview
                     config={config}
                     displayDimensions={displayDimensions}
-                    selectedProduct={selectedProduct}
+                    selectedProduct={effectiveProduct}
                     cabinetGrid={fixedCabinetGrid}
+                    nexaAddons={globalConfig.nexaAddons}
                   />
                 )}
 
-                {selectedProduct && !isJumbo && activeTab === 'data' && (
+                {selectedProduct && !hideWiringTabs && activeTab === 'data' && (
                   <DataWiringView
-                    product={selectedProduct}
+                    product={effectiveProduct || selectedProduct}
                     cabinetGrid={fixedCabinetGrid}
                     redundancyEnabled={redundancyEnabled}
                     onRedundancyChange={setRedundancyEnabled}
@@ -1044,8 +1184,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   />
                 )}
 
-                {selectedProduct && !isJumbo && activeTab === 'power' && (
-                  <PowerWiringView product={selectedProduct} cabinetGrid={fixedCabinetGrid} />
+                {selectedProduct && !hideWiringTabs && activeTab === 'power' && (
+                  <PowerWiringView product={effectiveProduct || selectedProduct} cabinetGrid={fixedCabinetGrid} />
                 )}
               </div>
             </div>
@@ -1079,18 +1219,26 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                       <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">Category</h4>
                       <p className="text-gray-600 text-xs sm:text-sm">{selectedProduct.category}</p>
                     </div>
-                    {!isJumbo && (
+                    {!isJumbo && !isFlexibleSeries && !isNexa && (
                       <>
                         <div>
-                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Size' : 'Cabinet Size'}</h4>
+                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries || (crystalSeries && !isStandardTransparent) || isFlexibleSeries ? 'Module Size' : isDigitalStandeeSeries ? 'Cabinet Frame Size' : 'Cabinet Size'}</h4>
                           <p className="text-gray-600 text-xs sm:text-sm">
-                            {selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm
+                            {((crystalSeries && !isStandardTransparent) || isFlexibleSeries
+                              ? (effectiveProduct || selectedProduct).moduleDimensions
+                              : (effectiveProduct || selectedProduct).cabinetDimensions).width} × {((crystalSeries && !isStandardTransparent) || isFlexibleSeries
+                              ? (effectiveProduct || selectedProduct).moduleDimensions
+                              : (effectiveProduct || selectedProduct).cabinetDimensions).height} mm
                           </p>
                         </div>
                         <div>
-                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'Module Resolution' : 'Cabinet Resolution'}</h4>
+                          <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries || (crystalSeries && !isStandardTransparent) || isFlexibleSeries ? 'Module Resolution' : isDigitalStandeeSeries ? 'Screen Resolution' : 'Cabinet Resolution'}</h4>
                           <p className="text-gray-600 text-xs sm:text-sm">
-                            {selectedProduct.resolution.width} × {selectedProduct.resolution.height}
+                            {((crystalSeries && !isStandardTransparent) && (effectiveProduct || selectedProduct).moduleResolution
+                              ? (effectiveProduct || selectedProduct).moduleResolution!
+                              : (effectiveProduct || selectedProduct).resolution).width} × {((crystalSeries && !isStandardTransparent) && (effectiveProduct || selectedProduct).moduleResolution
+                              ? (effectiveProduct || selectedProduct).moduleResolution!
+                              : (effectiveProduct || selectedProduct).resolution).height}
                           </p>
                         </div>
                       </>
@@ -1122,9 +1270,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                       </p>
                     </div>
                     END PRICING SECTION */}
-                    {!isJumbo && (
+                    {!isJumbo && !isFlexibleSeries && (
                       <div>
-                        <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries ? 'No. of Modules' : 'Total Cabinets'}</h4>
+                        <h4 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base">{isModuleGridSeries || isDigitalStandeeSeries || (crystalSeries && !isStandardTransparent) ? 'Total Modules' : 'Total Cabinets'}</h4>
                         <p className="text-gray-600 text-xs sm:text-sm">{cabinetGrid.columns * cabinetGrid.rows} units</p>
                       </div>
                     )}
@@ -1153,61 +1301,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                     )}
                   </div>
                   {/* Read More Button */}
-                  {selectedProduct.pdf && (
+                  {selectedProduct && (
                     <div className="mt-3 sm:mt-4 flex justify-end">
                       <button
                         className="bg-blue-600 text-white px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 text-xs sm:text-sm lg:text-base"
-                        onClick={() => setIsPdfModalOpen(true)}
+                        onClick={handleReadMoreClick}
                       >
                         Read More
                       </button>
-                    </div>
-                  )}
-                  {/* PDF Modal */}
-                  {isPdfModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4">
-                      <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[90vh] overflow-hidden">
-                        <div className="flex items-center justify-between p-3 sm:p-4 border-b">
-                          <h3 className="text-base sm:text-lg lg:text-xl font-semibold">Product PDF</h3>
-                          <button
-                            className="text-gray-500 hover:text-gray-800 p-2"
-                            onClick={() => setIsPdfModalOpen(false)}
-                            aria-label="Close"
-                          >
-                            <X size={18} />
-                          </button>
-                        </div>
-                        <div className="h-[70vh] overflow-auto p-2 sm:p-4">
-                          {/* PDF Viewer */}
-                          <Document
-                            file={selectedProduct.pdf}
-                            onLoadSuccess={({ numPages }) => {
-                              setNumPages(numPages);
-                              setPdfError(null);
-                            }}
-                            onLoadError={(error) => {
-
-                              setPdfError('Failed to load PDF. Please check the browser console for more details.');
-                            }}
-                            loading={<div className="text-center py-6">Loading PDF...</div>}
-                          >
-                            {Array.from(new Array(numPages || 0), (_, index) => (
-                              <React.Fragment key={`page_${index + 1}`}>
-                                <Page
-                                  pageNumber={index + 1}
-                                  width={Math.min(700, window.innerWidth - 32)}
-                                  renderAnnotationLayer={false}
-                                  renderTextLayer={false}
-                                />
-                                {(numPages && index < numPages - 1) && <div className="h-4 bg-gray-200" />}
-                              </React.Fragment>
-                            ))}
-                          </Document>
-                          {pdfError && <div className="p-4 text-red-600 bg-red-100 rounded-md">{pdfError}</div>}
-
-                          <div className="mt-2 text-xs sm:text-sm text-gray-500">For full details, <a href={selectedProduct.pdf} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">open PDF in new tab</a>.</div>
-                        </div>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1220,9 +1321,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               <ConfigurationSummary
                 config={config}
                 cabinetGrid={fixedCabinetGrid}
-                selectedProduct={selectedProduct}
+                selectedProduct={effectiveProduct}
                 processor={effectiveProcessor}
                 mode={selectedMode}
+                nexaAddons={globalConfig.nexaAddons}
               />
 
               {/* Action Buttons */}
@@ -1305,7 +1407,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         isOpen={isProductSelectorOpen}
         onClose={() => setIsProductSelectorOpen(false)}
         onSelectProduct={handleProductSelect}
-        selectedProduct={selectedProduct}
+        selectedProduct={effectiveProduct || selectedProduct!}
       />
       {/* Quote Modal */}
       {selectedProduct && (
@@ -1316,9 +1418,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
             setIsQuoteModalOpen(false);
           }}
-          selectedProduct={selectedProduct}
+          selectedProduct={effectiveProduct || selectedProduct!}
           config={config}
-          cabinetGrid={cabinetGrid}
+          cabinetGrid={fixedCabinetGrid}
           processor={effectiveProcessor}
           mode={selectedMode}
           userInfo={userInfo && userInfo.userType !== 'SI/Channel Partner' ? userInfo : undefined}
@@ -1347,7 +1449,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           onClose={() => setIsPdfViewModalOpen(false)}
           htmlContent={generateConfigurationHtml(
             config,
-            selectedProduct,
+            effectiveProduct || selectedProduct!,
             fixedCabinetGrid,
             effectiveProcessor,
             selectedMode,
@@ -1369,13 +1471,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             quotationId,
             customPricing.enabled ? customPricing : undefined,
             undefined,
-            selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined
+            selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
+            globalConfig.nexaAddons
           )}
           customPricing={customPricing.enabled ? customPricing : undefined}
           onDownload={handleDownloadPdf}
           onDownloadDocx={handleDownloadDocx}
           fileName={`${selectedProduct.name}-Configuration-${new Date().toISOString().split('T')[0]}.pdf`}
-          selectedProduct={selectedProduct}
+          selectedProduct={effectiveProduct || selectedProduct!}
           config={config}
           cabinetGrid={fixedCabinetGrid}
           processor={effectiveProcessor}
@@ -1386,6 +1489,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           userRole={userRole}
           quotationId={quotationId || undefined}
           isEditing={!!activeQuotation}
+          wireType={selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined}
+          nexaAddons={globalConfig.nexaAddons}
         />
       )}
 
@@ -1427,6 +1532,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         allowedCustomerTypes={salesUser?.allowedCustomerTypes}
         customPricing={customPricing}
         onCustomPricingChange={setCustomPricing}
+        selectedProduct={selectedProduct}
       />
 
     </div>

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, Clock, MessageSquare, RefreshCw, Percent, Trash2 } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { PdfViewModal } from './PdfViewModal';
-import { generateConfigurationHtml, generateConfigurationPdf } from '../utils/docxGenerator';
-import { applyDiscount, DiscountInfo } from '../utils/discountCalculator';
+import { generateConfigurationHtml } from '../utils/docxGenerator';
+import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
+import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel } from '../utils/discountCalculator';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { Save as SaveIcon } from 'lucide-react';
 
@@ -19,6 +20,8 @@ interface SalesPerson {
 
 interface Quotation {
   quotationId: string;
+  projectTitle?: string;
+  address?: string;
   productName: string;
   productDetails: any;
   totalPrice: number;
@@ -29,6 +32,10 @@ interface Quotation {
   pdfS3Url?: string | null;
   userType?: string;
   userTypeDisplayName?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  clientId?: string;
 
   exactPricingBreakdown?: {
     unitPrice: number;
@@ -39,6 +46,35 @@ interface Quotation {
     processorPrice: number;
     processorGst: number;
     grandTotal: number;
+    productSubtotal?: number;
+    productGST?: number;
+    productTotal?: number;
+    processorTotal?: number;
+    structureCost?: number;
+    structureGST?: number;
+    structureTotal?: number;
+    installationCost?: number;
+    installationGST?: number;
+    installationTotal?: number;
+    addonsCost?: number;
+    addonsGST?: number;
+    addonsTotal?: number;
+    appliedAddons?: any[];
+    customPricing?: any;
+    discount?: {
+      discountType?: string;
+      discountPercent?: number;
+      discountAmountPerUnit?: number;
+      discountAmount?: number;
+      numberOfUnits?: number;
+      ledDiscountMode?: string;
+      originalProductTotal?: number;
+      originalProcessorTotal?: number;
+      originalGrandTotal?: number;
+      discountedProductTotal?: number;
+      discountedProcessorTotal?: number;
+      discountedGrandTotal?: number;
+    };
   };
   exactProductSpecs?: {
     productName: string;
@@ -76,6 +112,79 @@ interface SalesPersonDetailsModalProps {
   };
 }
 
+function getBreakdownProductTotal(breakdown: any): number {
+  if (!breakdown) return 0;
+  return breakdown.productTotal
+    ?? breakdown.discount?.discountedProductTotal
+    ?? breakdown.productSubtotal
+    ?? breakdown.subtotal
+    ?? 0;
+}
+
+function getBreakdownProcessorTotal(breakdown: any): number {
+  if (!breakdown) return 0;
+  return breakdown.processorTotal
+    ?? breakdown.discount?.discountedProcessorTotal
+    ?? breakdown.processorPrice
+    ?? 0;
+}
+
+function hasLedPriceOverride(quotation: Quotation): boolean {
+  const eb = quotation.exactPricingBreakdown as any;
+  const ob = quotation.originalPricingBreakdown;
+  if (!eb) return false;
+
+  const ledAmount = quotation.quotationData?.discountInfo?.ledAmountPerUnit
+    ?? (quotation.quotationData?.discountInfo?.type === 'led'
+      ? quotation.quotationData?.discountInfo?.amountPerUnit
+      : undefined)
+    ?? eb.discount?.ledOverride?.amountPerUnit
+    ?? (eb.discount?.discountType === 'led' ? eb.discount?.discountAmountPerUnit : undefined);
+
+  if (ledAmount && ledAmount > 0) return true;
+  if (!ob) return eb.discount?.discountType === 'led';
+
+  if (eb.unitPrice != null && ob.unitPrice != null && eb.unitPrice !== ob.unitPrice) return true;
+
+  const ebSubtotal = eb.productSubtotal ?? eb.subtotal;
+  const obSubtotal = ob.productSubtotal ?? ob.subtotal;
+  return ebSubtotal != null && obSubtotal != null && ebSubtotal !== obSubtotal;
+}
+
+function hasControllerPriceOverride(quotation: Quotation): boolean {
+  const eb = quotation.exactPricingBreakdown as any;
+  const ob = quotation.originalPricingBreakdown;
+  if (!eb) return false;
+
+  const controllerAmount = quotation.quotationData?.discountInfo?.controllerAmountPerUnit
+    ?? (quotation.quotationData?.discountInfo?.type === 'controller'
+      ? quotation.quotationData?.discountInfo?.amountPerUnit
+      : undefined)
+    ?? eb.discount?.controllerOverride?.amountPerUnit
+    ?? (eb.discount?.discountType === 'controller' ? eb.discount?.discountAmountPerUnit : undefined);
+
+  if (controllerAmount && controllerAmount > 0) return true;
+  if (!ob) return eb.discount?.discountType === 'controller';
+
+  return eb.processorPrice != null
+    && ob.processorPrice != null
+    && eb.processorPrice !== ob.processorPrice;
+}
+
+function copyProductPricingFromBreakdown(target: any, source: any) {
+  target.unitPrice = source.unitPrice ?? target.unitPrice;
+  target.quantity = source.quantity ?? target.quantity;
+  target.productSubtotal = source.productSubtotal ?? source.subtotal ?? target.productSubtotal;
+  target.productGST = source.productGST ?? source.gstAmount ?? 0;
+  target.productTotal = getBreakdownProductTotal(source);
+}
+
+function copyProcessorPricingFromBreakdown(target: any, source: any) {
+  target.processorPrice = source.processorPrice ?? target.processorPrice;
+  target.processorGST = source.processorGst ?? source.processorGST ?? 0;
+  target.processorTotal = getBreakdownProcessorTotal(source);
+}
+
 export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = ({
   isOpen,
   onClose,
@@ -93,8 +202,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
   const [pdfHtmlContent, setPdfHtmlContent] = useState<string>('');
 
   const [editingDiscountQuotationId, setEditingDiscountQuotationId] = useState<string | null>(null);
-  const [discountType, setDiscountType] = useState<'led' | 'controller' | 'total' | null>(null);
+  const [discountType, setDiscountType] = useState<'led' | 'controller' | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [discountAmountPerUnit, setDiscountAmountPerUnit] = useState<number>(0);
   const [isUpdatingDiscount, setIsUpdatingDiscount] = useState(false);
 
   useEffect(() => {
@@ -185,7 +295,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           userType: userTypeForHtml as any,
           fullName: customer?.customerName || '',
           email: customer?.customerEmail || '',
-          phoneNumber: customer?.customerPhone || ''
+          phoneNumber: customer?.customerPhone || '',
+          projectTitle: quotation.quotationData?.userInfo?.projectTitle || quotation.projectTitle || '',
+          address: quotation.quotationData?.userInfo?.address || quotation.address || ''
         };
 
         const htmlContent = generateConfigurationHtml(
@@ -202,8 +314,10 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
             location: salesPerson.location
           } : null,
           quotation.quotationId,
-          undefined,
-          quotation.exactPricingBreakdown
+          quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
+          quotation.exactPricingBreakdown,
+          quotation.quotationData?.wireType,
+          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
         );
 
         setPdfHtmlContent(htmlContent);
@@ -227,8 +341,16 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
   };
 
   const handleApplyDiscount = async (quotation: Quotation) => {
-    if (!discountType || discountPercent < 0) {
-      alert('Please select a discount type and enter a valid percentage >= 0');
+    if (!discountType) {
+      alert('Please select a discount type');
+      return;
+    }
+    if (discountType === 'led' && discountAmountPerUnit <= 0) {
+      alert('Please enter a valid discount amount per unit');
+      return;
+    }
+    if (discountType === 'controller' && discountAmountPerUnit <= 0) {
+      alert('Please enter a valid controller override price > 0');
       return;
     }
 
@@ -290,9 +412,23 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           productName: quotation.productName || 'Unknown Product',
           isAvailable: true
         };
+
+        (finalPricingResult as any).originalProductTotal = getBreakdownProductTotal(ob);
+        (finalPricingResult as any).originalProcessorTotal = getBreakdownProcessorTotal(ob);
+        (finalPricingResult as any).originalGrandTotal = quotation.originalTotalPrice ?? ob.grandTotal ?? finalPricingResult.grandTotal;
+
+        const eb = quotation.exactPricingBreakdown as any;
+        if (eb) {
+          if (discountType === 'controller' && hasLedPriceOverride(quotation)) {
+            copyProductPricingFromBreakdown(finalPricingResult, eb);
+          }
+          if (discountType === 'led' && hasControllerPriceOverride(quotation)) {
+            copyProcessorPricingFromBreakdown(finalPricingResult, eb);
+          }
+        }
       }
 
-      else if (quotation.exactPricingBreakdown && !quotation.quotationData?.discountApplied) {
+      else if (quotation.exactPricingBreakdown && !quotation.quotationData?.discountApplied && !(quotation.exactPricingBreakdown as any)?.discount?.discountAmount) {
 
         const eb = quotation.exactPricingBreakdown as any;
 
@@ -340,7 +476,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           processor,
           userType,
           config,
-          customPricing
+          customPricing,
+          quotation.quotationData?.wireType,
+          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
         );
 
         if (pricingResult.isAvailable) {
@@ -349,12 +487,14 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         }
       }
 
-      if (!finalPricingResult && quotation.exactPricingBreakdown && quotation.quotationData?.discountApplied) {
+      if (!finalPricingResult && quotation.exactPricingBreakdown && (quotation.quotationData?.discountApplied || (quotation.exactPricingBreakdown as any)?.discount?.discountAmount)) {
 
         const eb = quotation.exactPricingBreakdown as any;
-        const di = quotation.quotationData.discountInfo;
-        const discountAmount = di?.amount || 0;
-        const discountType = di?.type;
+        // Get discount info from quotationData first, then fallback to exactPricingBreakdown.discount
+        const di = quotation.quotationData?.discountInfo;
+        const ebDiscount = eb.discount;
+        const discountAmount = di?.amount || ebDiscount?.discountAmount || 0;
+        const discType = di?.type || ebDiscount?.discountType;
 
         finalPricingResult = {
           unitPrice: eb.unitPrice || 0,
@@ -382,15 +522,15 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           isAvailable: true
         };
 
-        if (discountAmount > 0 && discountType) {
+        if (discountAmount > 0 && discType) {
 
           finalPricingResult.grandTotal += discountAmount;
 
-          if (discountType === 'led') {
+          if (discType === 'led') {
 
             finalPricingResult.productTotal += discountAmount;
             finalPricingResult.productSubtotal += discountAmount; // Approximation
-          } else if (discountType === 'controller') {
+          } else if (discType === 'controller') {
             finalPricingResult.processorTotal += discountAmount;
             finalPricingResult.processorPrice += discountAmount; // Approximation
           }
@@ -402,23 +542,30 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         let restoredGrandTotal = 0;
         let restoreInfoFromDiscountData = false;
 
+        // Check for discount info from either quotationData or exactPricingBreakdown.discount
+        const hasDiscountInQuotationData = quotation.quotationData?.discountApplied && quotation.quotationData.discountInfo;
+        const hasDiscountInBreakdown = (quotation.exactPricingBreakdown as any)?.discount?.discountAmount > 0;
+        const hasAnyDiscount = hasDiscountInQuotationData || hasDiscountInBreakdown;
+
         if (quotation.originalTotalPrice && quotation.originalTotalPrice > 0) {
 
           restoredGrandTotal = quotation.originalTotalPrice;
           (finalPricingResult as any).originalGrandTotal = restoredGrandTotal;
           finalPricingResult.grandTotal = restoredGrandTotal; // RESET grandTotal to original
 
-          if (quotation.quotationData?.discountApplied && quotation.quotationData.discountInfo) {
+          if (hasAnyDiscount) {
             restoreInfoFromDiscountData = true;
           }
-        } else if (quotation.quotationData?.discountApplied && quotation.quotationData.discountInfo) {
+        } else if (hasAnyDiscount) {
           restoreInfoFromDiscountData = true;
         }
 
-        if (restoreInfoFromDiscountData && quotation.quotationData?.discountInfo) {
-          const di = quotation.quotationData.discountInfo;
-          const amount = di.amount || 0;
-          const type = di.type;
+        if (restoreInfoFromDiscountData) {
+          // Get discount info from quotationData first, then fallback to exactPricingBreakdown.discount
+          const di = quotation.quotationData?.discountInfo;
+          const ebDiscount = (quotation.exactPricingBreakdown as any)?.discount;
+          const amount = di?.amount || ebDiscount?.discountAmount || 0;
+          const type = di?.type || ebDiscount?.discountType;
 
           if (!restoredGrandTotal) {
             restoredGrandTotal = (finalPricingResult.grandTotal || 0) + amount;
@@ -426,17 +573,27 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
             finalPricingResult.grandTotal = restoredGrandTotal;
           }
 
-          if (type === 'led') {
+          if (type === 'led' && discountType === 'led') {
             const originalProduct = (finalPricingResult.productTotal || 0) + amount;
             (finalPricingResult as any).originalProductTotal = originalProduct;
-            finalPricingResult.productTotal = originalProduct; // RESET productTotal
-          } else if (type === 'controller') {
+            finalPricingResult.productTotal = originalProduct;
+          } else if (type === 'controller' && discountType === 'controller') {
             const originalProcessor = (finalPricingResult.processorTotal || 0) + amount;
             (finalPricingResult as any).originalProcessorTotal = originalProcessor;
-            finalPricingResult.processorTotal = originalProcessor; // RESET processorTotal
+            finalPricingResult.processorTotal = originalProcessor;
           } else if (type === 'total') {
             (finalPricingResult as any).originalProductTotal = finalPricingResult.productTotal;
             (finalPricingResult as any).originalProcessorTotal = finalPricingResult.processorTotal;
+          }
+
+          const eb = quotation.exactPricingBreakdown as any;
+          if (eb) {
+            if (discountType === 'controller' && hasLedPriceOverride(quotation)) {
+              copyProductPricingFromBreakdown(finalPricingResult, eb);
+            }
+            if (discountType === 'led' && hasControllerPriceOverride(quotation)) {
+              copyProcessorPricingFromBreakdown(finalPricingResult, eb);
+            }
           }
         }
       }
@@ -467,26 +624,88 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
       }
 
-      const discountInfo: DiscountInfo = {
-        discountType,
-        discountPercent
-      };
+      // Build DiscountInfo based on type
+      let discountInfo: DiscountInfo;
+      if (discountType === 'led') {
+        const ledMode = getLedDiscountMode(product);
+        const cabinetGrid = exactSpecs?.cabinetGrid || productDetails?.cabinetGrid;
+        const units = getDiscountUnits(product, cabinetGrid, config);
+        discountInfo = {
+          discountType: 'led',
+          discountPercent: 0,
+          discountAmountPerUnit,
+          numberOfUnits: units,
+          ledDiscountMode: ledMode
+        };
+      } else {
+        discountInfo = {
+          discountType: 'controller',
+          discountPercent: 0,
+          discountAmountPerUnit: discountAmountPerUnit,
+          numberOfUnits: 1,
+          ledDiscountMode: 'none'
+        };
+      }
 
       const discountedPricing = applyDiscount(finalPricingResult, discountInfo);
+
+      const existingDiscountInfo = quotation.quotationData?.discountInfo;
+      const existingDiscount = (quotation.exactPricingBreakdown as any)?.discount;
+      const preservedLedOverride = discountType === 'led'
+        ? {
+            amountPerUnit: discountAmountPerUnit,
+            numberOfUnits: discountInfo.numberOfUnits,
+            ledDiscountMode: discountInfo.ledDiscountMode
+          }
+        : existingDiscount?.ledOverride ?? (hasLedPriceOverride(quotation) ? {
+            amountPerUnit: existingDiscountInfo?.ledAmountPerUnit
+              ?? (existingDiscountInfo?.type === 'led' ? existingDiscountInfo?.amountPerUnit : discountedPricing.unitPrice),
+            numberOfUnits: existingDiscountInfo?.numberOfUnits ?? existingDiscount?.numberOfUnits,
+            ledDiscountMode: existingDiscountInfo?.ledDiscountMode ?? existingDiscount?.ledDiscountMode
+          } : undefined);
+      const preservedControllerOverride = discountType === 'controller'
+        ? { amountPerUnit: discountAmountPerUnit }
+        : existingDiscount?.controllerOverride ?? (hasControllerPriceOverride(quotation) ? {
+            amountPerUnit: existingDiscountInfo?.controllerAmountPerUnit
+              ?? (existingDiscountInfo?.type === 'controller' ? existingDiscountInfo?.amountPerUnit : discountedPricing.processorPrice)
+          } : undefined);
 
       const newExactPricingBreakdown = {
         unitPrice: discountedPricing.unitPrice,
         quantity: discountedPricing.quantity,
         subtotal: discountedPricing.productSubtotal,
+        productSubtotal: discountedPricing.productSubtotal,
         gstAmount: discountedPricing.productGST,
+        productGST: discountedPricing.productGST,
+        productTotal: discountedPricing.productTotal,
         gstRate: 18,
         processorPrice: discountedPricing.processorPrice,
         processorGst: discountedPricing.processorGST,
+        processorTotal: discountedPricing.processorTotal,
+        structureCost: discountedPricing.structureCost,
+        structureTotal: discountedPricing.structureTotal,
+        installationCost: discountedPricing.installationCost,
+        installationTotal: discountedPricing.installationTotal,
+        addonsCost: discountedPricing.addonsCost,
+        addonsGST: discountedPricing.addonsGST,
+        addonsTotal: discountedPricing.addonsTotal,
+        appliedAddons: discountedPricing.appliedAddons,
         grandTotal: discountedPricing.grandTotal,
         discount: {
+          discountType: discountType,
+          discountPercent: 0,
+          discountAmountPerUnit,
+          numberOfUnits: discountInfo.numberOfUnits,
+          ledDiscountMode: discountInfo.ledDiscountMode,
+          ledOverride: preservedLedOverride,
+          controllerOverride: preservedControllerOverride,
+          originalProductTotal: discountedPricing.originalProductTotal,
+          originalProcessorTotal: discountedPricing.originalProcessorTotal,
+          originalGrandTotal: discountedPricing.originalGrandTotal,
           discountedProductTotal: discountedPricing.discountedProductTotal,
           discountedProcessorTotal: discountedPricing.discountedProcessorTotal,
-          discountedGrandTotal: discountedPricing.grandTotal
+          discountedGrandTotal: discountedPricing.grandTotal,
+          discountAmount: discountedPricing.discountAmount
         }
       };
 
@@ -508,7 +727,11 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         phoneNumber: customer?.customerPhone || ''
       };
 
-      const pdfBlob = await generateConfigurationPdf(
+      const pdfPricingBreakdown = buildExactPricingBreakdownForPdf(newExactPricingBreakdown, {
+        logContext: `applyDiscount PDF (quotationId=${quotation.quotationId})`
+      });
+
+      const previewHtml = generateConfigurationHtml(
         config,
         product,
         exactSpecs.cabinetGrid || productDetails?.cabinetGrid,
@@ -523,8 +746,13 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         } : null,
         quotation.quotationId,
         quotation.quotationData?.customPricing,
-        newExactPricingBreakdown
+        pdfPricingBreakdown,
+        quotation.quotationData?.wireType,
+        quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
       );
+
+      const { generatePdfFromHtml } = await import('../utils/docxGenerator');
+      const pdfBlob = await generatePdfFromHtml(previewHtml);
 
       const pdfBase64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -545,11 +773,16 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         quotationData: {
           ...quotation.quotationData,
           updatedAt: new Date().toISOString(),
-          discountApplied: discountPercent > 0,
+          discountApplied: discountedPricing.discountAmount > 0,
           discountInfo: {
             type: discountType,
-            percent: discountPercent,
-            amount: discountedPricing.discountAmount
+            percent: 0,
+            amount: discountedPricing.discountAmount,
+            amountPerUnit: (discountType === 'led' || discountType === 'controller') ? discountAmountPerUnit : 0,
+            numberOfUnits: discountType === 'led' ? discountInfo.numberOfUnits : 1,
+            ledDiscountMode: discountType === 'led' ? discountInfo.ledDiscountMode : 'none',
+            ledAmountPerUnit: preservedLedOverride?.amountPerUnit,
+            controllerAmountPerUnit: preservedControllerOverride?.amountPerUnit
           }
         }
       };
@@ -559,6 +792,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       setEditingDiscountQuotationId(null);
       setDiscountType(null);
       setDiscountPercent(0);
+      setDiscountAmountPerUnit(0);
 
       fetchSalesPersonDetails();
 
@@ -961,15 +1195,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                 <span>Grand Total:</span>
                                                 <span className="text-green-600">₹{quotation.exactPricingBreakdown.grandTotal?.toLocaleString('en-IN')}</span>
                                               </div>
-                                              {/* Show discount info if present */}
-                                              {quotation.quotationData?.discountApplied && (
-                                                <div className="mt-2 pt-2 border-t border-dashed border-gray-300">
-                                                  <div className="flex justify-between text-green-600">
-                                                    <span>Discount ({quotation.quotationData.discountInfo?.percent}%):</span>
-                                                    <span>-₹{quotation.quotationData.discountInfo?.amount?.toLocaleString('en-IN')}</span>
-                                                  </div>
-                                                </div>
-                                              )}
+
                                             </div>
                                           </div>
                                         )}
@@ -997,42 +1223,118 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                       <label className="text-xs text-gray-600 block mb-1">Discount Type</label>
                                                       <select
                                                         value={discountType || ''}
-                                                        onChange={(e) => setDiscountType(e.target.value as any)}
+                                                        onChange={(e) => setDiscountType(e.target.value as any || null)}
                                                         className="w-full text-xs border border-gray-300 rounded p-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                                       >
                                                         <option value="">Select Type</option>
                                                         <option value="led">LED Screen Price</option>
                                                         <option value="controller">Controller Price</option>
-                                                        <option value="total">Grand Total</option>
                                                       </select>
                                                     </div>
-                                                    <div>
-                                                      <label className="text-xs text-gray-600 block mb-1">Percentage (%)</label>
-                                                      <div className="flex items-center space-x-2">
-                                                        <input
-                                                          type="number"
-                                                          min="0"
-                                                          max="100"
-                                                          step="0.1"
-                                                          value={discountPercent}
-                                                          onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
-                                                          className="flex-1 text-xs border border-gray-300 rounded p-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                                          placeholder="0-100"
-                                                        />
-                                                        <button
-                                                          onClick={() => handleApplyDiscount(quotation)}
-                                                          disabled={isUpdatingDiscount || !discountType || discountPercent < 0}
-                                                          className="bg-blue-600 text-white min-w-[32px] h-[32px] flex items-center justify-center rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                                                          title="Apply Discount"
-                                                        >
-                                                          {isUpdatingDiscount ? (
-                                                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                                          ) : (
-                                                            <SaveIcon className="w-4 h-4" />
-                                                          )}
-                                                        </button>
+
+                                                    {/* LED Discount — product-type-aware */}
+                                                    {discountType === 'led' && (() => {
+                                                      const product = quotation.productDetails?.product || quotation.productDetails;
+                                                      const ledMode = getLedDiscountMode(product);
+                                                      const cabinetGrid = quotation.exactProductSpecs?.cabinetGrid || quotation.productDetails?.cabinetGrid;
+                                                      let configForUnits = quotation.quotationData?.config;
+                                                      if (!configForUnits && quotation.exactProductSpecs?.displaySize) {
+                                                        configForUnits = {
+                                                          width: (quotation.exactProductSpecs.displaySize.width * 1000) || 0,
+                                                          height: (quotation.exactProductSpecs.displaySize.height * 1000) || 0,
+                                                          unit: 'mm'
+                                                        };
+                                                      }
+                                                      if (!configForUnits && quotation.productDetails?.displaySize) {
+                                                        configForUnits = {
+                                                          width: (quotation.productDetails.displaySize.width * 1000) || 0,
+                                                          height: (quotation.productDetails.displaySize.height * 1000) || 0,
+                                                          unit: 'mm'
+                                                        };
+                                                      }
+                                                      const units = getDiscountUnits(product, cabinetGrid, configForUnits);
+                                                      const unitLabel = getDiscountUnitLabel(product);
+                                                      const totalDiscount = Math.round((discountAmountPerUnit * units) * 100) / 100;
+
+                                                      if (ledMode === 'none') {
+                                                        return (
+                                                          <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700 font-medium">
+                                                            ⚠️ No discount available for Jumbo / Digital Standee products.
+                                                          </div>
+                                                        );
+                                                      }
+
+                                                      return (
+                                                        <div className="space-y-2">
+                                                          <div>
+                                                            <label className="text-xs text-gray-600 block mb-1">Amount (₹ {unitLabel})</label>
+                                                            <div className="flex items-center space-x-2">
+                                                              <input
+                                                                type="number"
+                                                                min="0"
+                                                                step="1"
+                                                                value={discountAmountPerUnit || ''}
+                                                                onChange={(e) => setDiscountAmountPerUnit(parseFloat(e.target.value) || 0)}
+                                                                className="flex-1 text-xs border border-gray-300 rounded p-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                                placeholder={`₹ ${unitLabel}`}
+                                                              />
+                                                              <button
+                                                                onClick={() => handleApplyDiscount(quotation)}
+                                                                disabled={isUpdatingDiscount || !discountType || discountAmountPerUnit <= 0}
+                                                                className="bg-blue-600 text-white min-w-[32px] h-[32px] flex items-center justify-center rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                                                title="Apply Discount"
+                                                              >
+                                                                {isUpdatingDiscount ? (
+                                                                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                                ) : (
+                                                                  <SaveIcon className="w-4 h-4" />
+                                                                )}
+                                                              </button>
+                                                            </div>
+                                                          </div>
+                                                          <div className="p-2 bg-blue-100 rounded text-xs space-y-0.5">
+                                                            <div className="flex justify-between">
+                                                              <span>{ledMode === 'per_cabinet' ? 'Cabinets:' : 'Sq Ft:'}</span>
+                                                              <span className="font-medium">{ledMode === 'per_cabinet' ? Math.round(units) : units}</span>
+                                                            </div>
+                                                            <div className="flex justify-between font-semibold text-blue-700">
+                                                              <span>Total Discount:</span>
+                                                              <span>₹{totalDiscount.toLocaleString('en-IN')}</span>
+                                                            </div>
+                                                          </div>
+                                                        </div>
+                                                      );
+                                                    })()}
+
+                                                    {/* Controller Discount — override price */}
+                                                    {discountType === 'controller' && (
+                                                      <div>
+                                                        <label className="text-xs text-gray-600 block mb-1">Override Price (₹)</label>
+                                                        <div className="flex items-center space-x-2">
+                                                          <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="1"
+                                                            value={discountAmountPerUnit || ''}
+                                                            onChange={(e) => setDiscountAmountPerUnit(parseFloat(e.target.value) || 0)}
+                                                            className="flex-1 text-xs border border-gray-300 rounded p-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                            placeholder="New price"
+                                                          />
+                                                          <button
+                                                            onClick={() => handleApplyDiscount(quotation)}
+                                                            disabled={isUpdatingDiscount || !discountType || discountAmountPerUnit <= 0}
+                                                            className="bg-blue-600 text-white min-w-[32px] h-[32px] flex items-center justify-center rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                                            title="Apply Discount"
+                                                          >
+                                                            {isUpdatingDiscount ? (
+                                                              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                            ) : (
+                                                              <SaveIcon className="w-4 h-4" />
+                                                            )}
+                                                          </button>
+                                                        </div>
                                                       </div>
-                                                    </div>
+                                                    )}
                                                   </div>
                                                 </div>
                                               ) : (
@@ -1040,18 +1342,33 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                   onClick={() => {
                                                     setEditingDiscountQuotationId(quotation.quotationId);
 
-                                                    if (quotation.quotationData?.discountApplied) {
-                                                      setDiscountType(quotation.quotationData.discountInfo?.type || null);
-                                                      setDiscountPercent(quotation.quotationData.discountInfo?.percent || 0);
+                                                    // Check quotationData.discountApplied first, then fallback to exactPricingBreakdown.discount
+                                                    const hasDiscountInQuotationData = quotation.quotationData?.discountApplied;
+                                                    const hasDiscountInBreakdown = quotation.exactPricingBreakdown?.discount && (quotation.exactPricingBreakdown?.discount?.discountAmount ?? 0) > 0;
+
+                                                    if (hasDiscountInQuotationData) {
+                                                      const di = quotation.quotationData.discountInfo;
+                                                      setDiscountType(di?.type || null);
+                                                      setDiscountPercent(di?.percent || 0);
+                                                      setDiscountAmountPerUnit(di?.amountPerUnit || 0);
+                                                    } else if (hasDiscountInBreakdown) {
+                                                      // Fallback: discount was applied at creation time via QuoteModal
+                                                      // but discountApplied flag wasn't set in quotationData (backward compat)
+                                                      const bd = quotation.exactPricingBreakdown?.discount;
+                                                      const type = bd?.discountType || (bd?.discountPercent && bd.discountPercent > 0 ? 'controller' : 'led');
+                                                      setDiscountType((type as 'led' | 'controller') || null);
+                                                      setDiscountPercent(bd?.discountPercent || 0);
+                                                      setDiscountAmountPerUnit(bd?.discountAmountPerUnit || 0);
                                                     } else {
                                                       setDiscountType(null);
                                                       setDiscountPercent(0);
+                                                      setDiscountAmountPerUnit(0);
                                                     }
                                                   }}
                                                   className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 rounded-md border border-indigo-200 transition-all shadow-sm text-xs font-semibold"
                                                 >
                                                   <Percent className="w-3.5 h-3.5" />
-                                                  {quotation.quotationData?.discountApplied ? 'Edit Discount' : 'Add Discount'}
+                                                  {(quotation.quotationData?.discountApplied || (quotation.exactPricingBreakdown?.discount && (quotation.exactPricingBreakdown?.discount?.discountAmount ?? 0) > 0)) ? 'Edit Discount' : 'Add Discount'}
                                                 </button>
                                               )}
                                             </div>
@@ -1153,7 +1470,13 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       </div>
 
       {/* PDF View Modal */}
-      {selectedQuotation && (
+      {selectedQuotation && (() => {
+        const customer = customers.find(c =>
+          c.quotations.some(q => q.quotationId === selectedQuotation.quotationId)
+        );
+        const discountPdfFileName = `${selectedQuotation.quotationId.replace(/\//g, '_')}.pdf`;
+
+        return (
         <PdfViewModal
           isOpen={isPdfModalOpen}
           onClose={() => {
@@ -1162,19 +1485,27 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
             setPdfHtmlContent('');
           }}
           htmlContent={pdfHtmlContent}
-          onDownload={() => {
+          onDownload={async () => {
+            if (!pdfHtmlContent) return;
 
-            if (selectedQuotation.pdfS3Key) {
-              salesAPI.getQuotationPdfUrl(selectedQuotation.quotationId)
-                .then(response => {
-                  const link = document.createElement('a');
-                  link.href = response.pdfS3Url;
-                  link.download = `${selectedQuotation.quotationId}.pdf`;
-                  link.click();
-                });
+            try {
+              const { generatePdfFromHtml } = await import('../utils/docxGenerator');
+              const blob = await generatePdfFromHtml(pdfHtmlContent);
+
+              const url = window.URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = discountPdfFileName;
+              link.style.display = 'none';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              window.URL.revokeObjectURL(url);
+            } catch (error) {
+              alert('Failed to download PDF. Please try again.');
             }
           }}
-          fileName={`${selectedQuotation.quotationId}.pdf`}
+          fileName={discountPdfFileName}
           selectedProduct={selectedQuotation.productDetails?.product || selectedQuotation.productDetails}
           config={
             selectedQuotation.quotationData?.config ||
@@ -1190,12 +1521,15 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
             selectedQuotation.quotationData?.cabinetGrid
           }
           processor={selectedQuotation.exactProductSpecs?.processor || selectedQuotation.productDetails?.processor || selectedQuotation.quotationData?.processor || null}
+          mode={selectedQuotation.exactProductSpecs?.mode || selectedQuotation.quotationData?.mode}
           customPricing={selectedQuotation.quotationData?.customPricing}
           userInfo={{
-            userType: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.userTypeDisplayName || 'End User',
-            customerName: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerName || '',
-            customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerEmail || '',
-            customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerPhone || ''
+            userType: customer?.userTypeDisplayName || selectedQuotation.userTypeDisplayName || 'End User',
+            fullName: customer?.customerName || selectedQuotation.customerName || '',
+            email: customer?.customerEmail || selectedQuotation.customerEmail || '',
+            phoneNumber: customer?.customerPhone || selectedQuotation.customerPhone || '',
+            projectTitle: selectedQuotation.quotationData?.userInfo?.projectTitle || selectedQuotation.projectTitle || '',
+            address: selectedQuotation.quotationData?.userInfo?.address || selectedQuotation.address || ''
           }}
           salesUser={salesPerson ? {
             _id: salesPerson._id,
@@ -1205,8 +1539,14 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           } : null}
           userRole="super"
           quotationId={selectedQuotation.quotationId}
+          isEditing={true}
+          clientId={selectedQuotation.clientId as string | undefined}
+          exactPricingBreakdown={selectedQuotation.exactPricingBreakdown}
+          wireType={selectedQuotation.quotationData?.wireType}
+          nexaAddons={selectedQuotation.quotationData?.nexaAddons || selectedQuotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)}
         />
-      )}
+        );
+      })()}
     </div>
   );
 };

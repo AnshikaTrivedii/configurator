@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, CheckCircle, ChevronDown, FileText, MapPin } from 'lucide-react';
+import { Product } from '../types';
+import { isCrystalSeries } from '../utils/productSeries';
 
 interface UserInfo {
   fullName: string;
@@ -33,6 +35,8 @@ interface UserInfoFormProps {
     structurePrice: number | null;
     installationPrice: number | null;
   }) => void;
+  /** When set, custom structure price is hidden (Transparent / Crystal series). */
+  selectedProduct?: Product | null;
 }
 
 export const UserInfoForm: React.FC<UserInfoFormProps> = ({
@@ -46,8 +50,11 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   salesUser,
   allowedCustomerTypes,
   customPricing: externalCustomPricing,
-  onCustomPricingChange
+  onCustomPricingChange,
+  selectedProduct
 }) => {
+
+  const installationOnlyCustomPricing = isCrystalSeries(selectedProduct);
 
   const DEFAULT_VALIDITY = '• Offer shall remain valid for period of 30 days from the date of quotation made.\n• The current offer is based on USD=INR 88. Any increase in exchange rate beyond 1% at the time of placement of order will lead to increase in INR price';
   const DEFAULT_PAYMENT_TERMS = '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation';
@@ -458,19 +465,24 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
                         const enabled = e.target.checked;
                         updateCustomPricing(
                           enabled,
-                          enabled ? customStructurePrice : null,
+                          installationOnlyCustomPricing ? null : (enabled ? customStructurePrice : null),
                           enabled ? customInstallationPrice : null
                         );
                       }}
                       disabled={isSubmitting}
                       className="w-4 h-4 text-gray-600 border-gray-300 rounded focus:ring-blue-500 mr-3"
                     />
-                    <span>Do you want to enter custom structure & installation pricing?</span>
+                    <span>
+                      {installationOnlyCustomPricing
+                        ? 'Do you want to enter custom installation pricing?'
+                        : 'Do you want to enter custom structure & installation pricing?'}
+                    </span>
                   </label>
                 </div>
 
                 {customPricingEnabled && (
                   <div className="space-y-4 pl-7">
+                    {!installationOnlyCustomPricing && (
                     <div>
                       <label htmlFor="customStructurePrice" className="block text-sm font-semibold text-gray-700 mb-2">
                         Custom Structure Price (₹)
@@ -493,6 +505,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
                         disabled={isSubmitting}
                       />
                     </div>
+                    )}
 
                     <div>
                       <label htmlFor="customInstallationPrice" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -511,7 +524,11 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
                           const value = e.target.value === '' ? null : parseFloat(e.target.value);
                           // Allow 0 as valid value
                           const newValue = value !== null && !isNaN(value) ? value : null;
-                          updateCustomPricing(customPricingEnabled, customStructurePrice, newValue);
+                          updateCustomPricing(
+                            customPricingEnabled,
+                            installationOnlyCustomPricing ? null : customStructurePrice,
+                            newValue
+                          );
                         }}
                         disabled={isSubmitting}
                       />

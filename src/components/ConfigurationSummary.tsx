@@ -5,6 +5,7 @@ import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { getControllerPdfUrl } from '../utils/controllerPdfMap';
 import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
 import { getDisplayPower } from '../utils/displayPower';
+import { usesModuleSizeInsteadOfCabinetSize } from '../utils/productSeries';
 
 // Processor specifications - matches DisplayConfigurator.tsx
 const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
@@ -30,6 +31,7 @@ interface ConfigurationSummaryProps {
   selectedProduct?: Product;
   processor?: string;
   mode?: string;
+  nexaAddons?: string[];
 }
 
 function formatIndianNumber(x: number): string {
@@ -69,7 +71,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   cabinetGrid,
   selectedProduct,
   processor,
-  mode
+  mode,
+  nexaAddons = []
 }) => {
   const { config: globalConfig } = useDisplayConfig();
   const wireType = globalConfig.wireType ?? 'gold';
@@ -83,7 +86,13 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const isModuleGridSeries = selectedProduct.category === 'Module/ Grid Series';
   const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
   const isModularSeries = selectedProduct.category?.toLowerCase().includes('modular');
-  const useModuleTerminology = isJumboSeries || isModuleGridSeries;
+  const isFlexibleSeries = !!(selectedProduct.category?.toLowerCase().includes('flexible') && !selectedProduct.name?.includes('Cabinet Base'));
+  const isNexa = selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa');
+  const moduleSizeProduct = usesModuleSizeInsteadOfCabinetSize(selectedProduct);
+  const isStandardTransparent = selectedProduct.id?.startsWith('transparent-standard-') || false;
+
+  const useModuleTerminology =
+    isJumboSeries || isModuleGridSeries || isDigitalStandee || isFlexibleSeries || isNexa || (moduleSizeProduct && !isStandardTransparent);
 
   const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
   const MM_TO_FEET = 1 / FEET_TO_MM;
@@ -99,17 +108,17 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     return meters.toFixed(2);
   };
 
-  const displayedWidth = parseFloat(toDisplayUnit(config.width, config.unit));
-  const displayedHeight = parseFloat(toDisplayUnit(config.height, config.unit));
+  const displayedWidth = parseFloat(toDisplayUnit(cabinetGrid.totalWidth || config.width, config.unit));
+  const displayedHeight = parseFloat(toDisplayUnit(cabinetGrid.totalHeight || config.height, config.unit));
 
   // Display Area: ft² derived from the rounded/displayed m² value
-  const rawAreaM2 = (config.width / 1000) * (config.height / 1000);
+  const rawAreaM2 = ((cabinetGrid.totalWidth || config.width) / 1000) * ((cabinetGrid.totalHeight || config.height) / 1000);
   const areaM2 = parseFloat(rawAreaM2.toFixed(2));
   const areaFt2 = areaM2 * 10.764;
 
   // Display Diagonal: from width/height in meters, then feet
-  const width = config.width / 1000;  // mm to m
-  const height = config.height / 1000; // mm to m
+  const width = (cabinetGrid.totalWidth || config.width) / 1000;  // mm to m
+  const height = (cabinetGrid.totalHeight || config.height) / 1000; // mm to m
   const diagonalM = Math.sqrt(width * width + height * height);
   const diagonalFt = diagonalM * 3.28084;
 
@@ -119,7 +128,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const avgPowerPerCabinet = displayPower.avgPowerPerCabinet;
   const maxPowerPerCabinet = displayPower.maxPowerPerCabinet;
 
-  if (selectedProduct.category?.toLowerCase().includes('betelgeuse')) {
+  if (selectedProduct.category?.toLowerCase().includes('prime series')) {
 
   }
 
@@ -136,20 +145,23 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
       {/* Main Configuration Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
         {/* Size (w × h) */}
-        <div className="bg-blue-50 p-3 sm:p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
-          <div className="flex items-start space-x-2 sm:space-x-3">
-            <div className="p-1.5 sm:p-2 rounded-lg bg-blue-100 text-blue-500 bg-opacity-50 flex-shrink-0">
-              <Ruler className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Size (w × h)</h3>
-              <p className="mt-1 text-sm sm:text-lg font-semibold text-blue-700 break-words">
-                {toDisplayUnit(config.width, config.unit)} {config.unit}<br />
-                {toDisplayUnit(config.height, config.unit)} {config.unit}
-              </p>
+        {/* Size (w × h) - Hidden for Nexa */}
+        {!isNexa && (
+          <div className="bg-blue-50 p-3 sm:p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
+            <div className="flex items-start space-x-2 sm:space-x-3">
+              <div className="p-1.5 sm:p-2 rounded-lg bg-blue-100 text-blue-500 bg-opacity-50 flex-shrink-0">
+                <Ruler className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Size (w × h)</h3>
+                <p className="mt-1 text-sm sm:text-lg font-semibold text-blue-700 break-words">
+                  {toDisplayUnit(cabinetGrid.totalWidth || config.width, config.unit)} {config.unit}<br />
+                  {toDisplayUnit(cabinetGrid.totalHeight || config.height, config.unit)} {config.unit}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Resolution */}
         <div className="bg-purple-50 p-3 sm:p-4 rounded-xl transition-all duration-200 hover:shadow-md flex-1 min-w-0">
@@ -160,7 +172,9 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Resolution</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-purple-700 break-words">
-                {selectedProduct.resolution.width * cabinetGrid.columns} × {selectedProduct.resolution.height * cabinetGrid.rows} px
+                {isDigitalStandee
+                  ? `${selectedProduct.resolution.width} × ${selectedProduct.resolution.height} px`
+                  : `${selectedProduct.resolution.width * cabinetGrid.columns} × ${selectedProduct.resolution.height * cabinetGrid.rows} px`}
               </p>
             </div>
           </div>
@@ -232,7 +246,9 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Display Diagonal</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-indigo-700 break-words">
-                {diagonalM.toFixed(2)} m ({diagonalFt.toFixed(2)} ft)
+                {isNexa && selectedProduct.name.includes('"') 
+                  ? selectedProduct.name.split(' ').find(word => word.includes('"')) 
+                  : `${diagonalM.toFixed(2)} m (${diagonalFt.toFixed(2)} ft)`}
               </p>
             </div>
           </div>
@@ -357,14 +373,44 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             )}
           </div>
           <div className="space-y-2 sm:space-y-3">
-            <div className="bg-white rounded-lg p-2 sm:p-3">
-              <div className="text-xs sm:text-sm text-gray-600 mb-1">{isModuleGridSeries ? 'Module Size' : isJumboSeries ? 'Screen Size' : 'Cabinet Size'}</div>
-              <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.cabinetDimensions.width} × {selectedProduct.cabinetDimensions.height} mm</div>
-            </div>
-            {!isJumboSeries && !isModuleGridSeries && (
+            {!isNexa && (
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">
+                  {isModuleGridSeries
+                    ? 'Module Size'
+                    : isJumboSeries
+                      ? 'Screen Size'
+                      : isDigitalStandee
+                        ? 'Cabinet Frame Size'
+                        : (isFlexibleSeries || (moduleSizeProduct && !isStandardTransparent))
+                          ? 'Module Size'
+                          : 'Cabinet Size'}
+                </div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">
+                  {(isFlexibleSeries || (moduleSizeProduct && !isStandardTransparent))
+                    ? `${selectedProduct.moduleDimensions.width} × ${selectedProduct.moduleDimensions.height} mm`
+                    : `${selectedProduct.cabinetDimensions.width} × ${selectedProduct.cabinetDimensions.height} mm`}
+                </div>
+              </div>
+            )}
+            {isNexa && nexaAddons.length > 0 && (
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">Selected Add-ons</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">
+                  {nexaAddons.join(', ')}
+                </div>
+              </div>
+            )}
+            {isDigitalStandee && (
+              <div className="bg-white rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">Screen Weight</div>
+                <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.weightPerCabinet ?? 'N/A'} kg</div>
+              </div>
+            )}
+            {!isJumboSeries && !isModuleGridSeries && !isDigitalStandee && (
               <>
                 <div className="bg-white rounded-lg p-2 sm:p-3">
-                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Weight per Cabinet</div>
+                  <div className="text-xs sm:text-sm text-gray-600 mb-1">{isFlexibleSeries ? 'Weight per module' : 'Weight per Cabinet'}</div>
                   <div className="font-medium text-gray-900 text-xs sm:text-sm">{selectedProduct.weightPerCabinet ?? 'N/A'} kg</div>
                 </div>
                 <div className="bg-white rounded-lg p-2 sm:p-3">
@@ -383,8 +429,8 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
         </div>
       </div>
 
-      {/* Controller Information - Hidden for Jumbo Series (prices include controllers) */}
-      {!isJumboSeries && (processor || mode) && (
+      {/* Controller Information - Hidden for Jumbo Series (prices include controllers), Digital Standee, and Nexa Series */}
+      {!isJumboSeries && !isDigitalStandee && !isNexa && (processor || mode) && (
         <div className="bg-indigo-50 rounded-xl p-3 sm:p-4 transition-all duration-200 hover:shadow-md">
           <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
             <div className="p-1.5 sm:p-2 rounded-lg bg-indigo-100 text-indigo-500 bg-opacity-50">

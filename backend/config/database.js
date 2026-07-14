@@ -9,9 +9,9 @@ const connectDB = async () => {
       socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
     });
 
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error('Database connection error:', error);
-
+    console.error('❌ Database connection error:', error.message);
     // Don't exit the process - let the server continue running
   }
 };

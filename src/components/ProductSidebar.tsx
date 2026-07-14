@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Product, CabinetGrid } from '../types';
+import { Product, CabinetGrid, CabinetVariation } from '../types';
 import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
-import { hasDimensionConstraints } from '../utils/dimensionConstraints';
 
 const MM_TO_FEET = 1 / 304.8;
 
@@ -34,6 +33,14 @@ interface ProductSidebarProps {
   /** Modular Series only: wire type for pricing */
   wireType?: 'gold' | 'copper';
   onWireTypeChange?: (wireType: 'gold' | 'copper') => void;
+  /** Nexa Series only: variants for the same pitch */
+  nexaVariants?: Product[];
+  onProductChange?: (product: Product) => void;
+  nexaAddons?: string[];
+  onNexaAddonsChange?: (addons: string[]) => void;
+  /** Cabinet size variation selection (for outdoor products with multiple cabinet sizes) */
+  selectedCabinetSize?: string | null;
+  onCabinetSizeChange?: (label: string) => void;
 }
 
 export const ProductSidebar: React.FC<ProductSidebarProps> = ({
@@ -50,7 +57,13 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   controllerSelection,
   processorDropdownOptions,
   wireType = 'gold',
-  onWireTypeChange
+  onWireTypeChange,
+  nexaVariants,
+  onProductChange,
+  nexaAddons = [],
+  onNexaAddonsChange,
+  selectedCabinetSize,
+  onCabinetSizeChange
 }) => {
   const [activeTab, setActiveTab] = useState<'dimensions' | 'processing'>('dimensions');
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
@@ -75,16 +88,19 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
 
   const isDigitalStandee = selectedProduct && selectedProduct.category?.toLowerCase().includes('digital standee');
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
+  const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
   const isModuleGridSeries = selectedProduct?.category === 'Module/ Grid Series';
-  const useModuleLabel = isJumbo || isModuleGridSeries;
-  const standeeHasConstraints = isDigitalStandee && hasDimensionConstraints(selectedProduct);
+  const isFlexibleSeries = !!(selectedProduct?.category?.toLowerCase().includes('flexible') && !selectedProduct?.name?.includes('Cabinet Base'));
+  const hideProcessorTab = !!(isJumbo || isNexa || isDigitalStandee);
+  const useModuleLabel = isJumbo || isModuleGridSeries || isDigitalStandee || isFlexibleSeries || isNexa;
 
   React.useEffect(() => {
-    if (isJumbo && activeTab === 'processing') setActiveTab('dimensions');
-  }, [isJumbo, activeTab]);
+    if (hideProcessorTab && activeTab === 'processing') setActiveTab('dimensions');
+  }, [hideProcessorTab, activeTab]);
 
-  const displayColumns = isDigitalStandee && !standeeHasConstraints ? 7 : cabinetGrid.columns;
-  const displayRows = isDigitalStandee && !standeeHasConstraints ? 5 : cabinetGrid.rows;
+  const standeeGrid = selectedProduct?.digitalStandeeCabinetGrid;
+  const displayColumns = isDigitalStandee ? (standeeGrid?.columns ?? 2) : cabinetGrid.columns;
+  const displayRows = isDigitalStandee ? (standeeGrid?.rows ?? 11) : cabinetGrid.rows;
 
   if (!selectedProduct) {
     return (
@@ -123,7 +139,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
         </div>
       </div>
 
-      {/* Tabs - hide Processor tab for Jumbo series (controller included in price) */}
+      {/* Tabs - hide Processor tab for Jumbo, Digital Standee, and Nexa series */}
       <div className="border-b border-gray-200">
         <nav className="flex">
           <button 
@@ -136,7 +152,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
           >
             Dimensions
           </button>
-          {!isJumbo && (
+          {!hideProcessorTab && (
             <button 
               onClick={() => setActiveTab('processing')}
               className={`flex-1 py-2 sm:py-3 lg:py-4 px-3 sm:px-4 lg:px-6 text-center text-xs sm:text-sm font-medium ${
@@ -151,12 +167,12 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
         </nav>
       </div>
 
-      {/* Content - for Jumbo only Dimensions is shown (no Processor tab) */}
+      {/* Content - for Jumbo, Digital Standee, and Nexa only Dimensions is shown (no Processor tab) */}
       <div className="flex-1 px-3 sm:px-4 lg:px-6 py-2">
-        {(activeTab === 'dimensions' || isJumbo) ? (
+        {(activeTab === 'dimensions' || hideProcessorTab) ? (
           <div className="space-y-3 sm:space-y-4 lg:space-y-6">
             <div>
-              <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">Screen Size</h3>
+              <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">{isFlexibleSeries ? 'Module Size' : 'Screen Size'}</h3>
               <div className="space-y-2 sm:space-y-3 lg:space-y-4">
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
@@ -166,7 +182,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(Math.max(1, cabinetGrid.columns - 1))}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee && !standeeHasConstraints}
+                      disabled={isDigitalStandee || isNexa}
                     >
                       -
                     </button>
@@ -176,7 +192,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onColumnsChange(cabinetGrid.columns + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee && !standeeHasConstraints}
+                      disabled={isDigitalStandee || isNexa}
                     >
                       +
                     </button>
@@ -191,7 +207,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(Math.max(1, cabinetGrid.rows - 1))}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee && !standeeHasConstraints}
+                      disabled={isDigitalStandee || isNexa}
                     >
                       -
                     </button>
@@ -201,7 +217,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                     <button 
                       onClick={() => onRowsChange(cabinetGrid.rows + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                      disabled={isDigitalStandee && !standeeHasConstraints}
+                      disabled={isDigitalStandee || isNexa}
                     >
                       +
                     </button>
@@ -209,6 +225,63 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Cabinet Size Variation Selector */}
+            {selectedProduct.cabinetVariations && selectedProduct.cabinetVariations.length > 1 && onCabinetSizeChange && (
+              <div className="pt-2 sm:pt-3 border-t border-gray-200">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Cabinet Size</h3>
+                <div className="flex flex-wrap gap-3">
+                  {selectedProduct.cabinetVariations.map((variation: CabinetVariation) => (
+                    <label key={variation.label} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="cabinetSize"
+                        checked={(selectedCabinetSize || selectedProduct.cabinetVariations![0].label) === variation.label}
+                        onChange={() => onCabinetSizeChange(variation.label)}
+                        className="text-black focus:ring-black"
+                      />
+                      <span className="text-xs sm:text-sm">{variation.label} mm</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isNexa && onNexaAddonsChange && (
+              <div className="pt-2 sm:pt-3 border-t border-gray-200">
+                <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Add ons</h3>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={nexaAddons.includes('IR Touch')}
+                      onChange={(e) => {
+                        const newAddons = e.target.checked 
+                          ? [...nexaAddons, 'IR Touch']
+                          : nexaAddons.filter(a => a !== 'IR Touch');
+                        onNexaAddonsChange(newAddons);
+                      }}
+                      className="rounded border-gray-300 text-black focus:ring-black"
+                    />
+                    <span className="text-xs sm:text-sm">IR Touch</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={nexaAddons.includes('Floor Mount Stand')}
+                      onChange={(e) => {
+                        const newAddons = e.target.checked 
+                          ? [...nexaAddons, 'Floor Mount Stand']
+                          : nexaAddons.filter(a => a !== 'Floor Mount Stand');
+                        onNexaAddonsChange(newAddons);
+                      }}
+                      className="rounded border-gray-300 text-black focus:ring-black"
+                    />
+                    <span className="text-xs sm:text-sm">Floor Mount Stand</span>
+                  </label>
+                </div>
+              </div>
+            )}
 
             {isModularSeries && onWireTypeChange && (
               <div className="pt-2 sm:pt-3 border-t border-gray-200">
@@ -274,7 +347,7 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
               <span className="font-semibold text-sm sm:text-base lg:text-lg text-gray-900">Processing</span>
             </div>
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center">
+              <label className="text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center">
                 Selected Processor
               </label>
               {onControllerChange && processorDropdownOptions && processorDropdownOptions.length > 0 ? (

@@ -8,7 +8,7 @@ import Quotation from '../models/Quotation.js';
 import Client from '../models/Client.js';
 import { authenticateToken, generateToken } from '../middleware/auth.js';
 import { validateLogin, validateSetPassword, validateChangePassword } from '../middleware/validation.js';
-import { uploadPdfToS3, getPdfPresignedUrl } from '../utils/s3Service.js';
+import { uploadPdfToS3, uploadDiscountPdfToS3, getPdfPresignedUrl } from '../utils/s3Service.js';
 
 // NOTE: This function is NOT used for displaying prices in the dashboard.
 // The dashboard displays the stored totalPrice directly from the database,
@@ -180,11 +180,6 @@ function getProcessorPrice(processorName, userType = 'End User') {
   try {
     // Processor pricing based on user type
     const processorPrices = {
-      'TB2': {
-        endUser: 35000,
-        reseller: 29800,
-        channel: 31500
-      },
       'TB40': {
         endUser: 35000,
         reseller: 29800,
@@ -367,6 +362,7 @@ router.post('/login', validateLogin, async (req, res) => {
       .lean(); // Use lean() for better performance
 
     if (!user) {
+      console.log(`Login failed for ${email}: User not found.`);
       return res.status(400).json({
         success: false,
         message: 'Invalid email or password'
@@ -376,11 +372,14 @@ router.post('/login', validateLogin, async (req, res) => {
     // Check password using bcrypt directly for better performance
     const isPasswordValid = bcrypt.compareSync(password, user.passwordHash);
     if (!isPasswordValid) {
+      console.log(`Login failed for ${email}: Invalid password. Password length was ${password.length}`);
       return res.status(400).json({
         success: false,
         message: 'Invalid email or password'
       });
     }
+
+    console.log(`Login successful for ${email}`);
 
     // Ensure role is set (default to 'sales' if not set)
     // This handles cases where users were created before role field was added
@@ -958,6 +957,7 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       exactPricingBreakdown,
       originalPricingBreakdown, // Added field
       exactProductSpecs,
+      quotationData,
       pdfPage6HTML,
       createdAt,
       // PDF data (base64 encoded)
@@ -1126,9 +1126,10 @@ router.post('/quotation', authenticateToken, async (req, res) => {
       pdfS3Url: pdfS3Url || null,
       // Store the exact data as JSON for perfect reproduction
       quotationData: {
+        ...(quotationData || {}),
         exactPricingBreakdown,
         exactProductSpecs,
-        config: productDetails?.config || null,
+        config: quotationData?.config || productDetails?.config || null,
         createdAt: createdAt || new Date().toISOString(),
         savedAt: new Date().toISOString()
       }
@@ -1253,11 +1254,15 @@ router.post('/quotation/update', authenticateToken, async (req, res) => {
     if (updateData.pdfBase64) {
       try {
         const pdfBuffer = Buffer.from(updateData.pdfBase64, 'base64');
-        pdfS3Key = await uploadPdfToS3(
-          pdfBuffer,
-          quotationId,
-          quotation.salesUserId.toString()
-        );
+        if (isSuperAdmin) {
+          pdfS3Key = await uploadDiscountPdfToS3(pdfBuffer, quotationId);
+        } else {
+          pdfS3Key = await uploadPdfToS3(
+            pdfBuffer,
+            quotationId,
+            quotation.salesUserId.toString()
+          );
+        }
         pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
       } catch (s3Error) {
         console.error('❌ Error updating PDF in S3:', s3Error);
@@ -1372,14 +1377,15 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
       try {
         const pdfBuffer = Buffer.from(updateData.pdfBase64, 'base64');
 
-        // Upload to S3 (this will overwrite if key is the same)
-        // We use the existing logic to generate/reuse the key
-        // Ideally we keep the same key structure
-        pdfS3Key = await uploadPdfToS3(
-          pdfBuffer,
-          quotationId,
-          quotation.salesUserId.toString()
-        );
+        if (isSuperAdmin) {
+          pdfS3Key = await uploadDiscountPdfToS3(pdfBuffer, quotationId);
+        } else {
+          pdfS3Key = await uploadPdfToS3(
+            pdfBuffer,
+            quotationId,
+            quotation.salesUserId.toString()
+          );
+        }
 
         // Generate new presigned URL
         pdfS3Url = await getPdfPresignedUrl(pdfS3Key, 3600);
@@ -1889,6 +1895,10 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
       totalRevenue += quotation.totalPrice || 0;
 
       customerMap.get(customerKey).quotations.push({
+        projectTitle: quotation.quotationData?.userInfo?.projectTitle ||
+          (quotation.clientId ? (clientsMap.get(quotation.clientId.toString())?.projectTitle || '') : ''),
+        address: quotation.quotationData?.userInfo?.address ||
+          (quotation.clientId ? (clientsMap.get(quotation.clientId.toString())?.location || '') : ''),
         quotationId: quotation.quotationId,
         productName: quotation.productName,
         productDetails: quotation.productDetails,
@@ -2241,4 +2251,3 @@ router.post('/assign', authenticateToken, async (req, res) => {
 });
 
 export default router;
-

@@ -177,18 +177,6 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     try {
       setSelectedQuotation(quotation);
 
-      if (quotation.pdfS3Key || quotation.pdfS3Url) {
-        try {
-
-          const pdfUrlResponse = await salesAPI.getQuotationPdfUrl(quotation.quotationId);
-
-          window.open(pdfUrlResponse.pdfS3Url, '_blank');
-          return;
-        } catch (s3Error) {
-
-        }
-      }
-
       if (quotation.pdfPage6HTML) {
         setPdfHtmlContent(quotation.pdfPage6HTML);
         setIsPdfModalOpen(true);
@@ -255,11 +243,20 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           } : null,
           quotation.quotationId,
           quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
-          quotation.exactPricingBreakdown
+          quotation.exactPricingBreakdown,
+          quotation.quotationData?.wireType,
+          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
         );
 
         setPdfHtmlContent(htmlContent);
         setIsPdfModalOpen(true);
+      } else if (quotation.pdfS3Key || quotation.pdfS3Url) {
+        try {
+          const pdfUrlResponse = await salesAPI.getQuotationPdfUrl(quotation.quotationId);
+          window.open(pdfUrlResponse.pdfS3Url, '_blank');
+        } catch (s3Error) {
+          alert('PDF data not available for this quotation. Please contact support.');
+        }
       } else {
         alert('PDF data not available for this quotation. The quotation may have been created before PDF storage was implemented. Please contact support.');
       }
@@ -278,7 +275,27 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
 
       const productDetails = quotation.productDetails;
       const exactSpecs = quotation.exactProductSpecs;
-      const product = productDetails?.product || productDetails;
+
+      // Look up the full product from products.ts (same as PDF view modal)
+      const productId = productDetails?.productId || (productDetails as any)?.product?.id || productDetails?.id;
+      let product = productId ? products.find(p => p.id === productId) : null;
+      if (!product) {
+        product = (productDetails as any)?.product || productDetails;
+        if (product && !product.id && productId) {
+          product = { ...product, id: productId };
+        }
+      } else {
+        const productFromDetails = (productDetails as any)?.product || productDetails;
+        product = {
+          ...product,
+          ...productFromDetails,
+          price: product.price ?? productFromDetails.price,
+          resellerPrice: product.resellerPrice ?? productFromDetails.resellerPrice,
+          siChannelPrice: product.siChannelPrice ?? productFromDetails.siChannelPrice,
+          prices: product.prices ?? productFromDetails.prices,
+          id: product.id
+        };
+      }
 
       let config = quotation.quotationData?.config;
       if (!config && exactSpecs.displaySize) {
@@ -481,28 +498,20 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     if (!selectedQuotation || !pdfHtmlContent) return;
 
     try {
+      const { generatePdfFromHtml } = await import('../utils/docxGenerator');
+      console.log('[PDF Pricing] SalesDashboard download — from preview HTML');
+      const blob = await generatePdfFromHtml(pdfHtmlContent);
 
-      const html2pdf = (await import('html2pdf.js')).default;
-
-      const element = document.createElement('div');
-      element.innerHTML = pdfHtmlContent;
-      element.style.position = 'absolute';
-      element.style.left = '-9999px';
-      document.body.appendChild(element);
-
-      const opt = {
-        margin: [10, 10, 10, 10],
-        filename: `${selectedQuotation.quotationId}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      await html2pdf().set(opt).from(element).save();
-
-      document.body.removeChild(element);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${selectedQuotation.quotationId}.pdf`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
-
       alert('Failed to download PDF. Please try again.');
     }
   };
@@ -858,7 +867,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                                   {quotation.exactProductSpecs.cabinetGrid.columns}x{quotation.exactProductSpecs.cabinetGrid.rows}
                                 </span>
                               )}
-                              {quotation.exactProductSpecs?.displaySize && (
+                              {quotation.exactProductSpecs?.displaySize && !quotation.exactProductSpecs?.isFixed && (
                                 <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
                                   {quotation.exactProductSpecs.displaySize.width?.toFixed(2)}m x {quotation.exactProductSpecs.displaySize.height?.toFixed(2)}m
                                 </span>
@@ -971,9 +980,11 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             processor={selectedQuotation.productDetails?.processor || selectedQuotation.quotationData?.processor || null}
             userInfo={{
               userType: selectedQuotation.userTypeDisplayName,
-              customerName: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerName || '',
-              customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerEmail || '',
-              customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerPhone || ''
+              fullName: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerName || selectedQuotation.customerName || '',
+              email: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerEmail || selectedQuotation.customerEmail || '',
+              phoneNumber: customers.find(c => c.quotations.some(q => q.quotationId === selectedQuotation.quotationId))?.customerPhone || selectedQuotation.customerPhone || '',
+              projectTitle: selectedQuotation.quotationData?.userInfo?.projectTitle || '',
+              address: selectedQuotation.quotationData?.userInfo?.address || ''
             }}
             salesUser={salesPerson ? {
               _id: salesPerson._id,
@@ -985,6 +996,8 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             quotationId={selectedQuotation.quotationId}
             clientId={selectedQuotation.clientId as string | undefined} // Fix type error here if clientId is object
             exactPricingBreakdown={selectedQuotation.exactPricingBreakdown}
+            wireType={selectedQuotation.quotationData?.wireType}
+            nexaAddons={selectedQuotation.quotationData?.nexaAddons || selectedQuotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)}
           />
         );
       })()}
@@ -1150,4 +1163,3 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     </div>
   );
 };
-

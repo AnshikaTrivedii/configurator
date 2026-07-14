@@ -6,11 +6,6 @@
 
 export const PROCESSOR_PRICES = {
   // Nova Products - Asynchronous
-  'TB2': { 
-    endUser: 35000, 
-    reseller: 29800, 
-    channel: 31500 
-  },
   'TB40': { 
     endUser: 35000, 
     reseller: 29800, 
@@ -89,7 +84,7 @@ export const PROCESSOR_PRICES = {
  * Get processor price based on user type
  */
 export const getProcessorPrice = (processorName, userType) => {
-  // Extract base name (e.g., "Nova TB2" -> "TB2")
+  // Extract base name (e.g., "Nova TB40" -> "TB40")
   const baseName = processorName.replace(/^Nova\s+/i, '').trim();
   const processor = PROCESSOR_PRICES[baseName] || PROCESSOR_PRICES[processorName];
   
@@ -109,4 +104,3 @@ export const getProcessorPrice = (processorName, userType) => {
   
   return price;
 };
-

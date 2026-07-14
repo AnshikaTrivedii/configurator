@@ -30,6 +30,11 @@ export interface PricingCalculationResult {
   installationGST: number;
   installationTotal: number;
 
+  addonsCost: number;
+  addonsGST: number;
+  addonsTotal: number;
+  appliedAddons: { name: string; price: number }[];
+
   grandTotal: number;
 
   userType: string;
@@ -51,19 +56,51 @@ function isJumboSeriesProduct(product: Product): boolean {
 }
 
 /**
+ * Check if product is Digital Standee (controller should be excluded)
+ */
+function isDigitalStandeeProduct(product: Product): boolean {
+  return product.category?.toLowerCase().includes('digital standee') ?? false;
+}
+
+/**
  * Check if product is Modular Series (wire type affects pricing)
  */
 function isModularSeriesProduct(product: Product): boolean {
   return product.category?.toLowerCase().includes('modular') ?? false;
 }
 
+/**
+ * Check if product is fixed (Nexa Series)
+ */
+function isFixedProduct(product: Product): boolean {
+  return product.isFixed === true || product.category?.toLowerCase().includes('nexa') || false;
+}
+
+function isNexaSeriesProduct(product: Product): boolean {
+  return product.category?.toLowerCase().includes('nexa') ||
+    product.name?.toLowerCase().includes('nexa series') ||
+    product.id?.toLowerCase().startsWith('nexa-') ||
+    false;
+}
+
+const NEXA_ADDON_PRICES: Record<string, number> = {
+  'IR Touch': 75000,
+  'Floor Mount Stand': 85000
+};
+
 /** Modular Series pricing by pixel pitch (mm) -> wire type -> End User, SI Channel, Reseller */
 const MODULAR_PRICING: Record<number, { gold: [number, number, number]; copper: [number, number, number] }> = {
-  3.91: { gold: [19800, 17900, 16800], copper: [9900, 9000, 8400] },
-  4.81: { gold: [15100, 13700, 12800], copper: [8400, 7700, 7200] },
-  6.25: { gold: [12200, 11100, 10400], copper: [8300, 7500, 7000] },
-  7.81: { gold: [9900, 9000, 8400], copper: [7400, 6700, 6300] },
-  10.41: { gold: [8000, 7300, 6800], copper: [6600, 6000, 5600] }
+  3.91: { gold: [19810, 18820, 17829], copper: [9900, 9405, 8910] },
+  4.81: { gold: [15130, 14374, 13617], copper: [8450, 8028, 7605] },
+  6.25: { gold: [12200, 11590, 10980], copper: [8260, 7847, 7434] },
+  7.81: { gold: [9920, 9424, 8928], copper: [7380, 7011, 6642] },
+  10.41: { gold: [8010, 7610, 7209], copper: [6580, 6251, 5922] }
+  ,
+  4: { gold: [19210, 18250, 17289], copper: [9570, 9092, 8613] },
+  5: { gold: [14310, 13595, 12879], copper: [8140, 7733, 7326] },
+  6.67: { gold: [11500, 10925, 10350], copper: [8030, 7629, 7227] },
+  8: { gold: [9900, 9405, 8910], copper: [7480, 7106, 6732] },
+  10: { gold: [8370, 7852, 7533], copper: [6810, 6470, 6129] }
 };
 
 function getModularUnitPrice(pixelPitch: number, wireType: 'gold' | 'copper', userType: 'End User' | 'Reseller' | 'Channel'): number | null {
@@ -158,10 +195,14 @@ function calculateQuantity(
     if (product.category?.toLowerCase().includes('rental')) {
 
       return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
+    } else if (product.category?.toLowerCase().includes('digital standee') || isFixedProduct(product)) {
+      return 1;
     } else if (isJumboSeriesProduct(product)) {
       // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
-      const widthInMeters = config.width / 1000;
-      const heightInMeters = config.height / 1000;
+      const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
+      const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
+      const widthInMeters = effectiveWidth / 1000;
+      const heightInMeters = effectiveHeight / 1000;
       const widthInFeet = widthInMeters * METERS_TO_FEET;
       const heightInFeet = heightInMeters * METERS_TO_FEET;
       const quantity = widthInFeet * heightInFeet;
@@ -169,8 +210,10 @@ function calculateQuantity(
       return isNaN(roundedQuantity) || roundedQuantity <= 0 ? 1 : Math.max(0.01, Math.min(roundedQuantity, 10000));
     } else {
 
-      const widthInMeters = config.width / 1000;
-      const heightInMeters = config.height / 1000;
+      const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
+      const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
+      const widthInMeters = effectiveWidth / 1000;
+      const heightInMeters = effectiveHeight / 1000;
       const widthInFeet = widthInMeters * METERS_TO_FEET;
       const heightInFeet = heightInMeters * METERS_TO_FEET;
       const quantity = widthInFeet * heightInFeet;
@@ -251,7 +294,8 @@ export function calculateCentralizedPricing(
     structurePrice: number | null;
     installationPrice: number | null;
   },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): PricingCalculationResult {
   try {
 
@@ -281,14 +325,18 @@ export function calculateCentralizedPricing(
         installationCost: 0,
         installationGST: 0,
         installationTotal: 0,
+        addonsCost: 0,
+        addonsGST: 0,
+        addonsTotal: 0,
+        appliedAddons: [],
         grandTotal: 0,
         userType: pdfUserType,
         productName: product.name,
         processorName: processor || undefined,
         cabinetGrid: cabinetGrid || undefined,
         displaySize: {
-          width: Number((config.width / 1000).toFixed(2)),
-          height: Number((config.height / 1000).toFixed(2))
+          width: Number(((cabinetGrid?.totalWidth ?? config.width) / 1000).toFixed(2)),
+          height: Number(((cabinetGrid?.totalHeight ?? config.height) / 1000).toFixed(2))
         },
         isAvailable: false
       };
@@ -302,7 +350,8 @@ export function calculateCentralizedPricing(
     const productTotal = productSubtotal;
 
     let processorPrice = 0;
-    if (processor && !isJumboSeriesProduct(product)) {
+    // Nexa / fixed products: quotations are product + Nexa add-ons only (controller not billed), same as UI.
+    if (processor && !isJumboSeriesProduct(product) && !isDigitalStandeeProduct(product) && !isFixedProduct(product)) {
       processorPrice = getProcessorPrice(processor, pdfUserType);
     }
 
@@ -310,8 +359,10 @@ export function calculateCentralizedPricing(
     const processorTotal = processorPrice;
 
     const METERS_TO_FEET = 3.2808399;
-    const widthInMeters = config.width / 1000;
-    const heightInMeters = config.height / 1000;
+    const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
+    const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
+    const widthInMeters = effectiveWidth / 1000;
+    const heightInMeters = effectiveHeight / 1000;
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
     const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
@@ -321,8 +372,11 @@ export function calculateCentralizedPricing(
 
     if (customPricing?.enabled && customPricing.structurePrice !== null) {
       structureBasePrice = customPricing.structurePrice;
-    } else if (product.category === 'Module/ Grid Series') {
-      // Module/ Grid Series: structure per ft² — End User & SI/Channel ₹700, Reseller ₹600
+    } else if (product.category?.toLowerCase().includes('transparent')) {
+      // Transparent Series: No structure price
+      structureBasePrice = 0;
+    } else if (product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('flexible')) {
+      // Module/Grid & Flexible Series: structure per ft² — End User & Channel ₹700, Reseller ₹600
       const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
       structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
     } else {
@@ -331,9 +385,18 @@ export function calculateCentralizedPricing(
 
     if (customPricing?.enabled && customPricing.installationPrice !== null) {
       installationBasePrice = customPricing.installationPrice;
+    } else if (product.category?.toLowerCase().includes('transparent')) {
+      // Transparent Series: ₹800 per ft²
+      installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 800);
     } else {
       // Installation: ₹500 per ft² for all user types (End User, SI/Channel, Reseller)
       installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 500);
+    }
+
+    // Digital Standee & Fixed Products: quotations are product-only (no structure / installation add-ons).
+    if (isDigitalStandeeProduct(product) || isFixedProduct(product)) {
+      structureBasePrice = 0;
+      installationBasePrice = 0;
     }
 
     const structureGST = 0;
@@ -342,7 +405,20 @@ export function calculateCentralizedPricing(
     const installationGST = 0;
     const installationTotal = installationBasePrice;
 
-    const grandTotal = Math.round(productTotal + processorTotal + structureTotal + installationTotal);
+    let addonsCost = 0;
+    const appliedAddons: { name: string; price: number }[] = [];
+    if (nexaAddons && nexaAddons.length > 0 && isNexaSeriesProduct(product)) {
+      Object.entries(NEXA_ADDON_PRICES).forEach(([name, price]) => {
+        if (nexaAddons.includes(name)) {
+          addonsCost += price;
+          appliedAddons.push({ name, price });
+        }
+      });
+    }
+    const addonsGST = 0;
+    const addonsTotal = addonsCost;
+
+    const grandTotal = Math.round(productTotal + processorTotal + structureTotal + installationTotal + addonsTotal);
 
     const result: PricingCalculationResult = {
       unitPrice,
@@ -359,14 +435,18 @@ export function calculateCentralizedPricing(
       installationCost: installationBasePrice,
       installationGST,
       installationTotal,
+      addonsCost,
+      addonsGST,
+      addonsTotal,
+      appliedAddons,
       grandTotal,
       userType: pdfUserType,
       productName: product.name,
       processorName: processor || undefined,
       cabinetGrid: cabinetGrid || undefined,
       displaySize: {
-        width: Number((config.width / 1000).toFixed(2)),
-        height: Number((config.height / 1000).toFixed(2))
+        width: Number(((cabinetGrid?.totalWidth ?? config.width) / 1000).toFixed(2)),
+        height: Number(((cabinetGrid?.totalHeight ?? config.height) / 1000).toFixed(2))
       },
       isAvailable: true
     };
@@ -390,6 +470,10 @@ export function calculateCentralizedPricing(
       installationCost: 0,
       installationGST: 0,
       installationTotal: 0,
+      addonsCost: 0,
+      addonsGST: 0,
+      addonsTotal: 0,
+      appliedAddons: [],
       grandTotal: 6254,
       userType: 'End User',
       productName: product.name,
@@ -408,10 +492,11 @@ export function validatePriceConsistency(
   processor: string | null | undefined,
   userType: string,
   config: { width: number; height: number; unit: string },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): { isValid: boolean; calculatedPrice: number; difference: number; message: string } {
   try {
-    const calculatedResult = calculateCentralizedPricing(product, cabinetGrid, processor, userType, config, undefined, wireType);
+    const calculatedResult = calculateCentralizedPricing(product, cabinetGrid, processor, userType, config, undefined, wireType, nexaAddons);
     const calculatedPrice = calculatedResult.grandTotal;
     const difference = Math.abs(storedPrice - calculatedPrice);
     const tolerance = 1; // Allow 1 rupee difference for rounding

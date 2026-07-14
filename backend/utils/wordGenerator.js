@@ -108,6 +108,9 @@ const calculateQuantity = (product, cabinetGrid, config) => {
   if (product.category?.toLowerCase().includes('rental')) {
     return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
   }
+  if (product.category?.toLowerCase().includes('digital standee')) {
+    return 1;
+  }
   
   const isJumboSeries = product.category?.toLowerCase().includes('jumbo') || 
                         product.id?.toLowerCase().startsWith('jumbo-') ||
@@ -400,14 +403,18 @@ const createQuotationContent = (data) => {
   
   const subtotal = Math.round((unitPrice * safeQuantity) * 100) / 100;
   const gstProduct = Math.round((subtotal * 0.18) * 100) / 100;
-  const totalProduct = Math.round((subtotal + gstProduct) * 100) / 100;
+  let totalProduct = Math.round((subtotal + gstProduct) * 100) / 100;
   
   const isJumboSeries = selectedProduct.category?.toLowerCase().includes('jumbo') || 
                         selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
                         selectedProduct.name?.toLowerCase().includes('jumbo series');
-  
+  const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
+  if (isDigitalStandee) {
+    totalProduct = Math.round(unitPrice * 100) / 100;
+  }
+
   let controllerPrice = 0;
-  if (processor && !isJumboSeries) {
+  if (processor && !isJumboSeries && !isDigitalStandee) {
     controllerPrice = getProcessorPrice(processor, userType);
   }
   const gstController = Math.round((controllerPrice * 0.18) * 100) / 100;
@@ -427,20 +434,26 @@ const createQuotationContent = (data) => {
     installationBasePrice = customPricing.installationPrice;
   } else {
     // Structure Price: Module/Grid Series = per ft² (700 or 600), Indoor = ₹4000 per cabinet, Outdoor = ₹2500 per sq.ft
+    // Transparent Series = No structure price
     const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
-    if (selectedProduct.category === 'Module/ Grid Series') {
+    if (selectedProduct.category === 'Transparent Series') {
+      structureBasePrice = 0;
+      installationBasePrice = screenAreaSqFt * 800;
+    } else if (selectedProduct.category === 'Module/ Grid Series') {
       const normalized = normalizeLegacyUserType(userType);
       const structurePerSqFt = normalized === 'Reseller' ? 600 : 700;
       structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
+      installationBasePrice = screenAreaSqFt * 500;
     } else if (normalizedEnv === 'indoor') {
       // Indoor: ₹4000 per cabinet
       const numberOfCabinets = cabinetGrid.columns * cabinetGrid.rows;
       structureBasePrice = numberOfCabinets * 4000;
+      installationBasePrice = screenAreaSqFt * 500;
     } else {
       // Outdoor: ₹2500 per sq.ft
       structureBasePrice = screenAreaSqFt * 2500;
+      installationBasePrice = screenAreaSqFt * 500;
     }
-    installationBasePrice = screenAreaSqFt * 500;
   }
   
   const structureGST = Math.round((structureBasePrice * 0.18) * 100) / 100;
@@ -655,7 +668,7 @@ const createQuotationContent = (data) => {
                 }),
                 new Paragraph({
                   children: [
-                    new TextRun({ text: `${selectedProduct.category === 'Module/ Grid Series' ? 'Module Dimension' : 'Cabinet Dimension'}: ${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height} mm`, size: 20 }),
+                    new TextRun({ text: `${(selectedProduct.category === 'Module/ Grid Series' || (selectedProduct.name || '').toLowerCase().includes('crystal') || (selectedProduct.category || '').toLowerCase().includes('transparent')) ? 'Module Dimension' : isDigitalStandee ? 'Frame Size' : 'Cabinet Dimension'}: ${(selectedProduct.category === 'Module/ Grid Series' || (selectedProduct.name || '').toLowerCase().includes('crystal') || (selectedProduct.category || '').toLowerCase().includes('transparent')) ? `${selectedProduct.moduleDimensions.width} x ${selectedProduct.moduleDimensions.height}` : `${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height}`} mm`, size: 20 }),
                   ],
                   spacing: { after: 80 },
                 }),
@@ -673,7 +686,7 @@ const createQuotationContent = (data) => {
                 }),
                 new Paragraph({
                   children: [
-                    new TextRun({ text: `Resolution: ${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}`, size: 20 }),
+                    new TextRun({ text: `Resolution: ${isDigitalStandee ? `${selectedProduct.resolution.width} x ${selectedProduct.resolution.height}` : `${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}`}`, size: 20 }),
                   ],
                   spacing: { after: 80 },
                 }),
@@ -707,18 +720,18 @@ const createQuotationContent = (data) => {
                 new Paragraph({
                   children: [
                     new TextRun({ 
-                      text: `Quantity: ${selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}`, 
+                      text: `Quantity: ${isDigitalStandee ? '1' : selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}`, 
                       size: 20 
                     }),
                   ],
                   spacing: { after: 80 },
                 }),
-                new Paragraph({
+                ...(!isDigitalStandee ? [new Paragraph({
                   children: [
                     new TextRun({ text: `Subtotal: ₹${formatIndianNumber(subtotal)}`, bold: true, size: 20 }),
                   ],
                   spacing: { after: 80 },
-                }),
+                })] : []),
                 new Paragraph({
                   children: [
                     new TextRun({ text: `GST (18%): ₹${formatIndianNumber(gstProduct)}`, bold: true, color: 'dc3545', size: 20 }),
@@ -750,8 +763,8 @@ const createQuotationContent = (data) => {
 
   children.push(new Paragraph({ text: '', spacing: { after: 240 } }));
 
-  // Section B: Control System (if not Jumbo Series)
-  if (!isJumboSeries && processor) {
+  // Section B: Control System (if not Jumbo Series and not Digital Standee)
+  if (!isJumboSeries && !isDigitalStandee && processor) {
     children.push(
       new Paragraph({
         children: [
@@ -786,7 +799,7 @@ const createQuotationContent = (data) => {
                 }),
                 new Paragraph({
                   children: [
-                    new TextRun({ text: `Controller Model: ${processor || "Nova TB2"}`, size: 18 }),
+                    new TextRun({ text: `Controller Model: ${processor || "Nova TB40"}`, size: 18 }),
                   ],
                   spacing: { after: 60 },
                 }),
@@ -965,7 +978,7 @@ const createQuotationContent = (data) => {
     new Paragraph({
       children: [
         new TextRun({
-          text: isJumboSeries ? '(A + C)' : '(A + B + C)',
+          text: (isJumboSeries || isDigitalStandee) ? '(A + B)' : '(A + B + C)',
           size: 18,
           color: 'ffffff',
         }),

@@ -138,7 +138,7 @@ const getSeriesRecommendation = (pixelPitch: number, environment: 'Indoor' | 'Ou
   });
   
   const series = Array.from(new Set(matchingProducts.map(p => p.category)))
-    .filter(s => s.includes('Rigel') || s.includes('Betel') || s.includes('Bellatrix'));
+    .filter(s => s.includes('Edge Series') || s.includes('Prime Series') || s.includes('Core Series'));
   
   return series;
 };

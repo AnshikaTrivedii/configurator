@@ -10,7 +10,8 @@ interface ProductWithOptionalSize extends Product {
     height: string;
   };
 }
-import { products as productsImport, categories } from '../data/products';
+import { products as productsImport, categories, JUMBO_SERIES_ACTIVE } from '../data/products';
+import { usesModuleSizeInsteadOfCabinetSize } from '../utils/productSeries';
 
 const products: Product[] = Array.isArray(productsImport) ? productsImport : [];
 
@@ -29,7 +30,17 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 }) => {
   const { updateConfig } = useDisplayConfig();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series'>('All');
+  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Indoor' | 'Outdoor' | 'Rental' | 'Jumbo Series' | 'Digital Standee Series' | 'Modular Series' | 'Flexible Series' | 'Nexa Series' | 'Transparent Series'>('All');
+  const [modularRigelVariant, setModularRigelVariant] = useState<'plus' | 'lite' | null>(null);
+  const [flexibleSubType, setFlexibleSubType] = useState<'Module Base' | 'Cabinet Base' | null>(null);
+  const [transparentSubType, setTransparentSubType] = useState<
+    | 'Transparent adhesive infront of glass'
+    | 'Transparent adhesive behind glass'
+    | 'Transparent adhesive rollable film behind glass'
+    | 'Standard Transparent screen (Indoor behind glass version)'
+    | null
+  >(null);
+  const [nexaSubType, setNexaSubType] = useState<'Nexa-S' | 'Nexa-C' | null>(null);
   const [indoorType, setIndoorType] = useState<'All' | 'SMD' | 'COB'>('All');
   const [pendingRentalProduct, setPendingRentalProduct] = useState<ProductWithOptionalSize | null>(null);
   const [rentalOption, setRentalOption] = useState<'cabinet' | 'curve lock' | null>(null);
@@ -52,9 +63,14 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     setSelectedPixelPitch('All');
   }, [viewingDistanceValue, viewingDistanceUnit]);
 
-  // Category row no longer shows Rental Series or Jumbo Series; reset if one was selected
+  // Category row no longer shows Rental Series, Jumbo Series, or Digital Standee Series; reset if one was selected
   useEffect(() => {
-    if (selectedCategory === 'Rental Series' || selectedCategory === 'Jumbo Series') {
+    if (
+      selectedCategory === 'Rental Series' ||
+      selectedCategory === 'Jumbo Series' ||
+      selectedCategory === 'Digital Standee Series' ||
+      selectedCategory === 'Modular Series'
+    ) {
       setSelectedCategory('All');
     }
   }, [selectedCategory]);
@@ -92,6 +108,21 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
   const normalizeEnv = (env: string) => env.trim().toLowerCase();
   const normalizeType = (type: string | undefined) => (type || '').toLowerCase();
+  const getTechnologyForFamily = (product: Product): 'COB' | 'SMD' | null => {
+    const name = (product.name || '').toLowerCase();
+    const ledType = normalizeType(product.ledType);
+    const isNexa = product.isFixed || (product.category || '').toLowerCase().includes('nexa');
+    const isSigmaFamily = name.includes('sigma core') || name.includes('sigma edge') || name.includes('sigma prime');
+    const isAstraFamily = name.includes('astra core') || name.includes('astra edge') || name.includes('astra prime');
+    const isNexaSigma = isNexa && (name.includes('(sigma)') || ledType.includes('cob'));
+    const isNexaAstra = isNexa && (name.includes('(astra)') || ledType.includes('smd'));
+
+    if (isNexaSigma) return 'COB';
+    if (isNexaAstra) return 'SMD';
+    if (isSigmaFamily) return 'COB';
+    if (isAstraFamily) return 'SMD';
+    return null;
+  };
 
   const getProductType = (product: Product) => {
 
@@ -105,8 +136,17 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       if (normalizeType(product.pixelComposition).includes('smd')) return 'SMD';
     }
 
+    // Check product ID — Sigma (COB) and Astra (SMD) embed the type in their IDs
+    if (product.id.toLowerCase().includes('cob')) return 'COB';
+    if (product.id.toLowerCase().includes('smd')) return 'SMD';
+
     if (product.name.toLowerCase().includes('cob')) return 'COB';
     if (product.name.toLowerCase().includes('smd')) return 'SMD';
+
+    // Brand-name fallback: Sigma = COB, Astra = SMD
+    if (product.name.toLowerCase().includes('sigma')) return 'COB';
+    if (product.name.toLowerCase().includes('astra')) return 'SMD';
+
     return undefined;
   };
 
@@ -115,6 +155,40 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
   const isJumboSeries = (product: Product) =>
     product.category && product.category.toLowerCase().includes('jumbo');
+
+  const isDigitalStandeeSeries = (product: Product) =>
+    product.category === 'Digital Standee Series';
+
+  const isModularSeries = (product: Product) =>
+    product.category && product.category.toLowerCase().includes('modular');
+  const matchesRigelVariant = (product: Product) =>
+    modularRigelVariant ? product.rigelVariant === modularRigelVariant : false;
+
+  const isFlexibleSeries = (product: Product) =>
+    product.category && product.category.toLowerCase().includes('flexible');
+
+  const isNexaSeries = (product: Product) =>
+    product.isFixed || (product.category && product.category.toLowerCase().includes('nexa'));
+
+  const isTransparentSeries = (product: Product) =>
+    product.category && product.category.toLowerCase().includes('transparent');
+
+  const matchesTransparentSubType = (product: Product) => {
+    if (!transparentSubType) return true;
+    const id = (product.id || '').toLowerCase();
+    switch (transparentSubType) {
+      case 'Transparent adhesive infront of glass':
+        return id.startsWith('transparent-front-glass');
+      case 'Transparent adhesive behind glass':
+        return id.startsWith('transparent-behind-glass');
+      case 'Transparent adhesive rollable film behind glass':
+        return id.startsWith('transparent-rollable-film');
+      case 'Standard Transparent screen (Indoor behind glass version)':
+        return id.startsWith('transparent-standard');
+      default:
+        return true;
+    }
+  };
 
   const recommendedPixelPitches = useMemo(() => {
     if (!viewingDistanceValue) return [];
@@ -133,18 +207,43 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       tempProducts = tempProducts.filter((p) => isRentalSeries(p));
     } else if (selectedFilter === 'Jumbo Series') {
       tempProducts = tempProducts.filter((p) => isJumboSeries(p));
+    } else if (selectedFilter === 'Digital Standee Series') {
+      tempProducts = tempProducts.filter((p) => isDigitalStandeeSeries(p));
+    } else if (selectedFilter === 'Modular Series') {
+      tempProducts = tempProducts.filter((p) => isModularSeries(p));
+      tempProducts = tempProducts.filter((p) => matchesRigelVariant(p));
+    } else if (selectedFilter === 'Flexible Series') {
+      tempProducts = tempProducts.filter((p) => isFlexibleSeries(p));
+    } else if (selectedFilter === 'Nexa Series') {
+      tempProducts = tempProducts.filter((p) => isNexaSeries(p));
+      if (nexaSubType) {
+        tempProducts = tempProducts.filter((p) => p.category === nexaSubType);
+      }
+    } else if (selectedFilter === 'Transparent Series') {
+      tempProducts = tempProducts.filter((p) => isTransparentSeries(p)).filter(matchesTransparentSubType);
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
       tempProducts = tempProducts.filter((p) => getProductType(p) === indoorType);
+      // SMD → only Astra series: Core, Edge, Prime
+      if (indoorType === 'SMD') {
+        tempProducts = tempProducts.filter((p) =>
+          p.category === 'Core Series' ||
+          p.category === 'Edge Series' ||
+          p.category === 'Prime Series'
+        );
+      }
     }
 
-    tempProducts = tempProducts.filter(
-      (p) => selectedCategory === 'All' || p.category === selectedCategory
-    );
+    // Only apply selectedCategory filter if we're not filtering by nexaSubType
+    if (selectedFilter !== 'Nexa Series' || nexaSubType === null) {
+      tempProducts = tempProducts.filter(
+        (p) => selectedCategory === 'All' || p.category === selectedCategory
+      );
+    }
 
     return Array.from(new Set(tempProducts.map(p => p.pixelPitch))).sort((a, b) => a - b);
-  }, [selectedFilter, indoorType, selectedCategory]);
+  }, [selectedFilter, indoorType, selectedCategory, modularRigelVariant, nexaSubType, flexibleSubType, transparentSubType]);
 
   const filteredProducts = useMemo(() => {
     let filtered = [...products].filter((p) => p.enabled !== false); // Only show enabled products
@@ -157,15 +256,45 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
       filtered = filtered.filter((p) => isRentalSeries(p));
     } else if (selectedFilter === 'Jumbo Series') {
       filtered = filtered.filter((p) => isJumboSeries(p));
+    } else if (selectedFilter === 'Digital Standee Series') {
+      filtered = filtered.filter((p) => isDigitalStandeeSeries(p));
+    } else if (selectedFilter === 'Modular Series') {
+      filtered = filtered.filter((p) => isModularSeries(p));
+      filtered = filtered.filter((p) => matchesRigelVariant(p));
+    } else if (selectedFilter === 'Flexible Series') {
+      filtered = filtered.filter((p) => isFlexibleSeries(p));
+      if (flexibleSubType === 'Cabinet Base') {
+        filtered = filtered.filter((p) => p.name.includes('Cabinet Base'));
+      } else if (flexibleSubType === 'Module Base') {
+        filtered = filtered.filter((p) => !p.name.includes('Cabinet Base'));
+      }
+    } else if (selectedFilter === 'Nexa Series') {
+      filtered = filtered.filter((p) => isNexaSeries(p));
+      if (nexaSubType) {
+        filtered = filtered.filter((p) => p.category === nexaSubType);
+      }
+    } else if (selectedFilter === 'Transparent Series') {
+      filtered = filtered.filter((p) => isTransparentSeries(p)).filter(matchesTransparentSubType);
     }
 
     if (selectedFilter === 'Indoor' && indoorType !== 'All') {
       filtered = filtered.filter((p) => getProductType(p) === indoorType);
+      // SMD → only Astra series: Core, Edge, Prime
+      if (indoorType === 'SMD') {
+        filtered = filtered.filter((p) =>
+          p.category === 'Core Series' ||
+          p.category === 'Edge Series' ||
+          p.category === 'Prime Series'
+        );
+      }
     }
 
-    filtered = filtered.filter(
-      (p) => selectedCategory === 'All' || p.category === selectedCategory
-    );
+    // Only apply selectedCategory filter if we're not filtering by nexaSubType
+    if (selectedFilter !== 'Nexa Series' || nexaSubType === null) {
+      filtered = filtered.filter(
+        (p) => selectedCategory === 'All' || p.category === selectedCategory
+      );
+    }
 
     if (selectedPixelPitch !== 'All') {
       const pitchValue = parseFloat(selectedPixelPitch);
@@ -184,6 +313,10 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     return unique.sort((a, b) => a.pixelPitch - b.pixelPitch);
   }, [
     selectedFilter,
+    flexibleSubType,
+    nexaSubType,
+    modularRigelVariant,
+    transparentSubType,
     indoorType,
     selectedCategory,
     selectedPixelPitch,
@@ -195,6 +328,7 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     if (!isOpen) {
       setPendingRentalProduct(null);
       setRentalOption(null);
+      setModularRigelVariant(null);
     }
   }, [isOpen]);
 
@@ -229,7 +363,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => { 
                   hasEnvironmentInteraction.current = true;
                   setSelectedFilter('All'); 
-                  setIndoorType('All'); 
+                  setIndoorType('All');
+                  setNexaSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'All'
@@ -243,7 +378,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => { 
                   hasEnvironmentInteraction.current = true;
                   setSelectedFilter('Indoor'); 
-                  setIndoorType('All'); 
+                  setIndoorType('All');
+                  setNexaSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Indoor'
@@ -257,7 +393,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => { 
                   hasEnvironmentInteraction.current = true;
                   setSelectedFilter('Outdoor'); 
-                  setIndoorType('All'); 
+                  setIndoorType('All');
+                  setNexaSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Outdoor'
@@ -271,7 +408,8 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 onClick={() => { 
                   hasEnvironmentInteraction.current = true;
                   setSelectedFilter('Rental'); 
-                  setIndoorType('All'); 
+                  setIndoorType('All');
+                  setNexaSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                   selectedFilter === 'Rental'
@@ -281,26 +419,248 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               >
                 Rental
               </button>
+              {JUMBO_SERIES_ACTIVE && (
+                <button
+                  onClick={() => { 
+                    hasEnvironmentInteraction.current = true;
+                    setSelectedFilter('Jumbo Series'); 
+                    setIndoorType('All');
+                    setNexaSubType(null);
+                  }}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    selectedFilter === 'Jumbo Series'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Jumbo Series
+                </button>
+              )}
               <button
-                onClick={() => { 
+                onClick={() => {
                   hasEnvironmentInteraction.current = true;
-                  setSelectedFilter('Jumbo Series'); 
-                  setIndoorType('All'); 
+                  setSelectedFilter('Digital Standee Series');
+                  setIndoorType('All');
+                  setNexaSubType(null);
                 }}
                 className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
-                  selectedFilter === 'Jumbo Series'
+                  selectedFilter === 'Digital Standee Series'
                     ? 'bg-black text-white border-black'
                     : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
                 }`}
               >
-                Jumbo Series
+                Digital Standee Series
+              </button>
+              <button
+                onClick={() => {
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('Modular Series');
+                  setModularRigelVariant(null);
+                  setIndoorType('All');
+                  setNexaSubType(null);
+                }}
+                className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'Modular Series'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                Modular Series
+              </button>
+              <button
+                onClick={() => {
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('Flexible Series');
+                  setFlexibleSubType(null);
+                  setIndoorType('All');
+                  setNexaSubType(null);
+                }}
+                className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'Flexible Series'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                Flexible Series
+              </button>
+              <button
+                onClick={() => {
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('Nexa Series');
+                  setIndoorType('All');
+                  setTransparentSubType(null);
+                  setFlexibleSubType(null);
+                  setModularRigelVariant(null);
+                }}
+                className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'Nexa Series'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                Nexa Series
+              </button>
+              <button
+                onClick={() => {
+                  hasEnvironmentInteraction.current = true;
+                  setSelectedFilter('Transparent Series');
+                  setIndoorType('All');
+                  setFlexibleSubType(null);
+                  setTransparentSubType(null);
+                  setNexaSubType(null);
+                  setSelectedCategory('All');
+                }}
+                className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                  selectedFilter === 'Transparent Series'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                }`}
+              >
+                Transparent Series
               </button>
             </div>
+
+            {/* Transparent Series sub-type filter */}
+            {selectedFilter === 'Transparent Series' && (
+              <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
+                <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Type:</span>
+                <button
+                  onClick={() => setTransparentSubType('Transparent adhesive infront of glass')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    transparentSubType === 'Transparent adhesive infront of glass'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Transparent adhesive infront of glass
+                </button>
+                <button
+                  onClick={() => setTransparentSubType('Transparent adhesive behind glass')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    transparentSubType === 'Transparent adhesive behind glass'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Transparent adhesive behind glass
+                </button>
+                <button
+                  onClick={() => setTransparentSubType('Transparent adhesive rollable film behind glass')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    transparentSubType === 'Transparent adhesive rollable film behind glass'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Transparent adhesive rollable film behind glass
+                </button>
+                <button
+                  onClick={() => setTransparentSubType('Standard Transparent screen (Indoor behind glass version)')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    transparentSubType === 'Standard Transparent screen (Indoor behind glass version)'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Standard Transparent screen (Indoor behind glass version)
+                </button>
+              </div>
+            )}
+
+            {selectedFilter === 'Modular Series' && (
+              <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
+                <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Rigel Variant:</span>
+                <button
+                  onClick={() => setModularRigelVariant('plus')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    modularRigelVariant === 'plus'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Rigel Plus
+                </button>
+                <button
+                  onClick={() => setModularRigelVariant('lite')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    modularRigelVariant === 'lite'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Rigel Lite
+                </button>
+              </div>
+            )}
+
+            {/* Flexible Series sub-type filter */}
+            {selectedFilter === 'Flexible Series' && (
+              <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
+                <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Type:</span>
+                <button
+                  onClick={() => setFlexibleSubType('Module Base')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    flexibleSubType === 'Module Base'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Module Base
+                </button>
+                <button
+                  onClick={() => setFlexibleSubType('Cabinet Base')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    flexibleSubType === 'Cabinet Base'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Cabinet Base
+                </button>
+              </div>
+            )}
+
+            {/* Nexa Series sub-type filter */}
+            {selectedFilter === 'Nexa Series' && (
+              <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
+                <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Category:</span>
+                <button
+                  onClick={() => setNexaSubType(null)}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    nexaSubType === null
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setNexaSubType('Nexa-S')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    nexaSubType === 'Nexa-S'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Nexa-S
+                </button>
+                <button
+                  onClick={() => setNexaSubType('Nexa-C')}
+                  className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
+                    nexaSubType === 'Nexa-C'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'
+                  }`}
+                >
+                  Nexa-C
+                </button>
+              </div>
+            )}
 
             {/* Indoor type filter (SMD/COB) - only show when Indoor is selected */}
             {selectedFilter === 'Indoor' && (
               <div className="flex flex-wrap gap-1 sm:gap-2 lg:gap-4 items-center">
-                <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Type:</span>
+                <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Technology:</span>
                 <button
                   onClick={() => setIndoorType('All')}
                   className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
@@ -477,7 +837,16 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
               All Products
             </button>
             {categories
-              .filter((category) => category !== 'Rental Series' && category !== 'Jumbo Series')
+              .filter((category) =>
+                category !== 'Rental Series' &&
+                category !== 'Jumbo Series' &&
+                category !== 'Digital Standee Series' &&
+                category !== 'Modular Series' &&
+                category !== 'Flexible Series' &&
+                category !== 'Transparent Series' &&
+                category !== 'Nexa-S' &&
+                category !== 'Nexa-C'
+              )
               .map((category) => (
               <button
                 key={category}
@@ -496,7 +865,27 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
 
         {/* Products grid */}
         <div className="p-3 sm:p-4 lg:p-6">
-          {filteredProducts.length === 0 ? (
+          {selectedFilter === 'Modular Series' && modularRigelVariant === null ? (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-4xl mb-4">🧩</div>
+              <div className="text-gray-600 text-base font-medium mb-2">
+                Please select a Rigel variant above
+              </div>
+              <div className="text-gray-400 text-sm">
+                Choose <strong>Rigel Plus</strong> or <strong>Rigel Lite</strong> to view products.
+              </div>
+            </div>
+          ) : selectedFilter === 'Flexible Series' && flexibleSubType === null ? (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-4xl mb-4">🔲</div>
+              <div className="text-gray-600 text-base font-medium mb-2">
+                Please select a type above
+              </div>
+              <div className="text-gray-400 text-sm">
+                Choose <strong>Module Base</strong> or <strong>Cabinet Base</strong> to view products.
+              </div>
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-gray-500 text-lg font-medium mb-2">
                 No products found matching your filters
@@ -512,9 +901,12 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
               {filteredProducts.map((product: ProductWithOptionalSize) => (
+              (() => {
+                const technology = getTechnologyForFamily(product);
+                return (
               <div
                 key={product.id}
-                className={`relative bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
+                className={`relative h-full bg-white border-2 rounded-xl overflow-hidden cursor-pointer transition-all hover:shadow-lg flex flex-col ${
                   selectedProduct?.id === product.id
                     ? 'border-blue-500 shadow-lg'
                     : 'border-gray-200 hover:border-gray-300'
@@ -544,54 +936,90 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
                 </div>
 
                 {/* Product info */}
-                <div className="p-2 sm:p-3 lg:p-4">
+                <div className="p-2 sm:p-3 lg:p-4 flex-1 flex flex-col">
                   <h3 className="font-semibold text-gray-900 text-xs sm:text-sm lg:text-lg mb-1 sm:mb-2">{product.name}</h3>
                   <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">{product.category}</p>
 
-                  <div className="grid grid-cols-2 gap-x-1 sm:gap-x-2 lg:gap-x-4 gap-y-1 sm:gap-y-2 lg:gap-y-3 text-xs sm:text-sm">
+                  <div className="grid grid-cols-2 gap-x-2 sm:gap-x-3 lg:gap-x-4 gap-y-3 text-xs sm:text-sm content-start flex-1">
                     <div>
                       <p className="text-gray-500">Resolution</p>
-                      <p className="font-medium text-gray-800">
+                      <p className="font-semibold text-gray-800 mt-0.5">
                         {product.resolution.width} × {product.resolution.height} px
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-500">Pixel Pitch</p>
-                      <p className="font-medium text-gray-800">{product.pixelPitch} mm</p>
-                      {(() => {
-                        const env = product.environment === 'Indoor' || product.environment === 'Outdoor' ? product.environment : null;
-                        const range = getViewingDistanceRange(product.pixelPitch, env);
-                        return range ? (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Viewing: {range.maxMeters >= 999 ? `${range.minMeters}m+` : `${range.minMeters}-${range.maxMeters}m`} ({range.maxFeet >= 3278 ? `${range.minFeet}ft+` : `${range.minFeet}-${range.maxFeet}ft`})
-                          </p>
-                        ) : null;
-                      })()}
+                      <p className="font-semibold text-gray-800 mt-0.5">{product.pixelPitch} mm</p>
                     </div>
                     <div>
                       <p className="text-gray-500">Brightness</p>
-                      <p className="font-medium text-gray-800">{product.brightness} nits</p>
+                      <p className="font-semibold text-gray-800 mt-0.5">{product.brightness} nits</p>
                     </div>
                     <div>
                       <p className="text-gray-500">Refresh Rate</p>
-                      <p className="font-medium text-gray-800">{product.refreshRate} Hz</p>
+                      <p className="font-semibold text-gray-800 mt-0.5">{product.refreshRate} Hz</p>
                     </div>
-                    <div className="col-span-2">
-                      <p className="text-gray-500">{(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo')) ? 'Module Dimension (W × H)' : 'Cabinet Size (W × H)'}</p>
-                      <p className="font-medium text-gray-800">
-                        {(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo'))
-                          ? `${product.moduleDimensions.width} × ${product.moduleDimensions.height}`
-                          : `${product.cabinetDimensions.width} × ${product.cabinetDimensions.height}`} mm
-                      </p>
-                      {product.sizeInInches && (
-                        <p className="text-gray-500 text-xs mt-1">
+                    <div>
+                      {technology ? (
+                        <>
+                          <p className="text-gray-500">Technology</p>
+                          <p className="font-semibold text-gray-800 mt-0.5">{technology}</p>
+                        </>
+                      ) : (
+                        <div className="invisible select-none" aria-hidden="true">
+                          <p>Technology</p>
+                          <p className="mt-0.5">-</p>
+                        </div>
+                      )}
+                    </div>
+                    {!isNexaSeries(product) && (
+                      <div>
+                        <p className="text-gray-500">
+                          {(product.category === 'Module/ Grid Series' || product.category?.toLowerCase().includes('jumbo'))
+                            ? 'Module Dimension (W × H)'
+                            : product.category === 'Digital Standee Series'
+                              ? 'Cabinet Frame Size (W × H)'
+                              : ((product.category?.toLowerCase().includes('flexible') && !product.name?.includes('Cabinet Base')) || usesModuleSizeInsteadOfCabinetSize(product))
+                                ? 'Module Size (W × H)'
+                                : 'Cabinet Size (W × H)'}
+                        </p>
+                        <p className="font-semibold text-gray-800 mt-0.5">
+                          {(product.category === 'Module/ Grid Series' ||
+                            product.category?.toLowerCase().includes('jumbo') ||
+                            (product.category?.toLowerCase().includes('flexible') && !product.name?.includes('Cabinet Base')) ||
+                            usesModuleSizeInsteadOfCabinetSize(product))
+                            ? `${product.moduleDimensions.width} × ${product.moduleDimensions.height}`
+                            : `${product.cabinetDimensions.width} × ${product.cabinetDimensions.height}`} mm
+                        </p>
+                      </div>
+                    )}
+                    {isNexaSeries(product) && (
+                      <div className="invisible select-none" aria-hidden="true">
+                        <p>Cabinet Size (W × H)</p>
+                        <p className="mt-0.5">-</p>
+                      </div>
+                    )}
+                    {product.sizeInInches && !isNexaSeries(product) && (
+                      <div className="col-span-2">
+                        <p className="text-gray-500 text-xs">
                           {product.sizeInInches.width} × {product.sizeInInches.height} (in)
                         </p>
-                      )}
+                      </div>
+                    )}
+                    <div className="col-span-2 text-xs text-gray-500">
+                      {(() => {
+                        const env = product.environment === 'Indoor' || product.environment === 'Outdoor' ? product.environment : null;
+                        const range = getViewingDistanceRange(product.pixelPitch, env);
+                        return range
+                          ? `Viewing: ${range.maxMeters >= 999 ? `${range.minMeters}m+` : `${range.minMeters}-${range.maxMeters}m`} (${range.maxFeet >= 3278 ? `${range.minFeet}ft+` : `${range.minFeet}-${range.maxFeet}ft`})`
+                          : '';
+                      })()}
                     </div>
                   </div>
                 </div>
               </div>
+                );
+              })()
               ))}
             </div>
           )}

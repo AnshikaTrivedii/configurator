@@ -86,13 +86,18 @@ export const generateConfigurationDocx = async (
     processorPrice?: number;
     processorGst?: number;
     grandTotal?: number;
+    addonsCost?: number;
+    addonsGST?: number;
+    addonsTotal?: number;
+    appliedAddons?: { name: string; price: number }[];
     discount?: {
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
       discountedGrandTotal?: number;
     };
   },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): Promise<Blob> => {
   try {
 
@@ -107,7 +112,8 @@ export const generateConfigurationDocx = async (
       quotationId,
       customPricing,
       exactPricingBreakdown,
-      wireType
+      wireType,
+      nexaAddons
     );
 
     const container = document.createElement('div');
@@ -292,8 +298,13 @@ export const generateConfigurationHtml = (
       discountedProcessorTotal?: number;
       discountedGrandTotal?: number;
     };
+    addonsCost?: number;
+    addonsGST?: number;
+    addonsTotal?: number;
+    appliedAddons?: { name: string; price: number }[];
   },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): string => {
 
   const METERS_TO_FEET = 3.2808399;
@@ -305,11 +316,13 @@ export const generateConfigurationHtml = (
     return meters.toFixed(2);
   };
 
-  const displayedWidth = parseFloat(toDisplayUnit(config.width, config.unit));
-  const displayedHeight = parseFloat(toDisplayUnit(config.height, config.unit));
+  const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
+  const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
+  const displayedWidth = parseFloat(toDisplayUnit(effectiveWidth, config.unit));
+  const displayedHeight = parseFloat(toDisplayUnit(effectiveHeight, config.unit));
   void displayedWidth; void displayedHeight;
 
-  const diagonalMeters = Math.sqrt(Math.pow(config.width / 1000, 2) + Math.pow(config.height / 1000, 2));
+  const diagonalMeters = Math.sqrt(Math.pow(effectiveWidth / 1000, 2) + Math.pow(effectiveHeight / 1000, 2));
   void diagonalMeters;
 
   const avgPowerPerCabinet = selectedProduct.avgPowerConsumption || 91.7;
@@ -367,22 +380,56 @@ export const generateConfigurationHtml = (
     selectedProduct.id?.toLowerCase().startsWith('jumbo-') ||
     selectedProduct.name?.toLowerCase().includes('jumbo series');
 
+  const isDigitalStandee = selectedProduct.category?.toLowerCase().includes('digital standee');
+  const isCrystalSeriesProduct =
+    selectedProduct.name?.toLowerCase().includes('crystal') ||
+    selectedProduct.category?.toLowerCase().includes('transparent');
+  const isFixed = selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa');
+  const isFlexibleSeries = (selectedProduct.category?.toLowerCase().includes('flexible') ||
+    selectedProduct.name?.toLowerCase().includes('flexible series') ||
+    selectedProduct.id?.toLowerCase().startsWith('flexible-') ||
+    false) && !selectedProduct.name?.includes('Cabinet Base');
+  const isStandardTransparent = selectedProduct.id?.startsWith('transparent-standard-') || false;
+  const isNexaSeries = selectedProduct.category?.toLowerCase().includes('nexa') ||
+    selectedProduct.name?.toLowerCase().includes('nexa series') ||
+    selectedProduct.id?.toLowerCase().startsWith('nexa-') ||
+    false;
+  const nexaAddonPrices: Record<string, number> = {
+    'IR Touch': 75000,
+    'Floor Mount Stand': 85000
+  };
+  const selectedNexaAddons = isNexaSeries
+    ? (nexaAddons && nexaAddons.length > 0
+      ? nexaAddons
+      : (exactPricingBreakdown?.appliedAddons || []).map(addon => addon.name))
+        .filter(addon => Object.prototype.hasOwnProperty.call(nexaAddonPrices, addon))
+    : [];
+  const appliedNexaAddons =
+    exactPricingBreakdown?.appliedAddons && exactPricingBreakdown.appliedAddons.length > 0
+      ? exactPricingBreakdown.appliedAddons
+      : selectedNexaAddons.map(name => ({
+          name,
+          price: nexaAddonPrices[name]
+        }));
+
   let quantity: number;
   if (selectedProduct.category?.toLowerCase().includes('rental')) {
 
     quantity = cabinetGrid.columns * cabinetGrid.rows;
+  } else if (isDigitalStandee || isFixed) {
+    quantity = 1;
   } else if (isJumboSeries) {
     // Jumbo: quantity = display area in sq ft (from config dimensions in mm)
-    const widthInMeters = config.width / 1000;
-    const heightInMeters = config.height / 1000;
+    const widthInMeters = effectiveWidth / 1000;
+    const heightInMeters = effectiveHeight / 1000;
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
     const rawQuantity = widthInFeet * heightInFeet;
     quantity = Math.round(rawQuantity * 100) / 100;
   } else {
 
-    const widthInMeters = config.width / 1000;
-    const heightInMeters = config.height / 1000;
+    const widthInMeters = effectiveWidth / 1000;
+    const heightInMeters = effectiveHeight / 1000;
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
     const rawQuantity = widthInFeet * heightInFeet;
@@ -400,15 +447,19 @@ export const generateConfigurationHtml = (
   let subtotal = unitPrice * safeQuantity;
   let gstProduct = 0;
 
-  let controllerPrice = 0;
-  if (processor && !isJumboSeries) {
+  let addonsTotal = exactPricingBreakdown?.addonsTotal ?? 0;
+  if (addonsTotal === 0 && appliedNexaAddons.length > 0) {
+    addonsTotal = appliedNexaAddons.reduce((sum, addon) => sum + addon.price, 0);
+  }
 
+  let controllerPrice = 0;
+  if (processor && !isJumboSeries && !isDigitalStandee && !isFixed) {
     controllerPrice = getProcessorPrice(processor, userInfo?.userType || 'End User');
   }
   let gstController = 0;
 
-  const widthInMeters = config.width / 1000;
-  const heightInMeters = config.height / 1000;
+  const widthInMeters = effectiveWidth / 1000;
+  const heightInMeters = effectiveHeight / 1000;
   const widthInFeet = widthInMeters * METERS_TO_FEET;
   const heightInFeet = heightInMeters * METERS_TO_FEET;
   const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
@@ -423,7 +474,9 @@ export const generateConfigurationHtml = (
     structureBasePrice = exactPricingBreakdown.structureCost;
   } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.structurePrice !== null) {
     structureBasePrice = effectiveCustomPricing.structurePrice;
-  } else if (selectedProduct.category === 'Module/ Grid Series') {
+  } else if (isCrystalSeriesProduct) {
+    structureBasePrice = 0;
+  } else if (selectedProduct.category === 'Module/ Grid Series' || selectedProduct.category?.toLowerCase().includes('flexible')) {
     const pdfUserType = normalizeLegacyUserType(userInfo?.userType);
     const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
     structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
@@ -438,6 +491,8 @@ export const generateConfigurationHtml = (
     installationBasePrice = exactPricingBreakdown.installationCost;
   } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null) {
     installationBasePrice = effectiveCustomPricing.installationPrice;
+  } else if (isCrystalSeriesProduct) {
+    installationBasePrice = Math.round(screenAreaSqFt * 800 * 100) / 100;
   } else {
     installationBasePrice = screenAreaSqFt * 500;
   }
@@ -447,7 +502,7 @@ export const generateConfigurationHtml = (
 
   // Modular Series: pricing depends on wireType. When exactPricingBreakdown isn't provided (common for ad-hoc PDF downloads),
   // use centralized pricing so PDF always matches the app's pricing logic.
-  if (!exactPricingBreakdown && selectedProduct.category?.toLowerCase().includes('modular') && wireType) {
+  if (!exactPricingBreakdown && ((selectedProduct.category?.toLowerCase().includes('modular') && wireType) || isCrystalSeriesProduct)) {
     const normalizedUserType = normalizeLegacyUserType(userInfo?.userType);
     const userTypeForCalc = normalizedUserType === 'Reseller'
       ? 'reseller'
@@ -484,58 +539,54 @@ export const generateConfigurationHtml = (
   }
 
   if (exactPricingBreakdown) {
+    const savedDiscount = exactPricingBreakdown.discount;
 
     if (exactPricingBreakdown.unitPrice !== undefined) unitPrice = exactPricingBreakdown.unitPrice;
+    if (savedDiscount?.discountType === 'led' && savedDiscount.discountAmountPerUnit && savedDiscount.discountAmountPerUnit > 0) {
+      unitPrice = savedDiscount.discountAmountPerUnit;
+    }
+
     if (exactPricingBreakdown.quantity !== undefined) {
       quantity = exactPricingBreakdown.quantity;
-      safeQuantity = quantity; // Update safeQuantity to match
+      safeQuantity = quantity;
     }
 
     if (exactPricingBreakdown.subtotal !== undefined) subtotal = exactPricingBreakdown.subtotal;
-
     if (exactPricingBreakdown.gstAmount !== undefined) gstProduct = exactPricingBreakdown.gstAmount;
 
     if (exactPricingBreakdown.processorPrice !== undefined) controllerPrice = exactPricingBreakdown.processorPrice;
     if (exactPricingBreakdown.processorGst !== undefined) gstController = exactPricingBreakdown.processorGst;
-
-    if (exactPricingBreakdown.discount) {
-
-      const discountedProductTotal = exactPricingBreakdown.discount.discountedProductTotal;
-      const discountedProcessorTotal = exactPricingBreakdown.discount.discountedProcessorTotal;
-      const discountedGrandTotal = exactPricingBreakdown.discount.discountedGrandTotal;
-
-      if (discountedProductTotal !== undefined) {
-        subtotal = discountedProductTotal;
-        gstProduct = 0;
-        totalProduct = discountedProductTotal;
-      } else {
-        totalProduct = subtotal;
-      }
-
-      if (discountedProcessorTotal !== undefined) {
-        controllerPrice = discountedProcessorTotal;
-        gstController = 0;
-        totalController = discountedProcessorTotal;
-      } else {
-        totalController = controllerPrice;
-      }
-
-      grandTotal = discountedGrandTotal || exactPricingBreakdown.grandTotal || 0;
-
-    } else {
-
-      totalProduct = subtotal;
-      totalController = controllerPrice;
-
-      if (exactPricingBreakdown.grandTotal) {
-        grandTotal = exactPricingBreakdown.grandTotal;
-      } else {
-        grandTotal = totalProduct + totalController + structureBasePrice + installationBasePrice;
-      }
+    if (savedDiscount?.discountType === 'controller' && savedDiscount.discountAmountPerUnit && savedDiscount.discountAmountPerUnit > 0) {
+      controllerPrice = savedDiscount.discountAmountPerUnit;
+      gstController = 0;
     }
+
+    totalProduct =
+      savedDiscount?.discountedProductTotal ??
+      (exactPricingBreakdown as { productTotal?: number }).productTotal ??
+      subtotal;
+    totalController =
+      savedDiscount?.discountedProcessorTotal ??
+      (exactPricingBreakdown as { processorTotal?: number }).processorTotal ??
+      controllerPrice;
+    grandTotal =
+      exactPricingBreakdown.grandTotal ??
+      savedDiscount?.discountedGrandTotal ??
+      totalProduct + totalController + structureBasePrice + installationBasePrice + addonsTotal;
 
     totalStructure = exactPricingBreakdown.structureTotal ?? structureBasePrice;
     totalInstallation = exactPricingBreakdown.installationTotal ?? installationBasePrice;
+
+    console.log('[PDF Pricing] generateConfigurationHtml — using saved exactPricingBreakdown', {
+      originalPrice: savedDiscount?.originalProductTotal ?? '(not stored)',
+      overridePrice: savedDiscount?.discountType === 'led' ? savedDiscount.discountAmountPerUnit : undefined,
+      effectiveUnitPrice: unitPrice,
+      controllerOverride: savedDiscount?.discountType === 'controller' ? savedDiscount.discountAmountPerUnit : undefined,
+      effectiveControllerPrice: controllerPrice,
+      totalA: totalProduct,
+      totalB: totalController,
+      grandTotal
+    });
 
   } else {
 
@@ -544,7 +595,7 @@ export const generateConfigurationHtml = (
     totalStructure = structureBasePrice;
     totalInstallation = installationBasePrice;
 
-    grandTotal = totalProduct + totalController + totalStructure + totalInstallation;
+    grandTotal = totalProduct + totalController + totalStructure + totalInstallation + addonsTotal;
   }
 
   const isRentalProduct = selectedProduct.category?.toLowerCase().includes('rental');
@@ -552,6 +603,40 @@ export const generateConfigurationHtml = (
     totalStructure = 0;
     totalInstallation = 0;
     grandTotal = totalProduct + totalController;
+  }
+
+  if (isDigitalStandee || isFixed) {
+    // Digital standee and Fixed products: quotations are product-only (no controller, structure, or installation).
+    controllerPrice = 0;
+    gstController = 0;
+    totalController = 0;
+    totalProduct = subtotal; // subtotal already uses unitPrice * quantity(1)
+    structureBasePrice = 0;
+    installationBasePrice = 0;
+    totalStructure = 0;
+    totalInstallation = 0;
+    // When a saved quotation breakdown exists, keep its grandTotal (matches dashboard totalPrice). Recomputing
+    // product + add-ons here dropped processor for legacy Nexa rows where centralized pricing still added it.
+    if (!exactPricingBreakdown) {
+      grandTotal = totalProduct + addonsTotal;
+    }
+  }
+
+  if (isCrystalSeriesProduct) {
+    structureBasePrice = 0;
+    structureGST = 0;
+    totalStructure = 0;
+    if (exactPricingBreakdown?.installationCost !== undefined) {
+      installationBasePrice = exactPricingBreakdown.installationCost;
+      totalInstallation = exactPricingBreakdown.installationTotal ?? installationBasePrice;
+    } else if (!(effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null)) {
+      installationBasePrice = Math.round(screenAreaSqFt * 800 * 100) / 100;
+      totalInstallation = installationBasePrice;
+    }
+    installationGST = installationBasePrice * 0.18;
+    if (!exactPricingBreakdown?.grandTotal && !exactPricingBreakdown?.discount) {
+      grandTotal = totalProduct + totalController + totalInstallation + addonsTotal;
+    }
   }
 
   const formatIndianNumber = (x: number): string => {
@@ -574,6 +659,21 @@ export const generateConfigurationHtml = (
     x.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const GST_RATE = '18%';
+
+  // Jumbo PDF skips control section B; structure/installation is the second section → label as B not C.
+  const structureInstallationSectionTitle = isCrystalSeriesProduct
+    ? (isJumboSeries ? 'B. INSTALLATION PRICE' : 'C. INSTALLATION PRICE')
+    : (isJumboSeries ? 'B. STRUCTURE AND INSTALLATION PRICE' : 'C. STRUCTURE AND INSTALLATION PRICE');
+
+  // Use the product name, stripping pixel pitch, SMD, Indoor/Outdoor to avoid duplication
+  const environmentLabel = selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1);
+  const productDisplayName = selectedProduct.name || selectedProduct.category || 'LED Display';
+  const seriesName = productDisplayName
+    .replace(/\s+P\d+(\.\d+)?(-\d+(\.\d+)?)?(\s*\(.*\))?/i, '') // Remove pixel pitch (P2.6, P3.91-7.82, etc.) and parenthesized info
+    .replace(/\s+(Indoor|Outdoor)/i, '') // Remove Indoor/Outdoor from name
+    .replace(/\s+SMD/i, '')             // Remove SMD suffix
+    .trim();
+  const seriesEnvironmentValue = `${seriesName}, ${environmentLabel}`;
 
   const html = `
     <!DOCTYPE html>
@@ -838,27 +938,29 @@ export const generateConfigurationHtml = (
                         <div style="flex: 1; display: flex; flex-direction: column;">
                             <div class="quotation-row">
                                 <span class="quotation-label">Series/Environment:</span>
-                                <span class="quotation-value">${selectedProduct.category}, ${selectedProduct.environment.charAt(0).toUpperCase() + selectedProduct.environment.slice(1)}</span>
+                                 <span class="quotation-value">${seriesEnvironmentValue}</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Pixel Pitch:</span>
                                 <span class="quotation-value">P${selectedProduct.pixelPitch}</span>
                             </div>
+                            ${!isFixed ? `
                             <div class="quotation-row">
-                                <span class="quotation-label">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series') ? 'Module Dimension:' : 'Cabinet Dimension:'}</span>
-                                <span class="quotation-value">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series') ? `${selectedProduct.moduleDimensions.width} x ${selectedProduct.moduleDimensions.height}` : `${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height}`} mm</span>
+                                <span class="quotation-label">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series' || (isCrystalSeriesProduct && !isStandardTransparent) || isFlexibleSeries) ? 'Module Dimension:' : isDigitalStandee ? 'Frame Size:' : 'Cabinet Dimension:'}</span>
+                                <span class="quotation-value">${(isJumboSeries || selectedProduct.category === 'Module/ Grid Series' || (isCrystalSeriesProduct && !isStandardTransparent) || isFlexibleSeries) ? `${selectedProduct.moduleDimensions.width} x ${selectedProduct.moduleDimensions.height}` : `${selectedProduct.cabinetDimensions.width} x ${selectedProduct.cabinetDimensions.height}`} mm</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Display Size (m):</span>
-                                <span class="quotation-value">${toDisplayUnit(config.width, 'm')} x ${toDisplayUnit(config.height, 'm')}</span>
+                                <span class="quotation-value">${toDisplayUnit(effectiveWidth, 'm')} x ${toDisplayUnit(effectiveHeight, 'm')}</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Display Size (ft):</span>
-                                <span class="quotation-value">${toDisplayUnit(config.width, 'ft')} x ${toDisplayUnit(config.height, 'ft')}</span>
+                                <span class="quotation-value">${toDisplayUnit(effectiveWidth, 'ft')} x ${toDisplayUnit(effectiveHeight, 'ft')}</span>
                             </div>
+                            ` : ''}
                             <div class="quotation-row">
                                 <span class="quotation-label">Resolution:</span>
-                                <span class="quotation-value">${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}</span>
+                                <span class="quotation-value">${isDigitalStandee ? `${selectedProduct.resolution.width} x ${selectedProduct.resolution.height}` : `${selectedProduct.resolution.width * cabinetGrid.columns} x ${selectedProduct.resolution.height * cabinetGrid.rows}`}</span>
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Matrix:</span>
@@ -876,6 +978,12 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-value">${selectedProduct.rentalOption === 'curve lock' ? 'Curve Lock' : 'Cabinet'}</span>
                             </div>`
                               : ''}
+                            ${appliedNexaAddons.length > 0
+                              ? `<div class="quotation-row">
+                                <span class="quotation-label">Add-ons:</span>
+                                <span class="quotation-value">${appliedNexaAddons.map(addon => addon.name).join(', ')}</span>
+                            </div>`
+                              : ''}
                         </div>
                     </div>
                     
@@ -889,12 +997,12 @@ export const generateConfigurationHtml = (
                             </div>
                             <div class="quotation-row">
                                 <span class="quotation-label">Quantity:</span>
-                                <span class="quotation-value">${selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}</span>
+                                <span class="quotation-value">${(isDigitalStandee || isFixed) ? '1' : selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}</span>
                             </div>
-                            <div class="quotation-row">
+                            ${!isDigitalStandee ? `<div class="quotation-row">
                                 <span class="quotation-label">Subtotal:</span>
                                 <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(subtotal)}</span>
-                            </div>
+                            </div>` : ''}
                             <div class="quotation-row">
                                 <span class="quotation-label">GST</span>
                                 <span class="quotation-value" style="color: #333; font-weight: 700;">${GST_RATE}</span>
@@ -910,7 +1018,7 @@ export const generateConfigurationHtml = (
                 </div>
             </div>
             
-            ${!isJumboSeries ? `
+            ${!isJumboSeries && !isDigitalStandee && !isFixed ? `
             <!-- Section B: Control System - Clean Layout -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 4px 5px; border-radius: 3px; margin: 0 0 3px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 3px 0; font-size: 13px; border-bottom: 2px solid #2563eb; padding-bottom: 2px; font-weight: bold;">
@@ -925,7 +1033,7 @@ export const generateConfigurationHtml = (
                             <div>
                                 <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
                                     <span class="quotation-label" style="font-size: 10px;">Controller Model:</span>
-                                    <span class="quotation-value" style="font-size: 10px;">${processor || "Nova TB2"}</span>
+                                    <span class="quotation-value" style="font-size: 10px;">${processor || "Nova TB40"}</span>
                             </div>
                                 <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
                                     <span class="quotation-label" style="font-size: 10px;">Quantity:</span>
@@ -971,14 +1079,51 @@ export const generateConfigurationHtml = (
             </div>
             ` : ''}
             
-            ${!isRentalProduct ? `<!-- Structure and Installation Price Section (excluded for Rental Series) -->
+            ${!isRentalProduct && !isDigitalStandee && !isFixed ? `<!-- Structure and Installation (excluded for Rental Series, Digital Standee, and Nexa) -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
-                    C. STRUCTURE AND INSTALLATION PRICE
+                    ${structureInstallationSectionTitle}
                 </h2>
                 
+                ${isCrystalSeriesProduct ? `
+                <div class="quotation-grid" style="grid-template-columns: 1fr; gap: 8px; align-items: stretch;">
+                    <div class="quotation-card" style="display: flex; flex-direction: column;">
+                        <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">INSTALLATION COST</h4>
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            <div class="quotation-row">
+                                <span class="quotation-label">Area:</span>
+                                <span class="quotation-value">${screenAreaSqFt.toFixed(2)} Ft²</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Rate:</span>
+                                <span class="quotation-value">₹800 per Ft²</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Base Cost:</span>
+                                <span class="quotation-value" style="font-weight: 700;">${(effectiveCustomPricing?.enabled && installationBasePrice === 0)
+      ? "In Client Scope"
+      : "₹" + formatIndianNumber(installationBasePrice)
+    }</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">GST</span>
+                                <span class="quotation-value" style="color: #333; font-weight: 700;">${GST_RATE}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 4px; display: flex; justify-content: flex-end;">
+                    <div class="quotation-card" style="display: flex; flex-direction: column; padding: 5px 6px; width: 100%; max-width: 50%;">
+                        <div class="quotation-total-row" style="padding: 5px 6px; margin-top: 0; min-height: 35px;">
+                            <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; padding: 3px 2px; border-bottom: none;">
+                                <span style="font-weight: 700; color: #333; font-size: 11px; text-align: left;">INSTALLATION TOTAL:</span>
+                                <span style="color: #333; font-weight: 700; font-size: 11px; text-align: right; white-space: nowrap;">₹${formatTotalWithDecimals(totalInstallation)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : `
                 <div class="quotation-grid" style="grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch;">
-                    <!-- Structure Cost Card -->
                     <div class="quotation-card" style="display: flex; flex-direction: column;">
                         <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">STRUCTURE COST</h4>
                         <div style="flex: 1; display: flex; flex-direction: column;">
@@ -999,8 +1144,6 @@ export const generateConfigurationHtml = (
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Installation Cost Card -->
                     <div class="quotation-card" style="display: flex; flex-direction: column;">
                         <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">INSTALLATION COST</h4>
                         <div style="flex: 1; display: flex; flex-direction: column;">
@@ -1022,8 +1165,6 @@ export const generateConfigurationHtml = (
                         </div>
                     </div>
                 </div>
-                
-                <!-- Combined Total Row for Structure + Installation (positioned at bottom right, aligned with Installation Cost card) -->
                 <div style="margin-top: 4px; display: flex; justify-content: flex-end;">
                     <div class="quotation-card" style="display: flex; flex-direction: column; padding: 5px 6px; width: calc(50% - 4px);">
                         <div class="quotation-total-row" style="padding: 5px 6px; margin-top: 0; min-height: 35px;">
@@ -1034,6 +1175,27 @@ export const generateConfigurationHtml = (
                         </div>
                     </div>
                 </div>
+                `}
+            </div>
+            ` : ''}
+
+            ${appliedNexaAddons.length > 0 ? `
+            <!-- Add on Section for Nexa -->
+            <div class="quotation-section" style="background: rgba(255, 255, 255, 0.96); padding: 5px 6px; border-radius: 3px; margin: 0 0 5px 0; border: 1px solid rgba(233, 236, 239, 0.9);">
+                <h2 style="color: #2563eb; margin: 0 0 5px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
+                    Add on
+                </h2>
+                <div class="quotation-card" style="display: flex; flex-direction: column; padding: 0; overflow: hidden;">
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 5px 8px; background: rgba(37, 99, 235, 0.08); border-bottom: 1px solid rgba(37, 99, 235, 0.18);">
+                        <span style="font-weight: 700; color: #333; font-size: 11px; text-align: left;">Selected Add-on</span>
+                        <span style="font-weight: 700; color: #333; font-size: 11px; text-align: right;">Price</span>
+                    </div>
+                    ${appliedNexaAddons.map(addon => `
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 7px 8px; border-bottom: 1px solid rgba(233, 236, 239, 0.75); background: rgba(255, 255, 255, 0.98);">
+                        <span style="font-weight: 700; color: #333; font-size: 12px; text-align: left;">${addon.name}</span>
+                        <span style="font-weight: 700; color: #333; font-size: 12px; text-align: right; white-space: nowrap;">₹${formatTotalWithDecimals(addon.price)}</span>
+                    </div>`).join('')}
+                </div>
             </div>
             ` : ''}
             
@@ -1041,12 +1203,16 @@ export const generateConfigurationHtml = (
             <!-- Fixed: Reduced width and added left margin to prevent QR code overlap -->
             <div class="quotation-section" style="background: rgba(51, 51, 51, 0.95); color: white; padding: 5px 8px; border-radius: 3px; margin: 3px 0 0 40px; text-align: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); width: calc(100% - 40px); min-height: auto; box-sizing: border-box;">
                 <h2 style="margin: 0 0 2px 0; font-size: 13px; font-weight: bold; line-height: 1.1;">GRAND TOTAL</h2>
-                <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatTotalWithDecimals(grandTotal)}</p>
-                ${!isJumboSeries
+                <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatTotalWithDecimals(grandTotal)} (GST Extra)</p>
+                ${(isDigitalStandee || isFixed)
+  ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A = Product)</p>`
+  : !isJumboSeries
   ? (isRentalProduct
     ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Processor)</p>`
+    : isCrystalSeriesProduct
+    ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Installation)</p>`
     : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Structure + Installation)</p>`)
-  : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + C = Product + Structure + Installation)</p>`}
+  : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Structure + Installation)</p>`}
             </div>
             </div>
         </div>
@@ -1083,7 +1249,7 @@ export const generateConfigurationHtml = (
                         </tr>
                         <tr>
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Bank Account Details</td>
-                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">A/C Holder Name - Atenti Origins Photoelectricity Consort Pvt Ltd.<br/>Branch Name- ICICI Bank. Sector 50, Noida<br/>A/C Number - 628405020381<br/>IFSC Code - ICIC0006284</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">A/C Holder Name - Atenti Origins Photoelectricity Consort Pvt Ltd.<br/>Branch Name- ICICI Bank. Sector 50, Noida<br/>A/C Number - 167105002140<br/>IFSC Code - ICIC0000214</td>
                         </tr>
                         <tr style="background: rgba(248, 249, 250, 0.5);">
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Freight & Insurance</td>
@@ -1135,6 +1301,127 @@ export const generateConfigurationHtml = (
   return html;
 };
 
+/**
+ * Convert quotation HTML (same string shown in preview iframe) into a PDF blob.
+ * Use this for downloads so the file always matches the preview exactly.
+ */
+export const generatePdfFromHtml = async (html: string): Promise<Blob> => {
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-10000px';
+  container.style.top = '0';
+  container.style.width = '210mm';
+  container.style.background = '#ffffff';
+  container.innerHTML = html;
+  document.body.appendChild(container);
+
+  try {
+    const allImages = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
+
+    const imageLoadPromises = allImages.map((img) => {
+      if (img.complete) {
+        return Promise.resolve();
+      }
+
+      return Promise.race([
+        new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        }),
+        new Promise<void>((resolve) => setTimeout(resolve, 5000))
+      ]);
+    });
+
+    try {
+      await Promise.all(imageLoadPromises);
+    } catch {
+      // Continue even if some images fail
+    }
+
+    const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidthMM = 210;
+    const pageHeightMM = 297;
+
+    for (let i = 0; i < pages.length; i++) {
+      const pageEl = pages[i];
+
+      if (i === 0) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      if (pageEl.classList.contains('page-bg') && pageEl.querySelector('.quotation-overlay')) {
+        const overlay = pageEl.querySelector('.quotation-overlay') as HTMLElement;
+        if (overlay) {
+          void overlay.offsetHeight;
+
+          const sections = overlay.querySelectorAll('.quotation-section');
+          let totalContentHeight = 0;
+          sections.forEach((section: Element) => {
+            totalContentHeight += (section as HTMLElement).offsetHeight;
+          });
+
+          const sectionMargin = 8;
+          totalContentHeight += (sections.length - 1) * sectionMargin;
+
+          const availableHeight = overlay.clientHeight;
+
+          if (totalContentHeight > availableHeight) {
+            const scaleFactor = Math.min(0.98, availableHeight / totalContentHeight);
+
+            overlay.style.transform = `scale(${scaleFactor})`;
+            overlay.style.transformOrigin = 'top left';
+
+            const originalWidth = overlay.offsetWidth;
+            const originalHeight = overlay.offsetHeight;
+            overlay.style.width = `${originalWidth / scaleFactor}px`;
+            overlay.style.height = `${originalHeight / scaleFactor}px`;
+          }
+        }
+      }
+
+      let canvas;
+      try {
+        canvas = await html2canvas(pageEl, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          windowWidth: pageEl.offsetWidth,
+          windowHeight: pageEl.offsetHeight,
+          height: pageEl.offsetHeight,
+          width: pageEl.offsetWidth,
+          allowTaint: true,
+          removeContainer: false,
+          foreignObjectRendering: false,
+          imageTimeout: 15000,
+        });
+      } catch (canvasError: any) {
+        throw new Error(`Failed to render page ${i + 1} to canvas: ${canvasError?.message || 'Unknown error'}`);
+      }
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      if (i > 0) pdf.addPage();
+
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'NONE');
+    }
+
+    const blob = pdf.output('blob');
+
+    if (container.parentNode) {
+      document.body.removeChild(container);
+    }
+
+    return blob;
+  } catch (error) {
+    if (container.parentNode) {
+      document.body.removeChild(container);
+    }
+
+    throw new Error(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
 export const generateConfigurationPdf = async (
   config: DisplayConfig,
   selectedProduct: Product,
@@ -1175,7 +1462,8 @@ export const generateConfigurationPdf = async (
       discountAmount?: number;
     };
   },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): Promise<Blob> => {
   const html = generateConfigurationHtml(
     config,
@@ -1188,134 +1476,11 @@ export const generateConfigurationPdf = async (
     quotationId,
     customPricing,
     exactPricingBreakdown,
-    wireType
+    wireType,
+    nexaAddons
   );
 
-  const container = document.createElement('div');
-  container.style.position = 'fixed';
-  container.style.left = '-10000px';
-  container.style.top = '0';
-  container.style.width = '210mm';
-  container.style.background = '#ffffff';
-  container.innerHTML = html;
-  document.body.appendChild(container);
-
-  try {
-
-    const allImages = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
-
-    const imageLoadPromises = allImages.map((img, index) => {
-      if (img.complete) {
-        return Promise.resolve();
-      }
-
-      return Promise.race([
-        new Promise<void>((resolve) => {
-          img.onload = () => {
-
-            resolve();
-          };
-          img.onerror = (error) => {
-
-            resolve();
-          };
-        }),
-        new Promise<void>((resolve) => setTimeout(resolve, 5000)) // Increased to 5 seconds for production
-      ]);
-    });
-
-    try {
-      await Promise.all(imageLoadPromises);
-
-    } catch (imageError) {
-
-    }
-
-    const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidthMM = 210;
-    const pageHeightMM = 297;
-
-    for (let i = 0; i < pages.length; i++) {
-      const pageEl = pages[i];
-
-      if (i === 0) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-
-      if (pageEl.classList.contains('page-bg') && pageEl.querySelector('.quotation-overlay')) {
-        const overlay = pageEl.querySelector('.quotation-overlay') as HTMLElement;
-        if (overlay) {
-
-          void overlay.offsetHeight;
-
-          const sections = overlay.querySelectorAll('.quotation-section');
-          let totalContentHeight = 0;
-          sections.forEach((section: Element) => {
-            totalContentHeight += (section as HTMLElement).offsetHeight;
-          });
-
-          const sectionMargin = 8; // 8px margin between sections
-          totalContentHeight += (sections.length - 1) * sectionMargin;
-
-          const availableHeight = overlay.clientHeight;
-
-          if (totalContentHeight > availableHeight) {
-            const scaleFactor = Math.min(0.98, availableHeight / totalContentHeight);
-
-            overlay.style.transform = `scale(${scaleFactor})`;
-            overlay.style.transformOrigin = 'top left';
-
-            const originalWidth = overlay.offsetWidth;
-            const originalHeight = overlay.offsetHeight;
-            overlay.style.width = `${originalWidth / scaleFactor}px`;
-            overlay.style.height = `${originalHeight / scaleFactor}px`;
-          }
-        }
-      }
-
-      let canvas;
-      try {
-        canvas = await html2canvas(pageEl, {
-          scale: 1.5, // Reduced from 2 for faster processing
-          useCORS: true, // Allow cross-origin images
-          backgroundColor: '#ffffff',
-          logging: false,
-          windowWidth: pageEl.offsetWidth,
-          windowHeight: pageEl.offsetHeight,
-          height: pageEl.offsetHeight,
-          width: pageEl.offsetWidth,
-          allowTaint: true, // Allow tainted canvas for production (needed for some images)
-          removeContainer: false, // Keep container for faster processing
-          foreignObjectRendering: false, // Disable foreign object rendering for better compatibility
-          imageTimeout: 15000, // 15 second timeout for images
-        });
-      } catch (canvasError: any) {
-
-        throw new Error(`Failed to render page ${i + 1} to canvas: ${canvasError?.message || 'Unknown error'}`);
-      }
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.85);
-      if (i > 0) pdf.addPage();
-
-      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'FAST');
-    }
-
-    const blob = pdf.output('blob');
-
-    if (container.parentNode) {
-      document.body.removeChild(container);
-    }
-
-    return blob;
-  } catch (error) {
-
-    if (container.parentNode) {
-      document.body.removeChild(container);
-    }
-
-    throw new Error(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+  return generatePdfFromHtml(html);
 };
 
 /**
@@ -1362,7 +1527,8 @@ export const generateAlternatePdf = async (
       discountAmount?: number;
     };
   },
-  wireType?: 'gold' | 'copper'
+  wireType?: 'gold' | 'copper',
+  nexaAddons?: string[]
 ): Promise<Blob> => {
   const html = generateConfigurationHtml(
     config,
@@ -1375,7 +1541,8 @@ export const generateAlternatePdf = async (
     quotationId,
     customPricing,
     exactPricingBreakdown,
-    wireType
+    wireType,
+    nexaAddons
   );
 
   const container = document.createElement('div');
@@ -1467,7 +1634,7 @@ export const generateAlternatePdf = async (
       let canvas;
       try {
         canvas = await html2canvas(pageEl, {
-          scale: 1.5,
+          scale: 2, // Improved from 1.5 for better quality
           useCORS: true,
           backgroundColor: '#ffffff',
           logging: false,
@@ -1484,10 +1651,10 @@ export const generateAlternatePdf = async (
         throw new Error(`Failed to render page ${pageIndex + 1} to canvas: ${canvasError?.message || 'Unknown error'}`);
       }
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       if (pageIndex !== pagesToInclude[0]) pdf.addPage();
 
-      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'FAST');
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'NONE');
     }
 
     const blob = pdf.output('blob');
@@ -1505,4 +1672,3 @@ export const generateAlternatePdf = async (
     throw new Error(`Failed to generate alternate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
-

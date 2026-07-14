@@ -11,13 +11,15 @@ interface DisplayPreviewProps {
   };
   selectedProduct?: Product;
   cabinetGrid: CabinetGrid;
+  nexaAddons?: string[];
 }
 
 export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   config,
   displayDimensions,
   selectedProduct,
-  cabinetGrid
+  cabinetGrid,
+  nexaAddons = []
 }) => {
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [backgroundVideo, setBackgroundVideo] = useState<string | null>(null);
@@ -60,9 +62,9 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
 
-    const baseWidth = displayDimensions.width;
-    const baseHeight = displayDimensions.height;
-    const aspectRatio = baseWidth / baseHeight;
+    const baseWidth = cabinetGrid?.totalWidth || displayDimensions.width;
+    const baseHeight = cabinetGrid?.totalHeight || displayDimensions.height;
+    const aspectRatio = baseHeight > 0 ? (baseWidth / baseHeight) : 1;
 
     let maxWidth, maxHeight;
     
@@ -242,11 +244,23 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   };
 
   const isJumbo = selectedProduct?.category?.toLowerCase().includes('jumbo') ?? false;
+  const isFlexibleSeries = !!(selectedProduct?.category?.toLowerCase().includes('flexible') && !selectedProduct?.name?.includes('Cabinet Base'));
+  const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
+
+  // Transparent adhesive (front/behind glass) and rollable film products use module-based preview
+  const isTransparentModuleBased = selectedProduct && (() => {
+    const id = (selectedProduct.id || '').toLowerCase();
+    return id.startsWith('transparent-front-glass') ||
+           id.startsWith('transparent-behind-glass') ||
+           id.startsWith('transparent-rollable-film');
+  })();
 
   const useModuleGrid = selectedProduct && (
     selectedProduct.category === 'Module/ Grid Series' ||
     selectedProduct.category?.toLowerCase().includes('digital standee') ||
-    selectedProduct.category?.toLowerCase().includes('jumbo')
+    selectedProduct.category?.toLowerCase().includes('jumbo') ||
+    selectedProduct.category?.toLowerCase().includes('flexible') ||
+    isTransparentModuleBased
   );
 
   /** Jumbo only: one logo centered on the whole screen, no grid lines */
@@ -271,7 +285,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   );
 
   const moduleGrid = useModuleGrid && selectedProduct ? (
-    selectedProduct.category === 'Module/ Grid Series'
+    selectedProduct.category === 'Module/ Grid Series' || selectedProduct.category?.toLowerCase().includes('flexible') || isTransparentModuleBased
       ? { columns: cabinetGrid.columns, rows: cabinetGrid.rows, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
       : selectedProduct.category?.toLowerCase().includes('digital standee')
       ? { columns: cabinetGrid.columns, rows: cabinetGrid.rows, width: selectedProduct.moduleDimensions.width, height: selectedProduct.moduleDimensions.height }
@@ -320,7 +334,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
                   if (parent && !parent.querySelector('.fallback-text')) {
                     const fallback = document.createElement('div');
                     fallback.className = 'fallback-text w-full h-full flex items-center justify-center bg-gray-200 text-gray-600 text-xs text-center p-2';
-                    fallback.textContent = 'LED Cabinet';
+                    fallback.textContent = (selectedProduct?.category?.toLowerCase().includes('flexible') || selectedProduct?.category === 'Module/ Grid Series') ? 'LED Module' : 'LED Cabinet';
                     parent.appendChild(fallback);
                   }
                 }}
@@ -348,8 +362,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     return meters.toFixed(2);
   };
 
-  let previewWidthMM = config.width;
-  let previewHeightMM = config.height;
+  let previewWidthMM = cabinetGrid?.totalWidth || config.width;
+  let previewHeightMM = cabinetGrid?.totalHeight || config.height;
   if (isDigitalStandee && !standeeHasConstraints && selectedProduct?.cabinetDimensions) {
     previewWidthMM = selectedProduct.cabinetDimensions.width;
     previewHeightMM = selectedProduct.cabinetDimensions.height;
@@ -371,270 +385,317 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
       </div>
 
       {/* Display preview container */}
-      <div className="relative flex items-center justify-center w-full">
-        {/* Left measurement */}
-        <div className="flex flex-col items-center mr-1 sm:mr-2 lg:mr-4 flex-shrink-0">
-          <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
-          <span className="text-xs sm:text-sm text-gray-600 font-medium transform -rotate-90 whitespace-nowrap">
-            {toDisplayUnit(previewHeightMM)} {config.unit}
-          </span>
-          <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
-        </div>
-
-        {/* Display screen with cabinet grid or media. Digital standee: wrap in 25mm outer frame. */}
-        {isDigitalStandee ? (
-          <div
-            className="flex items-center justify-center flex-shrink-0 rounded-sm"
-            style={{
-              width: `${previewWidth + 2 * framePxW}px`,
-              height: `${previewHeight + 2 * framePxH}px`,
-              backgroundColor: standeeFrameColor,
-              padding: `${framePxH}px ${framePxW}px`,
-              boxSizing: 'content-box',
-            }}
-            title="25mm outer frame"
-          >
-            <div
-              className={`relative border-2 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-dashed border-gray-400'} shadow-xl overflow-hidden transition-all duration-300 ease-in-out flex items-center justify-center bg-transparent flex-shrink-0`}
-              style={{
-                width: `${previewWidth}px`,
-                height: `${previewHeight}px`,
-                cursor: 'pointer',
-                position: 'relative',
-                backgroundColor: '#000',
-                minWidth: '100px',
-                minHeight: '60px',
-              }}
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-          {/* Render image or video centered and fit to its aspect ratio */}
-          {backgroundType === 'image' && backgroundImage && mediaAspectRatio && (
-            <img
-              src={backgroundImage}
-              alt="Background"
-              style={{
-                width: `${mediaWidth}px`,
-                height: `${mediaHeight}px`,
-                objectFit: 'contain',
-                position: 'absolute',
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                background: 'transparent',
-              }}
-              draggable={false}
-            />
-          )}
-          {backgroundType === 'video' && backgroundVideo && mediaAspectRatio && (
-            <video
-              src={backgroundVideo}
-              style={{
-                width: `${mediaWidth}px`,
-                height: `${mediaHeight}px`,
-                objectFit: 'contain',
-                position: 'absolute',
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                background: 'transparent',
-              }}
-              autoPlay
-              loop
-              muted
-            />
-          )}
-          {/* Background upload interface */}
-          {!backgroundImage && !backgroundVideo && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-1 sm:p-2 lg:p-4 text-center">
-              <svg className="w-6 h-6 sm:w-8 sm:h-8 lg:w-12 lg:h-12 text-gray-400 mb-1 sm:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <p className="text-xs sm:text-sm text-gray-600">Click to upload background image or video</p>
-              <p className="text-xs text-gray-500 mt-1">or drag and drop</p>
-            </div>
-          )}
-          {/* Remove background button */}
-          {(backgroundImage || backgroundVideo) && (
-            <button
-              onClick={removeBackground}
-              className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-1 sm:p-1.5 transition-all duration-200"
-              title="Remove background"
-            >
-              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-          {/* Hidden file input */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            accept="image/*,video/*"
-          />
-          {!(backgroundImage || backgroundVideo) && (isJumbo ? renderJumboPreview() : (useModuleGrid ? renderModuleGrid() : renderCabinetGrid()))}
-          {!(backgroundImage || backgroundVideo) && !selectedProduct?.category?.toLowerCase().includes('jumbo') && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="bg-black bg-opacity-60 text-white p-1 sm:p-2 lg:p-4 rounded-lg backdrop-blur-sm text-center">
-                <h3 className="text-xs sm:text-sm lg:text-lg font-bold mb-1">
-                  {useModuleGrid
-                    ? `${moduleGrid?.columns ?? 0} × ${moduleGrid?.rows ?? 0} Module Grid`
-                    : `${cabinetGrid.columns} × ${cabinetGrid.rows} Grid`}
-                </h3>
-                <p className="text-xs sm:text-sm">
-                  {useModuleGrid ? `${(moduleGrid?.columns ?? 0) * (moduleGrid?.rows ?? 0)} Modules Total` : `${cabinetGrid.columns * cabinetGrid.rows} Cabinets Total`}
-                </p>
-                {selectedProduct && (
-                  <p className="text-xs mt-1 opacity-90">                                   
-                    {useModuleGrid
-                      ? `${selectedProduct.moduleDimensions.width}×${selectedProduct.moduleDimensions.height}mm each`
-                      : `${selectedProduct.cabinetDimensions.width}×${selectedProduct.cabinetDimensions.height}mm each`}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-          {!(backgroundImage || backgroundVideo) && (
-            <>
-              <div className="absolute top-1 left-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-t-2 border-l-2 border-white opacity-60"></div>
-              <div className="absolute top-1 right-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-t-2 border-r-2 border-white opacity-60"></div>
-              <div className="absolute bottom-1 left-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-b-2 border-l-2 border-white opacity-60"></div>
-              <div className="absolute bottom-1 right-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-b-2 border-r-2 border-white opacity-60"></div>
-            </>
-          )}
-            </div>
+      <div className="relative flex flex-col items-center justify-center w-full">
+        <div className="relative flex items-center justify-center w-full">
+          {/* Left measurement */}
+          <div className="flex flex-col items-center mr-1 sm:mr-2 lg:mr-4 flex-shrink-0">
+            <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
+            <span className="text-xs sm:text-sm text-gray-600 font-medium transform -rotate-90 whitespace-nowrap">
+              {toDisplayUnit(previewHeightMM)} {config.unit}
+            </span>
+            <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
           </div>
-        ) : (
-        <div 
-          className={`relative border-2 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-dashed border-gray-400'} shadow-xl overflow-hidden transition-all duration-300 ease-in-out flex items-center justify-center bg-transparent flex-shrink-0`}
-          style={{
-            width: `${previewWidth}px`,
-            height: `${previewHeight}px`,
-            cursor: 'pointer',
-            position: 'relative',
-            backgroundColor: '#000',
-            maxWidth: '100%',
-            maxHeight: '100%',
-            minWidth: '100px',
-            minHeight: '60px',
-          }}
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          {/* Render image or video centered and fit to its aspect ratio */}
-          {backgroundType === 'image' && backgroundImage && mediaAspectRatio && (
-            <img
-              src={backgroundImage}
-              alt="Background"
+
+          {/* Display screen with cabinet grid or media. Digital standee: wrap in 25mm outer frame. */}
+          {isDigitalStandee ? (
+            <div
+              className="flex items-center justify-center flex-shrink-0 rounded-sm"
               style={{
-                width: `${mediaWidth}px`,
-                height: `${mediaHeight}px`,
-                objectFit: 'contain',
-                position: 'absolute',
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                background: 'transparent',
+                width: `${previewWidth + 2 * framePxW}px`,
+                height: `${previewHeight + 2 * framePxH}px`,
+                backgroundColor: standeeFrameColor,
+                padding: `${framePxH}px ${framePxW}px`,
+                boxSizing: 'content-box',
               }}
-              draggable={false}
-            />
-          )}
-          {backgroundType === 'video' && backgroundVideo && mediaAspectRatio && (
-            <video
-              src={backgroundVideo}
-              style={{
-                width: `${mediaWidth}px`,
-                height: `${mediaHeight}px`,
-                objectFit: 'contain',
-                position: 'absolute',
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                background: 'transparent',
-              }}
-              autoPlay
-              loop
-              muted
-            />
-          )}
-          {/* Background upload interface */}
-          {!backgroundImage && !backgroundVideo && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-1 sm:p-2 lg:p-4 text-center">
-              <svg className="w-6 h-6 sm:w-8 sm:h-8 lg:w-12 lg:h-12 text-gray-400 mb-1 sm:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <p className="text-xs sm:text-sm text-gray-600">Click to upload background image or video</p>
-              <p className="text-xs text-gray-500 mt-1">or drag and drop</p>
-            </div>
-          )}
-          {/* Remove background button */}
-          {(backgroundImage || backgroundVideo) && (
-            <button
-              onClick={removeBackground}
-              className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-1 sm:p-1.5 transition-all duration-200"
-              title="Remove background"
+              title="25mm outer frame"
             >
-              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-          {/* Hidden file input */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            accept="image/*,video/*"
-          />
-          {/* Cabinet grid, overlays, and corners only if no background. Jumbo: single centered logo, no grid. */}
-          {!(backgroundImage || backgroundVideo) && (isJumbo ? renderJumboPreview() : (useModuleGrid ? renderModuleGrid() : renderCabinetGrid()))}
-          {!(backgroundImage || backgroundVideo) && !selectedProduct?.category?.toLowerCase().includes('jumbo') && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="bg-black bg-opacity-60 text-white p-1 sm:p-2 lg:p-4 rounded-lg backdrop-blur-sm text-center">
-                <h3 className="text-xs sm:text-sm lg:text-lg font-bold mb-1">
-                  {useModuleGrid
-                    ? `${moduleGrid?.columns ?? 0} × ${moduleGrid?.rows ?? 0} Module Grid`
-                    : `${cabinetGrid.columns} × ${cabinetGrid.rows} Grid`}
+              <div
+                className={`relative border-2 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-dashed border-gray-400'} shadow-xl overflow-hidden transition-all duration-300 ease-in-out flex items-center justify-center bg-transparent flex-shrink-0`}
+                style={{
+                  width: `${previewWidth}px`,
+                  height: `${previewHeight}px`,
+                  cursor: 'pointer',
+                  position: 'relative',
+                  backgroundColor: '#000',
+                  minWidth: '100px',
+                  minHeight: '60px',
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+            {/* Render image or video centered and fit to its aspect ratio */}
+            {backgroundType === 'image' && backgroundImage && mediaAspectRatio && (
+              <img
+                src={backgroundImage}
+                alt="Background"
+                style={{
+                  width: `${mediaWidth}px`,
+                  height: `${mediaHeight}px`,
+                  objectFit: 'contain',
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'transparent',
+                }}
+                draggable={false}
+              />
+            )}
+            {backgroundType === 'video' && backgroundVideo && mediaAspectRatio && (
+              <video
+                src={backgroundVideo}
+                style={{
+                  width: `${mediaWidth}px`,
+                  height: `${mediaHeight}px`,
+                  objectFit: 'contain',
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'transparent',
+                }}
+                autoPlay
+                loop
+                muted
+              />
+            )}
+            {/* Background upload interface */}
+            {!backgroundImage && !backgroundVideo && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-1 sm:p-2 lg:p-4 text-center">
+                <svg className="w-6 h-6 sm:w-8 sm:h-8 lg:w-12 lg:h-12 text-gray-400 mb-1 sm:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p className="text-xs sm:text-sm text-gray-600">Click to upload background image or video</p>
+                <p className="text-xs text-gray-500 mt-1">or drag and drop</p>
+              </div>
+            )}
+            {/* Remove background button */}
+            {(backgroundImage || backgroundVideo) && (
+              <button
+                onClick={removeBackground}
+                className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-1 sm:p-1.5 transition-all duration-200"
+                title="Remove background"
+              >
+                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+            {/* Hidden file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept="image/*,video/*"
+            />
+            {!(backgroundImage || backgroundVideo) && (isJumbo || isTransparentModuleBased ? renderJumboPreview() : (useModuleGrid ? renderModuleGrid() : renderCabinetGrid()))}
+            {!(backgroundImage || backgroundVideo) && !isJumbo && selectedProduct && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <h3 className="text-xs sm:text-sm lg:text-lg font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-center px-2">
+                  {selectedProduct.name}
                 </h3>
-                <p className="text-xs sm:text-sm">
-                  {useModuleGrid ? `${(moduleGrid?.columns ?? 0) * (moduleGrid?.rows ?? 0)} Modules Total` : `${cabinetGrid.columns * cabinetGrid.rows} Cabinets Total`}
-                </p>
-                {selectedProduct && (
-                  <p className="text-xs mt-1 opacity-90">                                   
-                    {useModuleGrid
-                      ? `${selectedProduct.moduleDimensions.width}×${selectedProduct.moduleDimensions.height}mm each`
-                      : `${selectedProduct.cabinetDimensions.width}×${selectedProduct.cabinetDimensions.height}mm each`}
-                  </p>
-                )}
+              </div>
+            )}
+            {!(backgroundImage || backgroundVideo) && (
+              <>
+                <div className="absolute top-1 left-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-t-2 border-l-2 border-white opacity-60"></div>
+                <div className="absolute top-1 right-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-t-2 border-r-2 border-white opacity-60"></div>
+                <div className="absolute bottom-1 left-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-b-2 border-l-2 border-white opacity-60"></div>
+                <div className="absolute bottom-1 right-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-b-2 border-r-2 border-white opacity-60"></div>
+              </>
+            )}
               </div>
             </div>
+          ) : (
+          <div 
+            className={`relative border-2 ${isDragging ? 'border-blue-500 bg-blue-50' : isNexa ? 'border-gray-800' : 'border-dashed border-gray-400'} shadow-xl overflow-hidden transition-all duration-300 ease-in-out flex items-center justify-center bg-transparent flex-shrink-0`}
+            style={{
+              width: `${previewWidth}px`,
+              height: `${previewHeight}px`,
+              cursor: 'pointer',
+              position: 'relative',
+              backgroundColor: '#000',
+              maxWidth: '100%',
+              maxHeight: '100%',
+              minWidth: '100px',
+              minHeight: '60px',
+              borderRadius: isNexa ? '4px' : '0',
+              borderWidth: isNexa ? '4px' : '2px',
+              ...(isFlexibleSeries ? {
+                transform: 'perspective(900px) rotateY(-12deg) rotateX(2deg)',
+                transformOrigin: 'center',
+                transformStyle: 'preserve-3d' as const,
+                borderRadius: '18px',
+                boxShadow: '0 18px 45px rgba(0,0,0,0.35)',
+              } : {}),
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            {/* Flexible Series: visual-only curve/shading (grid math stays rectangular) */}
+            {isFlexibleSeries && (
+              <>
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background:
+                      'radial-gradient(120% 100% at 18% 50%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 22%, rgba(0,0,0,0) 55%), linear-gradient(90deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.22) 100%)',
+                    mixBlendMode: 'overlay',
+                  }}
+                />
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10), inset 0 0 28px rgba(0,0,0,0.55)',
+                    borderRadius: '18px',
+                  }}
+                />
+              </>
+            )}
+            {/* Render image or video centered and fit to its aspect ratio */}
+            {backgroundType === 'image' && backgroundImage && mediaAspectRatio && (
+              <img
+                src={backgroundImage}
+                alt="Background"
+                style={{
+                  width: `${mediaWidth}px`,
+                  height: `${mediaHeight}px`,
+                  objectFit: 'contain',
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'transparent',
+                }}
+                draggable={false}
+              />
+            )}
+            {backgroundType === 'video' && backgroundVideo && mediaAspectRatio && (
+              <video
+                src={backgroundVideo}
+                style={{
+                  width: `${mediaWidth}px`,
+                  height: `${mediaHeight}px`,
+                  objectFit: 'contain',
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'transparent',
+                }}
+                autoPlay
+                loop
+                muted
+              />
+            )}
+            {/* Background upload interface */}
+            {!backgroundImage && !backgroundVideo && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-1 sm:p-2 lg:p-4 text-center">
+                <svg className="w-6 h-6 sm:w-8 sm:h-8 lg:w-12 lg:h-12 text-gray-400 mb-1 sm:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p className="text-xs sm:text-sm text-gray-600">Click to upload background image or video</p>
+                <p className="text-xs text-gray-500 mt-1">or drag and drop</p>
+              </div>
+            )}
+            {/* Remove background button */}
+            {(backgroundImage || backgroundVideo) && (
+              <button
+                onClick={removeBackground}
+                className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-1 sm:p-1.5 transition-all duration-200"
+                title="Remove background"
+              >
+                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+            {/* Hidden file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept="image/*,video/*"
+            />
+            {/* Nexa Series premium screen effect */}
+            {isNexa && !(backgroundImage || backgroundVideo) && (
+              <div 
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 100%)',
+                  boxShadow: 'inset 0 0 40px rgba(0,0,0,0.6)',
+                  zIndex: 5
+                }}
+              />
+            )}
+            {/* Cabinet grid, overlays, and corners only if no background. Jumbo: single centered logo, no grid. */}
+            {!(backgroundImage || backgroundVideo) && (isJumbo || isTransparentModuleBased ? renderJumboPreview() : (useModuleGrid ? (isNexa ? renderJumboPreview() : renderModuleGrid()) : (isNexa ? renderJumboPreview() : renderCabinetGrid())))}
+            {!(backgroundImage || backgroundVideo) && !isJumbo && !isNexa && selectedProduct && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <h3 className="text-sm sm:text-base lg:text-2xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-center px-4">
+                  {selectedProduct.name}
+                </h3>
+              </div>
+            )}
+            {!(backgroundImage || backgroundVideo) && (
+              <>
+                <div className="absolute top-2 left-2 w-2 h-2 sm:w-3 sm:h-3 lg:w-4 lg:h-4 border-t-2 border-l-2 border-white/40"></div>
+                <div className="absolute top-2 right-2 w-2 h-2 sm:w-3 sm:h-3 lg:w-4 lg:h-4 border-t-2 border-r-2 border-white/40"></div>
+                <div className="absolute bottom-2 left-2 w-2 h-2 sm:w-3 sm:h-3 lg:w-4 lg:h-4 border-b-2 border-l-2 border-white/40"></div>
+                <div className="absolute bottom-2 right-2 w-2 h-2 sm:w-3 sm:h-3 lg:w-4 lg:h-4 border-b-2 border-r-2 border-white/40"></div>
+              </>
+            )}
+          </div>
           )}
-          {!(backgroundImage || backgroundVideo) && (
-            <>
-              <div className="absolute top-1 left-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-t-2 border-l-2 border-white opacity-60"></div>
-              <div className="absolute top-1 right-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-t-2 border-r-2 border-white opacity-60"></div>
-              <div className="absolute bottom-1 left-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-b-2 border-l-2 border-white opacity-60"></div>
-              <div className="absolute bottom-1 right-1 w-1 h-1 sm:w-2 sm:h-2 lg:w-3 lg:h-3 border-b-2 border-r-2 border-white opacity-60"></div>
-            </>
-          )}
-        </div>
-        )}
 
-        {/* Right measurement */}
-        <div className="flex flex-col items-center ml-1 sm:ml-2 lg:ml-4 flex-shrink-0">
-          <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
-          <span className="text-xs sm:text-sm text-gray-600 font-medium transform -rotate-90 whitespace-nowrap">
-            {toDisplayUnit(previewHeightMM)} {config.unit}
-          </span>
-          <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
+          {/* Right measurement */}
+          <div className="flex flex-col items-center ml-1 sm:ml-2 lg:ml-4 flex-shrink-0">
+            <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
+            <span className="text-xs sm:text-sm text-gray-600 font-medium transform -rotate-90 whitespace-nowrap">
+              {toDisplayUnit(previewHeightMM)} {config.unit}
+            </span>
+            <div className="w-px bg-gray-300 h-2 sm:h-4 lg:h-8"></div>
+          </div>
         </div>
+
+        {/* Nexa Series Floor Stand */}
+        {isNexa && (
+          <div className="relative flex flex-col items-center w-full mt-[-4px]">
+            {/* The legs/stand support */}
+            <div className="flex justify-between" style={{ width: `${previewWidth * 0.8}px` }}>
+              <div 
+                className="w-2 sm:w-3 lg:w-4 bg-gradient-to-b from-gray-800 to-gray-600 shadow-lg" 
+                style={{ height: `${previewHeight * 0.4}px`, borderRadius: '0 0 4px 4px' }}
+              ></div>
+              <div 
+                className="w-2 sm:w-3 lg:w-4 bg-gradient-to-b from-gray-800 to-gray-600 shadow-lg" 
+                style={{ height: `${previewHeight * 0.4}px`, borderRadius: '0 0 4px 4px' }}
+              ></div>
+            </div>
+            {/* The base/feet */}
+            <div className="flex justify-between mt-[-4px]" style={{ width: `${previewWidth * 0.9}px` }}>
+              <div 
+                className="h-1.5 sm:h-2 lg:h-3 bg-gray-800 rounded-full shadow-xl" 
+                style={{ width: `${previewWidth * 0.15}px` }}
+              ></div>
+              <div 
+                className="h-1.5 sm:h-2 lg:h-3 bg-gray-800 rounded-full shadow-xl" 
+                style={{ width: `${previewWidth * 0.15}px` }}
+              ></div>
+            </div>
+            {/* Optional central beam if it's a single stand or for extra detail */}
+            <div 
+              className="absolute top-0 w-1 sm:w-1.5 lg:w-2 bg-gray-700/30 blur-[1px]" 
+              style={{ height: `${previewHeight * 0.4}px`, zIndex: -1 }}
+            ></div>
+          </div>
+        )}
       </div>
 
       {/* Bottom measurement */}
