@@ -112,7 +112,9 @@ export function buildExactPricingBreakdownForPdf(
   const payload: PdfPricingBreakdown = {
     unitPrice: effectiveUnitPrice,
     quantity: source.quantity,
-    orderQuantity: source.orderQuantity ?? 1,
+    // Leave undefined when the source has no value so the caller's orderQuantity
+    // fallback applies instead of silently forcing a single unit.
+    orderQuantity: source.orderQuantity,
     unitGrandTotal: source.unitGrandTotal,
     subtotal: source.subtotal ?? source.productSubtotal,
     gstAmount: source.gstAmount ?? source.productGST,

@@ -6,6 +6,7 @@ import { generateConfigurationHtml } from '../utils/docxGenerator';
 import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
 import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel } from '../utils/discountCalculator';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
+import { normalizeOrderQuantity } from '../utils/orderQuantity';
 import { Save as SaveIcon } from 'lucide-react';
 
 interface SalesPerson {
@@ -317,7 +318,12 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
           quotation.exactPricingBreakdown,
           quotation.quotationData?.wireType,
-          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
+          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name),
+          normalizeOrderQuantity(
+            (quotation.quotationData as any)?.orderQuantity ??
+            (quotation.exactPricingBreakdown as any)?.orderQuantity ??
+            1
+          )
         );
 
         setPdfHtmlContent(htmlContent);
@@ -363,6 +369,15 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       const exactSpecs = (quotation.exactProductSpecs || {}) as any;
       const product = productDetails?.product || productDetails;
 
+      // Applying a discount rebuilds pricing from saved data, so the configured unit
+      // count has to be recovered here or every total collapses to a single unit.
+      const resolvedOrderQuantity = normalizeOrderQuantity(
+        (quotation.quotationData as any)?.orderQuantity ??
+        (quotation.exactPricingBreakdown as any)?.orderQuantity ??
+        (quotation.originalPricingBreakdown as any)?.orderQuantity ??
+        1
+      );
+
       let config = quotation.quotationData?.config;
 
       if (!config && exactSpecs?.displaySize) {
@@ -390,6 +405,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         finalPricingResult = {
           unitPrice: ob.unitPrice || 0,
           quantity: ob.quantity || 0,
+          orderQuantity: normalizeOrderQuantity((ob as any).orderQuantity ?? resolvedOrderQuantity),
+          unitGrandTotal: (ob as any).unitGrandTotal,
           productSubtotal: ob.productSubtotal || ob.subtotal || 0,
           productGST: 0,
           productTotal: ob.productSubtotal || ob.subtotal || 0,
@@ -435,6 +452,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         finalPricingResult = {
           unitPrice: eb.unitPrice || 0,
           quantity: eb.quantity || 0,
+          orderQuantity: normalizeOrderQuantity(eb.orderQuantity ?? resolvedOrderQuantity),
+          unitGrandTotal: eb.unitGrandTotal,
           productSubtotal: eb.productSubtotal || eb.subtotal || 0,
           productGST: 0,
           productTotal: eb.productSubtotal || eb.subtotal || 0,
@@ -478,7 +497,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           config,
           customPricing,
           quotation.quotationData?.wireType,
-          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
+          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name),
+          resolvedOrderQuantity
         );
 
         if (pricingResult.isAvailable) {
@@ -499,6 +519,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         finalPricingResult = {
           unitPrice: eb.unitPrice || 0,
           quantity: eb.quantity || 0,
+          orderQuantity: normalizeOrderQuantity(eb.orderQuantity ?? resolvedOrderQuantity),
+          unitGrandTotal: eb.unitGrandTotal,
           productSubtotal: eb.productSubtotal || eb.subtotal || 0,
           productGST: 0,
           productTotal: eb.productSubtotal || eb.subtotal || 0,
@@ -609,6 +631,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         newOriginalPricingBreakdown = {
           unitPrice: finalPricingResult.unitPrice,
           quantity: finalPricingResult.quantity,
+          orderQuantity: normalizeOrderQuantity(finalPricingResult.orderQuantity ?? resolvedOrderQuantity),
+          unitGrandTotal: finalPricingResult.unitGrandTotal,
           subtotal: finalPricingResult.productSubtotal,
           gstAmount: finalPricingResult.productGST,
           processorPrice: finalPricingResult.processorPrice,
@@ -673,6 +697,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       const newExactPricingBreakdown = {
         unitPrice: discountedPricing.unitPrice,
         quantity: discountedPricing.quantity,
+        orderQuantity: normalizeOrderQuantity((discountedPricing as any).orderQuantity ?? resolvedOrderQuantity),
+        unitGrandTotal: (discountedPricing as any).unitGrandTotal,
         subtotal: discountedPricing.productSubtotal,
         productSubtotal: discountedPricing.productSubtotal,
         gstAmount: discountedPricing.productGST,
@@ -748,7 +774,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         quotation.quotationData?.customPricing,
         pdfPricingBreakdown,
         quotation.quotationData?.wireType,
-        quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
+        quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name),
+        resolvedOrderQuantity
       );
 
       const { generatePdfFromHtml } = await import('../utils/docxGenerator');
@@ -772,6 +799,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         pdfBase64: pdfBase64,
         quotationData: {
           ...quotation.quotationData,
+          orderQuantity: resolvedOrderQuantity,
           updatedAt: new Date().toISOString(),
           discountApplied: discountedPricing.discountAmount > 0,
           discountInfo: {
