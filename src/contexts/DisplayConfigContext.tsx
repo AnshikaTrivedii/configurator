@@ -22,6 +22,11 @@ export interface DisplayConfigState {
   nexaAddons: string[];
   /** Selected cabinet size variation label (e.g. '960x960', '640x640') for outdoor products */
   selectedCabinetSize: string | null;
+  /**
+   * Number of identical configured displays/units for this configuration.
+   * Distinct from pricing `quantity` (area Ft² / cabinets). Default 1.
+   */
+  orderQuantity: number;
 }
 
 interface DisplayConfigContextType {
@@ -48,7 +53,8 @@ const defaultConfig: DisplayConfigState = {
   selectedProductName: null,
   wireType: 'gold',
   nexaAddons: [],
-  selectedCabinetSize: null
+  selectedCabinetSize: null,
+  orderQuantity: 1
 };
 
 const loadFromStorage = (): DisplayConfigState => {
@@ -61,7 +67,11 @@ const loadFromStorage = (): DisplayConfigState => {
         ...parsed,
         wireType: parsed.wireType === 'copper' ? 'copper' : 'gold',
         nexaAddons: Array.isArray(parsed.nexaAddons) ? parsed.nexaAddons : [],
-        selectedCabinetSize: parsed.selectedCabinetSize ?? null
+        selectedCabinetSize: parsed.selectedCabinetSize ?? null,
+        orderQuantity: (() => {
+          const q = Number(parsed.orderQuantity);
+          return Number.isFinite(q) && q >= 1 ? Math.floor(q) : 1;
+        })()
       };
     }
   } catch (error) {
@@ -92,7 +102,8 @@ const areConfigsEqual = (a: DisplayConfigState, b: DisplayConfigState) => {
     a.selectedProductName === b.selectedProductName &&
     a.wireType === b.wireType &&
     JSON.stringify(a.nexaAddons) === JSON.stringify(b.nexaAddons) &&
-    a.selectedCabinetSize === b.selectedCabinetSize
+    a.selectedCabinetSize === b.selectedCabinetSize &&
+    a.orderQuantity === b.orderQuantity
   );
 };
 

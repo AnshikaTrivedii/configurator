@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { getProcessorPrice } from './processorPrices';
 import { calculateCentralizedPricing } from './centralizedPricing';
+import { normalizeOrderQuantity } from './orderQuantity';
 
 // Processor specifications - matches DisplayConfigurator.tsx
 const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
@@ -277,6 +278,8 @@ export const generateConfigurationHtml = (
   exactPricingBreakdown?: {
     unitPrice?: number;
     quantity?: number;
+    orderQuantity?: number;
+    unitGrandTotal?: number;
     subtotal?: number;
     gstAmount?: number;
     processorPrice?: number;
@@ -294,9 +297,12 @@ export const generateConfigurationHtml = (
       installationPrice: number | null;
     };
     discount?: {
+      discountType?: 'led' | 'controller' | null;
+      discountAmountPerUnit?: number;
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
       discountedGrandTotal?: number;
+      originalProductTotal?: number;
     };
     addonsCost?: number;
     addonsGST?: number;
@@ -304,7 +310,8 @@ export const generateConfigurationHtml = (
     appliedAddons?: { name: string; price: number }[];
   },
   wireType?: 'gold' | 'copper',
-  nexaAddons?: string[]
+  nexaAddons?: string[],
+  orderQuantityInput?: number
 ): string => {
 
   const METERS_TO_FEET = 3.2808399;
@@ -444,7 +451,11 @@ export const generateConfigurationHtml = (
   let grandTotal: number;
 
   let safeQuantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
-  let subtotal = unitPrice * safeQuantity;
+  let orderQuantity = normalizeOrderQuantity(
+    exactPricingBreakdown?.orderQuantity ?? orderQuantityInput ?? 1
+  );
+  let unitGrandTotal = exactPricingBreakdown?.unitGrandTotal;
+  let subtotal = unitPrice * safeQuantity * orderQuantity;
   let gstProduct = 0;
 
   let addonsTotal = exactPricingBreakdown?.addonsTotal ?? 0;
@@ -502,7 +513,7 @@ export const generateConfigurationHtml = (
 
   // Modular Series: pricing depends on wireType. When exactPricingBreakdown isn't provided (common for ad-hoc PDF downloads),
   // use centralized pricing so PDF always matches the app's pricing logic.
-  if (!exactPricingBreakdown && ((selectedProduct.category?.toLowerCase().includes('modular') && wireType) || isCrystalSeriesProduct)) {
+  if (!exactPricingBreakdown && ((selectedProduct.category?.toLowerCase().includes('modular') && wireType) || isCrystalSeriesProduct || orderQuantity > 1)) {
     const normalizedUserType = normalizeLegacyUserType(userInfo?.userType);
     const userTypeForCalc = normalizedUserType === 'Reseller'
       ? 'reseller'
@@ -516,11 +527,15 @@ export const generateConfigurationHtml = (
       userTypeForCalc,
       config as any,
       customPricing,
-      wireType
+      wireType,
+      nexaAddons,
+      orderQuantity
     );
     if (pricingResult.isAvailable) {
       unitPrice = pricingResult.unitPrice;
       safeQuantity = pricingResult.quantity;
+      orderQuantity = pricingResult.orderQuantity;
+      unitGrandTotal = pricingResult.unitGrandTotal;
       subtotal = pricingResult.productSubtotal;
       gstProduct = pricingResult.productGST;
 
@@ -534,12 +549,20 @@ export const generateConfigurationHtml = (
       totalController = pricingResult.processorTotal;
       totalStructure = pricingResult.structureTotal;
       totalInstallation = pricingResult.installationTotal;
+      addonsTotal = pricingResult.addonsTotal;
       grandTotal = pricingResult.grandTotal;
     }
   }
 
   if (exactPricingBreakdown) {
     const savedDiscount = exactPricingBreakdown.discount;
+
+    if (exactPricingBreakdown.orderQuantity !== undefined) {
+      orderQuantity = normalizeOrderQuantity(exactPricingBreakdown.orderQuantity);
+    }
+    if (exactPricingBreakdown.unitGrandTotal !== undefined) {
+      unitGrandTotal = exactPricingBreakdown.unitGrandTotal;
+    }
 
     if (exactPricingBreakdown.unitPrice !== undefined) unitPrice = exactPricingBreakdown.unitPrice;
     if (savedDiscount?.discountType === 'led' && savedDiscount.discountAmountPerUnit && savedDiscount.discountAmountPerUnit > 0) {
@@ -557,7 +580,8 @@ export const generateConfigurationHtml = (
     if (exactPricingBreakdown.processorPrice !== undefined) controllerPrice = exactPricingBreakdown.processorPrice;
     if (exactPricingBreakdown.processorGst !== undefined) gstController = exactPricingBreakdown.processorGst;
     if (savedDiscount?.discountType === 'controller' && savedDiscount.discountAmountPerUnit && savedDiscount.discountAmountPerUnit > 0) {
-      controllerPrice = savedDiscount.discountAmountPerUnit;
+      // Stored override is per-controller unit price; display/total use scaled values from breakdown when present
+      controllerPrice = savedDiscount.discountedProcessorTotal ?? Math.round(savedDiscount.discountAmountPerUnit * orderQuantity * 100) / 100;
       gstController = 0;
     }
 
@@ -569,13 +593,59 @@ export const generateConfigurationHtml = (
       savedDiscount?.discountedProcessorTotal ??
       (exactPricingBreakdown as { processorTotal?: number }).processorTotal ??
       controllerPrice;
+
+    // Structure / installation: prefer explicit totals; otherwise scale per-unit cost by orderQuantity.
+    // Legacy breakdowns may store unscaled structureCost without structureTotal/orderQuantity.
+    if (exactPricingBreakdown.structureTotal !== undefined && exactPricingBreakdown.structureTotal !== null) {
+      totalStructure = exactPricingBreakdown.structureTotal;
+    } else if (exactPricingBreakdown.structureCost !== undefined && exactPricingBreakdown.structureCost !== null) {
+      const savedOrderQty = exactPricingBreakdown.orderQuantity;
+      // If orderQuantity was saved with the breakdown, structureCost is already the scaled total.
+      // If not, structureCost is per-unit (legacy) and must be multiplied.
+      totalStructure = savedOrderQty != null
+        ? exactPricingBreakdown.structureCost
+        : Math.round((exactPricingBreakdown.structureCost * orderQuantity) * 100) / 100;
+    } else {
+      totalStructure = Math.round((structureBasePrice * orderQuantity) * 100) / 100;
+    }
+
+    if (exactPricingBreakdown.installationTotal !== undefined && exactPricingBreakdown.installationTotal !== null) {
+      totalInstallation = exactPricingBreakdown.installationTotal;
+    } else if (exactPricingBreakdown.installationCost !== undefined && exactPricingBreakdown.installationCost !== null) {
+      const savedOrderQty = exactPricingBreakdown.orderQuantity;
+      totalInstallation = savedOrderQty != null
+        ? exactPricingBreakdown.installationCost
+        : Math.round((exactPricingBreakdown.installationCost * orderQuantity) * 100) / 100;
+    } else {
+      totalInstallation = Math.round((installationBasePrice * orderQuantity) * 100) / 100;
+    }
+
+    // Keep displayed "Base Cost" as per-unit for clarity
+    structureBasePrice = orderQuantity > 0
+      ? Math.round((totalStructure / orderQuantity) * 100) / 100
+      : totalStructure;
+    installationBasePrice = orderQuantity > 0
+      ? Math.round((totalInstallation / orderQuantity) * 100) / 100
+      : totalInstallation;
+
     grandTotal =
       exactPricingBreakdown.grandTotal ??
       savedDiscount?.discountedGrandTotal ??
-      totalProduct + totalController + structureBasePrice + installationBasePrice + addonsTotal;
+      Math.round(totalProduct + totalController + totalStructure + totalInstallation + addonsTotal);
 
-    totalStructure = exactPricingBreakdown.structureTotal ?? structureBasePrice;
-    totalInstallation = exactPricingBreakdown.installationTotal ?? installationBasePrice;
+    // If a saved grandTotal predates orderQuantity scaling for structure/installation, recompute when units > 1
+    // and the saved total matches the unscaled structure sum (common preview/save mismatch).
+    if (
+      orderQuantity > 1 &&
+      exactPricingBreakdown.grandTotal != null &&
+      exactPricingBreakdown.structureTotal == null &&
+      exactPricingBreakdown.orderQuantity == null
+    ) {
+      const recomputed = Math.round(totalProduct + totalController + totalStructure + totalInstallation + addonsTotal);
+      if (recomputed !== exactPricingBreakdown.grandTotal) {
+        grandTotal = recomputed;
+      }
+    }
 
     console.log('[PDF Pricing] generateConfigurationHtml — using saved exactPricingBreakdown', {
       originalPrice: savedDiscount?.originalProductTotal ?? '(not stored)',
@@ -583,20 +653,53 @@ export const generateConfigurationHtml = (
       effectiveUnitPrice: unitPrice,
       controllerOverride: savedDiscount?.discountType === 'controller' ? savedDiscount.discountAmountPerUnit : undefined,
       effectiveControllerPrice: controllerPrice,
+      orderQuantity,
+      totalStructure,
+      totalInstallation,
       totalA: totalProduct,
       totalB: totalController,
       grandTotal
     });
 
   } else {
+    // Always finalize structure/installation with orderQuantity (per-unit × units)
+    if (typeof totalStructure !== 'number') {
+      totalStructure = Math.round((structureBasePrice * orderQuantity) * 100) / 100;
+    }
+    if (typeof totalInstallation !== 'number') {
+      totalInstallation = Math.round((installationBasePrice * orderQuantity) * 100) / 100;
+    }
+    if (typeof totalProduct !== 'number') {
+      totalProduct = Math.round((unitPrice * safeQuantity * orderQuantity) * 100) / 100;
+    }
+    if (typeof totalController !== 'number') {
+      totalController = Math.round(controllerPrice * orderQuantity * 100) / 100;
+    }
+    if (orderQuantity > 1 && typeof addonsTotal === 'number' && appliedNexaAddons.length > 0) {
+      // addonsTotal from applied list may still be per-unit when centralized path did not run
+      const perUnitAddons = appliedNexaAddons.reduce((sum, addon) => sum + addon.price, 0);
+      if (Math.abs(addonsTotal - perUnitAddons) < 0.01) {
+        addonsTotal = Math.round((perUnitAddons * orderQuantity) * 100) / 100;
+      }
+    }
+    if (typeof grandTotal !== 'number') {
+      // Convert display base costs back to per-unit if centralized already scaled them into structureBasePrice
+      grandTotal = Math.round(totalProduct + totalController + totalStructure + totalInstallation + addonsTotal);
+    }
 
-    totalProduct = subtotal;
-    totalController = controllerPrice;
-    totalStructure = structureBasePrice;
-    totalInstallation = installationBasePrice;
-
-    grandTotal = totalProduct + totalController + totalStructure + totalInstallation + addonsTotal;
+    // Normalize Base Cost display to per-unit after totals are known
+    if (orderQuantity > 0 && typeof totalStructure === 'number') {
+      structureBasePrice = Math.round((totalStructure / orderQuantity) * 100) / 100;
+    }
+    if (orderQuantity > 0 && typeof totalInstallation === 'number') {
+      installationBasePrice = Math.round((totalInstallation / orderQuantity) * 100) / 100;
+    }
   }
+
+  const controllerUnitPrice = orderQuantity > 0
+    ? Math.round((totalController / orderQuantity) * 100) / 100
+    : totalController;
+  const resolvedUnitGrandTotal = unitGrandTotal ?? Math.round((grandTotal / orderQuantity) * 100) / 100;
 
   const isRentalProduct = selectedProduct.category?.toLowerCase().includes('rental');
   if (isRentalProduct) {
@@ -626,12 +729,25 @@ export const generateConfigurationHtml = (
     structureBasePrice = 0;
     structureGST = 0;
     totalStructure = 0;
-    if (exactPricingBreakdown?.installationCost !== undefined) {
-      installationBasePrice = exactPricingBreakdown.installationCost;
-      totalInstallation = exactPricingBreakdown.installationTotal ?? installationBasePrice;
+    if (exactPricingBreakdown?.installationTotal !== undefined && exactPricingBreakdown.installationTotal !== null) {
+      totalInstallation = exactPricingBreakdown.installationTotal;
+      installationBasePrice = orderQuantity > 0
+        ? Math.round((totalInstallation / orderQuantity) * 100) / 100
+        : totalInstallation;
+    } else if (exactPricingBreakdown?.installationCost !== undefined) {
+      const savedOrderQty = exactPricingBreakdown.orderQuantity;
+      totalInstallation = savedOrderQty != null
+        ? exactPricingBreakdown.installationCost
+        : Math.round((exactPricingBreakdown.installationCost * orderQuantity) * 100) / 100;
+      installationBasePrice = orderQuantity > 0
+        ? Math.round((totalInstallation / orderQuantity) * 100) / 100
+        : totalInstallation;
     } else if (!(effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null)) {
       installationBasePrice = Math.round(screenAreaSqFt * 800 * 100) / 100;
-      totalInstallation = installationBasePrice;
+      totalInstallation = Math.round((installationBasePrice * orderQuantity) * 100) / 100;
+    } else {
+      // custom installation price is per-unit
+      totalInstallation = Math.round((installationBasePrice * orderQuantity) * 100) / 100;
     }
     installationGST = installationBasePrice * 0.18;
     if (!exactPricingBreakdown?.grandTotal && !exactPricingBreakdown?.discount) {
@@ -996,12 +1112,20 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(unitPrice)}</span>
                             </div>
                             <div class="quotation-row">
-                                <span class="quotation-label">Quantity:</span>
+                                <span class="quotation-label">${(isDigitalStandee || isFixed) ? 'Area Qty:' : selectedProduct.category?.toLowerCase().includes('rental') ? 'Cabinets:' : 'Area:'}</span>
                                 <span class="quotation-value">${(isDigitalStandee || isFixed) ? '1' : selectedProduct.category?.toLowerCase().includes('rental') ? Math.round(safeQuantity) + ' Cabinets' : Math.round(safeQuantity * 100) / 100 + ' Ft²'}</span>
                             </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">Quantity (Units):</span>
+                                <span class="quotation-value" style="font-weight: 700;">${orderQuantity}</span>
+                            </div>
+                            ${orderQuantity > 1 ? `<div class="quotation-row">
+                                <span class="quotation-label">Per-Unit Total:</span>
+                                <span class="quotation-value">₹${formatIndianNumber(resolvedUnitGrandTotal)}</span>
+                            </div>` : ''}
                             ${!isDigitalStandee ? `<div class="quotation-row">
                                 <span class="quotation-label">Subtotal:</span>
-                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(subtotal)}</span>
+                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(subtotal)}${orderQuantity > 1 ? ` (× ${orderQuantity})` : ''}</span>
                             </div>` : ''}
                             <div class="quotation-row">
                                 <span class="quotation-label">GST</span>
@@ -1037,7 +1161,7 @@ export const generateConfigurationHtml = (
                             </div>
                                 <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
                                     <span class="quotation-label" style="font-size: 10px;">Quantity:</span>
-                                    <span class="quotation-value" style="font-size: 10px;">1</span>
+                                    <span class="quotation-value" style="font-size: 10px;">${orderQuantity}</span>
                             </div>
                                 <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
                                     <span class="quotation-label" style="font-size: 10px;">UOM:</span>
@@ -1060,7 +1184,7 @@ export const generateConfigurationHtml = (
                             <div>
                                 <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
                                     <span class="quotation-label" style="font-size: 10px;">Unit Price:</span>
-                                    <span class="quotation-value" style="font-size: 10px; font-weight: 700;">₹${formatIndianNumber(controllerPrice)}</span>
+                                    <span class="quotation-value" style="font-size: 10px; font-weight: 700;">₹${formatIndianNumber(controllerUnitPrice)}</span>
                             </div>
                                 <div class="quotation-row" style="padding: 3px 2px; min-height: 14px;">
                                     <span class="quotation-label" style="font-size: 10px;">GST</span>
@@ -1102,7 +1226,7 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-label">Base Cost:</span>
                                 <span class="quotation-value" style="font-weight: 700;">${(effectiveCustomPricing?.enabled && installationBasePrice === 0)
       ? "In Client Scope"
-      : "₹" + formatIndianNumber(installationBasePrice)
+      : "₹" + formatIndianNumber(totalInstallation)
     }</span>
                             </div>
                             <div class="quotation-row">
@@ -1135,7 +1259,7 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-label">Base Cost:</span>
                                 <span class="quotation-value" style="font-weight: 700;">${(effectiveCustomPricing?.enabled && structureBasePrice === 0)
       ? "In Client Scope"
-      : "₹" + formatIndianNumber(structureBasePrice)
+      : "₹" + formatIndianNumber(totalStructure)
     }</span>
                             </div>
                             <div class="quotation-row">
@@ -1155,7 +1279,7 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-label">Base Cost:</span>
                                 <span class="quotation-value" style="font-weight: 700;">${(effectiveCustomPricing?.enabled && installationBasePrice === 0)
       ? "In Client Scope"
-      : "₹" + formatIndianNumber(installationBasePrice)
+      : "₹" + formatIndianNumber(totalInstallation)
     }</span>
                             </div>
                             <div class="quotation-row">
@@ -1463,7 +1587,8 @@ export const generateConfigurationPdf = async (
     };
   },
   wireType?: 'gold' | 'copper',
-  nexaAddons?: string[]
+  nexaAddons?: string[],
+  orderQuantityInput?: number
 ): Promise<Blob> => {
   const html = generateConfigurationHtml(
     config,
@@ -1477,7 +1602,8 @@ export const generateConfigurationPdf = async (
     customPricing,
     exactPricingBreakdown,
     wireType,
-    nexaAddons
+    nexaAddons,
+    orderQuantityInput
   );
 
   return generatePdfFromHtml(html);

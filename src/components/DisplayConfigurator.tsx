@@ -22,6 +22,8 @@ import { isCrystalSeries } from '../utils/productSeries';
 import { SuperUserDashboard } from './SuperUserDashboard';
 import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
+import { useQuotationCart } from '../contexts/QuotationCartContext';
+import { normalizeOrderQuantity } from '../utils/orderQuantity';
 import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } from '../utils/dimensionConstraints';
 import { products } from '../data/products';
 import { hasCabinetVariations, applySelectedCabinetVariation, getDefaultCabinetVariationLabel, getVariationLabelFromDimensions } from '../utils/cabinetVariation';
@@ -67,6 +69,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   onSalesDashboardClose
 }) => {
   const { config: globalConfig, updateDimensions: updateGlobalDimensions, updateConfig } = useDisplayConfig();
+  const { lineItems, addOrMergeLineItem, removeLineItem, updateLineItemQuantity, clearCart } = useQuotationCart();
+  const [cartNotice, setCartNotice] = useState<string | null>(null);
   const wireType = globalConfig.wireType ?? 'gold';
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(
     initialConfig?.selectedProduct || undefined
@@ -284,6 +288,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       if (activeQuotation.quotationData?.customPricing) {
         setCustomPricing(activeQuotation.quotationData.customPricing);
       }
+
+      const restoredOrderQty = normalizeOrderQuantity(
+        (activeQuotation.quotationData as any)?.orderQuantity ??
+        (activeQuotation.exactPricingBreakdown as any)?.orderQuantity ??
+        1
+      );
+      updateConfig({ orderQuantity: restoredOrderQty });
 
       // Restore cabinet size variation if present in quotation data
       const savedProductSpecs = activeQuotation.exactProductSpecs || (activeQuotation as any).product;
@@ -687,7 +698,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         quotationId,
         customPricing.enabled ? customPricing : undefined,
         undefined,
-        globalConfig.nexaAddons
+        selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
+        globalConfig.nexaAddons,
+        globalConfig.orderQuantity
       );
 
       const url = window.URL.createObjectURL(blob);
@@ -787,6 +800,33 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         totalHeight: standeeRows * moduleHeight,
       }
     : cabinetGrid;
+
+  const handleAddToQuotation = () => {
+    if (dimensionInvalid || !effectiveProduct) return;
+    const qty = normalizeOrderQuantity(globalConfig.orderQuantity);
+    const result = addOrMergeLineItem({
+      product: effectiveProduct,
+      config: {
+        width: config.width,
+        height: config.height,
+        aspectRatio: config.aspectRatio,
+        unit: config.unit
+      },
+      cabinetGrid: fixedCabinetGrid,
+      processor: effectiveProcessor || null,
+      mode: selectedMode || null,
+      wireType: effectiveProduct.category?.toLowerCase().includes('modular') ? wireType : undefined,
+      nexaAddons: globalConfig.nexaAddons,
+      selectedCabinetSize: globalConfig.selectedCabinetSize,
+      orderQuantity: qty
+    });
+    setCartNotice(
+      result.merged
+        ? `Merged into existing line — quantity is now ${result.item.orderQuantity}.`
+        : `Added ${effectiveProduct.name} × ${qty} to quotation.`
+    );
+    window.setTimeout(() => setCartNotice(null), 4000);
+  };
 
   const handleColumnsChange = (columns: number) => {
     if (isDigitalStandee) return;
@@ -1327,9 +1367,73 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                 nexaAddons={globalConfig.nexaAddons}
               />
 
+              {cartNotice && (
+                <div className="mt-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+                  {cartNotice}
+                </div>
+              )}
+
+              {lineItems.length > 0 && (
+                <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold text-gray-900">Quotation Items ({lineItems.length})</h4>
+                    <button
+                      type="button"
+                      onClick={() => clearCart()}
+                      className="text-xs font-medium text-red-600 hover:text-red-700"
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                  <ul className="space-y-2">
+                    {lineItems.map((item) => (
+                      <li key={item.id} className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-gray-900">{item.product.name}</p>
+                            <p className="text-gray-600">
+                              {item.cabinetGrid.columns} × {item.cabinetGrid.rows} cabinets
+                              {item.processor ? ` · ${item.processor}` : ''}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs text-gray-500">Qty</label>
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={item.orderQuantity}
+                              onChange={(e) => updateLineItemQuantity(item.id, Number(e.target.value))}
+                              className="w-16 rounded border border-gray-300 px-2 py-1 text-center text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeLineItem(item.id)}
+                              className="text-xs text-red-600 hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {/* Action Buttons */}
               {selectedProduct && (
                 <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+                  {(userRole === 'sales' || userRole === 'partner' || userRole === 'super' || userRole === 'super_admin') && (
+                    <button
+                      onClick={handleAddToQuotation}
+                      disabled={dimensionInvalid}
+                      className={`inline-flex items-center justify-center px-6 py-3 font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors border ${dimensionInvalid ? 'bg-gray-200 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-indigo-700 border-indigo-300 hover:bg-indigo-50'}`}
+                    >
+                      <Package className="w-5 h-5 mr-2" />
+                      Add to Quotation
+                    </button>
+                  )}
                   {/* Normal Users - Only See Quote Button */}
                   {userRole === 'normal' && (
                     <button
@@ -1472,7 +1576,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             customPricing.enabled ? customPricing : undefined,
             undefined,
             selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
-            globalConfig.nexaAddons
+            globalConfig.nexaAddons,
+            globalConfig.orderQuantity
           )}
           customPricing={customPricing.enabled ? customPricing : undefined}
           onDownload={handleDownloadPdf}

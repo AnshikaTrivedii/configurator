@@ -9,6 +9,7 @@ const products: import('../types').Product[] = Array.isArray(productsImport) ? p
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
+import { normalizeOrderQuantity } from '../utils/orderQuantity';
 import {
   buildExactPricingBreakdownForPdf,
   logPdfPricingFromCalculation
@@ -63,7 +64,8 @@ function calculateCorrectTotalPrice(
     installationPrice: number | null;
   },
   wireType?: 'gold' | 'copper',
-  nexaAddons?: string[]
+  nexaAddons?: string[],
+  orderQuantity?: number
 ): number | null {
   try {
 
@@ -75,7 +77,8 @@ function calculateCorrectTotalPrice(
       config,
       customPricing,
       wireType,
-      nexaAddons
+      nexaAddons,
+      orderQuantity
     );
 
     if (!pricingResult.isAvailable) {
@@ -197,6 +200,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   const wireTypeFromContext = globalConfig.wireType ?? 'gold';
   const wireType = propWireType ?? wireTypeFromContext;
   const nexaAddons = propNexaAddons ?? globalConfig.nexaAddons ?? [];
+  const orderQuantity = normalizeOrderQuantity(globalConfig.orderQuantity);
   const selectedNexaAddonsWithPrices = getNexaAddonsWithPrices(selectedProduct, nexaAddons);
   const isModularProduct = (p: any) => p?.category?.toLowerCase().includes('modular');
   const effectiveWireType = (product: any) => (product && isModularProduct(product) ? wireType : undefined);
@@ -453,7 +457,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             config || { width: 2400, height: 1010, unit: 'mm' },
             customPricing,
             effectiveWireType(fullProduct),
-            nexaAddons
+            nexaAddons,
+            orderQuantity
           );
 
           console.log('Pricing result:', {
@@ -475,12 +480,16 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           exactPricingBreakdownForPdf = {
             unitPrice: pricingResult.unitPrice,
             quantity: pricingResult.quantity,
+            orderQuantity: pricingResult.orderQuantity,
+            unitGrandTotal: pricingResult.unitGrandTotal,
             subtotal: pricingResult.productSubtotal,
             gstAmount: pricingResult.productGST,
             processorPrice: pricingResult.processorPrice,
             processorGst: pricingResult.processorGST,
             structureCost: pricingResult.structureCost,
+            structureTotal: pricingResult.structureTotal,
             installationCost: pricingResult.installationCost,
+            installationTotal: pricingResult.installationTotal,
             addonsCost: pricingResult.addonsCost,
             addonsGST: pricingResult.addonsGST,
             addonsTotal: pricingResult.addonsTotal,
@@ -512,7 +521,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           customPricing,
           exactPricingBreakdownForPdf,
           effectiveWireType(fullProduct),
-          nexaAddons
+          nexaAddons,
+          orderQuantity
         );
     };
 
@@ -667,7 +677,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         config || { width: 2400, height: 1010, unit: 'mm' },
         customPricing,
         effectiveWireType(fullProduct),
-        nexaAddons
+        nexaAddons,
+        orderQuantity
       );
 
       if (correctTotalPrice === null) {
@@ -693,7 +704,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         config || { width: 2400, height: 1010, unit: 'mm' },
         customPricing,
         effectiveWireType(fullProduct),
-        nexaAddons
+        nexaAddons,
+        orderQuantity
       );
 
       if (!pricingResult.isAvailable) {
@@ -761,6 +773,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       exactPricingBreakdown: {
         unitPrice: finalPricingResult.unitPrice,
         quantity: finalPricingResult.quantity,
+        orderQuantity: finalPricingResult.orderQuantity ?? orderQuantity,
+        unitGrandTotal: finalPricingResult.unitGrandTotal,
         subtotal: finalPricingResult.subtotal ?? finalPricingResult.productSubtotal,
         gstRate: 18,
         gstAmount: finalPricingResult.gstAmount ?? finalPricingResult.productGST,
@@ -794,6 +808,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           paymentTerms: userInfo?.paymentTerms,
           warranty: userInfo?.warranty
         },
+        orderQuantity: finalPricingResult.orderQuantity ?? orderQuantity,
         customPricing: customPricing?.enabled ? {
           enabled: true,
           structurePrice: customPricing.structurePrice,

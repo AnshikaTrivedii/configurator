@@ -1172,6 +1172,12 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                 <span>{quotation.exactPricingBreakdown.quantity}</span>
                                               </div>
                                               <div className="flex justify-between">
+                                                <span>Units:</span>
+                                                <span>{(quotation.exactPricingBreakdown as any).orderQuantity
+                                                  || (quotation.quotationData as any)?.orderQuantity
+                                                  || 1}</span>
+                                              </div>
+                                              <div className="flex justify-between">
                                                 <span>Subtotal:</span>
                                                 <span>₹{quotation.exactPricingBreakdown.subtotal?.toLocaleString('en-IN')}</span>
                                               </div>

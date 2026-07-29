@@ -14,6 +14,9 @@ import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { isCrystalSeries } from '../utils/productSeries';
 import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
+import { OrderQuantityInput } from './OrderQuantityInput';
+import { normalizeOrderQuantity } from '../utils/orderQuantity';
+import { useQuotationCart } from '../contexts/QuotationCartContext';
 
 interface ProductWithPricing extends Product {
   prices?: {
@@ -67,143 +70,21 @@ function calculateCorrectTotalPrice(
     installationPrice: number | null;
   },
   wireType?: 'gold' | 'copper',
-  nexaAddons?: string[]
+  nexaAddons?: string[],
+  orderQuantity?: number
 ): number {
-  if (isModularSeriesProduct(product) && wireType) {
-    const result = calculateCentralizedPricing(product, cabinetGrid, processor, userType, config, customPricing, wireType, nexaAddons);
-    return result.grandTotal;
-  }
-
-  const METERS_TO_FEET = 3.2808399;
-
-  let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
-  if (userType === 'reseller') {
-    pdfUserType = 'Reseller';
-  } else if (userType === 'siChannel') {
-    pdfUserType = 'Channel';
-  }
-
-  let unitPrice = 0;
-
-  if (product.category?.toLowerCase().includes('rental') && product.prices) {
-    const isCurveLock = product.rentalOption === 'curve lock' || product.rentalOption === 'curveLock';
-    if (pdfUserType === 'Reseller') {
-      unitPrice = product.prices.cabinet.reseller + (isCurveLock && product.prices.curveLock ? product.prices.curveLock.reseller : 0);
-    } else if (pdfUserType === 'Channel') {
-      unitPrice = product.prices.cabinet.siChannel + (isCurveLock && product.prices.curveLock ? product.prices.curveLock.siChannel : 0);
-    } else {
-      unitPrice = product.prices.cabinet.endCustomer + (isCurveLock && product.prices.curveLock ? product.prices.curveLock.endCustomer : 0);
-    }
-  } else {
-
-    if (pdfUserType === 'Reseller' && typeof product.resellerPrice === 'number') {
-      unitPrice = product.resellerPrice;
-    } else if (pdfUserType === 'Channel' && typeof product.siChannelPrice === 'number') {
-      unitPrice = product.siChannelPrice;
-    } else if (typeof product.price === 'number') {
-      unitPrice = product.price;
-    } else if (typeof product.price === 'string') {
-      const parsedPrice = parseFloat(product.price);
-      unitPrice = isNaN(parsedPrice) ? 5300 : parsedPrice;
-    } else {
-      unitPrice = 5300; // Default fallback
-    }
-  }
-
-  let quantity = 0;
-
-  if (product.category?.toLowerCase().includes('rental')) {
-
-    quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-  } else if (product.category?.toLowerCase().includes('digital standee') || isFixedProduct(product)) {
-    quantity = 1;
-  } else if (isJumboSeriesProduct(product)) {
-    // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
-    const widthInMeters = config.width / 1000;
-    const heightInMeters = config.height / 1000;
-    const widthInFeet = widthInMeters * METERS_TO_FEET;
-    const heightInFeet = heightInMeters * METERS_TO_FEET;
-    const rawQuantity = widthInFeet * heightInFeet;
-    quantity = Math.round(rawQuantity * 100) / 100;
-    quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
-  } else {
-
-    const widthInMeters = config.width / 1000;
-    const heightInMeters = config.height / 1000;
-    const widthInFeet = widthInMeters * METERS_TO_FEET;
-    const heightInFeet = heightInMeters * METERS_TO_FEET;
-    const rawQuantity = widthInFeet * heightInFeet;
-
-    quantity = Math.round(rawQuantity * 100) / 100;
-
-    quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
-  }
-
-  const subtotal = unitPrice * quantity;
-
-  let processorPrice = 0;
-  if (processor && !isJumboSeriesProduct(product) && !product.category?.toLowerCase().includes('digital standee')) {
-
-    processorPrice = getProcessorPrice(processor, pdfUserType);
-
-  } else if (processor && isJumboSeriesProduct(product)) {
-
-  }
-
-  const gstProduct = 0;
-  const totalProduct = subtotal;
-
-  const gstProcessor = 0;
-  const totalProcessor = processorPrice;
-
-  let addonsCost = 0;
-  addonsCost = getNexaAddonsWithPrices(product, nexaAddons).reduce((sum, addon) => sum + addon.price, 0);
-
-  if (product.category?.toLowerCase().includes('digital standee') || isFixedProduct(product)) {
-    return Math.round(totalProduct + totalProcessor + addonsCost);
-  }
-
-  const widthInMeters = config.width / 1000;
-  const heightInMeters = config.height / 1000;
-  const widthInFeet = widthInMeters * METERS_TO_FEET;
-  const heightInFeet = heightInMeters * METERS_TO_FEET;
-  const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
-
-  let structureBasePrice: number;
-  let installationBasePrice: number;
-
-  const normalizedEnv = product.environment?.toLowerCase().trim();
-  if (customPricing?.enabled && customPricing.structurePrice !== null) {
-    structureBasePrice = customPricing.structurePrice;
-  } else if (isCrystalSeries(product)) {
-    structureBasePrice = 0;
-  } else if (product.category === 'Module/ Grid Series' || (product.category?.toLowerCase().includes('flexible') && !product.name?.includes('Cabinet Base'))) {
-    const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
-    structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
-  } else if (normalizedEnv === 'indoor') {
-    const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-    structureBasePrice = numberOfCabinets * 4000;
-  } else {
-    structureBasePrice = screenAreaSqFt * 2500;
-  }
-
-  if (customPricing?.enabled && customPricing.installationPrice !== null) {
-    installationBasePrice = customPricing.installationPrice;
-  } else if (isCrystalSeries(product)) {
-    installationBasePrice = Math.round(screenAreaSqFt * 800 * 100) / 100;
-  } else {
-    installationBasePrice = screenAreaSqFt * 500;
-  }
-
-  const structureGST = 0;
-  const totalStructure = structureBasePrice;
-
-  const installationGST = 0;
-  const totalInstallation = installationBasePrice;
-
-  const grandTotal = totalProduct + totalProcessor + totalStructure + totalInstallation + addonsCost;
-
-  return Math.round(grandTotal);
+  const result = calculateCentralizedPricing(
+    product,
+    cabinetGrid,
+    processor,
+    userType,
+    config,
+    customPricing,
+    wireType,
+    nexaAddons,
+    orderQuantity
+  );
+  return result.grandTotal;
 }
 
 type QuoteModalProps = {
@@ -308,9 +189,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   config,
   clientId
 }) => {
-  const { config: globalConfig } = useDisplayConfig();
+  const { config: globalConfig, updateConfig } = useDisplayConfig();
   const wireType = globalConfig.wireType ?? 'gold';
   const nexaAddons = globalConfig.nexaAddons ?? [];
+  const orderQuantity = normalizeOrderQuantity(globalConfig.orderQuantity);
+  const { lineItems, clearCart } = useQuotationCart();
   const installationOnlyCustomPricing = isCrystalSeries(selectedProduct);
 
   const isSuperAdminUser = userRole === 'super' || userRole === 'super_admin';
@@ -549,7 +432,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
         const customPricingObj = buildCustomPricingObj();
 
-        const newTotalPrice = calculateCorrectTotalPrice(
+        const pricingForUpdate = calculateCentralizedPricing(
           selectedProduct as any,
           cabinetGrid,
           processor,
@@ -557,133 +440,49 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           configForCalc,
           customPricingObj,
           selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
-          nexaAddons
+          nexaAddons,
+          orderQuantity
         );
 
-        const pdfUserType = selectedUserType === 'Reseller' ? 'Reseller' : (selectedUserType === 'SI/Channel Partner' ? 'Channel' : 'End User');
-
-        let unitPrice = 0;
-        if (selectedProduct.category?.toLowerCase().includes('rental') && selectedProduct.prices) {
-          const isCurveLock = selectedProduct.rentalOption === 'curve lock' || selectedProduct.rentalOption === 'curveLock';
-          const addCurveLock = isCurveLock && selectedProduct.prices.curveLock;
-          if (pdfUserType === 'Reseller') unitPrice = selectedProduct.prices.cabinet.reseller + (addCurveLock ? selectedProduct.prices.curveLock!.reseller : 0);
-          else if (pdfUserType === 'Channel') unitPrice = selectedProduct.prices.cabinet.siChannel + (addCurveLock ? selectedProduct.prices.curveLock!.siChannel : 0);
-          else unitPrice = selectedProduct.prices.cabinet.endCustomer + (addCurveLock ? selectedProduct.prices.curveLock!.endCustomer : 0);
-        } else {
-          if (pdfUserType === 'Reseller') unitPrice = Number(selectedProduct.resellerPrice) || 0;
-          else if (pdfUserType === 'Channel') unitPrice = Number(selectedProduct.siChannelPrice) || 0;
-          else unitPrice = Number(selectedProduct.price) || 0;
+        if (!pricingForUpdate.isAvailable) {
+          alert('❌ Price is not available for this product configuration. Please contact sales for pricing information.');
+          setIsSubmitting(false);
+          return;
         }
 
-        let quantity = 0;
-        const isFixed = isFixedProduct(selectedProduct as any);
-        if (selectedProduct.category?.toLowerCase().includes('rental')) {
-          quantity = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-        } else if (selectedProduct.category?.toLowerCase().includes('digital standee') || isFixed) {
-          quantity = 1;
-        } else if (isJumboSeriesProduct(selectedProduct as any)) {
-          // Jumbo: prices per ft² (controller included). Quantity = display area in sq ft.
-          const METERS_TO_FEET = 3.2808399;
-          const widthInMeters = configForCalc.width / 1000;
-          const heightInMeters = configForCalc.height / 1000;
-          const widthInFeet = widthInMeters * METERS_TO_FEET;
-          const heightInFeet = heightInMeters * METERS_TO_FEET;
-          quantity = Math.round((widthInFeet * heightInFeet) * 100) / 100;
-          quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
-        } else {
-
-          const METERS_TO_FEET = 3.2808399;
-          const widthInMeters = configForCalc.width / 1000;
-          const heightInMeters = configForCalc.height / 1000;
-          const widthInFeet = widthInMeters * METERS_TO_FEET;
-          const heightInFeet = heightInMeters * METERS_TO_FEET;
-          quantity = Math.round((widthInFeet * heightInFeet) * 100) / 100;
-          quantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
-        }
-
-        const subtotal = unitPrice * quantity;
-        const gstProduct = 0;
-
-        let processorPrice = 0;
-        if (processor && !isJumboSeriesProduct(selectedProduct as any) && !selectedProduct.category?.toLowerCase().includes('digital standee')) {
-          processorPrice = getProcessorPrice(processor, pdfUserType);
-        }
-        const gstProcessor = 0;
-
-        let structureBasePrice = 0;
-        let installationBasePrice = 0;
-
-        const METERS_TO_FEET = 3.2808399;
-        const widthInMeters = configForCalc.width / 1000;
-        const heightInMeters = configForCalc.height / 1000;
-        const screenAreaSqFt = Math.round((widthInMeters * METERS_TO_FEET * heightInMeters * METERS_TO_FEET) * 100) / 100;
-
-        if (selectedProduct.category?.toLowerCase().includes('digital standee') || isFixed) {
-          structureBasePrice = 0;
-          installationBasePrice = 0;
-        } else if (customPricingObj?.enabled && customPricingObj.structurePrice !== null) {
-          structureBasePrice = customPricingObj.structurePrice;
-        } else if (isCrystalSeries(selectedProduct)) {
-          structureBasePrice = 0;
-        } else if (selectedProduct.category === 'Module/ Grid Series' || (selectedProduct.category?.toLowerCase().includes('flexible') && !selectedProduct.name?.includes('Cabinet Base'))) {
-          const structurePerSqFt = pdfUserType === 'Reseller' ? 600 : 700;
-          structureBasePrice = Math.round((screenAreaSqFt * structurePerSqFt) * 100) / 100;
-        } else if (selectedProduct.environment?.toLowerCase().trim() === 'indoor') {
-          const numberOfCabinets = cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-          structureBasePrice = numberOfCabinets * 4000;
-        } else {
-          structureBasePrice = screenAreaSqFt * 2500;
-        }
-
-        if (!selectedProduct.category?.toLowerCase().includes('digital standee')) {
-          if (customPricingObj?.enabled && customPricingObj.installationPrice !== null) {
-            installationBasePrice = customPricingObj.installationPrice;
-          } else if (isCrystalSeries(selectedProduct)) {
-            installationBasePrice = Math.round(screenAreaSqFt * 800 * 100) / 100;
-          } else {
-            installationBasePrice = screenAreaSqFt * 500;
-          }
-        }
-
-        const structureGST = 0;
-        const totalStructure = structureBasePrice;
-        const installationGST = 0;
-        const totalInstallation = installationBasePrice;
-
-        let addonsCost = 0;
-        const appliedAddons: { name: string; price: number }[] = [];
-        appliedAddons.push(...getNexaAddonsWithPrices(selectedProduct as any, nexaAddons));
-        addonsCost = appliedAddons.reduce((sum, addon) => sum + addon.price, 0);
+        const appliedAddons = pricingForUpdate.appliedAddons;
 
         const breakdown = {
-          unitPrice,
-          quantity,
-          subtotal: subtotal,
+          unitPrice: pricingForUpdate.unitPrice,
+          quantity: pricingForUpdate.quantity,
+          orderQuantity: pricingForUpdate.orderQuantity,
+          unitGrandTotal: pricingForUpdate.unitGrandTotal,
+          subtotal: pricingForUpdate.productSubtotal,
           gstRate: 18,
-          gstAmount: 0,
-          productSubtotal: subtotal,
-          productGST: 0,
-          productTotal: subtotal,
+          gstAmount: pricingForUpdate.productGST,
+          productSubtotal: pricingForUpdate.productSubtotal,
+          productGST: pricingForUpdate.productGST,
+          productTotal: pricingForUpdate.productTotal,
 
-          processorPrice,
-          processorGst: 0,
-          processorGST: 0,
-          processorTotal: processorPrice,
+          processorPrice: pricingForUpdate.processorPrice,
+          processorGst: pricingForUpdate.processorGST,
+          processorGST: pricingForUpdate.processorGST,
+          processorTotal: pricingForUpdate.processorTotal,
 
-          structureCost: structureBasePrice,
-          structureGST: 0,
-          structureTotal: totalStructure,
+          structureCost: pricingForUpdate.structureCost,
+          structureGST: pricingForUpdate.structureGST,
+          structureTotal: pricingForUpdate.structureTotal,
 
-          installationCost: installationBasePrice,
-          installationGST: 0,
-          installationTotal: totalInstallation,
+          installationCost: pricingForUpdate.installationCost,
+          installationGST: pricingForUpdate.installationGST,
+          installationTotal: pricingForUpdate.installationTotal,
 
-          addonsCost: addonsCost,
-          addonsGST: 0,
-          addonsTotal: addonsCost,
+          addonsCost: pricingForUpdate.addonsCost,
+          addonsGST: pricingForUpdate.addonsGST,
+          addonsTotal: pricingForUpdate.addonsTotal,
           appliedAddons: appliedAddons,
 
-          grandTotal: Math.round(newTotalPrice)
+          grandTotal: pricingForUpdate.grandTotal
         };
 
         const updateData = {
@@ -730,6 +529,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             },
             config: configForCalc,
             customPricing: customPricingObj,
+            orderQuantity,
             wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
             nexaAddons: appliedAddons.map(addon => addon.name),
             nexaAddonsWithPrices: appliedAddons,
@@ -1005,7 +805,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             configForCalc,
             customPricingObj,
             selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
-            nexaAddons
+            nexaAddons,
+            orderQuantity
           );
 
           const pricingResult = calculateCentralizedPricing(
@@ -1016,7 +817,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             configForCalc,
             customPricingObj,
             selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
-            nexaAddons
+            nexaAddons,
+            orderQuantity
           );
 
           if (!pricingResult.isAvailable) {
@@ -1077,6 +879,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             exactPricingBreakdown: {
               unitPrice: finalPricingResult.unitPrice,
               quantity: finalPricingResult.quantity,
+              orderQuantity: finalPricingResult.orderQuantity ?? orderQuantity,
+              unitGrandTotal: finalPricingResult.unitGrandTotal,
               subtotal: finalPricingResult.productSubtotal,
               gstRate: 18,
               gstAmount: finalPricingResult.productGST,
@@ -1090,6 +894,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               addonsGST: finalPricingResult.addonsGST,
               addonsTotal: finalPricingResult.addonsTotal,
               appliedAddons: finalPricingResult.appliedAddons,
+
+              structureCost: finalPricingResult.structureCost,
+              structureGST: finalPricingResult.structureGST,
+              structureTotal: finalPricingResult.structureTotal,
+              installationCost: finalPricingResult.installationCost,
+              installationGST: finalPricingResult.installationGST,
+              installationTotal: finalPricingResult.installationTotal,
 
               discount: discountInfo ? {
                 discountType: discountInfo.discountType,
@@ -1112,6 +923,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             originalPricingBreakdown: {
               unitPrice: pricingResult.unitPrice,
               quantity: pricingResult.quantity,
+              orderQuantity: pricingResult.orderQuantity,
+              unitGrandTotal: pricingResult.unitGrandTotal,
               subtotal: pricingResult.productSubtotal,
               gstRate: 18,
               gstAmount: pricingResult.productGST,
@@ -1174,6 +987,29 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               cabinetGrid: cabinetGrid,
               processor: processor,
               mode: mode,
+              orderQuantity,
+              lineItems: lineItems.length > 0
+                ? lineItems.map(li => ({
+                    productId: li.product.id,
+                    productName: li.product.name,
+                    columns: li.cabinetGrid.columns,
+                    rows: li.cabinetGrid.rows,
+                    processor: li.processor,
+                    mode: li.mode,
+                    orderQuantity: li.orderQuantity,
+                    wireType: li.wireType,
+                    nexaAddons: li.nexaAddons,
+                    selectedCabinetSize: li.selectedCabinetSize
+                  }))
+                : [{
+                    productId: selectedProduct.id,
+                    productName: selectedProduct.name,
+                    columns: cabinetGrid?.columns,
+                    rows: cabinetGrid?.rows,
+                    processor,
+                    mode,
+                    orderQuantity
+                  }],
               customPricing: buildCustomPricingObj(),
               wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
               nexaAddons: pricingResult.appliedAddons.map(addon => addon.name),
@@ -1240,6 +1076,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           } else {
             // Internal Sales Submission
             const saveResult = await salesAPI.saveQuotation(exactQuotationData);
+            if (saveResult?.success) {
+              clearCart();
+            }
             alert('Quotation saved successfully to database!');
           }
 
@@ -1780,6 +1619,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                               <span className="font-semibold text-gray-900 text-sm">{mode}</span>
                             </div>
                           )}
+
+                          <div className="p-4 bg-white rounded-lg shadow-sm">
+                            <OrderQuantityInput
+                              value={orderQuantity}
+                              onChange={(qty) => updateConfig({ orderQuantity: qty })}
+                            />
+                          </div>
 
                         </div>
                       </div>

@@ -10,11 +10,17 @@
 
 import { Product } from '../types';
 import { getProcessorPrice } from './processorPrices';
+import { normalizeOrderQuantity } from './orderQuantity';
 
 export interface PricingCalculationResult {
 
   unitPrice: number;
+  /** Area (Ft²) / cabinets / 1 — existing pricing multiplier for one configured display */
   quantity: number;
+  /** Number of identical configured displays. Defaults to 1 for backward compatibility. */
+  orderQuantity: number;
+  /** Per-display grand total before orderQuantity multiplication */
+  unitGrandTotal: number;
   productSubtotal: number;
   productGST: number;
   productTotal: number;
@@ -295,9 +301,11 @@ export function calculateCentralizedPricing(
     installationPrice: number | null;
   },
   wireType?: 'gold' | 'copper',
-  nexaAddons?: string[]
+  nexaAddons?: string[],
+  orderQuantityInput?: number
 ): PricingCalculationResult {
   try {
+    const orderQuantity = normalizeOrderQuantity(orderQuantityInput);
 
     let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
     if (userType === 'reseller') {
@@ -313,6 +321,8 @@ export function calculateCentralizedPricing(
       return {
         unitPrice: 0,
         quantity: 0,
+        orderQuantity,
+        unitGrandTotal: 0,
         productSubtotal: 0,
         productGST: 0,
         productTotal: 0,
@@ -345,17 +355,20 @@ export function calculateCentralizedPricing(
     const quantity = calculateQuantity(product, cabinetGrid, config);
 
     const roundedQuantity = Math.round(quantity * 100) / 100;
-    const productSubtotal = Math.round((unitPrice * roundedQuantity) * 100) / 100;
+    // Per-display product math (existing quantity = Ft² / cabinets / 1)
+    const perUnitProductSubtotal = Math.round((unitPrice * roundedQuantity) * 100) / 100;
     const productGST = 0;
+    const productSubtotal = Math.round((perUnitProductSubtotal * orderQuantity) * 100) / 100;
     const productTotal = productSubtotal;
 
-    let processorPrice = 0;
+    let perUnitProcessorPrice = 0;
     // Nexa / fixed products: quotations are product + Nexa add-ons only (controller not billed), same as UI.
     if (processor && !isJumboSeriesProduct(product) && !isDigitalStandeeProduct(product) && !isFixedProduct(product)) {
-      processorPrice = getProcessorPrice(processor, pdfUserType);
+      perUnitProcessorPrice = getProcessorPrice(processor, pdfUserType);
     }
 
     const processorGST = 0;
+    const processorPrice = Math.round((perUnitProcessorPrice * orderQuantity) * 100) / 100;
     const processorTotal = processorPrice;
 
     const METERS_TO_FEET = 3.2808399;
@@ -400,39 +413,47 @@ export function calculateCentralizedPricing(
     }
 
     const structureGST = 0;
-    const structureTotal = structureBasePrice;
+    const structureCost = Math.round((structureBasePrice * orderQuantity) * 100) / 100;
+    const structureTotal = structureCost;
 
     const installationGST = 0;
-    const installationTotal = installationBasePrice;
+    const installationCost = Math.round((installationBasePrice * orderQuantity) * 100) / 100;
+    const installationTotal = installationCost;
 
-    let addonsCost = 0;
+    let perUnitAddonsCost = 0;
     const appliedAddons: { name: string; price: number }[] = [];
     if (nexaAddons && nexaAddons.length > 0 && isNexaSeriesProduct(product)) {
       Object.entries(NEXA_ADDON_PRICES).forEach(([name, price]) => {
         if (nexaAddons.includes(name)) {
-          addonsCost += price;
-          appliedAddons.push({ name, price });
+          perUnitAddonsCost += price;
+          appliedAddons.push({ name, price: Math.round((price * orderQuantity) * 100) / 100 });
         }
       });
     }
     const addonsGST = 0;
+    const addonsCost = Math.round((perUnitAddonsCost * orderQuantity) * 100) / 100;
     const addonsTotal = addonsCost;
 
-    const grandTotal = Math.round(productTotal + processorTotal + structureTotal + installationTotal + addonsTotal);
+    const unitGrandTotal = Math.round(
+      perUnitProductSubtotal + perUnitProcessorPrice + structureBasePrice + installationBasePrice + perUnitAddonsCost
+    );
+    const grandTotal = Math.round(unitGrandTotal * orderQuantity);
 
     const result: PricingCalculationResult = {
       unitPrice,
       quantity: roundedQuantity, // Use rounded quantity for consistency
+      orderQuantity,
+      unitGrandTotal,
       productSubtotal,
       productGST,
       productTotal,
       processorPrice,
       processorGST,
       processorTotal,
-      structureCost: structureBasePrice,
+      structureCost,
       structureGST,
       structureTotal,
-      installationCost: installationBasePrice,
+      installationCost,
       installationGST,
       installationTotal,
       addonsCost,
@@ -458,6 +479,8 @@ export function calculateCentralizedPricing(
     return {
       unitPrice: 5300,
       quantity: 1,
+      orderQuantity: 1,
+      unitGrandTotal: 5300,
       productSubtotal: 5300,
       productGST: 0,
       productTotal: 5300,

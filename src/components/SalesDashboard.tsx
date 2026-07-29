@@ -867,6 +867,11 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                                   {quotation.exactProductSpecs.cabinetGrid.columns}x{quotation.exactProductSpecs.cabinetGrid.rows}
                                 </span>
                               )}
+                              <span className="flex items-center gap-1 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 text-indigo-700">
+                                Qty {(quotation as any).quotationData?.orderQuantity
+                                  || (quotation as any).exactPricingBreakdown?.orderQuantity
+                                  || 1}
+                              </span>
                               {quotation.exactProductSpecs?.displaySize && !quotation.exactProductSpecs?.isFixed && (
                                 <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
                                   {quotation.exactProductSpecs.displaySize.width?.toFixed(2)}m x {quotation.exactProductSpecs.displaySize.height?.toFixed(2)}m

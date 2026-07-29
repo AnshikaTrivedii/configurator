@@ -78,6 +78,11 @@ const quotationSchema = new mongoose.Schema({
     type: String,
     required: false
   },
+  orderQuantity: {
+    type: Number,
+    required: false,
+    default: 1
+  },
   // Store exact quotation data as shown on the page
   exactPricingBreakdown: {
     type: mongoose.Schema.Types.Mixed,
