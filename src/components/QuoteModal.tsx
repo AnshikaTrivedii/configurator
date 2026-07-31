@@ -17,6 +17,13 @@ import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdown
 import { OrderQuantityInput } from './OrderQuantityInput';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
 import { useQuotationCart } from '../contexts/QuotationCartContext';
+import {
+  toPersistedLineItems,
+  formatQuotationProductLabel,
+  sumLineItemGrandTotals,
+  priceLineItem,
+  toPdfQuotationLineItems
+} from '../utils/quotationLineItems';
 
 interface ProductWithPricing extends Product {
   prices?: {
@@ -450,7 +457,64 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           return;
         }
 
+        const effectiveLineItems = lineItems.length > 0
+          ? lineItems.map(li => {
+              const snap = priceLineItem(
+                {
+                  product: li.product,
+                  config: li.config,
+                  cabinetGrid: li.cabinetGrid,
+                  processor: li.processor,
+                  wireType: li.wireType,
+                  nexaAddons: li.nexaAddons,
+                  orderQuantity: li.orderQuantity
+                },
+                userType,
+                customPricingObj
+              );
+              return {
+                ...li,
+                unitPricingSnapshot: snap.isAvailable ? snap : li.unitPricingSnapshot
+              };
+            })
+          : [];
+
+        const persistedLineItems = effectiveLineItems.length > 0
+          ? toPersistedLineItems(effectiveLineItems)
+          : toPersistedLineItems([{
+              id: 'current',
+              configurationKey: 'current',
+              product: selectedProduct,
+              config: {
+                width: configForCalc.width,
+                height: configForCalc.height,
+                aspectRatio: null,
+                unit: (configForCalc.unit as 'mm' | 'm' | 'ft') || 'mm'
+              },
+              cabinetGrid: {
+                columns: cabinetGrid?.columns || 1,
+                rows: cabinetGrid?.rows || 1,
+                totalWidth: (cabinetGrid as any)?.totalWidth || configForCalc.width,
+                totalHeight: (cabinetGrid as any)?.totalHeight || configForCalc.height
+              },
+              processor: processor || null,
+              mode: mode || null,
+              wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
+              nexaAddons,
+              selectedCabinetSize: globalConfig.selectedCabinetSize,
+              orderQuantity,
+              unitPricingSnapshot: pricingForUpdate
+            }]);
+
+        const multiItemTotal = effectiveLineItems.length > 1
+          ? sumLineItemGrandTotals(effectiveLineItems)
+          : null;
+
         const appliedAddons = pricingForUpdate.appliedAddons;
+        const updateGrandTotal = multiItemTotal != null ? multiItemTotal : pricingForUpdate.grandTotal;
+        const quotationProductName = formatQuotationProductLabel(
+          effectiveLineItems.length > 0 ? effectiveLineItems : [{ product: selectedProduct } as any]
+        );
 
         const breakdown = {
           unitPrice: pricingForUpdate.unitPrice,
@@ -481,8 +545,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           addonsGST: pricingForUpdate.addonsGST,
           addonsTotal: pricingForUpdate.addonsTotal,
           appliedAddons: appliedAddons,
+          lineItemCount: persistedLineItems.length,
 
-          grandTotal: pricingForUpdate.grandTotal
+          grandTotal: updateGrandTotal
         };
 
         const updateData = {
@@ -490,14 +555,18 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           customerEmail: customerEmail.trim(),
           customerPhone: customerPhone.trim(),
           message: message.trim(),
+          productName: quotationProductName,
           userType: userType,
           userTypeDisplayName: getUserTypeDisplayName(getUserType()),
-          totalPrice: breakdown.grandTotal,
-          originalTotalPrice: breakdown.grandTotal, // Updating resets pricing to fresh calculation
+          totalPrice: updateGrandTotal,
+          originalTotalPrice: updateGrandTotal,
 
           exactPricingBreakdown: breakdown,
 
-          originalPricingBreakdown: breakdown,
+          originalPricingBreakdown: {
+            ...breakdown,
+            grandTotal: multiItemTotal != null ? multiItemTotal : pricingForUpdate.grandTotal
+          },
 
           exactProductSpecs: {
             productName: selectedProduct.name,
@@ -528,15 +597,17 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               warranty: userInfo?.warranty || undefined
             },
             config: configForCalc,
+            cabinetGrid: cabinetGrid,
+            processor: processor,
+            mode: mode,
             customPricing: customPricingObj,
             orderQuantity,
+            lineItems: persistedLineItems,
+            itemCount: persistedLineItems.length,
             wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
             nexaAddons: appliedAddons.map(addon => addon.name),
             nexaAddonsWithPrices: appliedAddons,
             updatedAt: new Date().toISOString(),
-            // Preserve discount: editing customer/config details should NOT wipe out
-            // a previously applied discount. The discount is re-applied from
-            // SalesPersonDetailsModal and should not be cleared here.
             discountApplied: false,
             discountInfo: null
           }
@@ -614,6 +685,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             appliedAddons: (breakdown as any).appliedAddons
           };
 
+          const pdfLineItems = persistedLineItems.length > 0
+            ? toPdfQuotationLineItems(persistedLineItems)
+            : undefined;
+
           const pdfBlob = await generateConfigurationPdf(
             configForPdf,
             selectedProduct,
@@ -636,7 +711,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             customPricingObj,
             exactPricingBreakdownForPdf,
             selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
-            nexaAddons
+            nexaAddons,
+            orderQuantity,
+            pdfLineItems
           );
 
           // Convert blob to base64
@@ -668,6 +745,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
         await salesAPI.updateQuotation(existingQuotation.quotationId, updateData);
 
+        clearCart();
         onSubmit(message.trim());
 
         setTimeout(() => {
@@ -832,7 +910,34 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
           const configForDiscount = config || { width: 2400, height: 1010, unit: 'mm' };
 
-          if (isSuperAdmin && discountType === 'led' && discountAmountPerUnit > 0) {
+          // Ensure cart items have fresh pricing snapshots; multi-item total = sum of line totals
+          const effectiveLineItems = lineItems.length > 0
+            ? lineItems.map(li => {
+                const snap = priceLineItem(
+                  {
+                    product: li.product,
+                    config: li.config,
+                    cabinetGrid: li.cabinetGrid,
+                    processor: li.processor,
+                    wireType: li.wireType,
+                    nexaAddons: li.nexaAddons,
+                    orderQuantity: li.orderQuantity
+                  },
+                  userType,
+                  customPricingObj
+                );
+                return {
+                  ...li,
+                  unitPricingSnapshot: snap.isAvailable ? snap : li.unitPricingSnapshot
+                };
+              })
+            : [];
+
+          const multiItemTotal = effectiveLineItems.length > 1
+            ? sumLineItemGrandTotals(effectiveLineItems)
+            : null;
+
+          if (isSuperAdmin && discountType === 'led' && discountAmountPerUnit > 0 && effectiveLineItems.length <= 1) {
             const ledMode = getLedDiscountMode(selectedProduct);
             const units = getDiscountUnits(selectedProduct, cabinetGrid, configForDiscount);
             discountInfo = {
@@ -846,7 +951,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             const discountedResult = applyDiscount(pricingResult, discountInfo);
             finalPricingResult = discountedResult;
             finalTotalPrice = discountedResult.grandTotal;
-          } else if (isSuperAdmin && discountType === 'controller' && discountAmountPerUnit > 0) {
+          } else if (isSuperAdmin && discountType === 'controller' && discountAmountPerUnit > 0 && effectiveLineItems.length <= 1) {
             discountInfo = {
               discountType: 'controller',
               discountPercent: 0,
@@ -860,18 +965,53 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             finalTotalPrice = discountedResult.grandTotal;
           }
 
+          if (multiItemTotal != null) {
+            finalTotalPrice = multiItemTotal;
+          }
+
+          const persistedLineItems = effectiveLineItems.length > 0
+            ? toPersistedLineItems(effectiveLineItems)
+            : toPersistedLineItems([{
+                id: 'current',
+                configurationKey: 'current',
+                product: selectedProduct,
+                config: {
+                  width: configForCalc.width,
+                  height: configForCalc.height,
+                  aspectRatio: null,
+                  unit: (configForCalc.unit as 'mm' | 'm' | 'ft') || 'mm'
+                },
+                cabinetGrid: {
+                  columns: cabinetGrid?.columns || 1,
+                  rows: cabinetGrid?.rows || 1,
+                  totalWidth: (cabinetGrid as any)?.totalWidth || configForCalc.width,
+                  totalHeight: (cabinetGrid as any)?.totalHeight || configForCalc.height
+                },
+                processor: processor || null,
+                mode: mode || null,
+                wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
+                nexaAddons,
+                selectedCabinetSize: globalConfig.selectedCabinetSize,
+                orderQuantity,
+                unitPricingSnapshot: finalPricingResult
+              }]);
+
+          const quotationProductName = formatQuotationProductLabel(
+            effectiveLineItems.length > 0 ? effectiveLineItems : [{ product: selectedProduct } as any]
+          );
+
           exactQuotationData = {
 
             quotationId: finalQuotationId,
             customerName: customerName.trim(),
             customerEmail: customerEmail.trim(),
             customerPhone: customerPhone.trim(),
-            productName: selectedProduct.name,
+            productName: quotationProductName,
             message: message.trim() || 'No additional message provided',
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
             totalPrice: finalTotalPrice,  // CRITICAL: Grand Total with GST (and discount if applied) - matches PDF exactly
-            originalTotalPrice: correctTotalPrice, // Store original total price before discount
+            originalTotalPrice: multiItemTotal != null ? multiItemTotal : correctTotalPrice, // Store original total price before discount
 
             salesUserId: finalSalesUserId,
             salesUserName: finalSalesUserName,
@@ -887,6 +1027,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               processorPrice: finalPricingResult.processorPrice,
               processorGst: finalPricingResult.processorGST,
               grandTotal: finalTotalPrice, // Use finalTotalPrice which includes discount if applied
+              lineItemCount: persistedLineItems.length,
 
               customPricing: buildCustomPricingObj(),
 
@@ -988,28 +1129,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               processor: processor,
               mode: mode,
               orderQuantity,
-              lineItems: lineItems.length > 0
-                ? lineItems.map(li => ({
-                    productId: li.product.id,
-                    productName: li.product.name,
-                    columns: li.cabinetGrid.columns,
-                    rows: li.cabinetGrid.rows,
-                    processor: li.processor,
-                    mode: li.mode,
-                    orderQuantity: li.orderQuantity,
-                    wireType: li.wireType,
-                    nexaAddons: li.nexaAddons,
-                    selectedCabinetSize: li.selectedCabinetSize
-                  }))
-                : [{
-                    productId: selectedProduct.id,
-                    productName: selectedProduct.name,
-                    columns: cabinetGrid?.columns,
-                    rows: cabinetGrid?.rows,
-                    processor,
-                    mode,
-                    orderQuantity
-                  }],
+              lineItems: persistedLineItems,
+              itemCount: persistedLineItems.length,
               customPricing: buildCustomPricingObj(),
               wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
               nexaAddons: pricingResult.appliedAddons.map(addon => addon.name),

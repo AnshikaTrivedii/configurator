@@ -11,6 +11,11 @@ import { LeadStatusModal } from './LeadStatusModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
 import { Quotation } from '../types';
 import { products as productsImport } from '../data/products';
+import {
+  getQuotationItemSummary,
+  normalizeQuotationLineItems,
+  toPdfQuotationLineItems
+} from '../utils/quotationLineItems';
 
 const products: import('../types').Product[] = Array.isArray(productsImport) ? productsImport : [];
 
@@ -245,7 +250,11 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
           quotation.exactPricingBreakdown,
           quotation.quotationData?.wireType,
-          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)
+          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name),
+          quotation.quotationData?.orderQuantity
+            ?? quotation.exactPricingBreakdown?.orderQuantity
+            ?? 1,
+          toPdfQuotationLineItems(normalizeQuotationLineItems(quotation))
         );
 
         setPdfHtmlContent(htmlContent);
@@ -376,7 +385,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
         } : null,
         quotation.quotationId,
         quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
-        quotation.exactPricingBreakdown
+        quotation.exactPricingBreakdown,
+        quotation.quotationData?.wireType,
+        quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name),
+        quotation.quotationData?.orderQuantity
+          ?? quotation.exactPricingBreakdown?.orderQuantity
+          ?? 1,
+        toPdfQuotationLineItems(normalizeQuotationLineItems(quotation))
       );
 
       // Trigger download
@@ -862,16 +877,26 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                               {quotation.productName}
                             </h4>
                             <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2">
+                              {(() => {
+                                const itemSummary = getQuotationItemSummary(quotation);
+                                return (
+                                  <>
+                                    {itemSummary.itemCount > 1 && (
+                                      <span className="flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 text-blue-700">
+                                        {itemSummary.itemCount} items
+                                      </span>
+                                    )}
+                                    <span className="flex items-center gap-1 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 text-indigo-700">
+                                      Qty {itemSummary.totalQuantity}
+                                    </span>
+                                  </>
+                                );
+                              })()}
                               {quotation.exactProductSpecs?.cabinetGrid && (
                                 <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
                                   {quotation.exactProductSpecs.cabinetGrid.columns}x{quotation.exactProductSpecs.cabinetGrid.rows}
                                 </span>
                               )}
-                              <span className="flex items-center gap-1 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 text-indigo-700">
-                                Qty {(quotation as any).quotationData?.orderQuantity
-                                  || (quotation as any).exactPricingBreakdown?.orderQuantity
-                                  || 1}
-                              </span>
                               {quotation.exactProductSpecs?.displaySize && !quotation.exactProductSpecs?.isFixed && (
                                 <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
                                   {quotation.exactProductSpecs.displaySize.width?.toFixed(2)}m x {quotation.exactProductSpecs.displaySize.height?.toFixed(2)}m

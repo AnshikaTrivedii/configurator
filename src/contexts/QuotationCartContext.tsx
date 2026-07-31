@@ -15,20 +15,26 @@ export interface QuotationLineItem {
   nexaAddons?: string[];
   selectedCabinetSize?: string | null;
   orderQuantity: number;
-  /** Optional snapshot of last calculated unit pricing (per display, before merge display) */
+  /** Snapshot of pricing for this line (includes orderQuantity multiplication) */
   unitPricingSnapshot?: PricingCalculationResult | null;
 }
 
 interface QuotationCartContextType {
   lineItems: QuotationLineItem[];
+  editingItemId: string | null;
+  setEditingItemId: (id: string | null) => void;
   addOrMergeLineItem: (item: Omit<QuotationLineItem, 'id' | 'configurationKey'>) => {
     merged: boolean;
     item: QuotationLineItem;
   };
-  updateLineItemQuantity: (id: string, orderQuantity: number) => void;
+  replaceLineItem: (id: string, item: Omit<QuotationLineItem, 'id' | 'configurationKey'>) => QuotationLineItem;
+  updateLineItemQuantity: (id: string, orderQuantity: number, pricingSnapshot?: PricingCalculationResult | null) => void;
+  updateLineItemPricing: (id: string, pricingSnapshot: PricingCalculationResult) => void;
   removeLineItem: (id: string) => void;
+  setLineItems: (items: QuotationLineItem[]) => void;
   clearCart: () => void;
   totalOrderQuantity: number;
+  cartGrandTotal: number;
 }
 
 const QuotationCartContext = createContext<QuotationCartContextType | undefined>(undefined);
@@ -37,25 +43,39 @@ function createLineItemId(): string {
   return `qli-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function toConfigurationKey(item: {
+  product: Product;
+  config: DisplayConfig;
+  cabinetGrid: CabinetGrid;
+  processor?: string | null;
+  mode?: string | null;
+  wireType?: string | null;
+  nexaAddons?: string[] | null;
+  selectedCabinetSize?: string | null;
+}): string {
+  return buildConfigurationKey({
+    productId: item.product.id,
+    columns: item.cabinetGrid?.columns,
+    rows: item.cabinetGrid?.rows,
+    width: item.config?.width,
+    height: item.config?.height,
+    unit: item.config?.unit,
+    processor: item.processor,
+    mode: item.mode,
+    wireType: item.wireType,
+    nexaAddons: item.nexaAddons,
+    selectedCabinetSize: item.selectedCabinetSize,
+    rentalOption: item.product.rentalOption
+  });
+}
+
 export const QuotationCartProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [lineItems, setLineItems] = useState<QuotationLineItem[]>([]);
+  const [lineItems, setLineItemsState] = useState<QuotationLineItem[]>([]);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   const addOrMergeLineItem = useCallback((item: Omit<QuotationLineItem, 'id' | 'configurationKey'>) => {
     const orderQuantity = normalizeOrderQuantity(item.orderQuantity);
-    const configurationKey = buildConfigurationKey({
-      productId: item.product.id,
-      columns: item.cabinetGrid?.columns,
-      rows: item.cabinetGrid?.rows,
-      width: item.config?.width,
-      height: item.config?.height,
-      unit: item.config?.unit,
-      processor: item.processor,
-      mode: item.mode,
-      wireType: item.wireType,
-      nexaAddons: item.nexaAddons,
-      selectedCabinetSize: item.selectedCabinetSize,
-      rentalOption: item.product.rentalOption
-    });
+    const configurationKey = toConfigurationKey(item);
 
     let merged = false;
     let resultItem: QuotationLineItem = {
@@ -65,7 +85,22 @@ export const QuotationCartProvider: React.FC<{ children: ReactNode }> = ({ child
       orderQuantity
     };
 
-    setLineItems(prev => {
+    setLineItemsState(prev => {
+      // If editing a specific item, replace it instead of merging into another
+      if (editingItemId) {
+        const editIndex = prev.findIndex(li => li.id === editingItemId);
+        if (editIndex >= 0) {
+          const updated: QuotationLineItem = {
+            ...resultItem,
+            id: editingItemId
+          };
+          resultItem = updated;
+          const next = [...prev];
+          next[editIndex] = updated;
+          return next;
+        }
+      }
+
       const existingIndex = prev.findIndex(li => li.configurationKey === configurationKey);
       if (existingIndex >= 0) {
         merged = true;
@@ -84,38 +119,105 @@ export const QuotationCartProvider: React.FC<{ children: ReactNode }> = ({ child
       return [...prev, resultItem];
     });
 
+    setEditingItemId(null);
+
     return {
       merged,
       item: resultItem
     };
+  }, [editingItemId]);
+
+  const replaceLineItem = useCallback((id: string, item: Omit<QuotationLineItem, 'id' | 'configurationKey'>) => {
+    const orderQuantity = normalizeOrderQuantity(item.orderQuantity);
+    const updated: QuotationLineItem = {
+      ...item,
+      id,
+      configurationKey: toConfigurationKey(item),
+      orderQuantity
+    };
+    setLineItemsState(prev => prev.map(li => (li.id === id ? updated : li)));
+    setEditingItemId(null);
+    return updated;
   }, []);
 
-  const updateLineItemQuantity = useCallback((id: string, orderQuantity: number) => {
+  const updateLineItemQuantity = useCallback((
+    id: string,
+    orderQuantity: number,
+    pricingSnapshot?: PricingCalculationResult | null
+  ) => {
     const qty = normalizeOrderQuantity(orderQuantity);
-    setLineItems(prev => prev.map(li => (li.id === id ? { ...li, orderQuantity: qty } : li)));
+    setLineItemsState(prev => prev.map(li => (
+      li.id === id
+        ? {
+            ...li,
+            orderQuantity: qty,
+            unitPricingSnapshot: pricingSnapshot !== undefined ? pricingSnapshot : li.unitPricingSnapshot
+          }
+        : li
+    )));
+  }, []);
+
+  const updateLineItemPricing = useCallback((id: string, pricingSnapshot: PricingCalculationResult) => {
+    setLineItemsState(prev => prev.map(li => (
+      li.id === id ? { ...li, unitPricingSnapshot: pricingSnapshot } : li
+    )));
   }, []);
 
   const removeLineItem = useCallback((id: string) => {
-    setLineItems(prev => prev.filter(li => li.id !== id));
+    setLineItemsState(prev => prev.filter(li => li.id !== id));
+    setEditingItemId(prev => (prev === id ? null : prev));
   }, []);
 
-  const clearCart = useCallback(() => setLineItems([]), []);
+  const setLineItems = useCallback((items: QuotationLineItem[]) => {
+    setLineItemsState(items);
+    setEditingItemId(null);
+  }, []);
+
+  const clearCart = useCallback(() => {
+    setLineItemsState([]);
+    setEditingItemId(null);
+  }, []);
 
   const totalOrderQuantity = useMemo(
     () => lineItems.reduce((sum, li) => sum + normalizeOrderQuantity(li.orderQuantity), 0),
     [lineItems]
   );
 
+  const cartGrandTotal = useMemo(
+    () => Math.round(
+      lineItems.reduce((sum, li) => sum + (li.unitPricingSnapshot?.grandTotal || 0), 0)
+    ),
+    [lineItems]
+  );
+
   const value = useMemo(
     () => ({
       lineItems,
+      editingItemId,
+      setEditingItemId,
       addOrMergeLineItem,
+      replaceLineItem,
       updateLineItemQuantity,
+      updateLineItemPricing,
       removeLineItem,
+      setLineItems,
       clearCart,
-      totalOrderQuantity
+      totalOrderQuantity,
+      cartGrandTotal
     }),
-    [lineItems, addOrMergeLineItem, updateLineItemQuantity, removeLineItem, clearCart, totalOrderQuantity]
+    [
+      lineItems,
+      editingItemId,
+      addOrMergeLineItem,
+      replaceLineItem,
+      updateLineItemQuantity,
+      updateLineItemPricing,
+      removeLineItem,
+      setLineItems,
+      clearCart,
+      totalOrderQuantity,
+      cartGrandTotal
+    ]
   );
 
   return (

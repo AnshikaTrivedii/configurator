@@ -7,6 +7,11 @@ import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdown
 import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel } from '../utils/discountCalculator';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
+import {
+  getQuotationItemSummary,
+  normalizeQuotationLineItems,
+  toPdfQuotationLineItems
+} from '../utils/quotationLineItems';
 import { Save as SaveIcon } from 'lucide-react';
 
 interface SalesPerson {
@@ -323,7 +328,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
             (quotation.quotationData as any)?.orderQuantity ??
             (quotation.exactPricingBreakdown as any)?.orderQuantity ??
             1
-          )
+          ),
+          toPdfQuotationLineItems(normalizeQuotationLineItems(quotation))
         );
 
         setPdfHtmlContent(htmlContent);
@@ -775,7 +781,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         pdfPricingBreakdown,
         quotation.quotationData?.wireType,
         quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name),
-        resolvedOrderQuantity
+        resolvedOrderQuantity,
+        toPdfQuotationLineItems(normalizeQuotationLineItems(quotation))
       );
 
       const { generatePdfFromHtml } = await import('../utils/docxGenerator');
@@ -1002,6 +1009,28 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                       <Package className="w-5 h-5 text-blue-600" />
                                       <div>
                                         <p className="font-semibold text-gray-900 text-lg">{quotation.productName}</p>
+                                        {(() => {
+                                          const itemSummary = getQuotationItemSummary(quotation);
+                                          const lineItems = normalizeQuotationLineItems(quotation);
+                                          return (
+                                            <>
+                                              <p className="text-sm text-gray-600">
+                                                {itemSummary.itemCount} item{itemSummary.itemCount === 1 ? '' : 's'}
+                                                {itemSummary.totalQuantity > 0 ? ` · Qty ${itemSummary.totalQuantity}` : ''}
+                                              </p>
+                                              {itemSummary.itemCount > 1 && (
+                                                <ul className="mt-1 text-xs text-gray-500 space-y-0.5">
+                                                  {lineItems.map((li, idx) => (
+                                                    <li key={li.id || idx}>
+                                                      {li.productName}
+                                                      {li.orderQuantity > 1 ? ` × ${li.orderQuantity}` : ''}
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              )}
+                                            </>
+                                          );
+                                        })()}
                                         <p className="text-sm text-gray-600">Quotation ID: {quotation.quotationId}</p>
                                       </div>
                                     </div>

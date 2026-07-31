@@ -9,11 +9,19 @@ const products: import('../types').Product[] = Array.isArray(productsImport) ? p
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
+import { useQuotationCart } from '../contexts/QuotationCartContext';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
 import {
   buildExactPricingBreakdownForPdf,
   logPdfPricingFromCalculation
 } from '../utils/exactPricingBreakdownForPdf';
+import {
+  toPersistedLineItems,
+  formatQuotationProductLabel,
+  sumLineItemGrandTotals,
+  toPdfQuotationLineItems
+} from '../utils/quotationLineItems';
+import { fitMultiProductQuotationIfNeeded } from '../utils/multiProductQuotationHtml';
 
 const triggerPdfDownload = (blob: Blob, fileName: string, setBlob?: (blob: Blob) => void, setUrl?: (url: string) => void) => {
 
@@ -197,6 +205,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   nexaAddons: propNexaAddons
 }) => {
   const { config: globalConfig } = useDisplayConfig();
+  const { lineItems, clearCart } = useQuotationCart();
   const wireTypeFromContext = globalConfig.wireType ?? 'gold';
   const wireType = propWireType ?? wireTypeFromContext;
   const nexaAddons = propNexaAddons ?? globalConfig.nexaAddons ?? [];
@@ -522,7 +531,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           exactPricingBreakdownForPdf,
           effectiveWireType(fullProduct),
           nexaAddons,
-          orderQuantity
+          orderQuantity,
+          lineItems.length > 0 ? toPdfQuotationLineItems(lineItems) : undefined
         );
     };
 
@@ -724,7 +734,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     const customerName = userInfo?.fullName?.trim() || userInfo?.customerName?.trim() || '';
     const customerEmail = userInfo?.email?.trim() || userInfo?.customerEmail?.trim() || '';
     const customerPhone = userInfo?.phoneNumber?.trim() || userInfo?.customerPhone?.trim() || '';
-    const productName = selectedProduct?.name || selectedProduct?.productName || 'Unknown Product';
+    const persistedLineItems = lineItems.length > 0 ? toPersistedLineItems(lineItems) : null;
+    const multiItemTotal = lineItems.length > 1 ? sumLineItemGrandTotals(lineItems) : null;
+    const productName = lineItems.length > 1
+      ? formatQuotationProductLabel(lineItems)
+      : (selectedProduct?.name || selectedProduct?.productName || 'Unknown Product');
+    if (multiItemTotal != null) {
+      finalTotalPrice = multiItemTotal;
+    }
 
     // Validate required fields
     if (!finalQuotationId) {
@@ -816,7 +833,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         } : undefined,
         wireType: selectedProduct && isModularProduct(selectedProduct) ? wireType : undefined,
         nexaAddons: selectedNexaAddonsWithPrices.map(addon => addon.name),
-        nexaAddonsWithPrices: selectedNexaAddonsWithPrices
+        nexaAddonsWithPrices: selectedNexaAddonsWithPrices,
+        ...(persistedLineItems
+          ? { lineItems: persistedLineItems, itemCount: persistedLineItems.length }
+          : {})
       },
 
       exactProductSpecs: {
@@ -971,6 +991,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
       setSaveSuccess(true);
       saveSuccessful = true;
+      clearCart();
 
       setGeneratedPdfBlob(pdfBlob);
       const url = window.URL.createObjectURL(pdfBlob);
@@ -995,6 +1016,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
           setSaveSuccess(true);
           saveSuccessful = true;
+          clearCart();
 
           if (pdfBlob) {
             setGeneratedPdfBlob(pdfBlob);
@@ -1158,6 +1180,13 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             className="w-full h-full border-0"
             title="Configuration Report Preview"
             style={{ minHeight: '100%' }}
+            onLoad={(event) => {
+              const doc = (event.currentTarget as HTMLIFrameElement).contentDocument;
+              if (doc) {
+                // Prefer one page; automatically split only if both products don't fit.
+                fitMultiProductQuotationIfNeeded(doc);
+              }
+            }}
           />
         </div>
       </div>

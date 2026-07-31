@@ -5,6 +5,8 @@ import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { getProcessorPrice } from './processorPrices';
 import { calculateCentralizedPricing } from './centralizedPricing';
 import { normalizeOrderQuantity } from './orderQuantity';
+import type { PdfQuotationLineItem } from './quotationLineItems';
+import { buildMultiProductQuotationBodyHtml, buildMultiProductContinuationPagesHtml, fitMultiProductQuotationIfNeeded } from './multiProductQuotationHtml';
 
 // Processor specifications - matches DisplayConfigurator.tsx
 const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
@@ -98,7 +100,9 @@ export const generateConfigurationDocx = async (
     };
   },
   wireType?: 'gold' | 'copper',
-  nexaAddons?: string[]
+  nexaAddons?: string[],
+  orderQuantityInput?: number,
+  quotationLineItems?: PdfQuotationLineItem[]
 ): Promise<Blob> => {
   try {
 
@@ -114,7 +118,9 @@ export const generateConfigurationDocx = async (
       customPricing,
       exactPricingBreakdown,
       wireType,
-      nexaAddons
+      nexaAddons,
+      orderQuantityInput,
+      quotationLineItems
     );
 
     const container = document.createElement('div');
@@ -139,6 +145,9 @@ export const generateConfigurationDocx = async (
     );
 
     await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Prefer one page for 2-product quotes; split only if content overflows.
+    fitMultiProductQuotationIfNeeded(container);
 
     const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
 
@@ -311,7 +320,8 @@ export const generateConfigurationHtml = (
   },
   wireType?: 'gold' | 'copper',
   nexaAddons?: string[],
-  orderQuantityInput?: number
+  orderQuantityInput?: number,
+  quotationLineItems?: PdfQuotationLineItem[]
 ): string => {
 
   const METERS_TO_FEET = 3.2808399;
@@ -699,7 +709,7 @@ export const generateConfigurationHtml = (
   const controllerUnitPrice = orderQuantity > 0
     ? Math.round((totalController / orderQuantity) * 100) / 100
     : totalController;
-  const resolvedUnitGrandTotal = unitGrandTotal ?? Math.round((grandTotal / orderQuantity) * 100) / 100;
+  void unitGrandTotal;
 
   const isRentalProduct = selectedProduct.category?.toLowerCase().includes('rental');
   if (isRentalProduct) {
@@ -790,6 +800,7 @@ export const generateConfigurationHtml = (
     .replace(/\s+SMD/i, '')             // Remove SMD suffix
     .trim();
   const seriesEnvironmentValue = `${seriesName}, ${environmentLabel}`;
+  const isMultiProduct = Boolean(quotationLineItems && quotationLineItems.length > 1);
 
   const html = `
     <!DOCTYPE html>
@@ -862,8 +873,8 @@ export const generateConfigurationHtml = (
                 bottom: 0;
                 display: flex;
                 flex-direction: column;
-                padding-top: 55mm;
-                padding-bottom: 25mm;
+                padding-top: ${isMultiProduct ? '54mm' : '55mm'};
+                padding-bottom: ${isMultiProduct ? '16mm' : '25mm'};
                 padding-left: 12mm;
                 padding-right: 12mm;
                 box-sizing: border-box;
@@ -1003,7 +1014,7 @@ export const generateConfigurationHtml = (
         </div>
         <div class="page page-bg" style="background-image: url('/Pages to JPG/5.png');">
         </div>
-        <div class="page page-bg" style="background-image: url('/Pages to JPG/6.png'); position: relative;">
+        <div class="page page-bg ${isMultiProduct ? 'multi-quotation-page' : ''}" data-page-kind="quotation" style="background-image: url('/Pages to JPG/6.png'); position: relative;">
             <div class="quotation-overlay">
             <!-- Quotation Details (header is in background image) -->
             <div class="quotation-section" style="background: rgba(248, 249, 250, 0.95); padding: 5px 8px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8); flex-shrink: 0;">
@@ -1041,6 +1052,7 @@ export const generateConfigurationHtml = (
               </div>
               ` : ''}
               
+              ${isMultiProduct ? buildMultiProductQuotationBodyHtml(quotationLineItems!) : `
               <!-- Section A: Product Description - Clean Layout -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
@@ -1119,10 +1131,6 @@ export const generateConfigurationHtml = (
                                 <span class="quotation-label">Quantity (Units):</span>
                                 <span class="quotation-value" style="font-weight: 700;">${orderQuantity}</span>
                             </div>
-                            ${orderQuantity > 1 ? `<div class="quotation-row">
-                                <span class="quotation-label">Per-Unit Total:</span>
-                                <span class="quotation-value">₹${formatIndianNumber(resolvedUnitGrandTotal)}</span>
-                            </div>` : ''}
                             ${!isDigitalStandee ? `<div class="quotation-row">
                                 <span class="quotation-label">Subtotal:</span>
                                 <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(subtotal)}${orderQuantity > 1 ? ` (× ${orderQuantity})` : ''}</span>
@@ -1338,9 +1346,11 @@ export const generateConfigurationHtml = (
     : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Structure + Installation)</p>`)
   : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Structure + Installation)</p>`}
             </div>
+              `}
             </div>
         </div>
-        <div class="page page-bg" style="background-image: url('/Pages to JPG/7.png'); position: relative;">
+        ${isMultiProduct ? buildMultiProductContinuationPagesHtml(quotationLineItems!, quotationId) : ''}
+        <div class="page page-bg" data-page-kind="terms" style="background-image: url('/Pages to JPG/7.png'); position: relative;">
             <!-- Main white overlay (height 82%); bottom 6% leaves footer strip visible -->
             <div style="position: absolute; top: 12%; left: 0; right: 0; bottom: 6%; background: white; z-index: 1;"></div>
             <div class="quotation-overlay" style="padding-top: 45mm; padding-bottom: 25mm; padding-left: 8mm; padding-right: 8mm; position: relative; z-index: 2;">
@@ -1461,6 +1471,9 @@ export const generatePdfFromHtml = async (html: string): Promise<Blob> => {
     } catch {
       // Continue even if some images fail
     }
+
+    // Prefer one page for 2-product quotes; split only if content overflows.
+    fitMultiProductQuotationIfNeeded(container);
 
     const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -1588,7 +1601,8 @@ export const generateConfigurationPdf = async (
   },
   wireType?: 'gold' | 'copper',
   nexaAddons?: string[],
-  orderQuantityInput?: number
+  orderQuantityInput?: number,
+  quotationLineItems?: PdfQuotationLineItem[]
 ): Promise<Blob> => {
   const html = generateConfigurationHtml(
     config,
@@ -1603,7 +1617,8 @@ export const generateConfigurationPdf = async (
     exactPricingBreakdown,
     wireType,
     nexaAddons,
-    orderQuantityInput
+    orderQuantityInput,
+    quotationLineItems
   );
 
   return generatePdfFromHtml(html);
@@ -1654,7 +1669,9 @@ export const generateAlternatePdf = async (
     };
   },
   wireType?: 'gold' | 'copper',
-  nexaAddons?: string[]
+  nexaAddons?: string[],
+  orderQuantityInput?: number,
+  quotationLineItems?: PdfQuotationLineItem[]
 ): Promise<Blob> => {
   const html = generateConfigurationHtml(
     config,
@@ -1668,7 +1685,9 @@ export const generateAlternatePdf = async (
     customPricing,
     exactPricingBreakdown,
     wireType,
-    nexaAddons
+    nexaAddons,
+    orderQuantityInput,
+    quotationLineItems
   );
 
   const container = document.createElement('div');
@@ -1707,15 +1726,26 @@ export const generateAlternatePdf = async (
       // Continue even if some images fail to load
     }
 
+    // Prefer one page for 2-product quotes; split only if content overflows.
+    fitMultiProductQuotationIfNeeded(container);
+
     const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidthMM = 210;
     const pageHeightMM = 297;
 
-    // Pages to include: 1 (index 0), 6 (index 5), 7 (index 6)
-    const pagesToInclude = [0, 5, 6];
+    // Include cover, every quotation page (1 for single / 2 for multi), and terms.
+    const pagesToInclude = pages
+      .map((page, index) => ({ page, index }))
+      .filter(({ page, index }) =>
+        index === 0 ||
+        page.dataset.pageKind === 'quotation' ||
+        page.dataset.pageKind === 'terms'
+      )
+      .map(({ index }) => index);
 
-    for (const pageIndex of pagesToInclude) {
+    for (let includedIndex = 0; includedIndex < pagesToInclude.length; includedIndex++) {
+      const pageIndex = pagesToInclude[includedIndex];
       if (pageIndex >= pages.length) {
         console.warn(`Page ${pageIndex + 1} not found, skipping...`);
         continue;
@@ -1723,7 +1753,7 @@ export const generateAlternatePdf = async (
 
       const pageEl = pages[pageIndex];
 
-      if (pageIndex === 0) {
+      if (includedIndex === 0) {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
 
@@ -1778,7 +1808,7 @@ export const generateAlternatePdf = async (
       }
 
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      if (pageIndex !== pagesToInclude[0]) pdf.addPage();
+      if (includedIndex > 0) pdf.addPage();
 
       pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMM, pageHeightMM, undefined, 'NONE');
     }

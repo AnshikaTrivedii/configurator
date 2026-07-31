@@ -22,8 +22,15 @@ import { isCrystalSeries } from '../utils/productSeries';
 import { SuperUserDashboard } from './SuperUserDashboard';
 import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
-import { useQuotationCart } from '../contexts/QuotationCartContext';
+import { useQuotationCart, QuotationLineItem } from '../contexts/QuotationCartContext';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
+import {
+  priceLineItem,
+  normalizeQuotationLineItems,
+  toPdfQuotationLineItems,
+  buildLineItemConfigurationKey
+} from '../utils/quotationLineItems';
+import { QuotationBuilderPanel } from './QuotationBuilderPanel';
 import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } from '../utils/dimensionConstraints';
 import { products } from '../data/products';
 import { hasCabinetVariations, applySelectedCabinetVariation, getDefaultCabinetVariationLabel, getVariationLabelFromDimensions } from '../utils/cabinetVariation';
@@ -69,7 +76,17 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   onSalesDashboardClose
 }) => {
   const { config: globalConfig, updateDimensions: updateGlobalDimensions, updateConfig } = useDisplayConfig();
-  const { lineItems, addOrMergeLineItem, removeLineItem, updateLineItemQuantity, clearCart } = useQuotationCart();
+  const {
+    lineItems,
+    editingItemId,
+    setEditingItemId,
+    addOrMergeLineItem,
+    removeLineItem,
+    updateLineItemQuantity,
+    clearCart,
+    setLineItems,
+    cartGrandTotal
+  } = useQuotationCart();
   const [cartNotice, setCartNotice] = useState<string | null>(null);
   const wireType = globalConfig.wireType ?? 'gold';
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(
@@ -295,6 +312,89 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         1
       );
       updateConfig({ orderQuantity: restoredOrderQty });
+
+      // Restore multi-product cart from saved quotation (legacy → one item)
+      try {
+        const normalized = normalizeQuotationLineItems(activeQuotation);
+        const hydrated = normalized.map((li, index) => {
+          const catalogProduct =
+            products.find(p => p.id === li.productId) ||
+            (li.product as Product | undefined) ||
+            selectedProduct;
+          if (!catalogProduct) return null;
+          const orderQuantity = normalizeOrderQuantity(li.orderQuantity);
+          const config = {
+            width: li.config?.width || catalogProduct.cabinetDimensions.width,
+            height: li.config?.height || catalogProduct.cabinetDimensions.height,
+            aspectRatio: (li.config as any)?.aspectRatio ?? null,
+            unit: (li.config?.unit as 'mm' | 'm' | 'ft') || 'mm'
+          };
+          const cabinetGrid = {
+            columns: li.cabinetGrid?.columns || 1,
+            rows: li.cabinetGrid?.rows || 1,
+            totalWidth: li.cabinetGrid?.totalWidth || li.config?.width || 0,
+            totalHeight: li.cabinetGrid?.totalHeight || li.config?.height || 0
+          };
+          const pricingFromSaved = li.pricing?.grandTotal
+            ? ({
+                ...li.pricing,
+                unitPrice: li.pricing.unitPrice ?? 0,
+                quantity: li.pricing.quantity ?? 1,
+                orderQuantity,
+                unitGrandTotal: li.pricing.unitGrandTotal ?? li.pricing.grandTotal ?? 0,
+                productSubtotal: li.pricing.productSubtotal ?? 0,
+                productGST: 0,
+                productTotal: li.pricing.productTotal ?? li.pricing.productSubtotal ?? 0,
+                processorPrice: li.pricing.processorPrice ?? 0,
+                processorGST: 0,
+                processorTotal: li.pricing.processorTotal ?? li.pricing.processorPrice ?? 0,
+                structureCost: li.pricing.structureCost ?? 0,
+                structureGST: 0,
+                structureTotal: li.pricing.structureTotal ?? li.pricing.structureCost ?? 0,
+                installationCost: li.pricing.installationCost ?? 0,
+                installationGST: 0,
+                installationTotal: li.pricing.installationTotal ?? li.pricing.installationCost ?? 0,
+                addonsCost: li.pricing.addonsCost ?? 0,
+                addonsGST: 0,
+                addonsTotal: li.pricing.addonsTotal ?? 0,
+                appliedAddons: li.pricing.appliedAddons ?? [],
+                grandTotal: li.pricing.grandTotal ?? 0,
+                userType: 'End User',
+                productName: catalogProduct.name,
+                isAvailable: true
+              } as any)
+            : null;
+          return {
+            id: li.id || `restored-${index}`,
+            configurationKey: buildLineItemConfigurationKey({
+              product: catalogProduct,
+              config,
+              cabinetGrid,
+              processor: li.processor || null,
+              mode: li.mode || null,
+              wireType: li.wireType,
+              nexaAddons: li.nexaAddons || [],
+              selectedCabinetSize: li.selectedCabinetSize ?? null
+            }),
+            product: catalogProduct,
+            config,
+            cabinetGrid,
+            processor: li.processor || null,
+            mode: li.mode || null,
+            wireType: li.wireType,
+            nexaAddons: li.nexaAddons || [],
+            selectedCabinetSize: li.selectedCabinetSize ?? null,
+            orderQuantity,
+            unitPricingSnapshot: pricingFromSaved
+          } as QuotationLineItem;
+        }).filter(Boolean) as QuotationLineItem[];
+
+        if (hydrated.length > 0) {
+          setLineItems(hydrated);
+        }
+      } catch (err) {
+        console.warn('Failed to restore quotation line items:', err);
+      }
 
       // Restore cabinet size variation if present in quotation data
       const savedProductSpecs = activeQuotation.exactProductSpecs || (activeQuotation as any).product;
@@ -685,6 +785,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           ? 'Channel'
           : currentUserType;
 
+      const documentLineItems = lineItems;
+      const pdfLineItems = documentLineItems.length > 0
+        ? toPdfQuotationLineItems(documentLineItems)
+        : undefined;
+
       const blob = await generateConfigurationPdf(
         config,
         effectiveProduct || selectedProduct!,
@@ -697,10 +802,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         salesUser,
         quotationId,
         customPricing.enabled ? customPricing : undefined,
-        undefined,
+        pdfLineItems && pdfLineItems.length > 1
+          ? {
+              grandTotal: pdfLineItems.reduce((sum, item) => sum + (item.pricing?.grandTotal || 0), 0),
+              orderQuantity: documentLineItems.reduce((sum, li) => sum + normalizeOrderQuantity(li.orderQuantity), 0)
+            }
+          : undefined,
         selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
         globalConfig.nexaAddons,
-        globalConfig.orderQuantity
+        globalConfig.orderQuantity,
+        pdfLineItems
       );
 
       const url = window.URL.createObjectURL(blob);
@@ -736,6 +847,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     try {
 
       const currentUserType = userInfo?.userType || 'End User';
+      const documentLineItems = lineItems;
+      const docxLineItems = documentLineItems.length > 0
+        ? toPdfQuotationLineItems(documentLineItems)
+        : undefined;
 
       const blob = await generateConfigurationDocx(
         config,
@@ -755,9 +870,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         salesUser,
         quotationId,
         customPricing.enabled ? customPricing : undefined,
-        undefined,
+        docxLineItems && docxLineItems.length > 1
+          ? {
+              grandTotal: docxLineItems.reduce((sum, item) => sum + (item.pricing?.grandTotal || 0), 0)
+            }
+          : undefined,
         selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
-        globalConfig.nexaAddons
+        globalConfig.nexaAddons,
+        globalConfig.orderQuantity,
+        docxLineItems
       );
 
       const url = window.URL.createObjectURL(blob);
@@ -801,9 +922,41 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       }
     : cabinetGrid;
 
+  const resolvePricingUserType = (): string => {
+    const t = userInfo?.userType || 'End User';
+    if (t === 'Reseller') return 'reseller';
+    if (t === 'SI/Channel Partner') return 'siChannel';
+    return 'endUser';
+  };
+
   const handleAddToQuotation = () => {
     if (dimensionInvalid || !effectiveProduct) return;
+
     const qty = normalizeOrderQuantity(globalConfig.orderQuantity);
+    const pricing = priceLineItem(
+      {
+        product: effectiveProduct,
+        config: {
+          width: config.width,
+          height: config.height,
+          aspectRatio: config.aspectRatio,
+          unit: config.unit
+        },
+        cabinetGrid: fixedCabinetGrid,
+        processor: effectiveProcessor || null,
+        wireType: effectiveProduct.category?.toLowerCase().includes('modular') ? wireType : undefined,
+        nexaAddons: globalConfig.nexaAddons,
+        orderQuantity: qty
+      },
+      resolvePricingUserType(),
+      customPricing.enabled ? customPricing : undefined
+    );
+
+    if (!pricing.isAvailable) {
+      alert('Price is not available for this product configuration.');
+      return;
+    }
+
     const result = addOrMergeLineItem({
       product: effectiveProduct,
       config: {
@@ -818,14 +971,145 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       wireType: effectiveProduct.category?.toLowerCase().includes('modular') ? wireType : undefined,
       nexaAddons: globalConfig.nexaAddons,
       selectedCabinetSize: globalConfig.selectedCabinetSize,
-      orderQuantity: qty
+      orderQuantity: qty,
+      unitPricingSnapshot: pricing
     });
+
+    if (result.merged) {
+      const refreshed = priceLineItem(
+        {
+          product: result.item.product,
+          config: result.item.config,
+          cabinetGrid: result.item.cabinetGrid,
+          processor: result.item.processor,
+          wireType: result.item.wireType,
+          nexaAddons: result.item.nexaAddons,
+          orderQuantity: result.item.orderQuantity
+        },
+        resolvePricingUserType(),
+        customPricing.enabled ? customPricing : undefined
+      );
+      updateLineItemQuantity(result.item.id, result.item.orderQuantity, refreshed);
+    }
+
     setCartNotice(
-      result.merged
-        ? `Merged into existing line — quantity is now ${result.item.orderQuantity}.`
-        : `Added ${effectiveProduct.name} × ${qty} to quotation.`
+      editingItemId
+        ? `Updated ${effectiveProduct.name} in quotation.`
+        : result.merged
+          ? `Merged into existing line — quantity is now ${result.item.orderQuantity}.`
+          : `Added ${effectiveProduct.name} × ${qty} to quotation.`
     );
     window.setTimeout(() => setCartNotice(null), 4000);
+  };
+
+  const handleAddAnotherProduct = () => {
+    setEditingItemId(null);
+    setIsProductSelectorOpen(true);
+    setCartNotice('Select another product to add to this quotation.');
+    window.setTimeout(() => setCartNotice(null), 4000);
+  };
+
+  const handleEditCartItem = (item: QuotationLineItem) => {
+    setEditingItemId(item.id);
+    setSelectedProduct(item.product);
+    setShowLeftPanel(true);
+    updateWidth(item.config.width);
+    updateHeight(item.config.height);
+    if (item.config.unit) {
+      updateConfig({ unit: item.config.unit as 'mm' | 'm' | 'ft' });
+    }
+    updateConfig({
+      orderQuantity: normalizeOrderQuantity(item.orderQuantity),
+      nexaAddons: item.nexaAddons || [],
+      wireType: item.wireType === 'copper' ? 'copper' : 'gold',
+      selectedCabinetSize: item.selectedCabinetSize ?? null
+    });
+    if (item.processor) setSelectedController(item.processor);
+    if (item.mode) setSelectedMode(item.mode);
+    setCartNotice(`Editing ${item.product.name}. Update config, then click Add to Quotation.`);
+    window.setTimeout(() => setCartNotice(null), 5000);
+  };
+
+  const handleCartQuantityChange = (id: string, quantity: number) => {
+    const item = lineItems.find(li => li.id === id);
+    if (!item) return;
+    const qty = normalizeOrderQuantity(quantity);
+    const pricing = priceLineItem(
+      {
+        product: item.product,
+        config: item.config,
+        cabinetGrid: item.cabinetGrid,
+        processor: item.processor,
+        wireType: item.wireType,
+        nexaAddons: item.nexaAddons,
+        orderQuantity: qty
+      },
+      resolvePricingUserType(),
+      customPricing.enabled ? customPricing : undefined
+    );
+    updateLineItemQuantity(id, qty, pricing.isAvailable ? pricing : item.unitPricingSnapshot);
+  };
+
+  const ensureCurrentConfigInCart = (): QuotationLineItem[] => {
+    if (lineItems.length > 0) return lineItems;
+    if (!effectiveProduct || dimensionInvalid) return [];
+
+    const qty = normalizeOrderQuantity(globalConfig.orderQuantity);
+    const pricing = priceLineItem(
+      {
+        product: effectiveProduct,
+        config: {
+          width: config.width,
+          height: config.height,
+          aspectRatio: config.aspectRatio,
+          unit: config.unit
+        },
+        cabinetGrid: fixedCabinetGrid,
+        processor: effectiveProcessor || null,
+        wireType: effectiveProduct.category?.toLowerCase().includes('modular') ? wireType : undefined,
+        nexaAddons: globalConfig.nexaAddons,
+        orderQuantity: qty
+      },
+      resolvePricingUserType(),
+      customPricing.enabled ? customPricing : undefined
+    );
+
+    const result = addOrMergeLineItem({
+      product: effectiveProduct,
+      config: {
+        width: config.width,
+        height: config.height,
+        aspectRatio: config.aspectRatio,
+        unit: config.unit
+      },
+      cabinetGrid: fixedCabinetGrid,
+      processor: effectiveProcessor || null,
+      mode: selectedMode || null,
+      wireType: effectiveProduct.category?.toLowerCase().includes('modular') ? wireType : undefined,
+      nexaAddons: globalConfig.nexaAddons,
+      selectedCabinetSize: globalConfig.selectedCabinetSize,
+      orderQuantity: qty,
+      unitPricingSnapshot: pricing.isAvailable ? pricing : null
+    });
+    return [result.item];
+  };
+
+  const handleGenerateQuotationFromCart = () => {
+    const itemsForQuote = lineItems.length > 0 ? lineItems : ensureCurrentConfigInCart();
+    if (itemsForQuote.length === 0) {
+      alert('Add at least one product to the quotation first.');
+      return;
+    }
+    if ((userRole === 'sales' || userRole === 'partner' || userRole === 'super' || userRole === 'super_admin')) {
+      if (!isMandatoryFormSubmitted) {
+        setPendingAction('pdf');
+        setIsUserInfoFormOpen(true);
+        return;
+      }
+      handlePdfClick();
+    } else {
+      handleQuoteClick();
+    }
   };
 
   const handleColumnsChange = (columns: number) => {
@@ -1373,53 +1657,17 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                 </div>
               )}
 
-              {lineItems.length > 0 && (
-                <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <h4 className="text-sm font-semibold text-gray-900">Quotation Items ({lineItems.length})</h4>
-                    <button
-                      type="button"
-                      onClick={() => clearCart()}
-                      className="text-xs font-medium text-red-600 hover:text-red-700"
-                    >
-                      Clear all
-                    </button>
-                  </div>
-                  <ul className="space-y-2">
-                    {lineItems.map((item) => (
-                      <li key={item.id} className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-gray-900">{item.product.name}</p>
-                            <p className="text-gray-600">
-                              {item.cabinetGrid.columns} × {item.cabinetGrid.rows} cabinets
-                              {item.processor ? ` · ${item.processor}` : ''}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <label className="text-xs text-gray-500">Qty</label>
-                            <input
-                              type="number"
-                              min={1}
-                              step={1}
-                              value={item.orderQuantity}
-                              onChange={(e) => updateLineItemQuantity(item.id, Number(e.target.value))}
-                              className="w-16 rounded border border-gray-300 px-2 py-1 text-center text-sm"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeLineItem(item.id)}
-                              className="text-xs text-red-600 hover:text-red-700"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              <QuotationBuilderPanel
+                lineItems={lineItems}
+                cartGrandTotal={cartGrandTotal}
+                onAddAnotherProduct={handleAddAnotherProduct}
+                onEditItem={handleEditCartItem}
+                onRemoveItem={removeLineItem}
+                onQuantityChange={handleCartQuantityChange}
+                onGenerateQuotation={handleGenerateQuotationFromCart}
+                onClearAll={clearCart}
+                disabled={dimensionInvalid && lineItems.length === 0}
+              />
 
               {/* Action Buttons */}
               {selectedProduct && (
@@ -1431,7 +1679,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                       className={`inline-flex items-center justify-center px-6 py-3 font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors border ${dimensionInvalid ? 'bg-gray-200 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-indigo-700 border-indigo-300 hover:bg-indigo-50'}`}
                     >
                       <Package className="w-5 h-5 mr-2" />
-                      Add to Quotation
+                      {editingItemId ? 'Update Quotation Item' : 'Add to Quotation'}
                     </button>
                   )}
                   {/* Normal Users - Only See Quote Button */}
@@ -1551,7 +1799,12 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         <PdfViewModal
           isOpen={isPdfViewModalOpen}
           onClose={() => setIsPdfViewModalOpen(false)}
-          htmlContent={generateConfigurationHtml(
+          htmlContent={(() => {
+            const documentLineItems = lineItems.length > 0 ? lineItems : [];
+            const pdfLineItems = documentLineItems.length > 0
+              ? toPdfQuotationLineItems(documentLineItems)
+              : undefined;
+            return generateConfigurationHtml(
             config,
             effectiveProduct || selectedProduct!,
             fixedCabinetGrid,
@@ -1574,11 +1827,18 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             salesUser,
             quotationId,
             customPricing.enabled ? customPricing : undefined,
-            undefined,
+            pdfLineItems && pdfLineItems.length > 1
+              ? {
+                  grandTotal: pdfLineItems.reduce((sum, item) => sum + (item.pricing?.grandTotal || 0), 0),
+                  orderQuantity: documentLineItems.reduce((sum, li) => sum + normalizeOrderQuantity(li.orderQuantity), 0)
+                }
+              : undefined,
             selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
             globalConfig.nexaAddons,
-            globalConfig.orderQuantity
-          )}
+            globalConfig.orderQuantity,
+            pdfLineItems
+          );
+          })()}
           customPricing={customPricing.enabled ? customPricing : undefined}
           onDownload={handleDownloadPdf}
           onDownloadDocx={handleDownloadDocx}
