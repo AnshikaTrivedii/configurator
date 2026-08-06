@@ -12,6 +12,7 @@ import DataWiringView from './DataWiringView';
 import PowerWiringView from './PowerWiringView';
 import { QuoteModal } from './QuoteModal';
 import { UserInfoForm } from './UserInfoForm';
+import { EditProductSelectionModal } from './EditProductSelectionModal';
 import { useControllerSelection } from '../hooks/useControllersSelection';
 import { generateConfigurationDocx, generateConfigurationHtml, generateConfigurationPdf } from '../utils/docxGenerator';
 import { PdfViewModal } from './PdfViewModal';
@@ -22,13 +23,15 @@ import { isCrystalSeries } from '../utils/productSeries';
 import { SuperUserDashboard } from './SuperUserDashboard';
 import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
-import { useQuotationCart, QuotationLineItem } from '../contexts/QuotationCartContext';
+import { useQuotationCart, QuotationLineItem, LineItemUserType } from '../contexts/QuotationCartContext';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
 import {
   priceLineItem,
   normalizeQuotationLineItems,
   toPdfQuotationLineItems,
-  buildLineItemConfigurationKey
+  buildLineItemConfigurationKey,
+  toPricingUserTypeCode,
+  normalizeDisplayUserType
 } from '../utils/quotationLineItems';
 import { QuotationBuilderPanel } from './QuotationBuilderPanel';
 import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } from '../utils/dimensionConstraints';
@@ -83,6 +86,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     addOrMergeLineItem,
     removeLineItem,
     updateLineItemQuantity,
+    updateLineItemProductSettings,
     clearCart,
     setLineItems,
     cartGrandTotal
@@ -385,7 +389,25 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             nexaAddons: li.nexaAddons || [],
             selectedCabinetSize: li.selectedCabinetSize ?? null,
             orderQuantity,
-            unitPricingSnapshot: pricingFromSaved
+            unitPricingSnapshot: pricingFromSaved,
+            userType: li.userType
+              ? normalizeDisplayUserType(li.userType)
+              : (activeQuotation.userType
+                  ? normalizeDisplayUserType(activeQuotation.userType)
+                  : undefined),
+            customPricing: li.customPricing
+              ? {
+                  enabled: !!li.customPricing.enabled,
+                  structurePrice: li.customPricing.structurePrice ?? null,
+                  installationPrice: li.customPricing.installationPrice ?? null
+                }
+              : (activeQuotation.quotationData?.customPricing
+                  ? {
+                      enabled: !!activeQuotation.quotationData.customPricing.enabled,
+                      structurePrice: activeQuotation.quotationData.customPricing.structurePrice ?? null,
+                      installationPrice: activeQuotation.quotationData.customPricing.installationPrice ?? null
+                    }
+                  : undefined)
           } as QuotationLineItem;
         }).filter(Boolean) as QuotationLineItem[];
 
@@ -449,6 +471,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [isPdfViewModalOpen, setIsPdfViewModalOpen] = useState(false);
   const [isUserInfoFormOpen, setIsUserInfoFormOpen] = useState(false);
+  const [isEditProductSelectionOpen, setIsEditProductSelectionOpen] = useState(false);
+  const [selectedEditLineItemId, setSelectedEditLineItemId] = useState<string | null>(null);
   const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string; validity?: string } | undefined>(undefined);
   const [pendingAction, setPendingAction] = useState<'quote' | 'pdf' | null>(null);
   const [isMandatoryFormSubmitted, setIsMandatoryFormSubmitted] = useState(false);
@@ -636,8 +660,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
 
-  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string }) => {
-    setUserInfo(userData);
+  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string; validity?: string }) => {
+    // Quotation-level client fields (shared across products)
+    const quotationLevelUserInfo = {
+      ...userData,
+      // Keep quotation display userType; for multi-product edit the selected
+      // product's userType is also stored on the line item below.
+      userType: userData.userType
+    };
+    setUserInfo(quotationLevelUserInfo);
     setIsUserInfoFormOpen(false);
 
     // Update existing client or create/find client when user info is submitted (for sales/partner users)
@@ -687,6 +718,47 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       }
     }
 
+    // Product-level updates: apply userType + customPricing only to the selected product
+    // (or the sole product in a single-product quotation).
+    const targetLineItemId =
+      selectedEditLineItemId ||
+      (lineItems.length === 1 ? lineItems[0].id : null);
+
+    if (targetLineItemId) {
+      const targetItem = lineItems.find(li => li.id === targetLineItemId);
+      if (targetItem) {
+        const productCustomPricing = customPricing.enabled
+          ? {
+              enabled: true as const,
+              structurePrice: isCrystalSeries(targetItem.product) ? null : customPricing.structurePrice,
+              installationPrice: customPricing.installationPrice
+            }
+          : { enabled: false as const, structurePrice: null, installationPrice: null };
+
+        const refreshedPricing = priceLineItem(
+          {
+            product: targetItem.product,
+            config: targetItem.config,
+            cabinetGrid: targetItem.cabinetGrid,
+            processor: targetItem.processor,
+            wireType: targetItem.wireType,
+            nexaAddons: targetItem.nexaAddons,
+            orderQuantity: targetItem.orderQuantity
+          },
+          toPricingUserTypeCode(userData.userType),
+          productCustomPricing.enabled ? productCustomPricing : undefined
+        );
+
+        updateLineItemProductSettings(targetLineItemId, {
+          userType: userData.userType as LineItemUserType,
+          customPricing: productCustomPricing,
+          unitPricingSnapshot: refreshedPricing.isAvailable
+            ? refreshedPricing
+            : targetItem.unitPricingSnapshot
+        });
+      }
+    }
+
     if (!isEditMode) {
       const username = (userRole === 'sales' || userRole === 'partner') && salesUser ? salesUser.name : userData.fullName;
       try {
@@ -713,17 +785,75 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
     setPendingAction(null);
     setIsEditMode(false);
+    setSelectedEditLineItemId(null);
   };
 
-  const resetMandatoryFormState = () => {
-    setIsMandatoryFormSubmitted(false);
-    setUserInfo(undefined);
+  const loadLineItemIntoEditForm = (item: QuotationLineItem) => {
+    setSelectedEditLineItemId(item.id);
+    setSelectedProduct(item.product);
+    updateWidth(item.config.width);
+    updateHeight(item.config.height);
+    if (item.config.unit) {
+      updateConfig({ unit: item.config.unit as 'mm' | 'm' | 'ft' });
+    }
+    updateConfig({
+      orderQuantity: normalizeOrderQuantity(item.orderQuantity),
+      nexaAddons: item.nexaAddons || [],
+      wireType: item.wireType === 'copper' ? 'copper' : 'gold',
+      selectedCabinetSize: item.selectedCabinetSize ?? null
+    });
+    if (item.processor) setSelectedController(item.processor);
+    if (item.mode) setSelectedMode(item.mode);
+
+    const itemCustom = item.customPricing;
+    if (itemCustom) {
+      setCustomPricing({
+        enabled: !!itemCustom.enabled,
+        structurePrice: itemCustom.structurePrice ?? null,
+        installationPrice: itemCustom.installationPrice ?? null
+      });
+    } else {
+      setCustomPricing({
+        enabled: false,
+        structurePrice: null,
+        installationPrice: null
+      });
+    }
+
+    if (item.userType) {
+      setUserInfo(prev => prev
+        ? { ...prev, userType: normalizeDisplayUserType(item.userType) }
+        : prev
+      );
+    }
   };
 
   const handleEditForm = () => {
     setIsEditMode(true);
     setPendingAction('pdf'); // Set to pdf since we want to regenerate the document
+
+    if (lineItems.length > 1) {
+      setSelectedEditLineItemId(null);
+      setIsEditProductSelectionOpen(true);
+      return;
+    }
+
+    if (lineItems.length === 1) {
+      loadLineItemIntoEditForm(lineItems[0]);
+    }
     setIsUserInfoFormOpen(true);
+  };
+
+  const handleSelectProductForEdit = (item: QuotationLineItem) => {
+    loadLineItemIntoEditForm(item);
+    setIsEditProductSelectionOpen(false);
+    setIsUserInfoFormOpen(true);
+  };
+
+  const handleSwitchEditProduct = (productId: string) => {
+    const item = lineItems.find(li => li.id === productId);
+    if (!item) return;
+    loadLineItemIntoEditForm(item);
   };
 
   const handleQuoteClick = () => {
@@ -972,7 +1102,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       nexaAddons: globalConfig.nexaAddons,
       selectedCabinetSize: globalConfig.selectedCabinetSize,
       orderQuantity: qty,
-      unitPricingSnapshot: pricing
+      unitPricingSnapshot: pricing,
+      userType: (userInfo?.userType || 'End User') as LineItemUserType,
+      customPricing: customPricing.enabled
+        ? {
+            enabled: true,
+            structurePrice: isCrystalSeries(effectiveProduct) ? null : customPricing.structurePrice,
+            installationPrice: customPricing.installationPrice
+          }
+        : { enabled: false, structurePrice: null, installationPrice: null }
     });
 
     if (result.merged) {
@@ -986,10 +1124,20 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           nexaAddons: result.item.nexaAddons,
           orderQuantity: result.item.orderQuantity
         },
-        resolvePricingUserType(),
-        customPricing.enabled ? customPricing : undefined
+        toPricingUserTypeCode(result.item.userType || userInfo?.userType),
+        result.item.customPricing?.enabled ? result.item.customPricing : undefined
       );
       updateLineItemQuantity(result.item.id, result.item.orderQuantity, refreshed);
+      updateLineItemProductSettings(result.item.id, {
+        userType: (userInfo?.userType || result.item.userType || 'End User') as LineItemUserType,
+        customPricing: customPricing.enabled
+          ? {
+              enabled: true,
+              structurePrice: isCrystalSeries(result.item.product) ? null : customPricing.structurePrice,
+              installationPrice: customPricing.installationPrice
+            }
+          : { enabled: false, structurePrice: null, installationPrice: null }
+      });
     }
 
     setCartNotice(
@@ -1044,8 +1192,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         nexaAddons: item.nexaAddons,
         orderQuantity: qty
       },
-      resolvePricingUserType(),
-      customPricing.enabled ? customPricing : undefined
+      toPricingUserTypeCode(item.userType || userInfo?.userType),
+      item.customPricing?.enabled
+        ? item.customPricing
+        : (customPricing.enabled ? customPricing : undefined)
     );
     updateLineItemQuantity(id, qty, pricing.isAvailable ? pricing : item.unitPricingSnapshot);
   };
@@ -1089,7 +1239,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       nexaAddons: globalConfig.nexaAddons,
       selectedCabinetSize: globalConfig.selectedCabinetSize,
       orderQuantity: qty,
-      unitPricingSnapshot: pricing.isAvailable ? pricing : null
+      unitPricingSnapshot: pricing.isAvailable ? pricing : null,
+      userType: (userInfo?.userType || 'End User') as LineItemUserType,
+      customPricing: customPricing.enabled
+        ? {
+            enabled: true,
+            structurePrice: isCrystalSeries(effectiveProduct) ? null : customPricing.structurePrice,
+            installationPrice: customPricing.installationPrice
+          }
+        : { enabled: false, structurePrice: null, installationPrice: null }
     });
     return [result.item];
   };
@@ -1859,6 +2017,22 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         />
       )}
 
+      {/* Product selection for multi-product Edit Client Details */}
+      <EditProductSelectionModal
+        isOpen={isEditProductSelectionOpen}
+        onClose={() => {
+          setIsEditProductSelectionOpen(false);
+          setPendingAction(null);
+          setIsEditMode(false);
+          setSelectedEditLineItemId(null);
+        }}
+        lineItems={lineItems}
+        title="Select Product to Edit"
+        subtitle="Which product would you like to edit?"
+        actionLabel={(index) => `Edit Product ${index + 1}`}
+        onSelectProduct={(item) => handleSelectProductForEdit(item as QuotationLineItem)}
+      />
+
       {/* User Info Form Modal - merge T&C from quotation so they always pre-fill when editing */}
       <UserInfoForm
         isOpen={isUserInfoFormOpen}
@@ -1866,6 +2040,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           setIsUserInfoFormOpen(false);
           setPendingAction(null);
           setIsEditMode(false);
+          setSelectedEditLineItemId(null);
         }}
         onSubmit={handleUserInfoSubmit}
         title={isEditMode ? 'Edit Client Details' : (pendingAction === 'quote' ? 'Get a Quote' : 'View Document')}
@@ -1873,6 +2048,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         initialData={(() => {
           const qUser = activeQuotation?.quotationData?.userInfo;
           const base = userInfo ? { ...userInfo } : undefined;
+          const editingItem = selectedEditLineItemId
+            ? lineItems.find(li => li.id === selectedEditLineItemId)
+            : null;
           if (!base && !qUser) return undefined;
           if (!base) return qUser ? {
             fullName: qUser.fullName || qUser.customerName || '',
@@ -1880,13 +2058,18 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             phoneNumber: qUser.phoneNumber || qUser.customerPhone || '',
             projectTitle: qUser.projectTitle || '',
             address: qUser.address || '',
-            userType: (qUser.userType === 'Reseller' ? 'Reseller' : qUser.userType === 'SI/Channel Partner' || qUser.userType === 'Channel' ? 'SI/Channel Partner' : 'End User') as 'End User' | 'Reseller' | 'SI/Channel Partner',
+            userType: editingItem?.userType
+              ? normalizeDisplayUserType(editingItem.userType)
+              : ((qUser.userType === 'Reseller' ? 'Reseller' : qUser.userType === 'SI/Channel Partner' || qUser.userType === 'Channel' ? 'SI/Channel Partner' : 'End User') as 'End User' | 'Reseller' | 'SI/Channel Partner'),
             validity: qUser.validity,
             paymentTerms: qUser.paymentTerms,
             warranty: qUser.warranty
           } : undefined;
           return {
             ...base,
+            userType: editingItem?.userType
+              ? normalizeDisplayUserType(editingItem.userType)
+              : base.userType,
             validity: base.validity ?? qUser?.validity,
             paymentTerms: base.paymentTerms ?? qUser?.paymentTerms,
             warranty: base.warranty ?? qUser?.warranty
@@ -1897,7 +2080,32 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         allowedCustomerTypes={salesUser?.allowedCustomerTypes}
         customPricing={customPricing}
         onCustomPricingChange={setCustomPricing}
-        selectedProduct={selectedProduct}
+        selectedProduct={
+          selectedEditLineItemId
+            ? (lineItems.find(li => li.id === selectedEditLineItemId)?.product || selectedProduct)
+            : selectedProduct
+        }
+        editingProductContext={(() => {
+          if (!isEditMode || lineItems.length < 2 || !selectedEditLineItemId) return null;
+          const idx = lineItems.findIndex(li => li.id === selectedEditLineItemId);
+          if (idx < 0) return null;
+          const item = lineItems[idx];
+          return {
+            productIndex: idx,
+            productName: item.product.name,
+            productId: item.id
+          };
+        })()}
+        productSwitchOptions={
+          isEditMode && lineItems.length > 1
+            ? lineItems.map((li, index) => ({
+                id: li.id,
+                name: li.product.name,
+                index
+              }))
+            : undefined
+        }
+        onSwitchProduct={isEditMode && lineItems.length > 1 ? handleSwitchEditProduct : undefined}
       />
 
     </div>

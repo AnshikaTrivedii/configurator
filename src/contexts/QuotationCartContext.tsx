@@ -3,6 +3,14 @@ import { Product, CabinetGrid, DisplayConfig } from '../types';
 import { buildConfigurationKey, normalizeOrderQuantity } from '../utils/orderQuantity';
 import { PricingCalculationResult } from '../utils/centralizedPricing';
 
+export type LineItemUserType = 'End User' | 'Reseller' | 'SI/Channel Partner';
+
+export type LineItemCustomPricing = {
+  enabled: boolean;
+  structurePrice: number | null;
+  installationPrice: number | null;
+};
+
 export interface QuotationLineItem {
   id: string;
   configurationKey: string;
@@ -17,6 +25,10 @@ export interface QuotationLineItem {
   orderQuantity: number;
   /** Snapshot of pricing for this line (includes orderQuantity multiplication) */
   unitPricingSnapshot?: PricingCalculationResult | null;
+  /** Product-level customer type used for this line's pricing */
+  userType?: LineItemUserType;
+  /** Product-level custom structure/installation pricing */
+  customPricing?: LineItemCustomPricing;
 }
 
 interface QuotationCartContextType {
@@ -30,6 +42,14 @@ interface QuotationCartContextType {
   replaceLineItem: (id: string, item: Omit<QuotationLineItem, 'id' | 'configurationKey'>) => QuotationLineItem;
   updateLineItemQuantity: (id: string, orderQuantity: number, pricingSnapshot?: PricingCalculationResult | null) => void;
   updateLineItemPricing: (id: string, pricingSnapshot: PricingCalculationResult) => void;
+  updateLineItemProductSettings: (
+    id: string,
+    settings: {
+      userType?: LineItemUserType;
+      customPricing?: LineItemCustomPricing;
+      unitPricingSnapshot?: PricingCalculationResult | null;
+    }
+  ) => void;
   removeLineItem: (id: string) => void;
   setLineItems: (items: QuotationLineItem[]) => void;
   clearCart: () => void;
@@ -163,6 +183,28 @@ export const QuotationCartProvider: React.FC<{ children: ReactNode }> = ({ child
     )));
   }, []);
 
+  const updateLineItemProductSettings = useCallback((
+    id: string,
+    settings: {
+      userType?: LineItemUserType;
+      customPricing?: LineItemCustomPricing;
+      unitPricingSnapshot?: PricingCalculationResult | null;
+    }
+  ) => {
+    setLineItemsState(prev => prev.map(li => (
+      li.id === id
+        ? {
+            ...li,
+            ...(settings.userType !== undefined ? { userType: settings.userType } : {}),
+            ...(settings.customPricing !== undefined ? { customPricing: settings.customPricing } : {}),
+            ...(settings.unitPricingSnapshot !== undefined
+              ? { unitPricingSnapshot: settings.unitPricingSnapshot }
+              : {})
+          }
+        : li
+    )));
+  }, []);
+
   const removeLineItem = useCallback((id: string) => {
     setLineItemsState(prev => prev.filter(li => li.id !== id));
     setEditingItemId(prev => (prev === id ? null : prev));
@@ -199,6 +241,7 @@ export const QuotationCartProvider: React.FC<{ children: ReactNode }> = ({ child
       replaceLineItem,
       updateLineItemQuantity,
       updateLineItemPricing,
+      updateLineItemProductSettings,
       removeLineItem,
       setLineItems,
       clearCart,
@@ -212,6 +255,7 @@ export const QuotationCartProvider: React.FC<{ children: ReactNode }> = ({ child
       replaceLineItem,
       updateLineItemQuantity,
       updateLineItemPricing,
+      updateLineItemProductSettings,
       removeLineItem,
       setLineItems,
       clearCart,

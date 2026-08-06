@@ -10,8 +10,13 @@ import { normalizeOrderQuantity } from '../utils/orderQuantity';
 import {
   getQuotationItemSummary,
   normalizeQuotationLineItems,
-  toPdfQuotationLineItems
+  toPdfQuotationLineItems,
+  priceLineItem,
+  toPricingUserTypeCode,
+  PersistedQuotationLineItem
 } from '../utils/quotationLineItems';
+import { QuotationProductSelectionModal } from './QuotationProductSelectionModal';
+import { products } from '../data/products';
 import { Save as SaveIcon } from 'lucide-react';
 
 interface SalesPerson {
@@ -191,6 +196,43 @@ function copyProcessorPricingFromBreakdown(target: any, source: any) {
   target.processorTotal = getBreakdownProcessorTotal(source);
 }
 
+function resolveLineItemProduct(item: PersistedQuotationLineItem): any {
+  if (item.product?.id) {
+    return products.find(p => p.id === item.product!.id) || item.product;
+  }
+  if (item.productId) {
+    return products.find(p => p.id === item.productId) || item.product;
+  }
+  return item.product || null;
+}
+
+function lineItemHasDiscount(item: PersistedQuotationLineItem): boolean {
+  const d = item.discount;
+  if (!d) return false;
+  return (d.discountAmount ?? 0) > 0 || !!d.discountType || !!d.ledOverride || !!d.controllerOverride;
+}
+
+function loadDiscountFormFromLineItem(item: PersistedQuotationLineItem | null | undefined): {
+  type: 'led' | 'controller' | null;
+  amountPerUnit: number;
+  percent: number;
+} {
+  if (!item?.discount) {
+    return { type: null, amountPerUnit: 0, percent: 0 };
+  }
+  const d = item.discount;
+  const type = (d.discountType as 'led' | 'controller') || null;
+  const amountPerUnit =
+    (type === 'led'
+      ? (d.ledOverride?.amountPerUnit ?? d.discountAmountPerUnit)
+      : (d.controllerOverride?.amountPerUnit ?? d.discountAmountPerUnit)) || 0;
+  return {
+    type,
+    amountPerUnit,
+    percent: d.discountPercent || 0
+  };
+}
+
 export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = ({
   isOpen,
   onClose,
@@ -212,6 +254,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [discountAmountPerUnit, setDiscountAmountPerUnit] = useState<number>(0);
   const [isUpdatingDiscount, setIsUpdatingDiscount] = useState(false);
+  const [discountSelectionQuotationId, setDiscountSelectionQuotationId] = useState<string | null>(null);
+  const [selectedDiscountLineItemId, setSelectedDiscountLineItemId] = useState<string | null>(null);
+  const [selectedDiscountProductIndex, setSelectedDiscountProductIndex] = useState<number>(0);
 
   useEffect(() => {
     if (isOpen && salesPersonId) {
@@ -352,7 +397,476 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
     }
   };
 
+  const clearDiscountFormState = () => {
+    setEditingDiscountQuotationId(null);
+    setDiscountType(null);
+    setDiscountPercent(0);
+    setDiscountAmountPerUnit(0);
+    setSelectedDiscountLineItemId(null);
+    setSelectedDiscountProductIndex(0);
+    setDiscountSelectionQuotationId(null);
+  };
+
+  const openDiscountFormForLineItem = (
+    quotation: Quotation,
+    item: PersistedQuotationLineItem,
+    productIndex: number
+  ) => {
+    setSelectedDiscountLineItemId(item.id || `legacy-${productIndex}`);
+    setSelectedDiscountProductIndex(productIndex);
+    setEditingDiscountQuotationId(quotation.quotationId);
+
+    const loaded = loadDiscountFormFromLineItem(item);
+    // Fallback to quotation-level discount only for single-product / legacy
+    if (!loaded.type) {
+      const lineItems = normalizeQuotationLineItems(quotation);
+      if (lineItems.length <= 1) {
+        const hasDiscountInQuotationData = quotation.quotationData?.discountApplied;
+        const hasDiscountInBreakdown = quotation.exactPricingBreakdown?.discount
+          && (quotation.exactPricingBreakdown?.discount?.discountAmount ?? 0) > 0;
+        if (hasDiscountInQuotationData) {
+          const di = quotation.quotationData.discountInfo;
+          setDiscountType(di?.type || null);
+          setDiscountPercent(di?.percent || 0);
+          setDiscountAmountPerUnit(di?.amountPerUnit || 0);
+          return;
+        }
+        if (hasDiscountInBreakdown) {
+          const bd = quotation.exactPricingBreakdown?.discount;
+          const type = bd?.discountType || (bd?.discountPercent && bd.discountPercent > 0 ? 'controller' : 'led');
+          setDiscountType((type as 'led' | 'controller') || null);
+          setDiscountPercent(bd?.discountPercent || 0);
+          setDiscountAmountPerUnit(bd?.discountAmountPerUnit || 0);
+          return;
+        }
+      }
+    }
+    setDiscountType(loaded.type);
+    setDiscountPercent(loaded.percent);
+    setDiscountAmountPerUnit(loaded.amountPerUnit);
+  };
+
+  const beginDiscountForQuotation = (quotation: Quotation) => {
+    const lineItems = normalizeQuotationLineItems(quotation);
+    if (lineItems.length > 1) {
+      setDiscountSelectionQuotationId(quotation.quotationId);
+      setSelectedDiscountLineItemId(null);
+      setEditingDiscountQuotationId(null);
+      return;
+    }
+    if (lineItems.length === 1) {
+      openDiscountFormForLineItem(quotation, lineItems[0], 0);
+      return;
+    }
+    // Legacy single-product without lineItems array
+    setSelectedDiscountLineItemId(null);
+    setSelectedDiscountProductIndex(0);
+    setEditingDiscountQuotationId(quotation.quotationId);
+    const hasDiscountInQuotationData = quotation.quotationData?.discountApplied;
+    const hasDiscountInBreakdown = quotation.exactPricingBreakdown?.discount
+      && (quotation.exactPricingBreakdown?.discount?.discountAmount ?? 0) > 0;
+    if (hasDiscountInQuotationData) {
+      const di = quotation.quotationData.discountInfo;
+      setDiscountType(di?.type || null);
+      setDiscountPercent(di?.percent || 0);
+      setDiscountAmountPerUnit(di?.amountPerUnit || 0);
+    } else if (hasDiscountInBreakdown) {
+      const bd = quotation.exactPricingBreakdown?.discount;
+      const type = bd?.discountType || (bd?.discountPercent && bd.discountPercent > 0 ? 'controller' : 'led');
+      setDiscountType((type as 'led' | 'controller') || null);
+      setDiscountPercent(bd?.discountPercent || 0);
+      setDiscountAmountPerUnit(bd?.discountAmountPerUnit || 0);
+    } else {
+      setDiscountType(null);
+      setDiscountPercent(0);
+      setDiscountAmountPerUnit(0);
+    }
+  };
+
+  const buildBasePricingForLineItem = (
+    quotation: Quotation,
+    item: PersistedQuotationLineItem
+  ): any => {
+    const product = resolveLineItemProduct(item);
+    if (!product) return null;
+
+    const userTypeCode = toPricingUserTypeCode(
+      item.userType || quotation.userTypeDisplayName || quotation.userType
+    );
+    const customPricing = item.customPricing?.enabled
+      ? item.customPricing
+      : quotation.quotationData?.customPricing;
+
+    const pricingResult = priceLineItem(
+      {
+        product,
+        config: item.config || { width: 0, height: 0, unit: 'mm' },
+        cabinetGrid: item.cabinetGrid || { columns: 1, rows: 1, totalWidth: 0, totalHeight: 0 },
+        processor: item.processor || null,
+        wireType: item.wireType,
+        nexaAddons: item.nexaAddons,
+        orderQuantity: item.orderQuantity
+      },
+      userTypeCode,
+      customPricing?.enabled ? customPricing : undefined
+    );
+
+    if (!pricingResult.isAvailable) return null;
+    return pricingResult;
+  };
+
+  const persistMultiProductDiscountUpdate = async (
+    quotation: Quotation,
+    updatedLineItems: PersistedQuotationLineItem[],
+    selectedItem: PersistedQuotationLineItem,
+    selectedDiscountedPricing: any | null
+  ) => {
+    const multiGrandTotal = Math.round(
+      updatedLineItems.reduce((sum, li) => sum + (Number(li.pricing?.grandTotal) || 0), 0)
+    );
+    const multiOriginalTotal = Math.round(
+      updatedLineItems.reduce((sum, li) => {
+        const original = li.discount?.originalGrandTotal ?? li.pricing?.grandTotal ?? 0;
+        return sum + (Number(original) || 0);
+      }, 0)
+    );
+
+    const anyDiscount = updatedLineItems.some(lineItemHasDiscount);
+    const selectedDiscount = selectedItem.discount;
+
+    // Keep quotation-level breakdown aligned with selected product for backward compatibility
+    const selectedPricing = selectedItem.pricing || {};
+    const newExactPricingBreakdown = {
+      ...quotation.exactPricingBreakdown,
+      ...selectedPricing,
+      grandTotal: multiGrandTotal,
+      discount: selectedDiscount || undefined
+    };
+
+    const productDetails = quotation.productDetails;
+    const exactSpecs = (quotation.exactProductSpecs || {}) as any;
+    const primaryProduct = resolveLineItemProduct(updatedLineItems[0]) || productDetails?.product || productDetails;
+    let config = updatedLineItems[0]?.config || quotation.quotationData?.config;
+    if (!config && exactSpecs?.displaySize) {
+      config = {
+        width: (exactSpecs.displaySize.width * 1000) || 0,
+        height: (exactSpecs.displaySize.height * 1000) || 0,
+        unit: 'mm'
+      };
+    }
+
+    let userTypeForHtml = 'End User';
+    if (quotation.userType === 'siChannel') userTypeForHtml = 'SI/Channel Partner';
+    else if (quotation.userType === 'reseller') userTypeForHtml = 'Reseller';
+
+    const customer = customers.find(c =>
+      c.quotations.some(q => q.quotationId === quotation.quotationId)
+    );
+    const userInfo = {
+      userType: userTypeForHtml as any,
+      fullName: customer?.customerName || '',
+      email: customer?.customerEmail || '',
+      phoneNumber: customer?.customerPhone || '',
+      projectTitle: quotation.quotationData?.userInfo?.projectTitle || quotation.projectTitle || '',
+      address: quotation.quotationData?.userInfo?.address || quotation.address || ''
+    };
+
+    const previewHtml = generateConfigurationHtml(
+      config,
+      primaryProduct,
+      updatedLineItems[0]?.cabinetGrid || exactSpecs.cabinetGrid || productDetails?.cabinetGrid,
+      updatedLineItems[0]?.processor || exactSpecs.processor || productDetails?.processor || null,
+      updatedLineItems[0]?.mode || exactSpecs.mode || productDetails?.mode || undefined,
+      userInfo,
+      salesPerson ? {
+        email: salesPerson.email,
+        name: salesPerson.name,
+        contactNumber: salesPerson.contactNumber,
+        location: salesPerson.location
+      } : null,
+      quotation.quotationId,
+      quotation.quotationData?.customPricing,
+      buildExactPricingBreakdownForPdf(newExactPricingBreakdown, {
+        logContext: `multiProductDiscount PDF (quotationId=${quotation.quotationId})`
+      }),
+      quotation.quotationData?.wireType,
+      quotation.quotationData?.nexaAddons,
+      normalizeOrderQuantity(updatedLineItems[0]?.orderQuantity || 1),
+      toPdfQuotationLineItems(updatedLineItems as any)
+    );
+
+    const { generatePdfFromHtml } = await import('../utils/docxGenerator');
+    const pdfBlob = await generatePdfFromHtml(previewHtml);
+    const pdfBase64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = (reader.result as string).split(',')[1];
+        resolve(base64String);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(pdfBlob);
+    });
+
+    const updateData = {
+      totalPrice: multiGrandTotal,
+      originalTotalPrice: multiOriginalTotal,
+      exactPricingBreakdown: newExactPricingBreakdown,
+      pdfBase64,
+      quotationData: {
+        ...quotation.quotationData,
+        lineItems: updatedLineItems,
+        updatedAt: new Date().toISOString(),
+        discountApplied: anyDiscount,
+        discountInfo: selectedDiscount
+          ? {
+              type: selectedDiscount.discountType,
+              percent: 0,
+              amount: selectedDiscount.discountAmount || 0,
+              amountPerUnit: selectedDiscount.discountAmountPerUnit || 0,
+              numberOfUnits: selectedDiscount.numberOfUnits || 0,
+              ledDiscountMode: selectedDiscount.ledDiscountMode || 'none',
+              lineItemId: selectedItem.id,
+              productIndex: selectedDiscountProductIndex
+            }
+          : (anyDiscount ? quotation.quotationData?.discountInfo : null)
+      }
+    };
+
+    await salesAPI.updateQuotation(quotation.quotationId, updateData);
+    clearDiscountFormState();
+    fetchSalesPersonDetails();
+  };
+
+  const handleApplyDiscountToSelectedProduct = async (quotation: Quotation) => {
+    if (!discountType) {
+      alert('Please select a discount type');
+      return;
+    }
+    if (discountType === 'led' && discountAmountPerUnit <= 0) {
+      alert('Please enter a valid discount amount per unit');
+      return;
+    }
+    if (discountType === 'controller' && discountAmountPerUnit <= 0) {
+      alert('Please enter a valid controller override price > 0');
+      return;
+    }
+    if (!selectedDiscountLineItemId) {
+      alert('Please select a product to apply the discount to.');
+      return;
+    }
+
+    try {
+      setIsUpdatingDiscount(true);
+      const lineItems = normalizeQuotationLineItems(quotation);
+      const targetIndex = lineItems.findIndex(
+        li => (li.id || '') === selectedDiscountLineItemId
+      );
+      if (targetIndex < 0) {
+        throw new Error('Selected product was not found on this quotation.');
+      }
+
+      const targetItem = lineItems[targetIndex];
+      const product = resolveLineItemProduct(targetItem);
+      if (!product) {
+        throw new Error('Could not resolve product details for the selected line item.');
+      }
+
+      const basePricing = buildBasePricingForLineItem(quotation, targetItem);
+      if (!basePricing) {
+        throw new Error('Could not calculate base pricing for the selected product.');
+      }
+
+      // If another override already exists on this product, preserve it when applying the other type
+      let pricingForDiscount = { ...basePricing };
+      const existing = targetItem.discount;
+      if (discountType === 'controller' && existing?.ledOverride?.amountPerUnit) {
+        const ledInfo: DiscountInfo = {
+          discountType: 'led',
+          discountPercent: 0,
+          discountAmountPerUnit: existing.ledOverride.amountPerUnit,
+          numberOfUnits: existing.ledOverride.numberOfUnits
+            || getDiscountUnits(product, targetItem.cabinetGrid, targetItem.config),
+          ledDiscountMode: (existing.ledOverride.ledDiscountMode as any)
+            || getLedDiscountMode(product)
+        };
+        pricingForDiscount = applyDiscount(pricingForDiscount, ledInfo);
+      }
+      if (discountType === 'led' && existing?.controllerOverride?.amountPerUnit) {
+        const ctrlInfo: DiscountInfo = {
+          discountType: 'controller',
+          discountPercent: 0,
+          discountAmountPerUnit: existing.controllerOverride.amountPerUnit,
+          numberOfUnits: 1,
+          ledDiscountMode: 'none'
+        };
+        pricingForDiscount = applyDiscount(pricingForDiscount, ctrlInfo);
+      }
+
+      let discountInfo: DiscountInfo;
+      if (discountType === 'led') {
+        const ledMode = getLedDiscountMode(product);
+        const units = getDiscountUnits(product, targetItem.cabinetGrid, targetItem.config);
+        discountInfo = {
+          discountType: 'led',
+          discountPercent: 0,
+          discountAmountPerUnit,
+          numberOfUnits: units,
+          ledDiscountMode: ledMode
+        };
+      } else {
+        discountInfo = {
+          discountType: 'controller',
+          discountPercent: 0,
+          discountAmountPerUnit,
+          numberOfUnits: 1,
+          ledDiscountMode: 'none'
+        };
+      }
+
+      const discountedPricing = applyDiscount(pricingForDiscount, discountInfo);
+      const preservedLedOverride = discountType === 'led'
+        ? {
+            amountPerUnit: discountAmountPerUnit,
+            numberOfUnits: discountInfo.numberOfUnits,
+            ledDiscountMode: discountInfo.ledDiscountMode
+          }
+        : existing?.ledOverride;
+      const preservedControllerOverride = discountType === 'controller'
+        ? { amountPerUnit: discountAmountPerUnit }
+        : existing?.controllerOverride;
+
+      const lineDiscount = {
+        discountType,
+        discountPercent: 0,
+        discountAmountPerUnit,
+        numberOfUnits: discountInfo.numberOfUnits,
+        ledDiscountMode: discountInfo.ledDiscountMode,
+        ledOverride: preservedLedOverride,
+        controllerOverride: preservedControllerOverride,
+        originalProductTotal: discountedPricing.originalProductTotal,
+        originalProcessorTotal: discountedPricing.originalProcessorTotal,
+        originalGrandTotal: discountedPricing.originalGrandTotal,
+        discountedProductTotal: discountedPricing.discountedProductTotal,
+        discountedProcessorTotal: discountedPricing.discountedProcessorTotal,
+        discountedGrandTotal: discountedPricing.grandTotal,
+        discountAmount: discountedPricing.discountAmount
+      };
+
+      const updatedPricing = {
+        unitPrice: discountedPricing.unitPrice,
+        quantity: discountedPricing.quantity,
+        orderQuantity: discountedPricing.orderQuantity,
+        unitGrandTotal: discountedPricing.unitGrandTotal,
+        productSubtotal: discountedPricing.productSubtotal,
+        productTotal: discountedPricing.productTotal,
+        processorPrice: discountedPricing.processorPrice,
+        processorTotal: discountedPricing.processorTotal,
+        structureCost: discountedPricing.structureCost,
+        structureTotal: discountedPricing.structureTotal,
+        installationCost: discountedPricing.installationCost,
+        installationTotal: discountedPricing.installationTotal,
+        addonsCost: discountedPricing.addonsCost,
+        addonsTotal: discountedPricing.addonsTotal,
+        appliedAddons: discountedPricing.appliedAddons,
+        grandTotal: discountedPricing.grandTotal,
+        discount: lineDiscount
+      };
+
+      const updatedLineItems = lineItems.map((li, idx) =>
+        idx === targetIndex
+          ? {
+              ...li,
+              pricing: updatedPricing,
+              discount: lineDiscount
+            }
+          : li
+      );
+
+      await persistMultiProductDiscountUpdate(
+        quotation,
+        updatedLineItems,
+        updatedLineItems[targetIndex],
+        discountedPricing
+      );
+    } catch (error: any) {
+      alert(`Failed to update discount: ${error.message}`);
+    } finally {
+      setIsUpdatingDiscount(false);
+    }
+  };
+
+  const handleRemoveDiscountFromSelectedProduct = async (quotation: Quotation) => {
+    if (!selectedDiscountLineItemId) {
+      alert('Please select a product to remove the discount from.');
+      return;
+    }
+    if (!window.confirm('Remove discount from the selected product?')) return;
+
+    try {
+      setIsUpdatingDiscount(true);
+      const lineItems = normalizeQuotationLineItems(quotation);
+      const targetIndex = lineItems.findIndex(
+        li => (li.id || '') === selectedDiscountLineItemId
+      );
+      if (targetIndex < 0) {
+        throw new Error('Selected product was not found on this quotation.');
+      }
+
+      const targetItem = lineItems[targetIndex];
+      const basePricing = buildBasePricingForLineItem(quotation, targetItem);
+      if (!basePricing) {
+        throw new Error('Could not recalculate base pricing for the selected product.');
+      }
+
+      const updatedPricing = {
+        unitPrice: basePricing.unitPrice,
+        quantity: basePricing.quantity,
+        orderQuantity: basePricing.orderQuantity,
+        unitGrandTotal: basePricing.unitGrandTotal,
+        productSubtotal: basePricing.productSubtotal,
+        productTotal: basePricing.productTotal,
+        processorPrice: basePricing.processorPrice,
+        processorTotal: basePricing.processorTotal,
+        structureCost: basePricing.structureCost,
+        structureTotal: basePricing.structureTotal,
+        installationCost: basePricing.installationCost,
+        installationTotal: basePricing.installationTotal,
+        addonsCost: basePricing.addonsCost,
+        addonsTotal: basePricing.addonsTotal,
+        appliedAddons: basePricing.appliedAddons,
+        grandTotal: basePricing.grandTotal
+      };
+
+      const updatedLineItems = lineItems.map((li, idx) =>
+        idx === targetIndex
+          ? {
+              ...li,
+              pricing: updatedPricing,
+              discount: undefined
+            }
+          : li
+      );
+
+      await persistMultiProductDiscountUpdate(
+        quotation,
+        updatedLineItems,
+        { ...updatedLineItems[targetIndex], discount: undefined },
+        null
+      );
+    } catch (error: any) {
+      alert(`Failed to remove discount: ${error.message}`);
+    } finally {
+      setIsUpdatingDiscount(false);
+    }
+  };
+
   const handleApplyDiscount = async (quotation: Quotation) => {
+    const lineItems = normalizeQuotationLineItems(quotation);
+    if (lineItems.length > 1) {
+      await handleApplyDiscountToSelectedProduct(quotation);
+      return;
+    }
+
     if (!discountType) {
       alert('Please select a discount type');
       return;
@@ -824,10 +1338,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
       const result = await salesAPI.updateQuotation(quotation.quotationId, updateData);
 
-      setEditingDiscountQuotationId(null);
-      setDiscountType(null);
-      setDiscountPercent(0);
-      setDiscountAmountPerUnit(0);
+      clearDiscountFormState();
 
       fetchSalesPersonDetails();
 
@@ -1022,8 +1533,12 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                 <ul className="mt-1 text-xs text-gray-500 space-y-0.5">
                                                   {lineItems.map((li, idx) => (
                                                     <li key={li.id || idx}>
-                                                      {li.productName}
+                                                      Product {idx + 1}: {li.productName}
                                                       {li.orderQuantity > 1 ? ` × ${li.orderQuantity}` : ''}
+                                                      {typeof li.pricing?.grandTotal === 'number'
+                                                        ? ` · ₹${Math.round(li.pricing.grandTotal).toLocaleString('en-IN')}`
+                                                        : ''}
+                                                      {lineItemHasDiscount(li) ? ' · Discount applied' : ''}
                                                     </li>
                                                   ))}
                                                 </ul>
@@ -1275,13 +1790,51 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                   <div className="flex items-center justify-between mb-2">
                                                     <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Apply Discount</span>
                                                     <button
-                                                      onClick={() => setEditingDiscountQuotationId(null)}
+                                                      onClick={() => clearDiscountFormState()}
                                                       className="text-gray-400 hover:text-gray-600"
                                                     >
                                                       <X className="w-4 h-4" />
                                                     </button>
                                                   </div>
                                                   <div className="space-y-3">
+                                                    {(() => {
+                                                      const lineItems = normalizeQuotationLineItems(quotation);
+                                                      const selectedItem = selectedDiscountLineItemId
+                                                        ? lineItems.find(li => (li.id || '') === selectedDiscountLineItemId)
+                                                        : (lineItems.length === 1 ? lineItems[0] : null);
+                                                      if (!selectedItem && lineItems.length <= 1) return null;
+                                                      if (!selectedItem) return null;
+                                                      const productName = selectedItem.productName
+                                                        || selectedItem.product?.name
+                                                        || 'Product';
+                                                      const currentTotal = selectedItem.pricing?.grandTotal
+                                                        ?? selectedItem.discount?.discountedGrandTotal
+                                                        ?? 0;
+                                                      return (
+                                                        <div className="rounded-md border border-blue-200 bg-white px-3 py-2">
+                                                          <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                                                            Product {selectedDiscountProductIndex + 1}
+                                                          </p>
+                                                          <p className="text-xs font-semibold text-gray-900 mt-0.5">{productName}</p>
+                                                          <p className="text-xs text-gray-600 mt-1">
+                                                            Current Product Total: ₹{Math.round(Number(currentTotal) || 0).toLocaleString('en-IN')}
+                                                          </p>
+                                                          {lineItems.length > 1 && (
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => {
+                                                                setEditingDiscountQuotationId(null);
+                                                                setDiscountSelectionQuotationId(quotation.quotationId);
+                                                              }}
+                                                              className="mt-2 text-[11px] font-medium text-blue-700 hover:text-blue-900 underline"
+                                                            >
+                                                              Change product
+                                                            </button>
+                                                          )}
+                                                        </div>
+                                                      );
+                                                    })()}
+
                                                     <div>
                                                       <label className="text-xs text-gray-600 block mb-1">Discount Type</label>
                                                       <select
@@ -1297,10 +1850,18 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
                                                     {/* LED Discount — product-type-aware */}
                                                     {discountType === 'led' && (() => {
-                                                      const product = quotation.productDetails?.product || quotation.productDetails;
+                                                      const lineItems = normalizeQuotationLineItems(quotation);
+                                                      const selectedItem = selectedDiscountLineItemId
+                                                        ? lineItems.find(li => (li.id || '') === selectedDiscountLineItemId)
+                                                        : (lineItems.length === 1 ? lineItems[0] : null);
+                                                      const product = selectedItem
+                                                        ? resolveLineItemProduct(selectedItem)
+                                                        : (quotation.productDetails?.product || quotation.productDetails);
                                                       const ledMode = getLedDiscountMode(product);
-                                                      const cabinetGrid = quotation.exactProductSpecs?.cabinetGrid || quotation.productDetails?.cabinetGrid;
-                                                      let configForUnits = quotation.quotationData?.config;
+                                                      const cabinetGrid = selectedItem?.cabinetGrid
+                                                        || quotation.exactProductSpecs?.cabinetGrid
+                                                        || quotation.productDetails?.cabinetGrid;
+                                                      let configForUnits = selectedItem?.config || quotation.quotationData?.config;
                                                       if (!configForUnits && quotation.exactProductSpecs?.displaySize) {
                                                         configForUnits = {
                                                           width: (quotation.exactProductSpecs.displaySize.width * 1000) || 0,
@@ -1398,40 +1959,48 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                         </div>
                                                       </div>
                                                     )}
+
+                                                    {(() => {
+                                                      const lineItems = normalizeQuotationLineItems(quotation);
+                                                      const selectedItem = selectedDiscountLineItemId
+                                                        ? lineItems.find(li => (li.id || '') === selectedDiscountLineItemId)
+                                                        : (lineItems.length === 1 ? lineItems[0] : null);
+                                                      const hasLineDiscount = selectedItem
+                                                        ? lineItemHasDiscount(selectedItem)
+                                                        : !!(quotation.quotationData?.discountApplied
+                                                          || ((quotation.exactPricingBreakdown?.discount?.discountAmount ?? 0) > 0));
+                                                      if (!hasLineDiscount || lineItems.length <= 1) {
+                                                        // For single-product, keep existing behavior (no remove button was present).
+                                                        // For multi-product with an existing discount, show remove.
+                                                        if (!(lineItems.length > 1 && hasLineDiscount)) return null;
+                                                      }
+                                                      if (!(lineItems.length > 1 && hasLineDiscount)) return null;
+                                                      return (
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => handleRemoveDiscountFromSelectedProduct(quotation)}
+                                                          disabled={isUpdatingDiscount}
+                                                          className="w-full text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-md py-1.5 hover:bg-red-100 disabled:opacity-50"
+                                                        >
+                                                          Remove Discount from Product {selectedDiscountProductIndex + 1}
+                                                        </button>
+                                                      );
+                                                    })()}
                                                   </div>
                                                 </div>
                                               ) : (
                                                 <button
-                                                  onClick={() => {
-                                                    setEditingDiscountQuotationId(quotation.quotationId);
-
-                                                    // Check quotationData.discountApplied first, then fallback to exactPricingBreakdown.discount
-                                                    const hasDiscountInQuotationData = quotation.quotationData?.discountApplied;
-                                                    const hasDiscountInBreakdown = quotation.exactPricingBreakdown?.discount && (quotation.exactPricingBreakdown?.discount?.discountAmount ?? 0) > 0;
-
-                                                    if (hasDiscountInQuotationData) {
-                                                      const di = quotation.quotationData.discountInfo;
-                                                      setDiscountType(di?.type || null);
-                                                      setDiscountPercent(di?.percent || 0);
-                                                      setDiscountAmountPerUnit(di?.amountPerUnit || 0);
-                                                    } else if (hasDiscountInBreakdown) {
-                                                      // Fallback: discount was applied at creation time via QuoteModal
-                                                      // but discountApplied flag wasn't set in quotationData (backward compat)
-                                                      const bd = quotation.exactPricingBreakdown?.discount;
-                                                      const type = bd?.discountType || (bd?.discountPercent && bd.discountPercent > 0 ? 'controller' : 'led');
-                                                      setDiscountType((type as 'led' | 'controller') || null);
-                                                      setDiscountPercent(bd?.discountPercent || 0);
-                                                      setDiscountAmountPerUnit(bd?.discountAmountPerUnit || 0);
-                                                    } else {
-                                                      setDiscountType(null);
-                                                      setDiscountPercent(0);
-                                                      setDiscountAmountPerUnit(0);
-                                                    }
-                                                  }}
+                                                  onClick={() => beginDiscountForQuotation(quotation)}
                                                   className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 rounded-md border border-indigo-200 transition-all shadow-sm text-xs font-semibold"
                                                 >
                                                   <Percent className="w-3.5 h-3.5" />
-                                                  {(quotation.quotationData?.discountApplied || (quotation.exactPricingBreakdown?.discount && (quotation.exactPricingBreakdown?.discount?.discountAmount ?? 0) > 0)) ? 'Edit Discount' : 'Add Discount'}
+                                                  {(() => {
+                                                    const lineItems = normalizeQuotationLineItems(quotation);
+                                                    const anyLineDiscount = lineItems.some(lineItemHasDiscount);
+                                                    const legacyDiscount = quotation.quotationData?.discountApplied
+                                                      || ((quotation.exactPricingBreakdown?.discount?.discountAmount ?? 0) > 0);
+                                                    return (anyLineDiscount || legacyDiscount) ? 'Edit Discount' : 'Add Discount';
+                                                  })()}
                                                 </button>
                                               )}
                                             </div>
@@ -1531,6 +2100,38 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           ) : null}
         </div>
       </div>
+
+      {/* Multi-product discount: select which product to discount */}
+      {(() => {
+        if (!discountSelectionQuotationId) return null;
+        const quotation = customers
+          .flatMap(c => c.quotations)
+          .find(q => q.quotationId === discountSelectionQuotationId);
+        if (!quotation) return null;
+        const lineItems = normalizeQuotationLineItems(quotation);
+        return (
+          <QuotationProductSelectionModal
+            isOpen={true}
+            onClose={() => {
+              setDiscountSelectionQuotationId(null);
+            }}
+            lineItems={lineItems}
+            title="Select Product for Discount"
+            subtitle="Which product would you like to apply the discount to?"
+            actionLabel={(index) => `Apply Discount to Product ${index + 1}`}
+            getProductTotal={(item) => {
+              const li = item as PersistedQuotationLineItem;
+              return li.pricing?.grandTotal
+                ?? li.discount?.discountedGrandTotal
+                ?? null;
+            }}
+            onSelectProduct={(item, index) => {
+              openDiscountFormForLineItem(quotation, item as PersistedQuotationLineItem, index);
+              setDiscountSelectionQuotationId(null);
+            }}
+          />
+        );
+      })()}
 
       {/* PDF View Modal */}
       {selectedQuotation && (() => {

@@ -8,6 +8,42 @@ import { calculateCentralizedPricing, PricingCalculationResult } from './central
 import { normalizeOrderQuantity, buildConfigurationKey } from './orderQuantity';
 import { QuotationLineItem } from '../contexts/QuotationCartContext';
 
+export type PersistedLineItemUserType = 'End User' | 'Reseller' | 'SI/Channel Partner';
+
+export type PersistedLineItemCustomPricing = {
+  enabled: boolean;
+  structurePrice: number | null;
+  installationPrice: number | null;
+};
+
+/** Convert display / internal user type strings into pricing calculator codes. */
+export function toPricingUserTypeCode(userType?: string | null): string {
+  if (!userType) return 'endUser';
+  if (userType === 'Reseller' || userType === 'reseller') return 'reseller';
+  if (
+    userType === 'SI/Channel Partner' ||
+    userType === 'Channel' ||
+    userType === 'siChannel'
+  ) {
+    return 'siChannel';
+  }
+  return 'endUser';
+}
+
+export function normalizeDisplayUserType(
+  userType?: string | null
+): PersistedLineItemUserType {
+  if (userType === 'Reseller' || userType === 'reseller') return 'Reseller';
+  if (
+    userType === 'SI/Channel Partner' ||
+    userType === 'Channel' ||
+    userType === 'siChannel'
+  ) {
+    return 'SI/Channel Partner';
+  }
+  return 'End User';
+}
+
 export type PersistedQuotationLineItem = {
   id?: string;
   productId: string;
@@ -21,6 +57,27 @@ export type PersistedQuotationLineItem = {
   nexaAddons?: string[];
   selectedCabinetSize?: string | null;
   orderQuantity: number;
+  /** Product-level customer type (optional for legacy quotations) */
+  userType?: PersistedLineItemUserType | string;
+  /** Product-level custom structure/installation pricing */
+  customPricing?: PersistedLineItemCustomPricing;
+  /** Product-level discount / price override (super-admin) */
+  discount?: {
+    discountType?: string;
+    discountPercent?: number;
+    discountAmountPerUnit?: number;
+    discountAmount?: number;
+    numberOfUnits?: number;
+    ledDiscountMode?: string;
+    originalProductTotal?: number;
+    originalProcessorTotal?: number;
+    originalGrandTotal?: number;
+    discountedProductTotal?: number;
+    discountedProcessorTotal?: number;
+    discountedGrandTotal?: number;
+    ledOverride?: { amountPerUnit?: number; numberOfUnits?: number; ledDiscountMode?: string };
+    controllerOverride?: { amountPerUnit?: number };
+  };
   pricing?: Partial<PricingCalculationResult> & {
     grandTotal?: number;
     unitPrice?: number;
@@ -101,6 +158,23 @@ export function normalizeQuotationLineItems(quotation: any, fallbackProduct?: Pr
       orderQuantity: normalizeOrderQuantity(
         li.orderQuantity ?? li.pricing?.orderQuantity ?? quotation?.exactPricingBreakdown?.orderQuantity ?? 1
       ),
+      userType: li.userType
+        ? normalizeDisplayUserType(li.userType)
+        : undefined,
+      customPricing: li.customPricing
+        ? {
+            enabled: !!li.customPricing.enabled,
+            structurePrice: li.customPricing.structurePrice ?? null,
+            installationPrice: li.customPricing.installationPrice ?? null
+          }
+        : (li.pricing as any)?.customPricing
+          ? {
+              enabled: !!(li.pricing as any).customPricing.enabled,
+              structurePrice: (li.pricing as any).customPricing.structurePrice ?? null,
+              installationPrice: (li.pricing as any).customPricing.installationPrice ?? null
+            }
+          : undefined,
+      discount: li.discount || (li.pricing as any)?.discount || undefined,
       pricing: li.pricing || undefined
     }));
   }
@@ -132,6 +206,18 @@ export function normalizeQuotationLineItems(quotation: any, fallbackProduct?: Pr
     nexaAddons: quotation?.quotationData?.nexaAddons ?? [],
     selectedCabinetSize: null,
     orderQuantity,
+    userType: quotation?.userType
+      ? normalizeDisplayUserType(quotation.userType)
+      : quotation?.quotationData?.userInfo?.userType
+        ? normalizeDisplayUserType(quotation.quotationData.userInfo.userType)
+        : undefined,
+    customPricing: quotation?.quotationData?.customPricing
+      ? {
+          enabled: !!quotation.quotationData.customPricing.enabled,
+          structurePrice: quotation.quotationData.customPricing.structurePrice ?? null,
+          installationPrice: quotation.quotationData.customPricing.installationPrice ?? null
+        }
+      : undefined,
     pricing: quotation?.exactPricingBreakdown
       ? {
           ...quotation.exactPricingBreakdown,
@@ -156,6 +242,14 @@ export function toPersistedLineItems(items: QuotationLineItem[]): PersistedQuota
     nexaAddons: li.nexaAddons,
     selectedCabinetSize: li.selectedCabinetSize,
     orderQuantity: normalizeOrderQuantity(li.orderQuantity),
+    userType: li.userType ? normalizeDisplayUserType(li.userType) : undefined,
+    customPricing: li.customPricing
+      ? {
+          enabled: !!li.customPricing.enabled,
+          structurePrice: li.customPricing.structurePrice ?? null,
+          installationPrice: li.customPricing.installationPrice ?? null
+        }
+      : undefined,
     pricing: li.unitPricingSnapshot
       ? {
           unitPrice: li.unitPricingSnapshot.unitPrice,
@@ -173,7 +267,16 @@ export function toPersistedLineItems(items: QuotationLineItem[]): PersistedQuota
           addonsCost: li.unitPricingSnapshot.addonsCost,
           addonsTotal: li.unitPricingSnapshot.addonsTotal,
           appliedAddons: li.unitPricingSnapshot.appliedAddons,
-          grandTotal: li.unitPricingSnapshot.grandTotal
+          grandTotal: li.unitPricingSnapshot.grandTotal,
+          ...(li.customPricing?.enabled
+            ? {
+                customPricing: {
+                  enabled: true,
+                  structurePrice: li.customPricing.structurePrice,
+                  installationPrice: li.customPricing.installationPrice
+                }
+              }
+            : {})
         }
       : undefined
   }));

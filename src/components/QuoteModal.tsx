@@ -22,7 +22,9 @@ import {
   formatQuotationProductLabel,
   sumLineItemGrandTotals,
   priceLineItem,
-  toPdfQuotationLineItems
+  toPdfQuotationLineItems,
+  toPricingUserTypeCode,
+  normalizeDisplayUserType
 } from '../utils/quotationLineItems';
 
 interface ProductWithPricing extends Product {
@@ -459,6 +461,12 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
         const effectiveLineItems = lineItems.length > 0
           ? lineItems.map(li => {
+              const lineUserType = li.userType
+                ? toPricingUserTypeCode(li.userType)
+                : userType;
+              const lineCustomPricing = li.customPricing
+                ? (li.customPricing.enabled ? li.customPricing : undefined)
+                : customPricingObj;
               const snap = priceLineItem(
                 {
                   product: li.product,
@@ -469,11 +477,19 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                   nexaAddons: li.nexaAddons,
                   orderQuantity: li.orderQuantity
                 },
-                userType,
-                customPricingObj
+                lineUserType,
+                lineCustomPricing
               );
               return {
                 ...li,
+                userType: li.userType || normalizeDisplayUserType(userType),
+                customPricing: li.customPricing || (customPricingObj
+                  ? {
+                      enabled: true,
+                      structurePrice: customPricingObj.structurePrice ?? null,
+                      installationPrice: customPricingObj.installationPrice ?? null
+                    }
+                  : { enabled: false, structurePrice: null, installationPrice: null }),
                 unitPricingSnapshot: snap.isAvailable ? snap : li.unitPricingSnapshot
               };
             })
@@ -910,9 +926,15 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
           const configForDiscount = config || { width: 2400, height: 1010, unit: 'mm' };
 
-          // Ensure cart items have fresh pricing snapshots; multi-item total = sum of line totals
+          // Reprice each line with its own userType/customPricing when present
           const effectiveLineItems = lineItems.length > 0
             ? lineItems.map(li => {
+                const lineUserType = li.userType
+                  ? toPricingUserTypeCode(li.userType)
+                  : userType;
+                const lineCustomPricing = li.customPricing
+                  ? (li.customPricing.enabled ? li.customPricing : undefined)
+                  : customPricingObj;
                 const snap = priceLineItem(
                   {
                     product: li.product,
@@ -923,11 +945,19 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                     nexaAddons: li.nexaAddons,
                     orderQuantity: li.orderQuantity
                   },
-                  userType,
-                  customPricingObj
+                  lineUserType,
+                  lineCustomPricing
                 );
                 return {
                   ...li,
+                  userType: li.userType || normalizeDisplayUserType(userType),
+                  customPricing: li.customPricing || (customPricingObj
+                    ? {
+                        enabled: true,
+                        structurePrice: customPricingObj.structurePrice ?? null,
+                        installationPrice: customPricingObj.installationPrice ?? null
+                      }
+                    : { enabled: false, structurePrice: null, installationPrice: null }),
                   unitPricingSnapshot: snap.isAvailable ? snap : li.unitPricingSnapshot
                 };
               })
