@@ -9,10 +9,19 @@ const products: import('../types').Product[] = Array.isArray(productsImport) ? p
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
+import { useQuotationCart } from '../contexts/QuotationCartContext';
+import { normalizeOrderQuantity } from '../utils/orderQuantity';
 import {
   buildExactPricingBreakdownForPdf,
   logPdfPricingFromCalculation
 } from '../utils/exactPricingBreakdownForPdf';
+import {
+  toPersistedLineItems,
+  formatQuotationProductLabel,
+  sumLineItemGrandTotals,
+  toPdfQuotationLineItems
+} from '../utils/quotationLineItems';
+import { fitMultiProductQuotationIfNeeded } from '../utils/multiProductQuotationHtml';
 
 const triggerPdfDownload = (blob: Blob, fileName: string, setBlob?: (blob: Blob) => void, setUrl?: (url: string) => void) => {
 
@@ -63,7 +72,8 @@ function calculateCorrectTotalPrice(
     installationPrice: number | null;
   },
   wireType?: 'gold' | 'copper',
-  nexaAddons?: string[]
+  nexaAddons?: string[],
+  orderQuantity?: number
 ): number | null {
   try {
 
@@ -75,7 +85,8 @@ function calculateCorrectTotalPrice(
       config,
       customPricing,
       wireType,
-      nexaAddons
+      nexaAddons,
+      orderQuantity
     );
 
     if (!pricingResult.isAvailable) {
@@ -194,9 +205,11 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   nexaAddons: propNexaAddons
 }) => {
   const { config: globalConfig } = useDisplayConfig();
+  const { lineItems, clearCart } = useQuotationCart();
   const wireTypeFromContext = globalConfig.wireType ?? 'gold';
   const wireType = propWireType ?? wireTypeFromContext;
   const nexaAddons = propNexaAddons ?? globalConfig.nexaAddons ?? [];
+  const orderQuantity = normalizeOrderQuantity(globalConfig.orderQuantity);
   const selectedNexaAddonsWithPrices = getNexaAddonsWithPrices(selectedProduct, nexaAddons);
   const isModularProduct = (p: any) => p?.category?.toLowerCase().includes('modular');
   const effectiveWireType = (product: any) => (product && isModularProduct(product) ? wireType : undefined);
@@ -453,7 +466,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             config || { width: 2400, height: 1010, unit: 'mm' },
             customPricing,
             effectiveWireType(fullProduct),
-            nexaAddons
+            nexaAddons,
+            orderQuantity
           );
 
           console.log('Pricing result:', {
@@ -475,12 +489,16 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           exactPricingBreakdownForPdf = {
             unitPrice: pricingResult.unitPrice,
             quantity: pricingResult.quantity,
+            orderQuantity: pricingResult.orderQuantity,
+            unitGrandTotal: pricingResult.unitGrandTotal,
             subtotal: pricingResult.productSubtotal,
             gstAmount: pricingResult.productGST,
             processorPrice: pricingResult.processorPrice,
             processorGst: pricingResult.processorGST,
             structureCost: pricingResult.structureCost,
+            structureTotal: pricingResult.structureTotal,
             installationCost: pricingResult.installationCost,
+            installationTotal: pricingResult.installationTotal,
             addonsCost: pricingResult.addonsCost,
             addonsGST: pricingResult.addonsGST,
             addonsTotal: pricingResult.addonsTotal,
@@ -512,7 +530,9 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           customPricing,
           exactPricingBreakdownForPdf,
           effectiveWireType(fullProduct),
-          nexaAddons
+          nexaAddons,
+          orderQuantity,
+          lineItems.length > 0 ? toPdfQuotationLineItems(lineItems) : undefined
         );
     };
 
@@ -667,7 +687,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         config || { width: 2400, height: 1010, unit: 'mm' },
         customPricing,
         effectiveWireType(fullProduct),
-        nexaAddons
+        nexaAddons,
+        orderQuantity
       );
 
       if (correctTotalPrice === null) {
@@ -693,7 +714,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         config || { width: 2400, height: 1010, unit: 'mm' },
         customPricing,
         effectiveWireType(fullProduct),
-        nexaAddons
+        nexaAddons,
+        orderQuantity
       );
 
       if (!pricingResult.isAvailable) {
@@ -712,7 +734,14 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     const customerName = userInfo?.fullName?.trim() || userInfo?.customerName?.trim() || '';
     const customerEmail = userInfo?.email?.trim() || userInfo?.customerEmail?.trim() || '';
     const customerPhone = userInfo?.phoneNumber?.trim() || userInfo?.customerPhone?.trim() || '';
-    const productName = selectedProduct?.name || selectedProduct?.productName || 'Unknown Product';
+    const persistedLineItems = lineItems.length > 0 ? toPersistedLineItems(lineItems) : null;
+    const multiItemTotal = lineItems.length > 1 ? sumLineItemGrandTotals(lineItems) : null;
+    const productName = lineItems.length > 1
+      ? formatQuotationProductLabel(lineItems)
+      : (selectedProduct?.name || selectedProduct?.productName || 'Unknown Product');
+    if (multiItemTotal != null) {
+      finalTotalPrice = multiItemTotal;
+    }
 
     // Validate required fields
     if (!finalQuotationId) {
@@ -761,6 +790,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       exactPricingBreakdown: {
         unitPrice: finalPricingResult.unitPrice,
         quantity: finalPricingResult.quantity,
+        orderQuantity: finalPricingResult.orderQuantity ?? orderQuantity,
+        unitGrandTotal: finalPricingResult.unitGrandTotal,
         subtotal: finalPricingResult.subtotal ?? finalPricingResult.productSubtotal,
         gstRate: 18,
         gstAmount: finalPricingResult.gstAmount ?? finalPricingResult.productGST,
@@ -794,6 +825,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           paymentTerms: userInfo?.paymentTerms,
           warranty: userInfo?.warranty
         },
+        orderQuantity: finalPricingResult.orderQuantity ?? orderQuantity,
         customPricing: customPricing?.enabled ? {
           enabled: true,
           structurePrice: customPricing.structurePrice,
@@ -801,7 +833,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         } : undefined,
         wireType: selectedProduct && isModularProduct(selectedProduct) ? wireType : undefined,
         nexaAddons: selectedNexaAddonsWithPrices.map(addon => addon.name),
-        nexaAddonsWithPrices: selectedNexaAddonsWithPrices
+        nexaAddonsWithPrices: selectedNexaAddonsWithPrices,
+        ...(persistedLineItems
+          ? { lineItems: persistedLineItems, itemCount: persistedLineItems.length }
+          : {})
       },
 
       exactProductSpecs: {
@@ -956,6 +991,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
       setSaveSuccess(true);
       saveSuccessful = true;
+      clearCart();
 
       setGeneratedPdfBlob(pdfBlob);
       const url = window.URL.createObjectURL(pdfBlob);
@@ -980,6 +1016,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
           setSaveSuccess(true);
           saveSuccessful = true;
+          clearCart();
 
           if (pdfBlob) {
             setGeneratedPdfBlob(pdfBlob);
@@ -1143,6 +1180,13 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
             className="w-full h-full border-0"
             title="Configuration Report Preview"
             style={{ minHeight: '100%' }}
+            onLoad={(event) => {
+              const doc = (event.currentTarget as HTMLIFrameElement).contentDocument;
+              if (doc) {
+                // Prefer one page; automatically split only if both products don't fit.
+                fitMultiProductQuotationIfNeeded(doc);
+              }
+            }}
           />
         </div>
       </div>

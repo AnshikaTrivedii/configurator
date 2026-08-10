@@ -14,6 +14,7 @@
 
 import { PricingCalculationResult } from './centralizedPricing';
 import { Product } from '../types';
+import { normalizeOrderQuantity } from './orderQuantity';
 
 /**
  * Determines which discount mode the LED option should use based on product type.
@@ -158,7 +159,7 @@ export function applyDiscount(
 
   switch (discountInfo.discountType) {
     case 'led': {
-      // LED override: entered value is NEW UNIT PRICE
+      // LED override: entered value is NEW UNIT PRICE (per Ft² / cabinet / unit)
       const { discountAmountPerUnit, numberOfUnits, ledDiscountMode } = discountInfo;
 
       if (ledDiscountMode === 'none' || discountAmountPerUnit <= 0 || numberOfUnits <= 0) {
@@ -166,13 +167,14 @@ export function applyDiscount(
         break;
       }
 
+      const orderQty = normalizeOrderQuantity(pricingResult.orderQuantity);
       const quantityForRecalc = pricingResult.quantity > 0 ? pricingResult.quantity : numberOfUnits;
       const gstRate = pricingResult.productSubtotal > 0
         ? (pricingResult.productGST / pricingResult.productSubtotal)
         : 0;
 
       const overriddenUnitPrice = Math.round(discountAmountPerUnit * 100) / 100;
-      const overriddenSubtotal = Math.round((quantityForRecalc * overriddenUnitPrice) * 100) / 100;
+      const overriddenSubtotal = Math.round((quantityForRecalc * overriddenUnitPrice * orderQty) * 100) / 100;
       const overriddenGst = Math.round((overriddenSubtotal * gstRate) * 100) / 100;
       discountedProductTotal = Math.round((overriddenSubtotal + overriddenGst) * 100) / 100;
 
@@ -187,10 +189,14 @@ export function applyDiscount(
         unaccountedDifference
       );
 
+      const unitGrandTotal = Math.round(discountedGrandTotal / orderQty);
+
       return {
         ...pricingResult,
         unitPrice: overriddenUnitPrice,
         quantity: quantityForRecalc,
+        orderQuantity: orderQty,
+        unitGrandTotal,
         productSubtotal: overriddenSubtotal,
         productGST: overriddenGst,
         productTotal: discountedProductTotal,
@@ -210,15 +216,16 @@ export function applyDiscount(
     }
 
     case 'controller': {
-      // Controller override: entered value is NEW CONTROLLER PRICE
+      // Controller override: entered value is NEW CONTROLLER PRICE per display unit
       const { discountAmountPerUnit } = discountInfo;
 
       if (discountAmountPerUnit <= 0) {
         break;
       }
 
-      const overriddenControllerPrice = Math.round(discountAmountPerUnit * 100) / 100;
-      discountedProcessorTotal = overriddenControllerPrice;
+      const orderQty = normalizeOrderQuantity(pricingResult.orderQuantity);
+      const overriddenControllerUnitPrice = Math.round(discountAmountPerUnit * 100) / 100;
+      discountedProcessorTotal = Math.round((overriddenControllerUnitPrice * orderQty) * 100) / 100;
       discountAmount = Math.round((originalProcessorTotal - discountedProcessorTotal) * 100) / 100;
 
       discountedGrandTotal = Math.round(
@@ -229,14 +236,18 @@ export function applyDiscount(
         unaccountedDifference
       );
 
+      const unitGrandTotal = Math.round(discountedGrandTotal / orderQty);
+
       return {
         ...pricingResult,
-        processorPrice: overriddenControllerPrice,
+        processorPrice: discountedProcessorTotal,
         processorGST: 0,
         processorTotal: discountedProcessorTotal,
         productTotal: discountedProductTotal,
         unitPrice: pricingResult.unitPrice,
         quantity: pricingResult.quantity,
+        orderQuantity: orderQty,
+        unitGrandTotal,
         productSubtotal: pricingResult.productSubtotal,
         productGST: pricingResult.productGST,
         grandTotal: discountedGrandTotal,

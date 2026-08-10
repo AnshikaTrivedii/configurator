@@ -18,6 +18,8 @@ export interface PricingBreakdown {
 
   unitPrice: number;
   quantity: number;
+  orderQuantity: number;
+  unitGrandTotal: number;
   productSubtotal: number;
   productGST: number;
   productTotal: number;
@@ -176,7 +178,8 @@ export function calculatePricingBreakdown(
   userType: string,
   config: { width: number; height: number; unit: string },
   wireType?: 'gold' | 'copper',
-  nexaAddons?: string[]
+  nexaAddons?: string[],
+  orderQuantity?: number
 ): PricingBreakdown {
   try {
 
@@ -188,12 +191,15 @@ export function calculatePricingBreakdown(
       config,
       undefined,
       wireType,
-      nexaAddons
+      nexaAddons,
+      orderQuantity
     );
 
     const breakdown: PricingBreakdown = {
       unitPrice: pricingResult.unitPrice,
       quantity: pricingResult.quantity,
+      orderQuantity: pricingResult.orderQuantity,
+      unitGrandTotal: pricingResult.unitGrandTotal,
       productSubtotal: pricingResult.productSubtotal,
       productGST: pricingResult.productGST,
       productTotal: pricingResult.productTotal,
@@ -219,6 +225,8 @@ export function calculatePricingBreakdown(
     return {
       unitPrice: 5300,
       quantity: 1,
+      orderQuantity: 1,
+      unitGrandTotal: 5300,
       productSubtotal: 5300,
       productGST: 0,
       productTotal: 5300,

@@ -6,6 +6,8 @@ import { getControllerPdfUrl } from '../utils/controllerPdfMap';
 import { getConnectorDescriptions } from '../utils/controllerConnectorMap';
 import { getDisplayPower } from '../utils/displayPower';
 import { usesModuleSizeInsteadOfCabinetSize } from '../utils/productSeries';
+import { OrderQuantityInput } from './OrderQuantityInput';
+import { normalizeOrderQuantity } from '../utils/orderQuantity';
 
 // Processor specifications - matches DisplayConfigurator.tsx
 const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
@@ -74,8 +76,9 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   mode,
   nexaAddons = []
 }) => {
-  const { config: globalConfig } = useDisplayConfig();
+  const { config: globalConfig, updateConfig } = useDisplayConfig();
   const wireType = globalConfig.wireType ?? 'gold';
+  const orderQuantity = normalizeOrderQuantity(globalConfig.orderQuantity);
 
   if (!selectedProduct) return null;
 
@@ -142,6 +145,12 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      <OrderQuantityInput
+        value={orderQuantity}
+        onChange={(qty) => updateConfig({ orderQuantity: qty })}
+        className="rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4"
+      />
+
       {/* Main Configuration Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
         {/* Size (w × h) */}
@@ -293,16 +302,20 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
           </div>
           <h3 className="font-semibold text-red-900 text-base sm:text-lg">Power Consumption Details</h3>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className={`grid grid-cols-1 gap-3 sm:gap-4 ${isNexa ? 'sm:grid-cols-1 lg:grid-cols-1 max-w-xs' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
+          {!isNexa && (
+            <div className="bg-white rounded-lg p-2 sm:p-3">
+              <div className="text-xs sm:text-sm text-gray-600 mb-1">Power (avg)</div>
+              <div className="text-sm sm:text-lg font-semibold text-red-700">{avgPower} W</div>
+            </div>
+          )}
           <div className="bg-white rounded-lg p-2 sm:p-3">
-            <div className="text-xs sm:text-sm text-gray-600 mb-1">Power (avg)</div>
-            <div className="text-sm sm:text-lg font-semibold text-red-700">{avgPower} W</div>
-          </div>
-          <div className="bg-white rounded-lg p-2 sm:p-3">
-            <div className="text-xs sm:text-sm text-gray-600 mb-1">Power (max)</div>
+            <div className="text-xs sm:text-sm text-gray-600 mb-1">
+              {isNexa ? 'Whole Screen Power(max)' : 'Power (max)'}
+            </div>
             <div className="text-sm sm:text-lg font-semibold text-red-700">{maxPower} W</div>
           </div>
-          {!isJumboSeries && !isModuleGridSeries && !isDigitalStandee && (
+          {!isNexa && !isJumboSeries && !isModuleGridSeries && !isDigitalStandee && (
             <>
               <div className="bg-white rounded-lg p-2 sm:p-3">
                 <div className="text-xs sm:text-sm text-gray-600 mb-1">{useModuleTerminology ? 'Per Module (avg)' : 'Per Cabinet (avg)'}</div>

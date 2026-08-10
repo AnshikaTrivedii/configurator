@@ -37,6 +37,19 @@ interface UserInfoFormProps {
   }) => void;
   /** When set, custom structure price is hidden (Transparent / Crystal series). */
   selectedProduct?: Product | null;
+  /** Multi-product edit: which product is being edited */
+  editingProductContext?: {
+    productIndex: number;
+    productName: string;
+    productId: string;
+  } | null;
+  /** Multi-product edit: optional switcher between products */
+  productSwitchOptions?: Array<{
+    id: string;
+    name: string;
+    index: number;
+  }>;
+  onSwitchProduct?: (productId: string) => void;
 }
 
 export const UserInfoForm: React.FC<UserInfoFormProps> = ({
@@ -51,7 +64,10 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   allowedCustomerTypes,
   customPricing: externalCustomPricing,
   onCustomPricingChange,
-  selectedProduct
+  selectedProduct,
+  editingProductContext,
+  productSwitchOptions,
+  onSwitchProduct
 }) => {
 
   const installationOnlyCustomPricing = isCrystalSeries(selectedProduct);
@@ -131,17 +147,22 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   };
 
   useEffect(() => {
-    if (initialData) {
-      setFormData(mergeInitialDataWithDefaults(initialData));
-    }
-  }, [initialData]);
-
-  // When modal opens, sync form from initialData so T&C and other fields are always current (e.g. after async load)
-  useEffect(() => {
     if (isOpen && initialData) {
       setFormData(mergeInitialDataWithDefaults(initialData));
     }
-  }, [isOpen, initialData]);
+    // Sync when the modal opens (not on every initialData identity change)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // When switching product while editing, only refresh product-level userType — keep client-level fields
+  useEffect(() => {
+    if (!isOpen || !editingProductContext || !initialData?.userType) return;
+    setFormData(prev => ({
+      ...prev,
+      userType: initialData.userType
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingProductContext?.productId]);
 
   const allUserTypeOptions: Array<{ value: 'End User' | 'Reseller' | 'SI/Channel Partner'; label: string; internalValue: string }> = [
     { value: 'End User', label: 'End User', internalValue: 'endUser' },
@@ -294,6 +315,44 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
         {/* Scrollable Form Content */}
         <div className="flex-1 overflow-y-auto min-h-0">
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {editingProductContext && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                  Editing Product {editingProductContext.productIndex + 1}
+                </p>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5">
+                  {editingProductContext.productName}
+                </p>
+                <p className="text-xs text-gray-600 mt-1">
+                  Product-specific fields (User Type, custom structure/installation) apply only to this product.
+                </p>
+              </div>
+            )}
+
+            {productSwitchOptions && productSwitchOptions.length > 1 && onSwitchProduct && (
+              <div className="flex flex-wrap gap-2">
+                {productSwitchOptions.map((opt) => {
+                  const isActive = editingProductContext?.productId === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        if (!isActive) onSwitchProduct(opt.id);
+                      }}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
+                        isActive
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                      }`}
+                    >
+                      Product {opt.index + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Client Name Field */}
             <div>
               <label htmlFor="fullName" className="block text-sm font-semibold text-gray-700 mb-2">
