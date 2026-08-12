@@ -154,7 +154,7 @@ const buildProductBox = (item: PdfQuotationLineItem, index: number): string => {
       ${row('Unit Price:', `₹${formatIndianNumber(pricing.unitPrice || 0)}`)}
       ${row(`${areaLabel(item)}:`, areaValue(item))}
       ${row('Quantity (Units):', String(orderQty))}
-      ${!item.isDigitalStandee ? row('Subtotal:', `₹${formatIndianNumber(subtotal)}${orderQty > 1 ? ` (× ${orderQty})` : ''}`) : ''}
+      ${!item.isDigitalStandee ? row('Subtotal:', `₹${formatIndianNumber(subtotal)}`) : ''}
       ${row('GST', GST_RATE)}
       ${row('Product Total:', `₹${formatTotalWithDecimals(productTotal)}`)}
 
