@@ -1133,7 +1133,7 @@ export const generateConfigurationHtml = (
                             </div>
                             ${!isDigitalStandee ? `<div class="quotation-row">
                                 <span class="quotation-label">Subtotal:</span>
-                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(subtotal)}${orderQuantity > 1 ? ` (× ${orderQuantity})` : ''}</span>
+                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(subtotal)}</span>
                             </div>` : ''}
                             <div class="quotation-row">
                                 <span class="quotation-label">GST</span>
