@@ -2458,7 +2458,7 @@ export const products: Product[] = [
     cabinetMaterial: 'Die-casting Aluminum',
     certificates: 'CE/BIS/ISO/ROHS/MII',
     prices: {
-      cabinet: { endCustomer: 28200, siChannel: 26400, reseller: 25600 },
+      cabinet: { endCustomer: 34375, siChannel: 32353, reseller: 30556 },
       curveLock: { endCustomer: 1700, siChannel: 1600, reseller: 1500 }
     }
   },
@@ -2497,7 +2497,7 @@ export const products: Product[] = [
     cabinetMaterial: 'Die-casting Aluminum',
     certificates: 'CE/BIS/ISO/ROHS/MII',
     prices: {
-      cabinet: { endCustomer: 25000, siChannel: 23400, reseller: 22700 },
+      cabinet: { endCustomer: 28500, siChannel: 26824, reseller: 25333 },
       curveLock: { endCustomer: 1700, siChannel: 1600, reseller: 1500 }
     }
   },
@@ -2536,7 +2536,7 @@ export const products: Product[] = [
     cabinetMaterial: 'Die-casting Aluminum',
     certificates: 'CE/BIS/ISO/ROHS/MII',
     prices: {
-      cabinet: { endCustomer: 30100, siChannel: 27500, reseller: 25900 },
+      cabinet: { endCustomer: 31188, siChannel: 29353, reseller: 27722 },
       curveLock: { endCustomer: 2100, siChannel: 1900, reseller: 1800 }
     }
   },
@@ -2575,7 +2575,7 @@ export const products: Product[] = [
     cabinetMaterial: 'Die-casting Aluminum',
     certificates: 'CE/BIS/ISO/ROHS/MII',
     prices: {
-      cabinet: { endCustomer: 27100, siChannel: 24800, reseller: 23300 },
+      cabinet: { endCustomer: 28125, siChannel: 26471, reseller: 25000 },
       curveLock: { endCustomer: 2100, siChannel: 1900, reseller: 1800 }
     }
   },
