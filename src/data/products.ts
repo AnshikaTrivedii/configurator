@@ -15,11 +15,11 @@ export const products: Product[] = [
       width: 208,
       height: 104
     },
-    price: 25700,
-    siChannelPrice: 23300,
-    resellerPrice: 21900,
+    price: 24412,
+    siChannelPrice: 22133,
+    resellerPrice: 20750,
     prices: {
-      cabinet: { endCustomer: 25700, siChannel: 23300, reseller: 21900 },
+      cabinet: { endCustomer: 24412, siChannel: 22133, reseller: 20750 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
 
@@ -69,11 +69,11 @@ export const products: Product[] = [
       width: 172,
       height: 86
     },
-    price: 17600,
-    siChannelPrice: 16000,
-    resellerPrice: 15000,
+    price: 15467,
+    siChannelPrice: 15467,
+    resellerPrice: 14500,
     prices: {
-      cabinet: { endCustomer: 17600, siChannel: 16000, reseller: 15000 },
+      cabinet: { endCustomer: 15467, siChannel: 15467, reseller: 14500 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
 
@@ -123,11 +123,11 @@ export const products: Product[] = [
       width: 128,
       height: 64
     },
-    price: 12500,
-    siChannelPrice: 11300,
-    resellerPrice: 10600,
+    price: 11000,
+    siChannelPrice: 11733,
+    resellerPrice: 11000,
     prices: {
-      cabinet: { endCustomer: 12500, siChannel: 11300, reseller: 10600 },
+      cabinet: { endCustomer: 11000, siChannel: 11733, reseller: 11000 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
 
@@ -177,11 +177,11 @@ export const products: Product[] = [
       width: 80,
       height: 40
     },
-    price: 10300,
-    siChannelPrice: 9300,
-    resellerPrice: 8800,
+    price: 8100,
+    siChannelPrice: 10800,
+    resellerPrice: 10125,
     prices: {
-      cabinet: { endCustomer: 10300, siChannel: 9300, reseller: 8800 },
+      cabinet: { endCustomer: 8100, siChannel: 10800, reseller: 10125 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
 
@@ -231,11 +231,11 @@ export const products: Product[] = [
       width: 168,
       height: 168
     },
-    price: 19100,
-    siChannelPrice: 17300,
-    resellerPrice: 16200,
+    price: 21100,
+    siChannelPrice: 19300,
+    resellerPrice: 18300,
     prices: {
-      cabinet: { endCustomer: 19100, siChannel: 17300, reseller: 16200 },
+      cabinet: { endCustomer: 21100, siChannel: 19300, reseller: 18300 },
       curveLock: { endCustomer: 0, siChannel: 0, reseller: 0 } // Not applicable for flexible series
     },
     cabinetDimensions: {
@@ -3278,11 +3278,11 @@ export const products: Product[] = [
     operatingHumidity: '0-50%',
     lifeTime: 50000,
     mtbf: 5000,
-    price: 7800,        // per ft² — End Customer
-    siChannelPrice: 7100,  // per ft² — SI/Channel
-    resellerPrice: 6600,   // per ft² — Reseller
+    price: 9640,        // per ft² — End Customer
+    siChannelPrice: 8740,  // per ft² — SI/Channel
+    resellerPrice: 8194,   // per ft² — Reseller
     prices: {
-      cabinet: { endCustomer: 7800, siChannel: 7100, reseller: 6600 }
+      cabinet: { endCustomer: 9640, siChannel: 8740, reseller: 8194 }
     }
   },
   {
@@ -3313,11 +3313,11 @@ export const products: Product[] = [
     operatingHumidity: '0-50%',
     lifeTime: 50000,
     mtbf: 5000,
-    price: 5100,        // per ft² — End Customer
-    siChannelPrice: 4700,  // per ft² — SI/Channel
-    resellerPrice: 4400,   // per ft² — Reseller
+    price: 7279,        // per ft² — End Customer
+    siChannelPrice: 6600,  // per ft² — SI/Channel
+    resellerPrice: 6188,   // per ft² — Reseller
     prices: {
-      cabinet: { endCustomer: 5100, siChannel: 4700, reseller: 4400 }
+      cabinet: { endCustomer: 7279, siChannel: 6600, reseller: 6188 }
     }
   },
   {
@@ -3348,11 +3348,11 @@ export const products: Product[] = [
     operatingHumidity: '0-99%',
     lifeTime: 50000,
     mtbf: 5000,
-    price: 4700,        // per ft² — End Customer
-    siChannelPrice: 4300,  // per ft² — SI/Channel
-    resellerPrice: 4000,   // per ft² — Reseller
+    price: 5735,        // per ft² — End Customer
+    siChannelPrice: 5200,  // per ft² — SI/Channel
+    resellerPrice: 4875,   // per ft² — Reseller
     prices: {
-      cabinet: { endCustomer: 4700, siChannel: 4300, reseller: 4000 }
+      cabinet: { endCustomer: 5735, siChannel: 5200, reseller: 4875 }
     }
   },
 
@@ -3570,11 +3570,11 @@ export const products: Product[] = [
     installationMode: "Moveable(standard-stand)/ Wall mount (optional)",
     controller: "Novastar",
     lifeTime: 100000,
-    price: 1470000,
-    siChannelPrice: 1400000,
-    resellerPrice: 1320000,
+    price: 1550000,
+    siChannelPrice: 1472500,
+    resellerPrice: 1395000,
     prices: {
-      cabinet: { endCustomer: 1470000, siChannel: 1400000, reseller: 1320000 }
+      cabinet: { endCustomer: 1550000, siChannel: 1472500, reseller: 1395000 }
     }
   },
   {
@@ -3614,11 +3614,11 @@ export const products: Product[] = [
     installationMode: "Moveable(standard-stand)/ Wall mount (optional)",
     controller: "Novastar",
     lifeTime: 100000,
-    price: 1860000,
-    siChannelPrice: 1770000,
-    resellerPrice: 1670000,
+    price: 1950000,
+    siChannelPrice: 1852500,
+    resellerPrice: 1755000,
     prices: {
-      cabinet: { endCustomer: 1860000, siChannel: 1770000, reseller: 1670000 }
+      cabinet: { endCustomer: 1950000, siChannel: 1852500, reseller: 1755000 }
     }
   },
   {
@@ -3658,11 +3658,11 @@ export const products: Product[] = [
     installationMode: "Moveable(standard-stand)/ Wall mount (optional)",
     controller: "Novastar",
     lifeTime: 100000,
-    price: 2380000,
-    siChannelPrice: 2260000,
-    resellerPrice: 2140000,
+    price: 2450000,
+    siChannelPrice: 2327500,
+    resellerPrice: 2205000,
     prices: {
-      cabinet: { endCustomer: 2380000, siChannel: 2260000, reseller: 2140000 }
+      cabinet: { endCustomer: 2450000, siChannel: 2327500, reseller: 2205000 }
     }
   },
   {
