@@ -824,9 +824,9 @@ export const products: Product[] = [
       maxHeight: 1920,
       validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
     },
-    price: 140000,
-    siChannelPrice: 133000,
-    resellerPrice: 126000,
+    price: 183800,
+    siChannelPrice: 166700,
+    resellerPrice: 156300,
   },
   {
     id: 'orion-p18-digital-standee-2',
@@ -874,9 +874,9 @@ export const products: Product[] = [
       maxHeight: 1920,
       validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
     },
-    price: 180000,
-    siChannelPrice: 171000,
-    resellerPrice: 162000,
+    price: 242600,
+    siChannelPrice: 220000,
+    resellerPrice: 206300,
   },
   {
     id: 'orion-p25-digital-standee',
@@ -924,9 +924,9 @@ export const products: Product[] = [
       maxHeight: 1920,
       validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
     },
-    price: 120000,
-    siChannelPrice: 114000,
-    resellerPrice: 108000,
+    price: 139700,
+    siChannelPrice: 126700,
+    resellerPrice: 118800,
   },
   {
     id: 'orion-p25-digital-standee-2',
@@ -974,9 +974,9 @@ export const products: Product[] = [
       maxHeight: 1920,
       validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
     },
-    price: 130000,
-    siChannelPrice: 123500,
-    resellerPrice: 117000,
+    price: 183800,
+    siChannelPrice: 166700,
+    resellerPrice: 156300,
   },
   {
     id: 'orion-p4-digital-standee',
@@ -1024,9 +1024,9 @@ export const products: Product[] = [
       maxHeight: 1920,
       validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
     },
-    price: 150000,
-    siChannelPrice: 142500,
-    resellerPrice: 135000,
+    price: 161800,
+    siChannelPrice: 146700,
+    resellerPrice: 137500,
   },
   {
     id: 'orion-p4-digital-standee-2',
@@ -1074,9 +1074,9 @@ export const products: Product[] = [
       maxHeight: 1920,
       validationMessage: 'For Digital Standee Series, screen size must be between 640x1760mm and 1280x1920mm and in multiples of 320x160mm module size.',
     },
-    price: 185000,
-    siChannelPrice: 175750,
-    resellerPrice: 166500,
+    price: 198500,
+    siChannelPrice: 180000,
+    resellerPrice: 168800,
   },
 
   {
@@ -2458,7 +2458,7 @@ export const products: Product[] = [
     cabinetMaterial: 'Die-casting Aluminum',
     certificates: 'CE/BIS/ISO/ROHS/MII',
     prices: {
-      cabinet: { endCustomer: 28200, siChannel: 26400, reseller: 25600 },
+      cabinet: { endCustomer: 34375, siChannel: 32353, reseller: 30556 },
       curveLock: { endCustomer: 1700, siChannel: 1600, reseller: 1500 }
     }
   },
@@ -2497,7 +2497,7 @@ export const products: Product[] = [
     cabinetMaterial: 'Die-casting Aluminum',
     certificates: 'CE/BIS/ISO/ROHS/MII',
     prices: {
-      cabinet: { endCustomer: 25000, siChannel: 23400, reseller: 22700 },
+      cabinet: { endCustomer: 28500, siChannel: 26824, reseller: 25333 },
       curveLock: { endCustomer: 1700, siChannel: 1600, reseller: 1500 }
     }
   },
@@ -2536,7 +2536,7 @@ export const products: Product[] = [
     cabinetMaterial: 'Die-casting Aluminum',
     certificates: 'CE/BIS/ISO/ROHS/MII',
     prices: {
-      cabinet: { endCustomer: 30100, siChannel: 27500, reseller: 25900 },
+      cabinet: { endCustomer: 31188, siChannel: 29353, reseller: 27722 },
       curveLock: { endCustomer: 2100, siChannel: 1900, reseller: 1800 }
     }
   },
@@ -2575,7 +2575,7 @@ export const products: Product[] = [
     cabinetMaterial: 'Die-casting Aluminum',
     certificates: 'CE/BIS/ISO/ROHS/MII',
     prices: {
-      cabinet: { endCustomer: 27100, siChannel: 24800, reseller: 23300 },
+      cabinet: { endCustomer: 28125, siChannel: 26471, reseller: 25000 },
       curveLock: { endCustomer: 2100, siChannel: 1900, reseller: 1800 }
     }
   },
