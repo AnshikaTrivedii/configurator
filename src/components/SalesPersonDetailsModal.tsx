@@ -10,6 +10,7 @@ import { normalizeOrderQuantity } from '../utils/orderQuantity';
 import {
   getQuotationItemSummary,
   normalizeQuotationLineItems,
+  sortCustomersWithDiscountedQuotationsFirst,
   toPdfQuotationLineItems,
   priceLineItem,
   toPricingUserTypeCode,
@@ -297,7 +298,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       const uniquePrices = [...new Set(allQuotationPrices)];
 
       setSalesPerson(response.salesPerson);
-      setCustomers(response.customers);
+      setCustomers(sortCustomersWithDiscountedQuotationsFirst(response.customers || []));
       setTotalQuotations(response.totalQuotations);
       setTotalCustomers(response.totalCustomers);
     } catch (err) {

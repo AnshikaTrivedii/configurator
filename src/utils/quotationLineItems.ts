@@ -445,3 +445,51 @@ export function getQuotationItemSummary(quotation: any): {
     productLabel: formatQuotationProductLabel(items)
   };
 }
+
+/** True when a line item has a super-admin discount applied. */
+export function lineItemHasSuperAdminDiscount(item: PersistedQuotationLineItem): boolean {
+  const d = item.discount;
+  if (!d) return false;
+  return (d.discountAmount ?? 0) > 0 || !!d.discountType || !!d.ledOverride || !!d.controllerOverride;
+}
+
+/** True when any product on the quotation has a super-admin discount. */
+export function quotationHasSuperAdminDiscount(quotation: any): boolean {
+  const lineItems = normalizeQuotationLineItems(quotation);
+  if (lineItems.some(lineItemHasSuperAdminDiscount)) return true;
+  if (quotation?.quotationData?.discountApplied) return true;
+  if ((quotation?.exactPricingBreakdown?.discount?.discountAmount ?? 0) > 0) return true;
+  return false;
+}
+
+/** Discounted quotations first, then newest first within each group. */
+export function sortQuotationsWithDiscountFirst<T extends { createdAt?: string }>(
+  quotations: T[],
+  hasDiscount: (quotation: T) => boolean = quotationHasSuperAdminDiscount as (q: T) => boolean
+): T[] {
+  return [...quotations].sort((a, b) => {
+    const aDiscount = hasDiscount(a);
+    const bDiscount = hasDiscount(b);
+    if (aDiscount !== bDiscount) return aDiscount ? -1 : 1;
+    const aTime = new Date(a.createdAt || 0).getTime();
+    const bTime = new Date(b.createdAt || 0).getTime();
+    return bTime - aTime;
+  });
+}
+
+/** Sort each customer's quotations and prioritize customers with discounted quotes. */
+export function sortCustomersWithDiscountedQuotationsFirst<T extends { quotations: any[] }>(
+  customers: T[]
+): T[] {
+  return [...customers]
+    .map(customer => ({
+      ...customer,
+      quotations: sortQuotationsWithDiscountFirst(customer.quotations)
+    }))
+    .sort((a, b) => {
+      const aHasDiscount = a.quotations.some(quotationHasSuperAdminDiscount);
+      const bHasDiscount = b.quotations.some(quotationHasSuperAdminDiscount);
+      if (aHasDiscount !== bHasDiscount) return aHasDiscount ? -1 : 1;
+      return 0;
+    });
+}

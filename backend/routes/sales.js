@@ -20,6 +20,49 @@ function calculateCorrectPrice(quotation) {
   return quotation.totalPrice || 0;
 }
 
+function quotationHasDiscount(quotation) {
+  const quotationData = quotation.quotationData || {};
+  if (quotationData.discountApplied) return true;
+
+  const lineItems = quotationData.lineItems || [];
+  if (lineItems.some((item) => {
+    const discount = item.discount;
+    if (!discount) return false;
+    return (discount.discountAmount ?? 0) > 0
+      || !!discount.discountType
+      || !!discount.ledOverride
+      || !!discount.controllerOverride;
+  })) {
+    return true;
+  }
+
+  const breakdownDiscount = quotation.exactPricingBreakdown?.discount?.discountAmount ?? 0;
+  return breakdownDiscount > 0;
+}
+
+function sortQuotationsByDiscount(quotations) {
+  return [...quotations].sort((a, b) => {
+    const aHasDiscount = quotationHasDiscount(a);
+    const bHasDiscount = quotationHasDiscount(b);
+    if (aHasDiscount !== bHasDiscount) return aHasDiscount ? -1 : 1;
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  });
+}
+
+function sortCustomersWithDiscountedQuotationsFirst(customers) {
+  return [...customers]
+    .map((customer) => ({
+      ...customer,
+      quotations: sortQuotationsByDiscount(customer.quotations)
+    }))
+    .sort((a, b) => {
+      const aHasDiscount = a.quotations.some(quotationHasDiscount);
+      const bHasDiscount = b.quotations.some(quotationHasDiscount);
+      if (aHasDiscount !== bHasDiscount) return aHasDiscount ? -1 : 1;
+      return 0;
+    });
+}
+
 // Get product price using PDF logic
 function getProductPriceForPdf(productDetails, userType = 'End User') {
   try {
@@ -2069,7 +2112,7 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
       });
     });
 
-    const customers = Array.from(customerMap.values());
+    const customers = sortCustomersWithDiscountedQuotationsFirst(Array.from(customerMap.values()));
 
     res.json({
       success: true,
