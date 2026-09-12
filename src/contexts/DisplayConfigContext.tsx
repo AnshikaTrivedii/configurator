@@ -68,10 +68,8 @@ const loadFromStorage = (): DisplayConfigState => {
         wireType: parsed.wireType === 'copper' ? 'copper' : 'gold',
         nexaAddons: Array.isArray(parsed.nexaAddons) ? parsed.nexaAddons : [],
         selectedCabinetSize: parsed.selectedCabinetSize ?? null,
-        orderQuantity: (() => {
-          const q = Number(parsed.orderQuantity);
-          return Number.isFinite(q) && q >= 1 ? Math.floor(q) : 1;
-        })()
+        // Quantity is session-only: always start at 1 after refresh / new load
+        orderQuantity: 1
       };
     }
   } catch (error) {
@@ -82,7 +80,11 @@ const loadFromStorage = (): DisplayConfigState => {
 
 const saveToStorage = (config: DisplayConfigState) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    // Persist config, but never keep a non-default quantity across page loads
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...config, orderQuantity: 1 })
+    );
   } catch (error) {
 
   }
