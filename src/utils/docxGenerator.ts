@@ -6,7 +6,13 @@ import { getProcessorPrice } from './processorPrices';
 import { calculateCentralizedPricing } from './centralizedPricing';
 import { normalizeOrderQuantity } from './orderQuantity';
 import type { PdfQuotationLineItem } from './quotationLineItems';
-import { buildMultiProductQuotationBodyHtml, buildMultiProductContinuationPagesHtml, fitMultiProductQuotationIfNeeded } from './multiProductQuotationHtml';
+import { buildMultiProductQuotationBodyHtml, buildMultiProductContinuationPagesHtml, fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from './multiProductQuotationHtml';
+import {
+  addQuotationAddonsToTotal,
+  buildQuotationAddonsSectionHtml,
+  readQuotationAddons,
+  sumQuotationAddons
+} from './quotationAddons';
 
 // Processor specifications - matches DisplayConfigurator.tsx
 const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
@@ -148,6 +154,7 @@ export const generateConfigurationDocx = async (
 
     // Prefer one page for 2-product quotes; split only if content overflows.
     fitMultiProductQuotationIfNeeded(container);
+    paginateOverflowingQuotationAddons(container);
 
     const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
 
@@ -268,6 +275,7 @@ interface UserInfo {
   paymentTerms?: string;
   warranty?: string;
   validity?: string;
+  customAddons?: { description: string; price: number }[];
 }
 
 export const generateConfigurationHtml = (
@@ -317,6 +325,9 @@ export const generateConfigurationHtml = (
     addonsGST?: number;
     addonsTotal?: number;
     appliedAddons?: { name: string; price: number }[];
+    customAddons?: { description: string; price: number }[];
+    customAddonsTotal?: number;
+    customAddonsIncludedInGrandTotal?: boolean;
   },
   wireType?: 'gold' | 'copper',
   nexaAddons?: string[],
@@ -459,6 +470,14 @@ export const generateConfigurationHtml = (
   let totalStructure: number;
   let totalInstallation: number;
   let grandTotal: number;
+  const quotationCustomAddons = readQuotationAddons(
+    exactPricingBreakdown?.customAddons,
+    userInfo?.customAddons
+  );
+  const quotationCustomAddonsTotal = exactPricingBreakdown?.customAddonsTotal != null
+    ? Number(exactPricingBreakdown.customAddonsTotal) || 0
+    : sumQuotationAddons(quotationCustomAddons);
+  let customAddonsAlreadyInGrandTotal = exactPricingBreakdown?.customAddonsIncludedInGrandTotal === true;
 
   let safeQuantity = isNaN(quantity) || quantity <= 0 ? 1 : Math.max(0.01, Math.min(quantity, 10000));
   let orderQuantity = normalizeOrderQuantity(
@@ -654,6 +673,7 @@ export const generateConfigurationHtml = (
       const recomputed = Math.round(totalProduct + totalController + totalStructure + totalInstallation + addonsTotal);
       if (recomputed !== exactPricingBreakdown.grandTotal) {
         grandTotal = recomputed;
+        customAddonsAlreadyInGrandTotal = false;
       }
     }
 
@@ -716,6 +736,7 @@ export const generateConfigurationHtml = (
     totalStructure = 0;
     totalInstallation = 0;
     grandTotal = totalProduct + totalController;
+    customAddonsAlreadyInGrandTotal = false;
   }
 
   if (isDigitalStandee || isFixed) {
@@ -762,7 +783,12 @@ export const generateConfigurationHtml = (
     installationGST = installationBasePrice * 0.18;
     if (!exactPricingBreakdown?.grandTotal && !exactPricingBreakdown?.discount) {
       grandTotal = totalProduct + totalController + totalInstallation + addonsTotal;
+      customAddonsAlreadyInGrandTotal = false;
     }
+  }
+
+  if (!customAddonsAlreadyInGrandTotal) {
+    grandTotal = addQuotationAddonsToTotal(grandTotal || 0, quotationCustomAddonsTotal);
   }
 
   const formatIndianNumber = (x: number): string => {
@@ -1052,7 +1078,7 @@ export const generateConfigurationHtml = (
               </div>
               ` : ''}
               
-              ${isMultiProduct ? buildMultiProductQuotationBodyHtml(quotationLineItems!) : `
+              ${isMultiProduct ? buildMultiProductQuotationBodyHtml(quotationLineItems!, quotationCustomAddons) : `
               <!-- Section A: Product Description - Clean Layout -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
@@ -1330,10 +1356,12 @@ export const generateConfigurationHtml = (
                 </div>
             </div>
             ` : ''}
+
+            ${buildQuotationAddonsSectionHtml(isMultiProduct ? [] : quotationCustomAddons)}
             
             <!-- Grand Total - Clean Design -->
             <!-- Fixed: Reduced width and added left margin to prevent QR code overlap -->
-            <div class="quotation-section" style="background: rgba(51, 51, 51, 0.95); color: white; padding: 5px 8px; border-radius: 3px; margin: 3px 0 0 40px; text-align: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); width: calc(100% - 40px); min-height: auto; box-sizing: border-box;">
+            <div class="quotation-section quotation-grand-total" style="background: rgba(51, 51, 51, 0.95); color: white; padding: 5px 8px; border-radius: 3px; margin: 3px 0 0 40px; text-align: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); width: calc(100% - 40px); min-height: auto; box-sizing: border-box;">
                 <h2 style="margin: 0 0 2px 0; font-size: 13px; font-weight: bold; line-height: 1.1;">GRAND TOTAL</h2>
                 <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.1;">₹${formatTotalWithDecimals(grandTotal)} (GST Extra)</p>
                 ${(isDigitalStandee || isFixed)
@@ -1349,7 +1377,7 @@ export const generateConfigurationHtml = (
               `}
             </div>
         </div>
-        ${isMultiProduct ? buildMultiProductContinuationPagesHtml(quotationLineItems!, quotationId) : ''}
+        ${isMultiProduct ? buildMultiProductContinuationPagesHtml(quotationLineItems!, quotationId, quotationCustomAddons) : ''}
         <div class="page page-bg" data-page-kind="terms" style="background-image: url('/Pages to JPG/7.png'); position: relative;">
             <!-- Main white overlay (height 82%); bottom 6% leaves footer strip visible -->
             <div style="position: absolute; top: 12%; left: 0; right: 0; bottom: 6%; background: white; z-index: 1;"></div>
@@ -1474,6 +1502,7 @@ export const generatePdfFromHtml = async (html: string): Promise<Blob> => {
 
     // Prefer one page for 2-product quotes; split only if content overflows.
     fitMultiProductQuotationIfNeeded(container);
+    paginateOverflowingQuotationAddons(container);
 
     const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -1728,6 +1757,7 @@ export const generateAlternatePdf = async (
 
     // Prefer one page for 2-product quotes; split only if content overflows.
     fitMultiProductQuotationIfNeeded(container);
+    paginateOverflowingQuotationAddons(container);
 
     const pages = Array.from(container.querySelectorAll('.page')) as HTMLElement[];
     const pdf = new jsPDF('p', 'mm', 'a4');

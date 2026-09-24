@@ -4,6 +4,7 @@ import { salesAPI } from '../api/sales';
 import { PdfViewModal } from './PdfViewModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
 import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
+import { addQuotationAddonsToTotal, readQuotationAddons, sumQuotationAddons } from '../utils/quotationAddons';
 import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel } from '../utils/discountCalculator';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
@@ -522,14 +523,21 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
     selectedItem: PersistedQuotationLineItem,
     selectedDiscountedPricing: any | null
   ) => {
-    const multiGrandTotal = Math.round(
-      updatedLineItems.reduce((sum, li) => sum + (Number(li.pricing?.grandTotal) || 0), 0)
+    const quotationAddons = readQuotationAddons(
+      quotation.quotationData?.customAddons,
+      quotation.exactPricingBreakdown?.customAddons
     );
-    const multiOriginalTotal = Math.round(
-      updatedLineItems.reduce((sum, li) => {
+    const quotationAddonsTotal = sumQuotationAddons(quotationAddons);
+    const multiGrandTotal = addQuotationAddonsToTotal(
+      Math.round(updatedLineItems.reduce((sum, li) => sum + (Number(li.pricing?.grandTotal) || 0), 0)),
+      quotationAddonsTotal
+    );
+    const multiOriginalTotal = addQuotationAddonsToTotal(
+      Math.round(updatedLineItems.reduce((sum, li) => {
         const original = li.discount?.originalGrandTotal ?? li.pricing?.grandTotal ?? 0;
         return sum + (Number(original) || 0);
-      }, 0)
+      }, 0)),
+      quotationAddonsTotal
     );
 
     const anyDiscount = updatedLineItems.some(lineItemHasDiscount);
@@ -540,6 +548,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
     const newExactPricingBreakdown = {
       ...quotation.exactPricingBreakdown,
       ...selectedPricing,
+      customAddons: quotationAddons,
+      customAddonsTotal: quotationAddonsTotal,
+      customAddonsIncludedInGrandTotal: true,
       grandTotal: multiGrandTotal,
       discount: selectedDiscount || undefined
     };
@@ -615,6 +626,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       pdfBase64,
       quotationData: {
         ...quotation.quotationData,
+        customAddons: quotationAddons,
         lineItems: updatedLineItems,
         updatedAt: new Date().toISOString(),
         discountApplied: anyDiscount,
@@ -1237,6 +1249,15 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         addonsGST: discountedPricing.addonsGST,
         addonsTotal: discountedPricing.addonsTotal,
         appliedAddons: discountedPricing.appliedAddons,
+        customAddons: readQuotationAddons(
+          quotation.quotationData?.customAddons,
+          (quotation.exactPricingBreakdown as any)?.customAddons
+        ),
+        customAddonsTotal: sumQuotationAddons(readQuotationAddons(
+          quotation.quotationData?.customAddons,
+          (quotation.exactPricingBreakdown as any)?.customAddons
+        )),
+        customAddonsIncludedInGrandTotal: true,
         grandTotal: discountedPricing.grandTotal,
         discount: {
           discountType: discountType,
@@ -1770,6 +1791,20 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                   </div>
                                                 </>
                                               )}
+                                              {(() => {
+                                                const savedAddons = readQuotationAddons(
+                                                  (quotation.quotationData as any)?.customAddons,
+                                                  (quotation.exactPricingBreakdown as any)?.customAddons
+                                                );
+                                                const savedAddonsTotal = sumQuotationAddons(savedAddons);
+                                                if (!savedAddons.length) return null;
+                                                return (
+                                                  <div className="flex justify-between">
+                                                    <span>Add-ons:</span>
+                                                    <span>₹{savedAddonsTotal.toLocaleString('en-IN')}</span>
+                                                  </div>
+                                                );
+                                              })()}
                                               <div className="flex justify-between font-semibold border-t pt-1">
                                                 <span>Grand Total:</span>
                                                 <span className="text-green-600">₹{quotation.exactPricingBreakdown.grandTotal?.toLocaleString('en-IN')}</span>

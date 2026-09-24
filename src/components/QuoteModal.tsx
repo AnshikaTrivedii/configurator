@@ -9,6 +9,11 @@ import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { calculateUserSpecificPrice } from '../utils/pricingCalculator';
 import { getProcessorPrice } from '../utils/processorPrices';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
+import {
+  addQuotationAddonsToTotal,
+  readQuotationAddons,
+  sumQuotationAddons
+} from '../utils/quotationAddons';
 import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel } from '../utils/discountCalculator';
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
@@ -80,7 +85,8 @@ function calculateCorrectTotalPrice(
   },
   wireType?: 'gold' | 'copper',
   nexaAddons?: string[],
-  orderQuantity?: number
+  orderQuantity?: number,
+  customAddons?: unknown
 ): number {
   const result = calculateCentralizedPricing(
     product,
@@ -91,7 +97,8 @@ function calculateCorrectTotalPrice(
     customPricing,
     wireType,
     nexaAddons,
-    orderQuantity
+    orderQuantity,
+    customAddons
   );
   return result.grandTotal;
 }
@@ -127,7 +134,9 @@ type QuoteModalProps = {
     paymentTerms?: string;
     warranty?: string;
     userType: 'End User' | 'SI/Channel Partner' | 'Reseller';
+    customAddons?: { description: string; price: number }[];
   };
+  customAddons?: { description: string; price: number }[];
   title?: string;
   submitButtonText?: string;
   salesUser?: SalesUser | null;
@@ -196,12 +205,15 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   customPricing: externalCustomPricing,
   onCustomPricingChange,
   config,
-  clientId
+  clientId,
+  customAddons: customAddonsProp
 }) => {
   const { config: globalConfig, updateConfig } = useDisplayConfig();
   const wireType = globalConfig.wireType ?? 'gold';
   const nexaAddons = globalConfig.nexaAddons ?? [];
   const orderQuantity = normalizeOrderQuantity(globalConfig.orderQuantity);
+  const quotationAddons = readQuotationAddons(customAddonsProp, userInfo?.customAddons);
+  const quotationAddonsTotal = sumQuotationAddons(quotationAddons);
   const { lineItems, clearCart } = useQuotationCart();
   const installationOnlyCustomPricing = isCrystalSeries(selectedProduct);
 
@@ -450,7 +462,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           customPricingObj,
           selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
           nexaAddons,
-          orderQuantity
+          orderQuantity,
+          quotationAddons
         );
 
         if (!pricingForUpdate.isAvailable) {
@@ -527,7 +540,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           : null;
 
         const appliedAddons = pricingForUpdate.appliedAddons;
-        const updateGrandTotal = multiItemTotal != null ? multiItemTotal : pricingForUpdate.grandTotal;
+        const updateGrandTotal = multiItemTotal != null
+          ? addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal)
+          : pricingForUpdate.grandTotal;
         const quotationProductName = formatQuotationProductLabel(
           effectiveLineItems.length > 0 ? effectiveLineItems : [{ product: selectedProduct } as any]
         );
@@ -561,6 +576,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           addonsGST: pricingForUpdate.addonsGST,
           addonsTotal: pricingForUpdate.addonsTotal,
           appliedAddons: appliedAddons,
+          customAddons: quotationAddons,
+          customAddonsTotal: quotationAddonsTotal,
+          customAddonsIncludedInGrandTotal: true,
           lineItemCount: persistedLineItems.length,
 
           grandTotal: updateGrandTotal
@@ -581,7 +599,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
           originalPricingBreakdown: {
             ...breakdown,
-            grandTotal: multiItemTotal != null ? multiItemTotal : pricingForUpdate.grandTotal
+            grandTotal: updateGrandTotal
           },
 
           exactProductSpecs: {
@@ -623,6 +641,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
             nexaAddons: appliedAddons.map(addon => addon.name),
             nexaAddonsWithPrices: appliedAddons,
+            customAddons: quotationAddons,
             updatedAt: new Date().toISOString(),
             discountApplied: false,
             discountInfo: null
@@ -900,7 +919,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             customPricingObj,
             selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
             nexaAddons,
-            orderQuantity
+            orderQuantity,
+            quotationAddons
           );
 
           const pricingResult = calculateCentralizedPricing(
@@ -912,7 +932,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             customPricingObj,
             selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
             nexaAddons,
-            orderQuantity
+            orderQuantity,
+            quotationAddons
           );
 
           if (!pricingResult.isAvailable) {
@@ -996,7 +1017,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           }
 
           if (multiItemTotal != null) {
-            finalTotalPrice = multiItemTotal;
+            finalTotalPrice = addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal);
           }
 
           const persistedLineItems = effectiveLineItems.length > 0
@@ -1041,7 +1062,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
             totalPrice: finalTotalPrice,  // CRITICAL: Grand Total with GST (and discount if applied) - matches PDF exactly
-            originalTotalPrice: multiItemTotal != null ? multiItemTotal : correctTotalPrice, // Store original total price before discount
+            originalTotalPrice: multiItemTotal != null
+              ? addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal)
+              : correctTotalPrice, // Store original total price before discount
 
             salesUserId: finalSalesUserId,
             salesUserName: finalSalesUserName,
@@ -1065,6 +1088,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               addonsGST: finalPricingResult.addonsGST,
               addonsTotal: finalPricingResult.addonsTotal,
               appliedAddons: finalPricingResult.appliedAddons,
+              customAddons: quotationAddons,
+              customAddonsTotal: quotationAddonsTotal,
+              customAddonsIncludedInGrandTotal: true,
 
               structureCost: finalPricingResult.structureCost,
               structureGST: finalPricingResult.structureGST,
@@ -1111,7 +1137,12 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               addonsGST: pricingResult.addonsGST,
               addonsTotal: pricingResult.addonsTotal,
               appliedAddons: pricingResult.appliedAddons,
-              grandTotal: pricingResult.grandTotal // Always clean total
+              customAddons: quotationAddons,
+              customAddonsTotal: quotationAddonsTotal,
+              customAddonsIncludedInGrandTotal: true,
+              grandTotal: multiItemTotal != null
+                ? addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal)
+                : pricingResult.grandTotal // Always clean total
             },
 
             discountType: discountInfo?.discountType || null,
@@ -1165,6 +1196,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
               nexaAddons: pricingResult.appliedAddons.map(addon => addon.name),
               nexaAddonsWithPrices: pricingResult.appliedAddons,
+              customAddons: quotationAddons,
               // Store discount state in quotationData so SalesPersonDetailsModal
               // can correctly detect and manage discounts applied at creation time
               discountApplied: discountInfo ? ('discountAmount' in finalPricingResult ? (finalPricingResult as any).discountAmount > 0 : false) : false,
