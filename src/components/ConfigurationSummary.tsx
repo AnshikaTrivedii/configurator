@@ -272,7 +272,11 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Pixels</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-cyan-700 break-words">
-                {formatIndianNumber(selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows)}
+                {formatIndianNumber(
+                  isDigitalStandee
+                    ? selectedProduct.resolution.width * selectedProduct.resolution.height
+                    : selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows
+                )}
               </p>
             </div>
           </div>

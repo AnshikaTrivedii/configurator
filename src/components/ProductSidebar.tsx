@@ -69,7 +69,12 @@ export const ProductSidebar: React.FC<ProductSidebarProps> = ({
   const [cloudSolution, setCloudSolution] = useState<'Synchronous' | 'Asynchronous' | null>(null);
 
   const isModularSeries = selectedProduct?.category?.toLowerCase().includes('modular') ?? false;
-  const totalPixels = selectedProduct ? (selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows) : 0;
+  const isDigitalStandeeProduct = selectedProduct?.category?.toLowerCase().includes('digital standee') ?? false;
+  const totalPixels = selectedProduct
+    ? (isDigitalStandeeProduct
+      ? selectedProduct.resolution.width * selectedProduct.resolution.height
+      : selectedProduct.resolution.width * cabinetGrid.columns * selectedProduct.resolution.height * cabinetGrid.rows)
+    : 0;
   const totalPixelsMillion = totalPixels / 1_000_000;
 
   const selectedController = controllerSelection?.selectedController?.name || 'TU4k pro';
