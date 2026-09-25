@@ -113,9 +113,11 @@ export function buildQuotationAddonsSectionHtml(addons: QuotationAddon[]): strin
           <span style="font-weight:700; color:#333; font-size:11px; text-align:right;">Amount</span>
         </div>
         ${rows}
-        <div class="quotation-addon-total" style="display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; padding:7px 8px; background:rgba(248,249,250,0.98);">
-          <span style="font-weight:800; color:#111; font-size:12px; text-align:left;">Add-ons Total</span>
-          <span style="font-weight:800; color:#111; font-size:12px; text-align:right; white-space:nowrap;">₹${formatQuotationAmount(total)}</span>
+        <div class="quotation-total-row quotation-addon-total" style="padding:5px 6px; margin:4px 0 0 auto; min-height:35px; width:calc(50% - 4px); box-sizing:border-box; align-self:flex-end;">
+          <div style="display:grid; grid-template-columns:1fr auto; gap:6px; align-items:center; padding:3px 2px; border-bottom:none; width:100%;">
+            <span style="font-weight:700; color:#333; font-size:11px; text-align:left;">TOTAL:</span>
+            <span style="color:#333; font-weight:700; font-size:11px; text-align:right; white-space:nowrap;">₹${formatQuotationAmount(total)}</span>
+          </div>
         </div>
       </div>
     </div>`;
