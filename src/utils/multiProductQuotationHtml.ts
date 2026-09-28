@@ -7,6 +7,12 @@
 
 import { PdfQuotationLineItem } from './quotationLineItems';
 import { normalizeOrderQuantity } from './orderQuantity';
+import {
+  QuotationAddon,
+  addQuotationAddonsToTotal,
+  buildQuotationAddonsSectionHtml,
+  sumQuotationAddons
+} from './quotationAddons';
 
 /** How many product boxes appear on each quotation page. */
 export const PRODUCTS_PER_QUOTATION_PAGE = 2;
@@ -192,8 +198,10 @@ const buildProductsRow = (pageItems: PdfQuotationLineItem[], startIndex: number)
     </div>`;
 };
 
-const buildSummaryAndGrandTotal = (allItems: PdfQuotationLineItem[]): string => {
-  const grandTotal = allItems.reduce((sum, item) => sum + (item.pricing?.grandTotal || 0), 0);
+const buildSummaryAndGrandTotal = (allItems: PdfQuotationLineItem[], customAddons: QuotationAddon[] = []): string => {
+  const productsTotal = allItems.reduce((sum, item) => sum + (item.pricing?.grandTotal || 0), 0);
+  const addonsTotal = sumQuotationAddons(customAddons);
+  const grandTotal = addQuotationAddonsToTotal(productsTotal, addonsTotal);
   return `
     <div class="quotation-section multi-summary" style="background:rgba(255,255,255,0.96); padding:4px 6px; border-radius:3px; margin:0 0 3px 0; border:1px solid rgba(233,236,239,0.9);">
       <h2 style="color:#2563eb; margin:0 0 3px 0; font-size:12px; border-bottom:2px solid #2563eb; padding-bottom:2px; font-weight:bold;">
@@ -204,17 +212,23 @@ const buildSummaryAndGrandTotal = (allItems: PdfQuotationLineItem[]): string => 
           <span style="font-weight:600; color:#333;">Product ${index + 1} — ${item.productName}</span>
           <span style="font-weight:700; color:#111; white-space:nowrap;">₹${formatTotalWithDecimals(item.pricing?.grandTotal || 0)}</span>
         </div>`).join('')}
+      ${addonsTotal ? `
+        <div style="display:flex; justify-content:space-between; gap:8px; padding:3px 4px; font-size:10px; border-bottom:1px solid #eef0f2;">
+          <span style="font-weight:600; color:#333;">Add-ons</span>
+          <span style="font-weight:700; color:#111; white-space:nowrap;">₹${formatTotalWithDecimals(addonsTotal)}</span>
+        </div>` : ''}
     </div>
+    ${buildQuotationAddonsSectionHtml(customAddons)}
 
-    <div class="quotation-section multi-grand-total-section" style="background:rgba(51,51,51,0.95); color:white; padding:5px 8px; border-radius:3px; margin:2px 0 0 40px; text-align:center; flex-shrink:0; box-shadow:0 2px 4px rgba(0,0,0,0.1); width:calc(100% - 40px); box-sizing:border-box;">
+    <div class="quotation-section multi-grand-total-section quotation-grand-total" style="background:rgba(51,51,51,0.95); color:white; padding:5px 8px; border-radius:3px; margin:2px 0 0 40px; text-align:center; flex-shrink:0; box-shadow:0 2px 4px rgba(0,0,0,0.1); width:calc(100% - 40px); box-sizing:border-box;">
       <h2 style="margin:0 0 1px 0; font-size:13px; font-weight:bold; line-height:1.1;">GRAND TOTAL</h2>
       <p style="margin:0; font-size:15px; font-weight:bold; line-height:1.1;">₹${formatTotalWithDecimals(grandTotal)} (GST Extra)</p>
-      <p style="margin:1px 0 0 0; font-size:8px; opacity:0.9; line-height:1.1;">(Sum of ${allItems.length} product totals)</p>
+      <p style="margin:1px 0 0 0; font-size:8px; opacity:0.9; line-height:1.1;">${addonsTotal ? `(Sum of ${allItems.length} product totals and add-ons)` : `(Sum of ${allItems.length} product totals)`}</p>
     </div>`;
 };
 
 /** First quotation page body: first 1–2 products (+ summary if this is the only page). */
-export function buildMultiProductQuotationBodyHtml(items: PdfQuotationLineItem[]): string {
+export function buildMultiProductQuotationBodyHtml(items: PdfQuotationLineItem[], customAddons: QuotationAddon[] = []): string {
   const allItems = items.slice();
   const chunks = chunkProducts(allItems);
   const firstChunk = chunks[0] || [];
@@ -222,14 +236,15 @@ export function buildMultiProductQuotationBodyHtml(items: PdfQuotationLineItem[]
 
   return `
     ${buildProductsRow(firstChunk, 0)}
-    ${isOnlyPage ? buildSummaryAndGrandTotal(allItems) : ''}
+    ${isOnlyPage ? buildSummaryAndGrandTotal(allItems, customAddons) : ''}
   `;
 }
 
 /** Extra quotation pages for products 3+: each page has up to 2 product boxes. */
 export function buildMultiProductContinuationPagesHtml(
   items: PdfQuotationLineItem[],
-  quotationId?: string
+  quotationId?: string,
+  customAddons: QuotationAddon[] = []
 ): string {
   const allItems = items.slice();
   const chunks = chunkProducts(allItems);
@@ -256,7 +271,7 @@ export function buildMultiProductContinuationPagesHtml(
             </div>
           </div>
           ${buildProductsRow(chunk, startIndex)}
-          ${isLastPage ? buildSummaryAndGrandTotal(allItems) : ''}
+          ${isLastPage ? buildSummaryAndGrandTotal(allItems, customAddons) : ''}
         </div>
       </div>`;
   }).join('');
@@ -292,6 +307,7 @@ export function fitMultiProductQuotationIfNeeded(root: ParentNode): boolean {
 
   if (totalHeight <= available + 4) return false;
 
+  const addonsSection = overlay.querySelector('.quotation-addons') as HTMLElement | null;
   const productsRow = overlay.querySelector('.multi-products-row') as HTMLElement | null;
   const productBlocks = Array.from(
     productsRow
@@ -334,9 +350,125 @@ export function fitMultiProductQuotationIfNeeded(root: ParentNode): boolean {
   overlay2.appendChild(continueHeader);
   overlay2.appendChild(product2);
   if (summary) overlay2.appendChild(summary);
+  if (addonsSection) overlay2.appendChild(addonsSection);
   if (grandTotal) overlay2.appendChild(grandTotal);
 
   page2.appendChild(overlay2);
   page.after(page2);
   return true;
+}
+
+function contentOverflowsFooter(overlay: HTMLElement): boolean {
+  const last = overlay.lastElementChild as HTMLElement | null;
+  if (!last || !overlay.clientHeight) return false;
+  const overlayRect = overlay.getBoundingClientRect();
+  const padBottom = parseFloat(getComputedStyle(overlay).paddingBottom) || 0;
+  const marginBottom = parseFloat(getComputedStyle(last).marginBottom) || 0;
+  return last.getBoundingClientRect().bottom + marginBottom > overlayRect.bottom - padBottom + 2;
+}
+
+function continuationHeader(label: string): HTMLElement {
+  const header = document.createElement('div');
+  header.className = 'quotation-section';
+  header.setAttribute(
+    'style',
+    'background: rgba(248, 249, 250, 0.95); padding: 5px 8px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8); flex-shrink: 0;'
+  );
+  header.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+      <p style="margin:0; font-size:11px; color:#333;"><strong>Quotation #:</strong> ${label}</p>
+      <p style="margin:0; font-size:10px; color:#555; font-weight:600;">ADD-ONS — CONTINUED</p>
+    </div>`;
+  return header;
+}
+
+function insertAddonContinuationPage(afterPage: HTMLElement, quotationLabel: string): HTMLElement {
+  const page = document.createElement('div');
+  page.className = afterPage.className.includes('page') ? afterPage.className : 'page page-bg';
+  page.setAttribute('data-page-kind', 'quotation');
+  const pageStyle = afterPage.getAttribute('style');
+  if (pageStyle) page.setAttribute('style', pageStyle);
+  const overlay = document.createElement('div');
+  overlay.className = 'quotation-overlay';
+  overlay.appendChild(continuationHeader(quotationLabel));
+  page.appendChild(overlay);
+  afterPage.after(page);
+  return page;
+}
+
+function addonShellFrom(source: HTMLElement): HTMLElement {
+  const section = source.cloneNode(false) as HTMLElement;
+  const heading = source.querySelector('h2');
+  if (heading) section.appendChild(heading.cloneNode(true));
+  const card = document.createElement('div');
+  card.className = 'quotation-card quotation-addon-card';
+  card.setAttribute('style', 'display:flex; flex-direction:column; padding:0; overflow:hidden;');
+  const header = source.querySelector('.quotation-addon-header');
+  if (header) card.appendChild(header.cloneNode(true));
+  section.appendChild(card);
+  return section;
+}
+
+/**
+ * When add-ons would paint over the quotation footer, move them and the grand
+ * total onto the next page. A long list continues across further pages.
+ */
+export function paginateOverflowingQuotationAddons(root: ParentNode): void {
+  const scope = root as Document | Element;
+  if (!('querySelectorAll' in scope)) return;
+  const pages = Array.from(scope.querySelectorAll('.page[data-page-kind="quotation"]')) as HTMLElement[];
+
+  pages.forEach((page) => {
+    const overlay = page.querySelector(':scope > .quotation-overlay') as HTMLElement | null;
+    const addons = overlay?.querySelector('.quotation-addons') as HTMLElement | null;
+    if (!overlay || !addons) return;
+    void overlay.offsetHeight;
+    if (!contentOverflowsFooter(overlay)) return;
+
+    const grand = overlay.querySelector('.quotation-grand-total') as HTMLElement | null;
+    const quotationLabel =
+      (overlay.textContent || '').match(/Quotation\s*#:\s*([^\n]+)/)?.[1]?.trim() || '';
+    const rows = Array.from(addons.querySelectorAll('.quotation-addon-row')) as HTMLElement[];
+    const totalRow = addons.querySelector('.quotation-addon-total') as HTMLElement | null;
+    const card = addons.querySelector('.quotation-addon-card') as HTMLElement | null;
+    if (!card) return;
+
+    rows.forEach((row) => row.remove());
+    totalRow?.remove();
+    grand?.remove();
+
+    let current = insertAddonContinuationPage(page, quotationLabel);
+    let currentOverlay = current.querySelector('.quotation-overlay') as HTMLElement;
+    currentOverlay.appendChild(addons);
+    let currentCard = card;
+
+    rows.forEach((row) => {
+      currentCard.appendChild(row);
+      void currentOverlay.offsetHeight;
+      if (contentOverflowsFooter(currentOverlay) && currentCard.querySelectorAll('.quotation-addon-row').length > 1) {
+        row.remove();
+        current = insertAddonContinuationPage(current, quotationLabel);
+        currentOverlay = current.querySelector('.quotation-overlay') as HTMLElement;
+        const shell = addonShellFrom(addons);
+        currentOverlay.appendChild(shell);
+        currentCard = shell.querySelector('.quotation-addon-card') as HTMLElement;
+        currentCard.appendChild(row);
+      }
+    });
+
+    if (totalRow) currentCard.appendChild(totalRow);
+    if (grand) currentOverlay.appendChild(grand);
+    void currentOverlay.offsetHeight;
+    if ((totalRow || grand) && contentOverflowsFooter(currentOverlay) && currentCard.querySelector('.quotation-addon-row')) {
+      totalRow?.remove();
+      grand?.remove();
+      current = insertAddonContinuationPage(current, quotationLabel);
+      currentOverlay = current.querySelector('.quotation-overlay') as HTMLElement;
+      const shell = addonShellFrom(addons);
+      const shellCard = shell.querySelector('.quotation-addon-card') as HTMLElement;
+      if (totalRow) shellCard.appendChild(totalRow);
+      currentOverlay.appendChild(shell);
+      if (grand) currentOverlay.appendChild(grand);
+    }
+  });
 }

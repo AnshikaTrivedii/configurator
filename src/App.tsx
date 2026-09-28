@@ -165,7 +165,8 @@ function App() {
       setShowLandingPage(false);
       updateConfig({
         entryMode: 'direct',
-        directProductMode: true
+        directProductMode: true,
+        orderQuantity: 1
       });
 
       if (newRole === 'super_admin') {
@@ -188,6 +189,7 @@ function App() {
     setShowDashboard(false);
     setShowLandingPage(true);
     setInitialConfig(null);
+    updateConfig({ orderQuantity: 1 });
     salesAPI.logout();
   };
 

@@ -28,6 +28,9 @@ export type ExactPricingBreakdownSource = {
   addonsGST?: number;
   addonsTotal?: number;
   appliedAddons?: { name: string; price: number }[];
+  customAddons?: { description: string; price: number }[];
+  customAddonsTotal?: number;
+  customAddonsIncludedInGrandTotal?: boolean;
   grandTotal?: number;
   customPricing?: {
     enabled: boolean;
@@ -69,6 +72,9 @@ export type PdfPricingBreakdown = {
   addonsGST?: number;
   addonsTotal?: number;
   appliedAddons?: { name: string; price: number }[];
+  customAddons?: { description: string; price: number }[];
+  customAddonsTotal?: number;
+  customAddonsIncludedInGrandTotal?: boolean;
   grandTotal?: number;
   customPricing?: {
     enabled: boolean;
@@ -130,6 +136,9 @@ export function buildExactPricingBreakdownForPdf(
     addonsGST: source.addonsGST ?? 0,
     addonsTotal: source.addonsTotal ?? 0,
     appliedAddons: source.appliedAddons ?? options?.appliedAddonsFallback ?? [],
+    customAddons: source.customAddons,
+    customAddonsTotal: source.customAddonsTotal,
+    customAddonsIncludedInGrandTotal: source.customAddonsIncludedInGrandTotal,
     grandTotal: source.grandTotal ?? discount?.discountedGrandTotal,
     customPricing:
       source.customPricing ??

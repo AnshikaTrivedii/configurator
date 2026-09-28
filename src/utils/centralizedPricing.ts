@@ -11,6 +11,7 @@
 import { Product } from '../types';
 import { getProcessorPrice } from './processorPrices';
 import { normalizeOrderQuantity } from './orderQuantity';
+import { QuotationAddon, sanitizeQuotationAddons, sumQuotationAddons, addQuotationAddonsToTotal } from './quotationAddons';
 
 export interface PricingCalculationResult {
 
@@ -40,6 +41,12 @@ export interface PricingCalculationResult {
   addonsGST: number;
   addonsTotal: number;
   appliedAddons: { name: string; price: number }[];
+
+  /** Sales-entered quotation add-ons. Flat amount, not multiplied by order quantity. */
+  customAddons: QuotationAddon[];
+  customAddonsTotal: number;
+  /** True when grandTotal already includes customAddonsTotal. */
+  customAddonsIncludedInGrandTotal: boolean;
 
   grandTotal: number;
 
@@ -304,8 +311,11 @@ export function calculateCentralizedPricing(
   },
   wireType?: 'gold' | 'copper',
   nexaAddons?: string[],
-  orderQuantityInput?: number
+  orderQuantityInput?: number,
+  customAddonsInput?: unknown
 ): PricingCalculationResult {
+  const customAddons = sanitizeQuotationAddons(customAddonsInput);
+  const customAddonsTotal = sumQuotationAddons(customAddons);
   try {
     const orderQuantity = normalizeOrderQuantity(orderQuantityInput);
 
@@ -341,6 +351,9 @@ export function calculateCentralizedPricing(
         addonsGST: 0,
         addonsTotal: 0,
         appliedAddons: [],
+        customAddons,
+        customAddonsTotal,
+        customAddonsIncludedInGrandTotal: false,
         grandTotal: 0,
         userType: pdfUserType,
         productName: product.name,
@@ -439,7 +452,7 @@ export function calculateCentralizedPricing(
     const unitGrandTotal = Math.round(
       perUnitProductSubtotal + perUnitProcessorPrice + structureBasePrice + installationBasePrice + perUnitAddonsCost
     );
-    const grandTotal = Math.round(unitGrandTotal * orderQuantity);
+    const grandTotal = addQuotationAddonsToTotal(Math.round(unitGrandTotal * orderQuantity), customAddonsTotal);
 
     const result: PricingCalculationResult = {
       unitPrice,
@@ -462,6 +475,9 @@ export function calculateCentralizedPricing(
       addonsGST,
       addonsTotal,
       appliedAddons,
+      customAddons,
+      customAddonsTotal,
+      customAddonsIncludedInGrandTotal: true,
       grandTotal,
       userType: pdfUserType,
       productName: product.name,
@@ -499,6 +515,9 @@ export function calculateCentralizedPricing(
       addonsGST: 0,
       addonsTotal: 0,
       appliedAddons: [],
+      customAddons: [],
+      customAddonsTotal: 0,
+      customAddonsIncludedInGrandTotal: false,
       grandTotal: 6254,
       userType: 'End User',
       productName: product.name,

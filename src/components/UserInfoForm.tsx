@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, CheckCircle, ChevronDown, FileText, MapPin } from 'lucide-react';
+import { X, User, Mail, Phone, CheckCircle, ChevronDown, FileText, MapPin, Plus, Trash2 } from 'lucide-react';
 import { Product } from '../types';
 import { isCrystalSeries } from '../utils/productSeries';
+import {
+  QuotationAddon,
+  QuotationAddonDraft,
+  draftsToQuotationAddons,
+  sumQuotationAddons,
+  validateQuotationAddonDrafts
+} from '../utils/quotationAddons';
 
 interface UserInfo {
   fullName: string;
@@ -13,6 +20,7 @@ interface UserInfo {
   validity?: string;
   paymentTerms?: string;
   warranty?: string;
+  customAddons?: QuotationAddon[];
 }
 
 interface UserInfoFormProps {
@@ -121,6 +129,13 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     mergeInitialDataWithDefaults(initialData)
   );
   const [errors, setErrors] = useState<Partial<Record<keyof UserInfo, string>>>({});
+  const [addonRows, setAddonRows] = useState<QuotationAddonDraft[]>(() =>
+    (initialData?.customAddons || []).map((addon) => ({
+      description: addon.description,
+      price: String(addon.price)
+    }))
+  );
+  const [addonError, setAddonError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUserTypeDropdownOpen, setIsUserTypeDropdownOpen] = useState(false);
 
@@ -149,6 +164,13 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   useEffect(() => {
     if (isOpen && initialData) {
       setFormData(mergeInitialDataWithDefaults(initialData));
+      setAddonRows(
+        (initialData.customAddons || []).map((addon) => ({
+          description: addon.description,
+          price: String(addon.price)
+        }))
+      );
+      setAddonError(null);
     }
     // Sync when the modal opens (not on every initialData identity change)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -236,14 +258,17 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    const addonValidationError = validateQuotationAddonDrafts(addonRows);
+    if (!validateForm() || addonValidationError) {
+      if (addonValidationError) setAddonError(addonValidationError);
       return;
     }
 
+    const customAddons = draftsToQuotationAddons(addonRows);
     setIsSubmitting(true);
 
     try {
-      await onSubmit(formData);
+      await onSubmit({ ...formData, customAddons });
 
       if (!isEditMode) {
 
@@ -258,8 +283,10 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
           paymentTerms: '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation',
           warranty: DEFAULT_WARRANTY
         });
+        setAddonRows([]);
       }
       setErrors({});
+      setAddonError(null);
     } catch (error) {
 
     } finally {
@@ -593,6 +620,81 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
                       />
                     </div>
                   </div>
+                )}
+              </div>
+            )}
+
+            {salesUser && (
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Add-ons</h3>
+                <div className="space-y-3">
+                  {addonRows.map((row, index) => (
+                    <div key={`addon-row-${index}`} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_8.5rem_auto] gap-2 items-start">
+                      <div>
+                        {index === 0 && (
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">Add-on / Description</label>
+                        )}
+                        <input
+                          type="text"
+                          value={row.description}
+                          onChange={(e) => {
+                            const description = e.target.value;
+                            setAddonRows((prev) => prev.map((item, itemIndex) => itemIndex === index ? { ...item, description } : item));
+                            if (addonError) setAddonError(null);
+                          }}
+                          placeholder="Controller"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                      <div>
+                        {index === 0 && (
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">Price (₹)</label>
+                        )}
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={row.price}
+                          onChange={(e) => {
+                            const price = e.target.value;
+                            setAddonRows((prev) => prev.map((item, itemIndex) => itemIndex === index ? { ...item, price } : item));
+                            if (addonError) setAddonError(null);
+                          }}
+                          placeholder="25000"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAddonRows((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
+                        className={`p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors ${index === 0 ? 'sm:mt-5' : ''}`}
+                        aria-label="Remove add-on"
+                        disabled={isSubmitting}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddonRows((prev) => [...prev, { description: '', price: '' }])}
+                  className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-800"
+                  disabled={isSubmitting}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Add-on
+                </button>
+                {draftsToQuotationAddons(addonRows).length > 0 && (
+                  <div className="mt-3 flex justify-between text-sm font-semibold text-gray-800">
+                    <span>Add-ons Total</span>
+                    <span>₹{sumQuotationAddons(draftsToQuotationAddons(addonRows)).toLocaleString('en-IN')}</span>
+                  </div>
+                )}
+                {addonError && (
+                  <p className="mt-2 text-sm text-red-600">{addonError}</p>
                 )}
               </div>
             )}

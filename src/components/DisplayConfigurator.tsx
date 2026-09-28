@@ -25,6 +25,7 @@ import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { useQuotationCart, QuotationLineItem, LineItemUserType } from '../contexts/QuotationCartContext';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
+import { readQuotationAddons } from '../utils/quotationAddons';
 import {
   priceLineItem,
   normalizeQuotationLineItems,
@@ -262,6 +263,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
         let extractedUserInfo: any = null;
         const qUserInfo = activeQuotation.quotationData?.userInfo;
+        const savedCustomAddons = readQuotationAddons(
+          activeQuotation.quotationData?.customAddons,
+          activeQuotation.exactPricingBreakdown?.customAddons
+        );
 
         if (activeQuotation.customerName) {
           extractedUserInfo = {
@@ -274,7 +279,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             userType: getUserType(activeQuotation.userType),
             validity: qUserInfo?.validity,
             paymentTerms: qUserInfo?.paymentTerms,
-            warranty: qUserInfo?.warranty
+            warranty: qUserInfo?.warranty,
+            customAddons: savedCustomAddons
           };
         } else if (qUserInfo) {
 
@@ -288,7 +294,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             userType: getUserType(qUserInfo.userType || activeQuotation.userType),
             validity: qUserInfo.validity,
             paymentTerms: qUserInfo.paymentTerms,
-            warranty: qUserInfo.warranty
+            warranty: qUserInfo.warranty,
+            customAddons: savedCustomAddons
           };
         }
 
@@ -473,7 +480,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const [isUserInfoFormOpen, setIsUserInfoFormOpen] = useState(false);
   const [isEditProductSelectionOpen, setIsEditProductSelectionOpen] = useState(false);
   const [selectedEditLineItemId, setSelectedEditLineItemId] = useState<string | null>(null);
-  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string; validity?: string } | undefined>(undefined);
+  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string; validity?: string; customAddons?: { description: string; price: number }[] } | undefined>(undefined);
   const [pendingAction, setPendingAction] = useState<'quote' | 'pdf' | null>(null);
   const [isMandatoryFormSubmitted, setIsMandatoryFormSubmitted] = useState(false);
   const [quotationId, setQuotationId] = useState<string>('');
@@ -660,7 +667,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
 
-  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string; validity?: string }) => {
+  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string; validity?: string; customAddons?: { description: string; price: number }[] }) => {
     // Quotation-level client fields (shared across products)
     const quotationLevelUserInfo = {
       ...userData,
@@ -1934,6 +1941,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           processor={effectiveProcessor}
           mode={selectedMode}
           userInfo={userInfo && userInfo.userType !== 'SI/Channel Partner' ? userInfo : undefined}
+          customAddons={userInfo?.customAddons}
           title={(userRole === 'sales' || userRole === 'partner' || userRole === 'super' || userRole === 'super_admin') && salesUser ? 'Sales Quote' : 'Get a Quote'}
           submitButtonText={(userRole === 'sales' || userRole === 'partner' || userRole === 'super' || userRole === 'super_admin') && salesUser ? 'Submit Sales Quote' : 'Submit Quote Request'}
           salesUser={salesUser}
@@ -1979,6 +1987,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                 validity: userInfo.validity,
                 paymentTerms: userInfo.paymentTerms,
                 warranty: userInfo.warranty,
+                customAddons: userInfo.customAddons,
                 userType: userInfo.userType === 'SI/Channel Partner' ? 'Channel' : (userInfo.userType || 'End User')
               }
               : { fullName: '', email: '', phoneNumber: '', userType: 'End User' },
@@ -2063,7 +2072,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               : ((qUser.userType === 'Reseller' ? 'Reseller' : qUser.userType === 'SI/Channel Partner' || qUser.userType === 'Channel' ? 'SI/Channel Partner' : 'End User') as 'End User' | 'Reseller' | 'SI/Channel Partner'),
             validity: qUser.validity,
             paymentTerms: qUser.paymentTerms,
-            warranty: qUser.warranty
+            warranty: qUser.warranty,
+            customAddons: readQuotationAddons(
+              activeQuotation?.quotationData?.customAddons,
+              activeQuotation?.exactPricingBreakdown?.customAddons
+            )
           } : undefined;
           return {
             ...base,
@@ -2072,7 +2085,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               : base.userType,
             validity: base.validity ?? qUser?.validity,
             paymentTerms: base.paymentTerms ?? qUser?.paymentTerms,
-            warranty: base.warranty ?? qUser?.warranty
+            warranty: base.warranty ?? qUser?.warranty,
+            customAddons: base.customAddons ?? readQuotationAddons(
+              activeQuotation?.quotationData?.customAddons,
+              activeQuotation?.exactPricingBreakdown?.customAddons
+            )
           };
         })()}
         isEditMode={isEditMode}
