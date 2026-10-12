@@ -787,6 +787,17 @@ export const generateConfigurationHtml = (
     }
   }
 
+  if (typeof grandTotal === 'number' && grandTotal < 0) {
+    grandTotal = Math.round(
+      (totalProduct || 0) +
+      (totalController || 0) +
+      (totalStructure || 0) +
+      (totalInstallation || 0) +
+      (addonsTotal || 0)
+    );
+    customAddonsAlreadyInGrandTotal = false;
+  }
+
   if (!customAddonsAlreadyInGrandTotal) {
     grandTotal = addQuotationAddonsToTotal(grandTotal || 0, quotationCustomAddonsTotal);
   }

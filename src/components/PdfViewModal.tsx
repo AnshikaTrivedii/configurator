@@ -24,8 +24,10 @@ import {
   toPersistedLineItems,
   formatQuotationProductLabel,
   sumLineItemGrandTotals,
-  toPdfQuotationLineItems
+  toPdfQuotationLineItems,
+  buildExactPricingBreakdownFromCartItem
 } from '../utils/quotationLineItems';
+import { savedLineDiscountHasOverride } from '../utils/discountCalculator';
 import { fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from '../utils/multiProductQuotationHtml';
 
 const triggerPdfDownload = (blob: Blob, fileName: string, setBlob?: (blob: Blob) => void, setUrl?: (url: string) => void) => {
@@ -681,12 +683,17 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
     let finalPricingResult: any;
     let finalTotalPrice: number;
+    const primaryCartItem = lineItems.length === 1 ? lineItems[0] : null;
+    const cartBreakdown = buildExactPricingBreakdownFromCartItem(primaryCartItem);
 
-    // Always use exactPricingBreakdown if available (when editing/viewing existing quotation)
+    // Prefer saved/live overridden breakdown, then the cart snapshot, then catalog.
     if (exactPricingBreakdown) {
       console.log('✅ Using existing exactPricingBreakdown for save');
       finalPricingResult = exactPricingBreakdown;
       finalTotalPrice = exactPricingBreakdown.grandTotal;
+    } else if (cartBreakdown) {
+      finalPricingResult = cartBreakdown;
+      finalTotalPrice = Number(cartBreakdown.grandTotal) || 0;
     } else {
       console.log('⚠️ No exactPricingBreakdown, calculating new pricing for save');
       const correctTotalPrice = calculateCorrectTotalPrice(
@@ -800,8 +807,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       salesUserId: finalSalesUserId,
       salesUserName: finalSalesUserName,
 
-      discountType: null,
-      discountPercent: 0,
+      discountType: primaryCartItem?.discount?.discountType || exactPricingBreakdown?.discount?.discountType || null,
+      discountPercent: primaryCartItem?.discount?.discountPercent || 0,
 
       exactPricingBreakdown: {
         unitPrice: finalPricingResult.unitPrice,
@@ -827,7 +834,9 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         customAddonsTotal: quotationAddonsTotal,
         customAddonsIncludedInGrandTotal: true,
         grandTotal: finalTotalPrice,
-        ...(finalPricingResult.discount ? { discount: finalPricingResult.discount } : {}),
+        ...((primaryCartItem?.discount || finalPricingResult.discount)
+          ? { discount: primaryCartItem?.discount || finalPricingResult.discount }
+          : {}),
         customPricing: customPricing?.enabled ? {
           enabled: true,
           structurePrice: customPricing.structurePrice,
@@ -856,7 +865,28 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         customAddons: quotationAddons,
         ...(persistedLineItems
           ? { lineItems: persistedLineItems, itemCount: persistedLineItems.length }
-          : {})
+          : {}),
+        discountApplied: lineItems.some(li => savedLineDiscountHasOverride(li.discount))
+          || !!finalPricingResult.discount,
+        discountInfo: primaryCartItem?.discount
+          ? {
+              type: primaryCartItem.discount.discountType,
+              percent: primaryCartItem.discount.discountPercent || 0,
+              amount: primaryCartItem.discount.discountAmount || 0,
+              amountPerUnit: primaryCartItem.discount.discountAmountPerUnit || 0,
+              numberOfUnits: primaryCartItem.discount.numberOfUnits || 0,
+              ledDiscountMode: primaryCartItem.discount.ledDiscountMode || 'none'
+            }
+          : (finalPricingResult.discount
+            ? {
+                type: finalPricingResult.discount.discountType,
+                percent: finalPricingResult.discount.discountPercent || 0,
+                amount: finalPricingResult.discount.discountAmount || 0,
+                amountPerUnit: finalPricingResult.discount.discountAmountPerUnit || 0,
+                numberOfUnits: finalPricingResult.discount.numberOfUnits || 0,
+                ledDiscountMode: finalPricingResult.discount.ledDiscountMode || 'none'
+              }
+            : undefined)
       },
 
       exactProductSpecs: {

@@ -96,7 +96,7 @@ function isNexaSeriesProduct(product: Product): boolean {
     false;
 }
 
-const NEXA_ADDON_PRICES: Record<string, number> = {
+export const NEXA_ADDON_PRICES: Record<string, number> = {
   'IR Touch': 75000,
   'Floor Mount Stand': 85000
 };
@@ -194,6 +194,18 @@ function getProductUnitPrice(
 
     return 5300;
   }
+}
+
+/**
+ * Catalog / base unit price used by quotation generation.
+ * Does not apply Super Admin overrides, quotation discounts, or customer-specific pricing.
+ */
+export function getCatalogUnitPrice(
+  product: Product,
+  userType: string,
+  wireType?: 'gold' | 'copper'
+): number | null {
+  return getProductUnitPrice(product, userType, wireType);
 }
 
 /**

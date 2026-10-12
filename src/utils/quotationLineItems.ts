@@ -5,8 +5,16 @@
 
 import { Product, CabinetGrid, DisplayConfig } from '../types';
 import { calculateCentralizedPricing, PricingCalculationResult } from './centralizedPricing';
+import {
+  applySavedPriceOverrides,
+  buildPersistedDiscount,
+  rebuildGrandTotalFromComponents,
+  SavedLineDiscount,
+  savedLineDiscountHasOverride
+} from './discountCalculator';
 import { normalizeOrderQuantity, buildConfigurationKey } from './orderQuantity';
 import { QuotationLineItem } from '../contexts/QuotationCartContext';
+import { addQuotationAddonsToTotal, readQuotationAddons, sumQuotationAddons } from './quotationAddons';
 
 export type PersistedLineItemUserType = 'End User' | 'Reseller' | 'SI/Channel Partner';
 
@@ -62,22 +70,7 @@ export type PersistedQuotationLineItem = {
   /** Product-level custom structure/installation pricing */
   customPricing?: PersistedLineItemCustomPricing;
   /** Product-level discount / price override (super-admin) */
-  discount?: {
-    discountType?: string;
-    discountPercent?: number;
-    discountAmountPerUnit?: number;
-    discountAmount?: number;
-    numberOfUnits?: number;
-    ledDiscountMode?: string;
-    originalProductTotal?: number;
-    originalProcessorTotal?: number;
-    originalGrandTotal?: number;
-    discountedProductTotal?: number;
-    discountedProcessorTotal?: number;
-    discountedGrandTotal?: number;
-    ledOverride?: { amountPerUnit?: number; numberOfUnits?: number; ledDiscountMode?: string };
-    controllerOverride?: { amountPerUnit?: number };
-  };
+  discount?: SavedLineDiscount;
   pricing?: Partial<PricingCalculationResult> & {
     grandTotal?: number;
     unitPrice?: number;
@@ -123,6 +116,185 @@ export function priceLineItem(
   );
 }
 
+/**
+ * Catalog price plus any persisted LED/controller replacement prices.
+ * Recalculates unit counts from the current matrix so an Edit + size change
+ * keeps the saved per-unit override instead of reverting to list price.
+ */
+export function priceLineItemWithOverrides(
+  item: Pick<
+    QuotationLineItem,
+    'product' | 'config' | 'cabinetGrid' | 'processor' | 'wireType' | 'nexaAddons' | 'orderQuantity' | 'discount'
+  >,
+  userType: string,
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  }
+): PricingCalculationResult {
+  const catalog = priceLineItem(item, userType, customPricing);
+  if (!catalog.isAvailable || !savedLineDiscountHasOverride(item.discount)) {
+    return catalog;
+  }
+  const priced = applySavedPriceOverrides(
+    catalog,
+    item.discount,
+    item.product,
+    item.cabinetGrid,
+    item.config
+  );
+  const persisted = buildPersistedDiscount(
+    item.discount,
+    priced,
+    item.product,
+    item.cabinetGrid,
+    item.config
+  );
+  return {
+    ...priced,
+    ...(persisted ? { discount: persisted } : {})
+  } as PricingCalculationResult;
+}
+
+/** Reprice a cart line and keep the persistable discount blob in sync. */
+export function repriceCartLineItem(
+  item: QuotationLineItem,
+  userType: string,
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  }
+): QuotationLineItem {
+  const priced = priceLineItemWithOverrides(item, userType, customPricing);
+  const persisted = savedLineDiscountHasOverride(item.discount)
+    ? buildPersistedDiscount(
+        item.discount,
+        priced as any,
+        item.product,
+        item.cabinetGrid,
+        item.config
+      )
+    : undefined;
+  return {
+    ...item,
+    discount: persisted,
+    unitPricingSnapshot: priced.isAvailable ? priced : item.unitPricingSnapshot
+  };
+}
+
+export function resolveQuotationLevelDiscount(quotation: any): SavedLineDiscount | undefined {
+  const breakdownDiscount = quotation?.exactPricingBreakdown?.discount;
+  if (savedLineDiscountHasOverride(breakdownDiscount)) {
+    return breakdownDiscount as SavedLineDiscount;
+  }
+
+  const info = quotation?.quotationData?.discountInfo;
+  const type = info?.type || info?.discountType;
+  const amountPerUnit = info?.amountPerUnit ?? info?.discountAmountPerUnit ?? 0;
+  if ((type === 'led' || type === 'controller') && amountPerUnit > 0) {
+    return {
+      discountType: type,
+      discountPercent: info?.percent || 0,
+      discountAmountPerUnit: amountPerUnit,
+      numberOfUnits: info?.numberOfUnits || 0,
+      ledDiscountMode: info?.ledDiscountMode || 'none',
+      discountAmount: info?.amount,
+      ...(type === 'led'
+        ? {
+            ledOverride: {
+              amountPerUnit,
+              numberOfUnits: info?.numberOfUnits || 0,
+              ledDiscountMode: info?.ledDiscountMode || 'none'
+            }
+          }
+        : { controllerOverride: { amountPerUnit } })
+    };
+  }
+
+  const topType = quotation?.discountType;
+  const topAmount = quotation?.discountAmountPerUnit || 0;
+  if ((topType === 'led' || topType === 'controller') && topAmount > 0) {
+    return {
+      discountType: topType,
+      discountPercent: quotation?.discountPercent || 0,
+      discountAmountPerUnit: topAmount,
+      numberOfUnits: quotation?.numberOfUnits || 0,
+      ledDiscountMode: quotation?.ledDiscountMode || 'none',
+      ...(topType === 'led'
+        ? {
+            ledOverride: {
+              amountPerUnit: topAmount,
+              numberOfUnits: quotation?.numberOfUnits || 0,
+              ledDiscountMode: quotation?.ledDiscountMode || 'none'
+            }
+          }
+        : { controllerOverride: { amountPerUnit: topAmount } })
+    };
+  }
+
+  return undefined;
+}
+
+/** Line discount, falling back to quotation-level override for single-product / legacy records. */
+export function resolveLineItemDiscount(
+  item: PersistedQuotationLineItem | QuotationLineItem | null | undefined,
+  quotation?: any
+): SavedLineDiscount | undefined {
+  const direct = (item as PersistedQuotationLineItem | undefined)?.discount
+    || ((item as QuotationLineItem | undefined)?.discount);
+  if (savedLineDiscountHasOverride(direct)) return direct;
+
+  const pricingDiscount = (item as PersistedQuotationLineItem | undefined)?.pricing
+    ? ((item as PersistedQuotationLineItem).pricing as any)?.discount
+    : undefined;
+  if (savedLineDiscountHasOverride(pricingDiscount)) return pricingDiscount;
+
+  if (!quotation) return undefined;
+  const rawItems = quotation?.quotationData?.lineItems;
+  const isSingle = !Array.isArray(rawItems) || rawItems.length <= 1;
+  if (!isSingle) return undefined;
+  return resolveQuotationLevelDiscount(quotation);
+}
+
+export function buildExactPricingBreakdownFromCartItem(
+  item: QuotationLineItem | PersistedQuotationLineItem | null | undefined
+): Record<string, unknown> | undefined {
+  if (!item) return undefined;
+  const snapshot = 'unitPricingSnapshot' in item ? item.unitPricingSnapshot : undefined;
+  const pricing = ('pricing' in item ? item.pricing : undefined) || snapshot;
+  if (!pricing) return undefined;
+  const discount = item.discount || (pricing as any).discount;
+  return {
+    unitPrice: pricing.unitPrice,
+    quantity: pricing.quantity,
+    orderQuantity: pricing.orderQuantity,
+    unitGrandTotal: pricing.unitGrandTotal,
+    subtotal: pricing.productSubtotal,
+    productSubtotal: pricing.productSubtotal,
+    gstAmount: (pricing as any).productGST ?? (pricing as any).gstAmount,
+    productGST: (pricing as any).productGST,
+    productTotal: pricing.productTotal,
+    processorPrice: pricing.processorPrice,
+    processorGst: (pricing as any).processorGST ?? (pricing as any).processorGst,
+    processorGST: (pricing as any).processorGST,
+    processorTotal: pricing.processorTotal,
+    structureCost: pricing.structureCost,
+    structureGST: (pricing as any).structureGST,
+    structureTotal: pricing.structureTotal,
+    installationCost: pricing.installationCost,
+    installationGST: (pricing as any).installationGST,
+    installationTotal: pricing.installationTotal,
+    addonsCost: pricing.addonsCost,
+    addonsGST: (pricing as any).addonsGST,
+    addonsTotal: pricing.addonsTotal,
+    appliedAddons: pricing.appliedAddons,
+    grandTotal: pricing.grandTotal,
+    ...(discount ? { discount } : {})
+  };
+}
+
 export function sumLineItemGrandTotals(
   items: Array<{ pricing?: { grandTotal?: number } | null; unitPricingSnapshot?: { grandTotal?: number } | null }>
 ): number {
@@ -132,6 +304,54 @@ export function sumLineItemGrandTotals(
       return sum + (Number(total) || 0);
     }, 0)
   );
+}
+
+/**
+ * Display / persist total for a quotation.
+ * Valid non-negative stored totals are kept as-is.
+ * Invalid negative totals (override subtracted from an already-replaced price)
+ * are rebuilt from saved components instead of being clamped to zero.
+ */
+export function getQuotationDisplayTotal(quotation: any): number {
+  const stored = Number(quotation?.totalPrice);
+  const breakdown = quotation?.exactPricingBreakdown;
+  const breakdownTotal = Number(breakdown?.grandTotal);
+
+  if (Number.isFinite(stored) && stored >= 0) {
+    return Math.round(stored);
+  }
+
+  if (breakdown) {
+    const rebuilt = rebuildGrandTotalFromComponents({
+      ...breakdown,
+      discount: breakdown.discount
+    });
+    if (rebuilt >= 0) {
+      const addons = readQuotationAddons(quotation?.quotationData?.customAddons, breakdown.customAddons);
+      const addonsTotal = breakdown.customAddonsIncludedInGrandTotal
+        ? 0
+        : (Number(breakdown.customAddonsTotal) || sumQuotationAddons(addons));
+      return addQuotationAddonsToTotal(rebuilt, addonsTotal);
+    }
+  }
+
+  const lineItems = normalizeQuotationLineItems(quotation);
+  if (lineItems.length > 0) {
+    const lineSum = sumLineItemGrandTotals(lineItems);
+    if (lineSum >= 0 && lineItems.some(item => (item.pricing?.grandTotal ?? 0) > 0)) {
+      const addons = readQuotationAddons(
+        quotation?.quotationData?.customAddons,
+        breakdown?.customAddons
+      );
+      return addQuotationAddonsToTotal(lineSum, sumQuotationAddons(addons));
+    }
+  }
+
+  if (Number.isFinite(breakdownTotal) && breakdownTotal >= 0) {
+    return Math.round(breakdownTotal);
+  }
+
+  return Number.isFinite(stored) ? Math.round(stored) : 0;
 }
 
 /** Normalize saved quotation payloads (legacy single-product or multi-item) into line items. */
@@ -174,7 +394,10 @@ export function normalizeQuotationLineItems(quotation: any, fallbackProduct?: Pr
               installationPrice: (li.pricing as any).customPricing.installationPrice ?? null
             }
           : undefined,
-      discount: li.discount || (li.pricing as any)?.discount || undefined,
+      discount: resolveLineItemDiscount(
+        { ...li, discount: li.discount || (li.pricing as any)?.discount },
+        quotation
+      ),
       pricing: li.pricing || undefined
     }));
   }
@@ -195,7 +418,12 @@ export function normalizeQuotationLineItems(quotation: any, fallbackProduct?: Pr
 
   return [{
     id: 'legacy-0',
-    productId: product?.id || '',
+    productId:
+      product?.id ||
+      quotation?.productDetails?.productId ||
+      quotation?.exactProductSpecs?.productId ||
+      quotation?.productId ||
+      '',
     productName: quotation?.productName || product?.name || 'Product',
     product: product as Product | undefined,
     config,
@@ -218,6 +446,7 @@ export function normalizeQuotationLineItems(quotation: any, fallbackProduct?: Pr
           installationPrice: quotation.quotationData.customPricing.installationPrice ?? null
         }
       : undefined,
+    discount: resolveQuotationLevelDiscount(quotation),
     pricing: quotation?.exactPricingBreakdown
       ? {
           ...quotation.exactPricingBreakdown,
@@ -250,6 +479,7 @@ export function toPersistedLineItems(items: QuotationLineItem[]): PersistedQuota
           installationPrice: li.customPricing.installationPrice ?? null
         }
       : undefined,
+    discount: li.discount,
     pricing: li.unitPricingSnapshot
       ? {
           unitPrice: li.unitPricingSnapshot.unitPrice,
@@ -268,6 +498,7 @@ export function toPersistedLineItems(items: QuotationLineItem[]): PersistedQuota
           addonsTotal: li.unitPricingSnapshot.addonsTotal,
           appliedAddons: li.unitPricingSnapshot.appliedAddons,
           grandTotal: li.unitPricingSnapshot.grandTotal,
+          ...(li.discount ? { discount: li.discount } : {}),
           ...(li.customPricing?.enabled
             ? {
                 customPricing: {
@@ -410,7 +641,9 @@ export function toPdfQuotationLineItems(
       isModuleGrid,
       pricing: pricing
         ? {
-            grandTotal: pricing.grandTotal,
+            grandTotal: (Number(pricing.grandTotal) < 0
+              ? rebuildGrandTotalFromComponents(pricing)
+              : pricing.grandTotal),
             unitGrandTotal: pricing.unitGrandTotal,
             unitPrice: pricing.unitPrice,
             quantity: pricing.quantity,
@@ -448,9 +681,9 @@ export function getQuotationItemSummary(quotation: any): {
 
 /** True when a line item has a super-admin discount applied. */
 export function lineItemHasSuperAdminDiscount(item: PersistedQuotationLineItem): boolean {
-  const d = item.discount;
-  if (!d) return false;
-  return (d.discountAmount ?? 0) > 0 || !!d.discountType || !!d.ledOverride || !!d.controllerOverride;
+  return savedLineDiscountHasOverride(item.discount)
+    || (item.discount?.discountAmount ?? 0) > 0
+    || !!item.discount?.discountType;
 }
 
 /** True when any product on the quotation has a super-admin discount. */

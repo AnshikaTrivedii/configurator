@@ -26,8 +26,12 @@ import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { useQuotationCart, QuotationLineItem, LineItemUserType } from '../contexts/QuotationCartContext';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
 import { readQuotationAddons } from '../utils/quotationAddons';
+import { rebuildGrandTotalFromComponents } from '../utils/discountCalculator';
 import {
-  priceLineItem,
+  priceLineItemWithOverrides,
+  repriceCartLineItem,
+  resolveLineItemDiscount,
+  buildExactPricingBreakdownFromCartItem,
   normalizeQuotationLineItems,
   toPdfQuotationLineItems,
   buildLineItemConfigurationKey,
@@ -39,6 +43,35 @@ import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } f
 import { products } from '../data/products';
 import { hasCabinetVariations, applySelectedCabinetVariation, getDefaultCabinetVariationLabel, getVariationLabelFromDimensions } from '../utils/cabinetVariation';
 import { getProductPdfUrl } from '../utils/productPdfMap';
+
+function isFixedSizeProduct(product: Product): boolean {
+  return Boolean(product.isFixed || product.category?.toLowerCase().includes('nexa'));
+}
+
+/** Fresh-start screen size for a product (same sizes the product-switch effect applies). */
+function getDefaultDimensionsForProduct(product: Product): { width: number; height: number } {
+  const category = product.category?.toLowerCase() || '';
+  const cabinet = product.cabinetDimensions;
+  if (category.includes('digital standee')) {
+    if (hasDimensionConstraints(product)) {
+      const c = product.dimensionConstraints!;
+      const grid = product.digitalStandeeCabinetGrid ?? { columns: 2, rows: 11 };
+      return clampAndSnapDimensions(product, c.moduleWidth * grid.columns, c.moduleHeight * grid.rows);
+    }
+    return { width: cabinet.width, height: cabinet.height };
+  }
+  if (isFixedSizeProduct(product)) {
+    return { width: cabinet.width, height: cabinet.height };
+  }
+  if (category.includes('jumbo')) {
+    return hasDimensionConstraints(product)
+      ? clampAndSnapDimensions(product, cabinet.width, cabinet.height)
+      : { width: cabinet.width, height: cabinet.height };
+  }
+  const width = (cabinet.width || 600) * 3;
+  const height = (cabinet.height || 337.5) * 3;
+  return hasDimensionConstraints(product) ? clampAndSnapDimensions(product, width, height) : { width, height };
+}
 
 interface DisplayConfiguratorProps {
   userRole: 'normal' | 'sales' | 'super' | 'super_admin' | 'partner';
@@ -99,6 +132,22 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   );
   const [showLeftPanel, setShowLeftPanel] = useState(!!initialConfig?.selectedProduct);
   const isInitialMount = useRef(true);
+  // Set after a cart item is removed or "Add another product" is clicked, so the next
+  // product starts from its own defaults instead of inheriting the previous footprint.
+  const resetConfigOnNextProductSelectRef = useRef(false);
+  // A saved processor being restored from a line item; kept until the user changes the
+  // product or size, so the auto-select effect does not overwrite it.
+  const restoredControllerRef = useRef<{
+    name: string;
+    productId: string;
+    width: number;
+    height: number;
+    matched: boolean;
+  } | null>(null);
+  const hydratedQuotationKeyRef = useRef<string | null>(null);
+  // Product id whose dimensions were already set explicitly (restore / fresh start), so the
+  // delayed product-switch sizing effect must not overwrite them.
+  const dimensionsSetForProductIdRef = useRef<string | null>(null);
 
   // --- Cabinet Variation Logic ---
   // When a product has cabinetVariations (e.g. outdoor products in Core/Edge/Prime),
@@ -208,6 +257,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   useEffect(() => {
     if (activeQuotation) {
+      // Hydrate once per saved quotation; re-running would overwrite in-progress cart edits
+      // (and bring back items the user just removed).
+      const hydrationKey = `${activeQuotation.quotationId}|${activeQuotation.updatedAt ?? ''}`;
+      if (hydratedQuotationKeyRef.current === hydrationKey) return;
+      hydratedQuotationKeyRef.current = hydrationKey;
 
       setQuotationId(activeQuotation.quotationId);
       setIsEditMode(true);
@@ -334,6 +388,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             selectedProduct;
           if (!catalogProduct) return null;
           const orderQuantity = normalizeOrderQuantity(li.orderQuantity);
+          const savedCabinetDimensions =
+            li.product?.cabinetDimensions ||
+            (normalized.length === 1 ? activeQuotation.exactProductSpecs?.cabinetDimensions : undefined);
+          const selectedCabinetSize = hasCabinetVariations(catalogProduct)
+            ? (li.selectedCabinetSize
+              ?? getVariationLabelFromDimensions(catalogProduct, savedCabinetDimensions)
+              ?? getDefaultCabinetVariationLabel(catalogProduct))
+            : null;
+          const lineProduct = applySelectedCabinetVariation(catalogProduct, selectedCabinetSize);
           const config = {
             width: li.config?.width || catalogProduct.cabinetDimensions.width,
             height: li.config?.height || catalogProduct.cabinetDimensions.height,
@@ -346,96 +409,107 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             totalWidth: li.cabinetGrid?.totalWidth || li.config?.width || 0,
             totalHeight: li.cabinetGrid?.totalHeight || li.config?.height || 0
           };
-          const pricingFromSaved = li.pricing?.grandTotal
+          const restoredDiscount = resolveLineItemDiscount(li, activeQuotation);
+          const restoredUserType = li.userType
+            ? normalizeDisplayUserType(li.userType)
+            : (activeQuotation.userType
+                ? normalizeDisplayUserType(activeQuotation.userType)
+                : undefined);
+          const restoredCustomPricing = li.customPricing
+            ? {
+                enabled: !!li.customPricing.enabled,
+                structurePrice: li.customPricing.structurePrice ?? null,
+                installationPrice: li.customPricing.installationPrice ?? null
+              }
+            : (activeQuotation.quotationData?.customPricing
+                ? {
+                    enabled: !!activeQuotation.quotationData.customPricing.enabled,
+                    structurePrice: activeQuotation.quotationData.customPricing.structurePrice ?? null,
+                    installationPrice: activeQuotation.quotationData.customPricing.installationPrice ?? null
+                  }
+                : undefined);
+          const savedGrandTotal = Number(li.pricing?.grandTotal);
+          const repairedGrandTotal = Number.isFinite(savedGrandTotal) && savedGrandTotal < 0
+            ? rebuildGrandTotalFromComponents(li.pricing || {})
+            : savedGrandTotal;
+          const pricingFromSaved = Number.isFinite(repairedGrandTotal)
             ? ({
                 ...li.pricing,
-                unitPrice: li.pricing.unitPrice ?? 0,
-                quantity: li.pricing.quantity ?? 1,
+                unitPrice: li.pricing?.unitPrice ?? 0,
+                quantity: li.pricing?.quantity ?? 1,
                 orderQuantity,
-                unitGrandTotal: li.pricing.unitGrandTotal ?? li.pricing.grandTotal ?? 0,
-                productSubtotal: li.pricing.productSubtotal ?? 0,
+                unitGrandTotal: li.pricing?.unitGrandTotal ?? repairedGrandTotal ?? 0,
+                productSubtotal: li.pricing?.productSubtotal ?? 0,
                 productGST: 0,
-                productTotal: li.pricing.productTotal ?? li.pricing.productSubtotal ?? 0,
-                processorPrice: li.pricing.processorPrice ?? 0,
+                productTotal: li.pricing?.productTotal ?? li.pricing?.productSubtotal ?? 0,
+                processorPrice: li.pricing?.processorPrice ?? 0,
                 processorGST: 0,
-                processorTotal: li.pricing.processorTotal ?? li.pricing.processorPrice ?? 0,
-                structureCost: li.pricing.structureCost ?? 0,
+                processorTotal: li.pricing?.processorTotal ?? li.pricing?.processorPrice ?? 0,
+                structureCost: li.pricing?.structureCost ?? 0,
                 structureGST: 0,
-                structureTotal: li.pricing.structureTotal ?? li.pricing.structureCost ?? 0,
-                installationCost: li.pricing.installationCost ?? 0,
+                structureTotal: li.pricing?.structureTotal ?? li.pricing?.structureCost ?? 0,
+                installationCost: li.pricing?.installationCost ?? 0,
                 installationGST: 0,
-                installationTotal: li.pricing.installationTotal ?? li.pricing.installationCost ?? 0,
-                addonsCost: li.pricing.addonsCost ?? 0,
+                installationTotal: li.pricing?.installationTotal ?? li.pricing?.installationCost ?? 0,
+                addonsCost: li.pricing?.addonsCost ?? 0,
                 addonsGST: 0,
-                addonsTotal: li.pricing.addonsTotal ?? 0,
-                appliedAddons: li.pricing.appliedAddons ?? [],
-                grandTotal: li.pricing.grandTotal ?? 0,
+                addonsTotal: li.pricing?.addonsTotal ?? 0,
+                appliedAddons: li.pricing?.appliedAddons ?? [],
+                grandTotal: repairedGrandTotal ?? 0,
                 userType: 'End User',
                 productName: catalogProduct.name,
                 isAvailable: true
               } as any)
             : null;
-          return {
-            id: li.id || `restored-${index}`,
-            configurationKey: buildLineItemConfigurationKey({
-              product: catalogProduct,
+          const repriced = repriceCartLineItem(
+            {
+              id: li.id || `restored-${index}`,
+              configurationKey: '',
+              product: lineProduct,
               config,
               cabinetGrid,
               processor: li.processor || null,
               mode: li.mode || null,
               wireType: li.wireType,
               nexaAddons: li.nexaAddons || [],
-              selectedCabinetSize: li.selectedCabinetSize ?? null
+              selectedCabinetSize,
+              orderQuantity,
+              discount: restoredDiscount,
+              userType: restoredUserType,
+              customPricing: restoredCustomPricing,
+              unitPricingSnapshot: pricingFromSaved
+            },
+            toPricingUserTypeCode(restoredUserType),
+            restoredCustomPricing?.enabled ? restoredCustomPricing : undefined
+          );
+          return {
+            ...repriced,
+            configurationKey: buildLineItemConfigurationKey({
+              product: lineProduct,
+              config,
+              cabinetGrid,
+              processor: li.processor || null,
+              mode: li.mode || null,
+              wireType: li.wireType,
+              nexaAddons: li.nexaAddons || [],
+              selectedCabinetSize
             }),
-            product: catalogProduct,
-            config,
-            cabinetGrid,
-            processor: li.processor || null,
-            mode: li.mode || null,
-            wireType: li.wireType,
-            nexaAddons: li.nexaAddons || [],
-            selectedCabinetSize: li.selectedCabinetSize ?? null,
-            orderQuantity,
-            unitPricingSnapshot: pricingFromSaved,
-            userType: li.userType
-              ? normalizeDisplayUserType(li.userType)
-              : (activeQuotation.userType
-                  ? normalizeDisplayUserType(activeQuotation.userType)
-                  : undefined),
-            customPricing: li.customPricing
-              ? {
-                  enabled: !!li.customPricing.enabled,
-                  structurePrice: li.customPricing.structurePrice ?? null,
-                  installationPrice: li.customPricing.installationPrice ?? null
-                }
-              : (activeQuotation.quotationData?.customPricing
-                  ? {
-                      enabled: !!activeQuotation.quotationData.customPricing.enabled,
-                      structurePrice: activeQuotation.quotationData.customPricing.structurePrice ?? null,
-                      installationPrice: activeQuotation.quotationData.customPricing.installationPrice ?? null
-                    }
-                  : undefined)
+            unitPricingSnapshot: repriced.unitPricingSnapshot || pricingFromSaved
           } as QuotationLineItem;
         }).filter(Boolean) as QuotationLineItem[];
 
         if (hydrated.length > 0) {
           setLineItems(hydrated);
+          applyLineItemToConfigurator(hydrated[0]);
+          // setLineItems clears editingItemId; re-mark the line now on screen so
+          // matrix edits update this saved item instead of adding a new one.
+          setEditingItemId(hydrated[0].id);
         }
       } catch (err) {
         console.warn('Failed to restore quotation line items:', err);
       }
-
-      // Restore cabinet size variation if present in quotation data
-      const savedProductSpecs = activeQuotation.exactProductSpecs || (activeQuotation as any).product;
-      if (savedProductSpecs?.cabinetDimensions && selectedProduct) {
-        const variationLabel = getVariationLabelFromDimensions(selectedProduct, savedProductSpecs.cabinetDimensions);
-        if (variationLabel) {
-          console.log('Restoring cabinet size variation:', variationLabel);
-          updateConfig({ selectedCabinetSize: variationLabel });
-        }
-      }
     }
-  }, [activeQuotation, selectedProduct]);
+  }, [activeQuotation]);
 
   useEffect(() => {
 
@@ -620,10 +694,23 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   useEffect(() => {
-    if (effectiveProduct) {
-      const grid = calculateCabinetGrid(effectiveProduct);
-      setSelectedController(getAutoSelectedController(effectiveProduct, grid));
+    if (!effectiveProduct) return;
+    const restored = restoredControllerRef.current;
+    if (
+      restored &&
+      restored.productId === effectiveProduct.id &&
+      restored.width === config.width &&
+      restored.height === config.height
+    ) {
+      restored.matched = true;
+      setSelectedController(restored.name);
+      return;
     }
+    if (restored?.matched) {
+      restoredControllerRef.current = null;
+    }
+    const grid = calculateCabinetGrid(effectiveProduct);
+    setSelectedController(getAutoSelectedController(effectiveProduct, grid));
   }, [effectiveProduct, config.width, config.height]);
 
   const nexaVariants = selectedProduct && isNexa
@@ -636,17 +723,33 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
 
 
+  // updateWidth/updateHeight close over the currently rendered product (and no-op for
+  // fixed-size products), so product switches must write dimensions directly.
+  const applyConfiguratorDimensions = (product: Product, width: number, height: number) => {
+    const next = hasDimensionConstraints(product)
+      ? clampAndSnapDimensions(product, width, height)
+      : { width, height };
+    setConfig(prev => ({ ...prev, width: next.width, height: next.height }));
+    return next;
+  };
+
   const handleProductSelect = (product: Product) => {
+    const startFresh = resetConfigOnNextProductSelectRef.current;
+    resetConfigOnNextProductSelectRef.current = false;
+    restoredControllerRef.current = null;
+
     setSelectedProduct(product);
-    const productIsNexa = product.isFixed || product.category?.toLowerCase().includes('nexa');
+    const productIsNexa = isFixedSizeProduct(product);
 
     if (product.category?.toLowerCase().includes('digital standee')) {
-      updateWidth(product.cabinetDimensions.width);
-      updateHeight(product.cabinetDimensions.height);
+      applyConfiguratorDimensions(product, product.cabinetDimensions.width, product.cabinetDimensions.height);
+    } else if (startFresh) {
+      const defaults = getDefaultDimensionsForProduct(product);
+      applyConfiguratorDimensions(product, defaults.width, defaults.height);
+      if (product.id !== selectedProduct?.id) dimensionsSetForProductIdRef.current = product.id;
     } else {
       const { totalWidth, totalHeight } = calculateCabinetGrid(product);
-      updateWidth(totalWidth);
-      updateHeight(totalHeight);
+      applyConfiguratorDimensions(product, totalWidth, totalHeight);
     }
     setActiveTab('preview');
     const normalizedEnv = product.environment?.toLowerCase();
@@ -658,10 +761,15 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         : normalizedEnv === 'outdoor'
           ? 'Outdoor'
           : globalConfig.environment,
-      nexaAddons: productIsNexa ? globalConfig.nexaAddons : [],
+      nexaAddons: productIsNexa && !startFresh ? globalConfig.nexaAddons : [],
       // Reset cabinet size selection when switching products
-      selectedCabinetSize: hasCabinetVariations(product) ? getDefaultCabinetVariationLabel(product) : null
+      selectedCabinetSize: hasCabinetVariations(product) ? getDefaultCabinetVariationLabel(product) : null,
+      ...(startFresh ? { orderQuantity: 1 } : {})
     });
+
+    if (startFresh) {
+      setCustomPricing({ enabled: false, structurePrice: null, installationPrice: null });
+    }
 
     setIsProductSelectorOpen(false);
   };
@@ -742,15 +850,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             }
           : { enabled: false as const, structurePrice: null, installationPrice: null };
 
-        const refreshedPricing = priceLineItem(
+        const refreshedItem = repriceCartLineItem(
           {
-            product: targetItem.product,
-            config: targetItem.config,
-            cabinetGrid: targetItem.cabinetGrid,
-            processor: targetItem.processor,
-            wireType: targetItem.wireType,
-            nexaAddons: targetItem.nexaAddons,
-            orderQuantity: targetItem.orderQuantity
+            ...targetItem,
+            customPricing: productCustomPricing,
+            userType: userData.userType as LineItemUserType
           },
           toPricingUserTypeCode(userData.userType),
           productCustomPricing.enabled ? productCustomPricing : undefined
@@ -759,9 +863,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         updateLineItemProductSettings(targetLineItemId, {
           userType: userData.userType as LineItemUserType,
           customPricing: productCustomPricing,
-          unitPricingSnapshot: refreshedPricing.isAvailable
-            ? refreshedPricing
-            : targetItem.unitPricingSnapshot
+          unitPricingSnapshot: refreshedItem.unitPricingSnapshot,
+          discount: refreshedItem.discount
         });
       }
     }
@@ -784,6 +887,10 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       setIsMandatoryFormSubmitted(true);
     }
 
+    if (pendingAction === 'quote' || pendingAction === 'pdf') {
+      if (!syncLoadedLineIfChanged()) return;
+    }
+
     if (pendingAction === 'quote') {
       setIsQuoteModalOpen(true);
     } else if (pendingAction === 'pdf') {
@@ -795,37 +902,55 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     setSelectedEditLineItemId(null);
   };
 
-  const loadLineItemIntoEditForm = (item: QuotationLineItem) => {
-    setSelectedEditLineItemId(item.id);
-    setSelectedProduct(item.product);
-    updateWidth(item.config.width);
-    updateHeight(item.config.height);
-    if (item.config.unit) {
-      updateConfig({ unit: item.config.unit as 'mm' | 'm' | 'ft' });
+  /** Load one saved/cart line item into the live configurator (product, size, cabinet, controller, add-ons). */
+  const applyLineItemToConfigurator = (item: QuotationLineItem) => {
+    resetConfigOnNextProductSelectRef.current = false;
+
+    // Line items store the cabinet-variation copy; select the catalog base so switching
+    // back to the default variation restores the base cabinet dimensions.
+    const baseProduct = products.find(p => p.id === item.product.id) || item.product;
+    const cabinetSize = hasCabinetVariations(baseProduct)
+      ? (item.selectedCabinetSize
+        ?? getVariationLabelFromDimensions(baseProduct, item.product.cabinetDimensions)
+        ?? getDefaultCabinetVariationLabel(baseProduct))
+      : null;
+    const sizedProduct = applySelectedCabinetVariation(baseProduct, cabinetSize);
+
+    if (baseProduct.id !== selectedProduct?.id) dimensionsSetForProductIdRef.current = baseProduct.id;
+    setSelectedProduct(baseProduct);
+    const applied = applyConfiguratorDimensions(sizedProduct, item.config.width, item.config.height);
+    if (item.config.unit === 'mm' || item.config.unit === 'm' || item.config.unit === 'ft') {
+      const unit = item.config.unit;
+      setConfig(prev => ({ ...prev, unit }));
+      updateConfig({ unit });
     }
     updateConfig({
       orderQuantity: normalizeOrderQuantity(item.orderQuantity),
       nexaAddons: item.nexaAddons || [],
       wireType: item.wireType === 'copper' ? 'copper' : 'gold',
-      selectedCabinetSize: item.selectedCabinetSize ?? null
+      selectedCabinetSize: cabinetSize
     });
+
+    restoredControllerRef.current = item.processor
+      ? { name: item.processor, productId: baseProduct.id, width: applied.width, height: applied.height, matched: false }
+      : null;
     if (item.processor) setSelectedController(item.processor);
     if (item.mode) setSelectedMode(item.mode);
 
     const itemCustom = item.customPricing;
-    if (itemCustom) {
-      setCustomPricing({
-        enabled: !!itemCustom.enabled,
-        structurePrice: itemCustom.structurePrice ?? null,
-        installationPrice: itemCustom.installationPrice ?? null
-      });
-    } else {
-      setCustomPricing({
-        enabled: false,
-        structurePrice: null,
-        installationPrice: null
-      });
-    }
+    setCustomPricing(itemCustom
+      ? {
+          enabled: !!itemCustom.enabled,
+          structurePrice: itemCustom.structurePrice ?? null,
+          installationPrice: itemCustom.installationPrice ?? null
+        }
+      : { enabled: false, structurePrice: null, installationPrice: null });
+  };
+
+  const loadLineItemIntoEditForm = (item: QuotationLineItem) => {
+    setSelectedEditLineItemId(item.id);
+    setEditingItemId(item.id);
+    applyLineItemToConfigurator(item);
 
     if (item.userType) {
       setUserInfo(prev => prev
@@ -865,6 +990,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const handleQuoteClick = () => {
     if (dimensionInvalid) return;
+    if (!syncLoadedLineIfChanged()) return;
     if ((userRole === 'sales' || userRole === 'partner') && salesUser) {
 
       setPendingAction('quote');
@@ -877,6 +1003,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const handlePdfClick = () => {
     if (dimensionInvalid) return;
+    if (!syncLoadedLineIfChanged()) return;
     if ((userRole === 'sales' || userRole === 'partner') && !salesUser) {
 
       alert('Sales user information is missing. Please log in again.');
@@ -944,7 +1071,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               grandTotal: pdfLineItems.reduce((sum, item) => sum + (item.pricing?.grandTotal || 0), 0),
               orderQuantity: documentLineItems.reduce((sum, li) => sum + normalizeOrderQuantity(li.orderQuantity), 0)
             }
-          : undefined,
+          : buildExactPricingBreakdownFromCartItem(
+              editingItemId
+                ? documentLineItems.find(li => li.id === editingItemId)
+                : documentLineItems[0]
+            ),
         selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
         globalConfig.nexaAddons,
         globalConfig.orderQuantity,
@@ -1011,7 +1142,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           ? {
               grandTotal: docxLineItems.reduce((sum, item) => sum + (item.pricing?.grandTotal || 0), 0)
             }
-          : undefined,
+          : buildExactPricingBreakdownFromCartItem(
+              editingItemId
+                ? documentLineItems.find(li => li.id === editingItemId)
+                : documentLineItems[0]
+            ),
         selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
         globalConfig.nexaAddons,
         globalConfig.orderQuantity,
@@ -1066,35 +1201,96 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     return 'endUser';
   };
 
-  const handleAddToQuotation = () => {
-    if (dimensionInvalid || !effectiveProduct) return;
+  const getActiveLineDiscount = () => {
+    if (!editingItemId) return undefined;
+    return lineItems.find(li => li.id === editingItemId)?.discount;
+  };
 
+  const buildCurrentLineInput = () => {
+    if (!effectiveProduct) return null;
     const qty = normalizeOrderQuantity(globalConfig.orderQuantity);
-    const pricing = priceLineItem(
+    const configPayload = {
+      width: config.width,
+      height: config.height,
+      aspectRatio: config.aspectRatio,
+      unit: config.unit
+    };
+    const wire = effectiveProduct.category?.toLowerCase().includes('modular') ? wireType : undefined;
+    const custom = customPricing.enabled
+      ? {
+          enabled: true as const,
+          structurePrice: isCrystalSeries(effectiveProduct) ? null : customPricing.structurePrice,
+          installationPrice: customPricing.installationPrice
+        }
+      : { enabled: false as const, structurePrice: null, installationPrice: null };
+    const discount = getActiveLineDiscount();
+    const pricing = priceLineItemWithOverrides(
       {
         product: effectiveProduct,
-        config: {
-          width: config.width,
-          height: config.height,
-          aspectRatio: config.aspectRatio,
-          unit: config.unit
-        },
+        config: configPayload,
         cabinetGrid: fixedCabinetGrid,
         processor: effectiveProcessor || null,
-        wireType: effectiveProduct.category?.toLowerCase().includes('modular') ? wireType : undefined,
+        wireType: wire,
         nexaAddons: globalConfig.nexaAddons,
-        orderQuantity: qty
+        orderQuantity: qty,
+        discount
       },
       resolvePricingUserType(),
       customPricing.enabled ? customPricing : undefined
     );
+    return { qty, configPayload, wire, custom, pricing, discount };
+  };
 
-    if (!pricing.isAvailable) {
+  const commitCurrentConfigToCart = () => {
+    if (dimensionInvalid || !effectiveProduct) return null;
+    const built = buildCurrentLineInput();
+    if (!built) return null;
+    if (!built.pricing.isAvailable) {
       alert('Price is not available for this product configuration.');
-      return;
+      return null;
     }
 
     const result = addOrMergeLineItem({
+      product: effectiveProduct,
+      config: built.configPayload,
+      cabinetGrid: fixedCabinetGrid,
+      processor: effectiveProcessor || null,
+      mode: selectedMode || null,
+      wireType: built.wire,
+      nexaAddons: globalConfig.nexaAddons,
+      selectedCabinetSize: globalConfig.selectedCabinetSize,
+      orderQuantity: built.qty,
+      unitPricingSnapshot: built.pricing,
+      userType: (userInfo?.userType || 'End User') as LineItemUserType,
+      customPricing: built.custom,
+      discount: built.discount
+    });
+
+    if (result.merged) {
+      const refreshed = repriceCartLineItem(
+        {
+          ...result.item,
+          discount: result.item.discount || built.discount,
+          customPricing: built.custom,
+          userType: (userInfo?.userType || result.item.userType || 'End User') as LineItemUserType
+        },
+        toPricingUserTypeCode(result.item.userType || userInfo?.userType),
+        built.custom?.enabled ? built.custom : undefined
+      );
+      updateLineItemQuantity(result.item.id, result.item.orderQuantity, refreshed.unitPricingSnapshot);
+      updateLineItemProductSettings(result.item.id, {
+        userType: (userInfo?.userType || result.item.userType || 'End User') as LineItemUserType,
+        customPricing: built.custom,
+        discount: refreshed.discount
+      });
+    }
+
+    return result;
+  };
+
+  const lineMatchesCurrentConfig = (item: QuotationLineItem): boolean => {
+    if (!effectiveProduct) return false;
+    const currentKey = buildLineItemConfigurationKey({
       product: effectiveProduct,
       config: {
         width: config.width,
@@ -1107,45 +1303,36 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       mode: selectedMode || null,
       wireType: effectiveProduct.category?.toLowerCase().includes('modular') ? wireType : undefined,
       nexaAddons: globalConfig.nexaAddons,
-      selectedCabinetSize: globalConfig.selectedCabinetSize,
-      orderQuantity: qty,
-      unitPricingSnapshot: pricing,
-      userType: (userInfo?.userType || 'End User') as LineItemUserType,
-      customPricing: customPricing.enabled
-        ? {
-            enabled: true,
-            structurePrice: isCrystalSeries(effectiveProduct) ? null : customPricing.structurePrice,
-            installationPrice: customPricing.installationPrice
-          }
-        : { enabled: false, structurePrice: null, installationPrice: null }
+      selectedCabinetSize: globalConfig.selectedCabinetSize
     });
+    const qtyMatch =
+      normalizeOrderQuantity(globalConfig.orderQuantity) === normalizeOrderQuantity(item.orderQuantity);
+    const itemCustomEnabled = !!item.customPricing?.enabled;
+    const customMatch = itemCustomEnabled === customPricing.enabled && (
+      !customPricing.enabled || (
+        (item.customPricing?.structurePrice ?? null) === (isCrystalSeries(effectiveProduct) ? null : customPricing.structurePrice) &&
+        (item.customPricing?.installationPrice ?? null) === customPricing.installationPrice
+      )
+    );
+    return currentKey === item.configurationKey && qtyMatch && customMatch;
+  };
 
-    if (result.merged) {
-      const refreshed = priceLineItem(
-        {
-          product: result.item.product,
-          config: result.item.config,
-          cabinetGrid: result.item.cabinetGrid,
-          processor: result.item.processor,
-          wireType: result.item.wireType,
-          nexaAddons: result.item.nexaAddons,
-          orderQuantity: result.item.orderQuantity
-        },
-        toPricingUserTypeCode(result.item.userType || userInfo?.userType),
-        result.item.customPricing?.enabled ? result.item.customPricing : undefined
-      );
-      updateLineItemQuantity(result.item.id, result.item.orderQuantity, refreshed);
-      updateLineItemProductSettings(result.item.id, {
-        userType: (userInfo?.userType || result.item.userType || 'End User') as LineItemUserType,
-        customPricing: customPricing.enabled
-          ? {
-              enabled: true,
-              structurePrice: isCrystalSeries(result.item.product) ? null : customPricing.structurePrice,
-              installationPrice: customPricing.installationPrice
-            }
-          : { enabled: false, structurePrice: null, installationPrice: null }
-      });
-    }
+  /** If the loaded cart/quotation line is on screen and settings changed, update that line in place. */
+  const syncLoadedLineIfChanged = (): boolean => {
+    if (!editingItemId) return true;
+    const loaded = lineItems.find(li => li.id === editingItemId);
+    if (!loaded) return true;
+    if (lineMatchesCurrentConfig(loaded)) return true;
+    if (dimensionInvalid || !effectiveProduct) return true;
+    return commitCurrentConfigToCart() !== null;
+  };
+
+  const handleAddToQuotation = () => {
+    if (dimensionInvalid || !effectiveProduct) return;
+
+    const qty = normalizeOrderQuantity(globalConfig.orderQuantity);
+    const result = commitCurrentConfigToCart();
+    if (!result) return;
 
     setCartNotice(
       editingItemId
@@ -1159,29 +1346,23 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
   const handleAddAnotherProduct = () => {
     setEditingItemId(null);
+    resetConfigOnNextProductSelectRef.current = true;
     setIsProductSelectorOpen(true);
     setCartNotice('Select another product to add to this quotation.');
     window.setTimeout(() => setCartNotice(null), 4000);
   };
 
+  const handleRemoveCartItem = (id: string) => {
+    removeLineItem(id);
+    setEditingItemId(null);
+    resetConfigOnNextProductSelectRef.current = true;
+  };
+
   const handleEditCartItem = (item: QuotationLineItem) => {
     setEditingItemId(item.id);
-    setSelectedProduct(item.product);
     setShowLeftPanel(true);
-    updateWidth(item.config.width);
-    updateHeight(item.config.height);
-    if (item.config.unit) {
-      updateConfig({ unit: item.config.unit as 'mm' | 'm' | 'ft' });
-    }
-    updateConfig({
-      orderQuantity: normalizeOrderQuantity(item.orderQuantity),
-      nexaAddons: item.nexaAddons || [],
-      wireType: item.wireType === 'copper' ? 'copper' : 'gold',
-      selectedCabinetSize: item.selectedCabinetSize ?? null
-    });
-    if (item.processor) setSelectedController(item.processor);
-    if (item.mode) setSelectedMode(item.mode);
-    setCartNotice(`Editing ${item.product.name}. Update config, then click Add to Quotation.`);
+    applyLineItemToConfigurator(item);
+    setCartNotice(`Editing ${item.product.name}. Change the configuration, then click Update Quotation Item or Generate Quotation.`);
     window.setTimeout(() => setCartNotice(null), 5000);
   };
 
@@ -1189,77 +1370,44 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     const item = lineItems.find(li => li.id === id);
     if (!item) return;
     const qty = normalizeOrderQuantity(quantity);
-    const pricing = priceLineItem(
-      {
-        product: item.product,
-        config: item.config,
-        cabinetGrid: item.cabinetGrid,
-        processor: item.processor,
-        wireType: item.wireType,
-        nexaAddons: item.nexaAddons,
-        orderQuantity: qty
-      },
+    const refreshed = repriceCartLineItem(
+      { ...item, orderQuantity: qty },
       toPricingUserTypeCode(item.userType || userInfo?.userType),
       item.customPricing?.enabled
         ? item.customPricing
         : (customPricing.enabled ? customPricing : undefined)
     );
-    updateLineItemQuantity(id, qty, pricing.isAvailable ? pricing : item.unitPricingSnapshot);
+    updateLineItemQuantity(id, qty, refreshed.unitPricingSnapshot);
+    updateLineItemProductSettings(id, { discount: refreshed.discount });
   };
 
   const ensureCurrentConfigInCart = (): QuotationLineItem[] => {
     if (lineItems.length > 0) return lineItems;
     if (!effectiveProduct || dimensionInvalid) return [];
 
-    const qty = normalizeOrderQuantity(globalConfig.orderQuantity);
-    const pricing = priceLineItem(
-      {
-        product: effectiveProduct,
-        config: {
-          width: config.width,
-          height: config.height,
-          aspectRatio: config.aspectRatio,
-          unit: config.unit
-        },
-        cabinetGrid: fixedCabinetGrid,
-        processor: effectiveProcessor || null,
-        wireType: effectiveProduct.category?.toLowerCase().includes('modular') ? wireType : undefined,
-        nexaAddons: globalConfig.nexaAddons,
-        orderQuantity: qty
-      },
-      resolvePricingUserType(),
-      customPricing.enabled ? customPricing : undefined
-    );
+    const built = buildCurrentLineInput();
+    if (!built) return [];
 
     const result = addOrMergeLineItem({
       product: effectiveProduct,
-      config: {
-        width: config.width,
-        height: config.height,
-        aspectRatio: config.aspectRatio,
-        unit: config.unit
-      },
+      config: built.configPayload,
       cabinetGrid: fixedCabinetGrid,
       processor: effectiveProcessor || null,
       mode: selectedMode || null,
-      wireType: effectiveProduct.category?.toLowerCase().includes('modular') ? wireType : undefined,
+      wireType: built.wire,
       nexaAddons: globalConfig.nexaAddons,
       selectedCabinetSize: globalConfig.selectedCabinetSize,
-      orderQuantity: qty,
-      unitPricingSnapshot: pricing.isAvailable ? pricing : null,
+      orderQuantity: built.qty,
+      unitPricingSnapshot: built.pricing.isAvailable ? built.pricing : null,
       userType: (userInfo?.userType || 'End User') as LineItemUserType,
-      customPricing: customPricing.enabled
-        ? {
-            enabled: true,
-            structurePrice: isCrystalSeries(effectiveProduct) ? null : customPricing.structurePrice,
-            installationPrice: customPricing.installationPrice
-          }
-        : { enabled: false, structurePrice: null, installationPrice: null }
+      customPricing: built.custom,
+      discount: built.discount
     });
     return [result.item];
   };
 
   const handleGenerateQuotationFromCart = () => {
+    if (!syncLoadedLineIfChanged()) return;
     const itemsForQuote = lineItems.length > 0 ? lineItems : ensureCurrentConfigInCart();
     if (itemsForQuote.length === 0) {
       alert('Add at least one product to the quotation first.');
@@ -1304,6 +1452,11 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
     if (isProductChanging) {
       previousProductIdRef.current = currentProductId;
+
+      if (dimensionsSetForProductIdRef.current === currentProductId) {
+        dimensionsSetForProductIdRef.current = null;
+        return;
+      }
 
       const timer = setTimeout(() => {
 
@@ -1827,7 +1980,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                 cartGrandTotal={cartGrandTotal}
                 onAddAnotherProduct={handleAddAnotherProduct}
                 onEditItem={handleEditCartItem}
-                onRemoveItem={removeLineItem}
+                onRemoveItem={handleRemoveCartItem}
                 onQuantityChange={handleCartQuantityChange}
                 onGenerateQuotation={handleGenerateQuotationFromCart}
                 onClearAll={clearCart}
@@ -1999,7 +2152,20 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
                   grandTotal: pdfLineItems.reduce((sum, item) => sum + (item.pricing?.grandTotal || 0), 0),
                   orderQuantity: documentLineItems.reduce((sum, li) => sum + normalizeOrderQuantity(li.orderQuantity), 0)
                 }
-              : undefined,
+              : (() => {
+                  const live = buildCurrentLineInput();
+                  if (live?.pricing?.isAvailable) {
+                    return buildExactPricingBreakdownFromCartItem({
+                      discount: live.discount,
+                      unitPricingSnapshot: live.pricing
+                    } as QuotationLineItem);
+                  }
+                  return buildExactPricingBreakdownFromCartItem(
+                    editingItemId
+                      ? documentLineItems.find(li => li.id === editingItemId)
+                      : documentLineItems[0]
+                  );
+                })(),
             selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined,
             globalConfig.nexaAddons,
             globalConfig.orderQuantity,
@@ -2021,6 +2187,21 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           userRole={userRole}
           quotationId={quotationId || undefined}
           isEditing={!!activeQuotation}
+          exactPricingBreakdown={(() => {
+            if (lineItems.length > 1) return undefined;
+            const live = buildCurrentLineInput();
+            if (live?.pricing?.isAvailable) {
+              return buildExactPricingBreakdownFromCartItem({
+                discount: live.discount,
+                unitPricingSnapshot: live.pricing
+              } as QuotationLineItem);
+            }
+            return buildExactPricingBreakdownFromCartItem(
+              editingItemId
+                ? lineItems.find(li => li.id === editingItemId)
+                : lineItems[0]
+            );
+          })()}
           wireType={selectedProduct?.category?.toLowerCase().includes('modular') ? wireType : undefined}
           nexaAddons={globalConfig.nexaAddons}
         />

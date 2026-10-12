@@ -1318,6 +1318,8 @@ router.post('/quotation/update', authenticateToken, async (req, res) => {
     if (updateData.exactPricingBreakdown !== undefined) quotation.exactPricingBreakdown = updateData.exactPricingBreakdown;
     if (updateData.originalPricingBreakdown !== undefined) quotation.originalPricingBreakdown = updateData.originalPricingBreakdown;
     if (updateData.exactProductSpecs !== undefined) quotation.exactProductSpecs = updateData.exactProductSpecs;
+    if (updateData.productDetails !== undefined) quotation.productDetails = updateData.productDetails;
+    if (updateData.productName !== undefined) quotation.productName = updateData.productName;
 
     if (updateData.customerName !== undefined) quotation.customerName = updateData.customerName;
     if (updateData.customerEmail !== undefined) quotation.customerEmail = updateData.customerEmail;
@@ -1446,6 +1448,8 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
     if (updateData.exactPricingBreakdown !== undefined) quotation.exactPricingBreakdown = updateData.exactPricingBreakdown;
     if (updateData.originalPricingBreakdown !== undefined) quotation.originalPricingBreakdown = updateData.originalPricingBreakdown;
     if (updateData.exactProductSpecs !== undefined) quotation.exactProductSpecs = updateData.exactProductSpecs;
+    if (updateData.productDetails !== undefined) quotation.productDetails = updateData.productDetails;
+    if (updateData.productName !== undefined) quotation.productName = updateData.productName;
 
     // Update customer information fields
     if (updateData.customerName !== undefined) quotation.customerName = updateData.customerName;

@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useMemo, useState, React
 import { Product, CabinetGrid, DisplayConfig } from '../types';
 import { buildConfigurationKey, normalizeOrderQuantity } from '../utils/orderQuantity';
 import { PricingCalculationResult } from '../utils/centralizedPricing';
+import { SavedLineDiscount } from '../utils/discountCalculator';
 
 export type LineItemUserType = 'End User' | 'Reseller' | 'SI/Channel Partner';
 
@@ -29,6 +30,8 @@ export interface QuotationLineItem {
   userType?: LineItemUserType;
   /** Product-level custom structure/installation pricing */
   customPricing?: LineItemCustomPricing;
+  /** Persisted Super Admin LED / controller replacement-price override */
+  discount?: SavedLineDiscount;
 }
 
 interface QuotationCartContextType {
@@ -48,6 +51,7 @@ interface QuotationCartContextType {
       userType?: LineItemUserType;
       customPricing?: LineItemCustomPricing;
       unitPricingSnapshot?: PricingCalculationResult | null;
+      discount?: SavedLineDiscount;
     }
   ) => void;
   removeLineItem: (id: string) => void;
@@ -189,6 +193,7 @@ export const QuotationCartProvider: React.FC<{ children: ReactNode }> = ({ child
       userType?: LineItemUserType;
       customPricing?: LineItemCustomPricing;
       unitPricingSnapshot?: PricingCalculationResult | null;
+      discount?: SavedLineDiscount;
     }
   ) => {
     setLineItemsState(prev => prev.map(li => (
@@ -199,7 +204,8 @@ export const QuotationCartProvider: React.FC<{ children: ReactNode }> = ({ child
             ...(settings.customPricing !== undefined ? { customPricing: settings.customPricing } : {}),
             ...(settings.unitPricingSnapshot !== undefined
               ? { unitPricingSnapshot: settings.unitPricingSnapshot }
-              : {})
+              : {}),
+            ...(settings.discount !== undefined ? { discount: settings.discount } : {})
           }
         : li
     )));

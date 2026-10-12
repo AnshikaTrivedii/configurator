@@ -4,6 +4,8 @@
  * breakdown is available (including override / discount replacement prices).
  */
 
+import { rebuildGrandTotalFromComponents } from './discountCalculator';
+
 export type ExactPricingBreakdownSource = {
   unitPrice?: number;
   quantity?: number;
@@ -158,6 +160,24 @@ export function buildExactPricingBreakdownForPdf(
         }
       : undefined
   };
+
+  if (typeof payload.grandTotal === 'number' && payload.grandTotal < 0) {
+    payload.grandTotal = rebuildGrandTotalFromComponents({
+      productTotal: source.productTotal,
+      productSubtotal: source.productSubtotal,
+      subtotal: source.subtotal,
+      processorTotal: source.processorTotal,
+      processorPrice: payload.processorPrice,
+      structureTotal: source.structureTotal,
+      structureCost: source.structureCost,
+      installationTotal: source.installationTotal,
+      installationCost: source.installationCost,
+      addonsTotal: payload.addonsTotal,
+      customAddonsTotal: source.customAddonsTotal,
+      customAddonsIncludedInGrandTotal: source.customAddonsIncludedInGrandTotal,
+      discount
+    });
+  }
 
   if (options?.logContext) {
     const originalUnitPrice =
