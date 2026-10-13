@@ -433,8 +433,15 @@ export function calculateCentralizedPricing(
       installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 500);
     }
 
-    // Digital Standee & Fixed Products: quotations are product-only (no structure / installation add-ons).
-    if (isDigitalStandeeProduct(product) || isFixedProduct(product)) {
+    // Digital standee and fixed products are product-only.
+    // Rental quotations are product + processor. Structure and installation are
+    // omitted here so the cart, save payload, and multi-product quotation match
+    // the one-product rental total. Custom structure/installation prices do not apply.
+    if (
+      isDigitalStandeeProduct(product) ||
+      isFixedProduct(product) ||
+      product.category?.toLowerCase().includes('rental')
+    ) {
       structureBasePrice = 0;
       installationBasePrice = 0;
     }
