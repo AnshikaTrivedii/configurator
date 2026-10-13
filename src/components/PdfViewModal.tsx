@@ -23,10 +23,10 @@ import {
 import {
   toPersistedLineItems,
   formatQuotationProductLabel,
-  sumLineItemGrandTotals,
   toPdfQuotationLineItems,
   buildExactPricingBreakdownFromCartItem,
-  syncSingleProductLineForSave
+  syncSingleProductLineForSave,
+  buildQuotationAccounting
 } from '../utils/quotationLineItems';
 import { savedLineDiscountHasOverride } from '../utils/discountCalculator';
 import { fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from '../utils/multiProductQuotationHtml';
@@ -110,7 +110,7 @@ function calculateCorrectTotalPrice(
 
   } catch (error) {
 
-    return 6254;
+    return null;
   }
 }
 
@@ -664,8 +664,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
       cabinetGrid: cabinetGrid,
       displaySize: fullProduct.cabinetDimensions && cabinetGrid ? {
-        width: Number((fullProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
-        height: Number((fullProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+        width: (cabinetGrid.totalWidth ?? fullProduct.cabinetDimensions.width * cabinetGrid.columns) / 1000,
+        height: (cabinetGrid.totalHeight ?? fullProduct.cabinetDimensions.height * cabinetGrid.rows) / 1000
       } : undefined,
       aspectRatio: fullProduct.resolution ?
         calculateAspectRatio(fullProduct.resolution.width, fullProduct.resolution.height) : undefined,
@@ -771,7 +771,9 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     const persistedLineItems = syncedLineItems.length > 0
       ? toPersistedLineItems(syncedLineItems)
       : null;
-    const multiItemTotal = syncedLineItems.length > 1 ? sumLineItemGrandTotals(syncedLineItems) : null;
+    const accounting = persistedLineItems
+      ? buildQuotationAccounting(persistedLineItems, quotationAddons)
+      : null;
     const productName = syncedLineItems.length > 1
       ? formatQuotationProductLabel(syncedLineItems)
       : (selectedProduct?.name || selectedProduct?.productName || 'Unknown Product');
@@ -794,9 +796,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         discount: syncedPrimary.discount
       };
     }
-    if (multiItemTotal != null) {
-      finalTotalPrice = addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal);
-    }
+    if (accounting) finalTotalPrice = accounting.grandTotal;
 
     // Validate required fields
     if (!finalQuotationId) {
@@ -831,6 +831,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       userType: userTypeForCalc,
       userTypeDisplayName: getUserTypeDisplayName(userTypeForCalc),
       totalPrice: finalTotalPrice,  // CRITICAL: Grand Total with GST (and discount if applied) - matches PDF exactly
+      originalTotalPrice: accounting?.originalTotal ?? finalTotalPrice,
+      originalPricingBreakdown: accounting?.originalBreakdown,
 
       pdfBase64: undefined as string | undefined,
 
@@ -839,10 +841,13 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       salesUserId: finalSalesUserId,
       salesUserName: finalSalesUserName,
 
-      discountType: syncedPrimary?.discount?.discountType || exactPricingBreakdown?.discount?.discountType || null,
+      discountType: syncedLineItems.length > 1
+        ? null : (syncedPrimary?.discount?.discountType || exactPricingBreakdown?.discount?.discountType || null),
       discountPercent: syncedPrimary?.discount?.discountPercent || 0,
 
-      exactPricingBreakdown: {
+      exactPricingBreakdown: accounting && persistedLineItems && persistedLineItems.length > 1
+        ? { ...accounting.breakdown, gstRate: 18 }
+        : {
         unitPrice: finalPricingResult.unitPrice,
         quantity: finalPricingResult.quantity,
         orderQuantity: finalPricingResult.orderQuantity ?? orderQuantity,
@@ -873,7 +878,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           enabled: true,
           structurePrice: customPricing.structurePrice,
           installationPrice: customPricing.installationPrice
-        } : undefined
+        } : undefined,
+        ...(accounting?.breakdown || {})
       },
 
       quotationData: {
@@ -928,8 +934,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         resolution: selectedProduct.resolution,
         cabinetDimensions: selectedProduct.cabinetDimensions,
         displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
-          width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
-          height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+          width: (cabinetGrid.totalWidth ?? selectedProduct.cabinetDimensions.width * cabinetGrid.columns) / 1000,
+          height: (cabinetGrid.totalHeight ?? selectedProduct.cabinetDimensions.height * cabinetGrid.rows) / 1000
         } : undefined,
         aspectRatio: selectedProduct.resolution ?
           calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,

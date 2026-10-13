@@ -8,6 +8,7 @@ import { getDisplayPower } from '../utils/displayPower';
 import { usesModuleSizeInsteadOfCabinetSize } from '../utils/productSeries';
 import { OrderQuantityInput } from './OrderQuantityInput';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
+import { billableAreaSqFt, formatDimensionInput } from '../utils/displayMeasurements';
 
 // Processor specifications - matches DisplayConfigurator.tsx
 const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
@@ -97,27 +98,14 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   const useModuleTerminology =
     isJumboSeries || isModuleGridSeries || isDigitalStandee || isFlexibleSeries || isNexa || (moduleSizeProduct && !isStandardTransparent);
 
-  const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
-  const MM_TO_FEET = 1 / FEET_TO_MM;
-
   const toDisplayUnit = (mm: number, unit: string) => {
-    if (unit === 'ft') {
-
-      const feet = mm * MM_TO_FEET;
-      return feet.toFixed(2);
-    }
-
-    const meters = mm / 1000;
-    return meters.toFixed(2);
+    return formatDimensionInput(mm, unit === 'ft' ? 'ft' : 'm');
   };
 
-  const displayedWidth = parseFloat(toDisplayUnit(cabinetGrid.totalWidth || config.width, config.unit));
-  const displayedHeight = parseFloat(toDisplayUnit(cabinetGrid.totalHeight || config.height, config.unit));
-
-  // Display Area: ft² derived from the rounded/displayed m² value
+  // Calculate both units from the actual grid, never from a rounded display string.
   const rawAreaM2 = ((cabinetGrid.totalWidth || config.width) / 1000) * ((cabinetGrid.totalHeight || config.height) / 1000);
-  const areaM2 = parseFloat(rawAreaM2.toFixed(2));
-  const areaFt2 = areaM2 * 10.764;
+  const areaM2 = rawAreaM2;
+  const areaFt2 = billableAreaSqFt(cabinetGrid.totalWidth || config.width, cabinetGrid.totalHeight || config.height);
 
   // Display Diagonal: from width/height in meters, then feet
   const width = (cabinetGrid.totalWidth || config.width) / 1000;  // mm to m
@@ -240,7 +228,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 truncate">Display Area</h3>
               <p className="mt-1 text-sm sm:text-lg font-semibold text-rose-700 break-words">
                 {areaM2.toFixed(4)} m²<br />
-                ({areaFt2.toFixed(4)} ft²)
+                ({areaFt2.toFixed(2)} billable ft²)
               </p>
             </div>
           </div>

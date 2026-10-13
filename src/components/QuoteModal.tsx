@@ -30,7 +30,8 @@ import {
   toPdfQuotationLineItems,
   toPricingUserTypeCode,
   normalizeDisplayUserType,
-  applyLiveMatrixToSingleLineItem
+  applyLiveMatrixToSingleLineItem,
+  buildQuotationAccounting
 } from '../utils/quotationLineItems';
 
 interface ProductWithPricing extends Product {
@@ -205,7 +206,7 @@ type QuoteModalProps = {
     height: number;
     unit: string;
   };
-  cabinetGrid?: { columns: number; rows: number };
+  cabinetGrid?: { columns: number; rows: number; totalWidth?: number; totalHeight?: number };
   processor?: string;
   mode?: string;
   userInfo?: {
@@ -558,8 +559,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         },
         cabinetGrid: cabinetGrid,
         displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
-          width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
-          height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+          width: (cabinetGrid.totalWidth ?? selectedProduct.cabinetDimensions.width * cabinetGrid.columns) / 1000,
+          height: (cabinetGrid.totalHeight ?? selectedProduct.cabinetDimensions.height * cabinetGrid.rows) / 1000
         } : undefined,
         aspectRatio: selectedProduct.resolution ?
           calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
@@ -586,8 +587,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           customPricingObj,
           selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
           nexaAddons,
-          orderQuantity,
-          quotationAddons
+          orderQuantity
         );
 
         if (!pricingForUpdate.isAvailable) {
@@ -661,20 +661,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         const primaryUpdatePricing = primaryUpdateItem?.unitPricingSnapshot
           || (persistedLineItems.length === 1 ? persistedLineItems[0].pricing as typeof pricingForUpdate : undefined)
           || pricingForUpdate;
-        const multiItemTotal = effectiveLineItems.length > 1
-          ? sumLineItemGrandTotals(effectiveLineItems)
-          : null;
-
         const appliedAddons = primaryUpdatePricing.appliedAddons;
-        const pricedFromLine = !!(
-          primaryUpdateItem?.unitPricingSnapshot
-          || (persistedLineItems.length === 1 && persistedLineItems[0].pricing)
-        );
-        const updateGrandTotal = multiItemTotal != null
-          ? addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal)
-          : (pricedFromLine
-              ? addQuotationAddonsToTotal(primaryUpdatePricing.grandTotal ?? 0, quotationAddonsTotal)
-              : (primaryUpdatePricing.grandTotal ?? pricingForUpdate.grandTotal));
+        const accounting = buildQuotationAccounting(persistedLineItems, quotationAddons);
+        const updateGrandTotal = accounting.grandTotal;
         const updateDiscountMeta = quotationDiscountFieldsFromLine(
           primaryUpdateItem || (effectiveLineItems.length <= 1 ? {
             discount: persistedLineItems[0]?.discount
@@ -684,43 +673,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           effectiveLineItems.length > 0 ? effectiveLineItems : [{ product: selectedProduct } as any]
         );
 
-        const breakdown = {
-          unitPrice: primaryUpdatePricing.unitPrice,
-          quantity: primaryUpdatePricing.quantity,
-          orderQuantity: primaryUpdatePricing.orderQuantity,
-          unitGrandTotal: primaryUpdatePricing.unitGrandTotal,
-          subtotal: primaryUpdatePricing.productSubtotal,
-          gstRate: 18,
-          gstAmount: primaryUpdatePricing.productGST,
-          productSubtotal: primaryUpdatePricing.productSubtotal,
-          productGST: primaryUpdatePricing.productGST,
-          productTotal: primaryUpdatePricing.productTotal,
-
-          processorPrice: primaryUpdatePricing.processorPrice,
-          processorGst: primaryUpdatePricing.processorGST,
-          processorGST: primaryUpdatePricing.processorGST,
-          processorTotal: primaryUpdatePricing.processorTotal,
-
-          structureCost: primaryUpdatePricing.structureCost,
-          structureGST: primaryUpdatePricing.structureGST,
-          structureTotal: primaryUpdatePricing.structureTotal,
-
-          installationCost: primaryUpdatePricing.installationCost,
-          installationGST: primaryUpdatePricing.installationGST,
-          installationTotal: primaryUpdatePricing.installationTotal,
-
-          addonsCost: primaryUpdatePricing.addonsCost,
-          addonsGST: primaryUpdatePricing.addonsGST,
-          addonsTotal: primaryUpdatePricing.addonsTotal,
-          appliedAddons: appliedAddons,
-          customAddons: quotationAddons,
-          customAddonsTotal: quotationAddonsTotal,
-          customAddonsIncludedInGrandTotal: true,
-          lineItemCount: persistedLineItems.length,
-
-          grandTotal: updateGrandTotal,
-          ...(primaryUpdateItem?.discount ? { discount: primaryUpdateItem.discount } : {})
-        };
+        const breakdown = { ...accounting.breakdown, gstRate: 18, customPricing: customPricingObj };
 
         const updateData = {
           customerName: customerName.trim(),
@@ -731,15 +684,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           userType: userType,
           userTypeDisplayName: getUserTypeDisplayName(getUserType()),
           totalPrice: updateGrandTotal,
-          originalTotalPrice: (primaryUpdateItem?.discount as SavedLineDiscount | undefined)?.originalGrandTotal
-            ?? updateGrandTotal,
+          originalTotalPrice: accounting.originalTotal,
 
           exactPricingBreakdown: breakdown,
 
-          originalPricingBreakdown: {
-            ...breakdown,
-            grandTotal: updateGrandTotal
-          },
+          originalPricingBreakdown: accounting.originalBreakdown,
 
           exactProductSpecs: {
             productName: selectedProduct.name,
@@ -748,8 +697,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             resolution: selectedProduct.resolution,
             cabinetDimensions: selectedProduct.cabinetDimensions,
             displaySize: {
-              width: configForCalc.width / 1000,
-              height: configForCalc.height / 1000
+              width: (cabinetGrid?.totalWidth ?? configForCalc.width) / 1000,
+              height: (cabinetGrid?.totalHeight ?? configForCalc.height) / 1000
             },
             aspectRatio: calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height),
             processor: processor,
@@ -1031,8 +980,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
             cabinetGrid: cabinetGrid,
             displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
-              width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
-              height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+              width: (cabinetGrid.totalWidth ?? selectedProduct.cabinetDimensions.width * cabinetGrid.columns) / 1000,
+              height: (cabinetGrid.totalHeight ?? selectedProduct.cabinetDimensions.height * cabinetGrid.rows) / 1000
             } : undefined,
             aspectRatio: selectedProduct.resolution ?
               calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
@@ -1058,8 +1007,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             customPricingObj,
             selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
             nexaAddons,
-            orderQuantity,
-            quotationAddons
+            orderQuantity
           );
 
           const pricingResult = calculateCentralizedPricing(
@@ -1071,8 +1019,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             customPricingObj,
             selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
             nexaAddons,
-            orderQuantity,
-            quotationAddons
+            orderQuantity
           );
 
           if (!pricingResult.isAvailable) {
@@ -1240,6 +1187,9 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             }
           }
 
+          const accounting = buildQuotationAccounting(persistedLineItems, quotationAddons);
+          finalTotalPrice = accounting.grandTotal;
+
           const quotationProductName = formatQuotationProductLabel(
             effectiveLineItems.length > 0 ? effectiveLineItems : [{ product: selectedProduct } as any]
           );
@@ -1255,14 +1205,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
             totalPrice: finalTotalPrice,  // CRITICAL: Grand Total with GST (and discount if applied) - matches PDF exactly
-            originalTotalPrice: multiItemTotal != null
-              ? addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal)
-              : correctTotalPrice, // Store original total price before discount
+            originalTotalPrice: accounting.originalTotal,
 
             salesUserId: finalSalesUserId,
             salesUserName: finalSalesUserName,
 
             exactPricingBreakdown: {
+              ...accounting.breakdown,
+              ...(persistedLineItems.length > 1 ? {} : {
               unitPrice: finalPricingResult.unitPrice,
               quantity: finalPricingResult.quantity,
               orderQuantity: finalPricingResult.orderQuantity ?? orderQuantity,
@@ -1317,9 +1267,12 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 discountedGrandTotal: finalTotalPrice,
                 discountAmount: 'discountAmount' in finalPricingResult ? finalPricingResult.discountAmount : 0
               } : undefined)
+              }),
+              grandTotal: accounting.grandTotal
             },
 
-            originalPricingBreakdown: {
+            originalPricingBreakdown: persistedLineItems.length > 1
+              ? accounting.originalBreakdown : {
               unitPrice: pricingResult.unitPrice,
               quantity: pricingResult.quantity,
               orderQuantity: pricingResult.orderQuantity,
@@ -1342,9 +1295,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               customAddons: quotationAddons,
               customAddonsTotal: quotationAddonsTotal,
               customAddonsIncludedInGrandTotal: true,
-              grandTotal: multiItemTotal != null
-                ? addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal)
-                : pricingResult.grandTotal // Always clean total
+              grandTotal: accounting.originalTotal
             },
 
             discountType: discountInfo?.discountType || null,
@@ -1360,8 +1311,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               resolution: selectedProduct.resolution,
               cabinetDimensions: selectedProduct.cabinetDimensions,
               displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
-                width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
-                height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+                width: (cabinetGrid.totalWidth ?? selectedProduct.cabinetDimensions.width * cabinetGrid.columns) / 1000,
+                height: (cabinetGrid.totalHeight ?? selectedProduct.cabinetDimensions.height * cabinetGrid.rows) / 1000
               } : undefined,
               aspectRatio: selectedProduct.resolution ?
                 calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,

@@ -15,7 +15,7 @@ import {
 } from './discountCalculator';
 import { normalizeOrderQuantity, buildConfigurationKey } from './orderQuantity';
 import { QuotationLineItem } from '../contexts/QuotationCartContext';
-import { addQuotationAddonsToTotal, readQuotationAddons, sumQuotationAddons } from './quotationAddons';
+import { addQuotationAddonsToTotal, QuotationAddon, readQuotationAddons, sumQuotationAddons } from './quotationAddons';
 
 export type PersistedLineItemUserType = 'End User' | 'Reseller' | 'SI/Channel Partner';
 
@@ -307,9 +307,115 @@ export function sumLineItemGrandTotals(
   );
 }
 
+type AccountingLine = {
+  pricing?: Partial<PricingCalculationResult> | null;
+  unitPricingSnapshot?: Partial<PricingCalculationResult> | null;
+  discount?: SavedLineDiscount | null;
+};
+
+/** One source for quotation totals and the fields shared by PDF, save, and dashboard. */
+export function buildQuotationAccounting(items: AccountingLine[], addons: QuotationAddon[] = []) {
+  if (items.length === 0) throw new Error('A quotation needs at least one priced line item.');
+  if (addons.some(addon => !Number.isFinite(addon.price) || addon.price < 0)) {
+    throw new Error('A quotation add-on has an invalid price.');
+  }
+  const prices = items.map((item) => {
+    const pricing = item.pricing ?? item.unitPricingSnapshot;
+    if (!pricing || pricing.isAvailable === false || !Number.isFinite(pricing.grandTotal) || (pricing.grandTotal as number) < 0) {
+      throw new Error('A line item has no valid price. Please review the product pricing.');
+    }
+    if (pricing.customAddonsIncludedInGrandTotal && (pricing.customAddonsTotal ?? 0) > 0) {
+      throw new Error('Quotation-level add-ons must not be included in a line item price.');
+    }
+    const fields = ['productTotal', 'processorTotal', 'structureTotal', 'installationTotal', 'addonsTotal'] as const;
+    if (fields.some(field => pricing[field] !== undefined && !Number.isFinite(pricing[field]))) {
+      throw new Error('A line item has an invalid pricing component.');
+    }
+    if (fields.every(field => typeof pricing[field] === 'number')) {
+      const componentTotal = Math.round(fields.reduce((total, field) => total + (pricing[field] as number), 0));
+      if (Math.abs(componentTotal - (pricing.grandTotal as number)) > 0.01) {
+        throw new Error('A line item total does not match its pricing components.');
+      }
+    }
+    return pricing;
+  });
+  const addonsTotal = sumQuotationAddons(addons);
+  const lineTotal = sumLineItemGrandTotals(items);
+  const grandTotal = addQuotationAddonsToTotal(lineTotal, addonsTotal);
+  const originalLineTotal = Math.round(items.reduce((sum, item, index) => {
+    const original = item.discount?.originalGrandTotal;
+    if (original !== undefined && (!Number.isFinite(original) || original < 0)) {
+      throw new Error('A line item has an invalid original price.');
+    }
+    return sum + (typeof original === 'number' && Number.isFinite(original)
+      ? original : prices[index].grandTotal as number);
+  }, 0));
+  const originalTotal = addQuotationAddonsToTotal(originalLineTotal, addonsTotal);
+  const sum = (field: keyof PricingCalculationResult) =>
+    Math.round(prices.reduce((total, price) => total + (Number(price[field]) || 0), 0) * 100) / 100;
+  const single = items.length === 1 ? prices[0] : null;
+  const breakdown = {
+    pricingScope: items.length === 1 ? 'line' : 'quotation',
+    lineItemCount: items.length,
+    ...(single ? {
+      unitPrice: single.unitPrice,
+      quantity: single.quantity,
+      orderQuantity: single.orderQuantity,
+      unitGrandTotal: single.unitGrandTotal,
+      appliedAddons: single.appliedAddons,
+      ...(items[0].discount ? { discount: items[0].discount } : {})
+    } : {}),
+    subtotal: sum('productSubtotal'),
+    productSubtotal: sum('productSubtotal'),
+    productGST: sum('productGST'),
+    gstAmount: sum('productGST'),
+    productTotal: sum('productTotal'),
+    processorPrice: sum('processorPrice'),
+    processorGST: sum('processorGST'),
+    processorGst: sum('processorGST'),
+    processorTotal: sum('processorTotal'),
+    structureCost: sum('structureCost'),
+    structureGST: sum('structureGST'),
+    structureTotal: sum('structureTotal'),
+    installationCost: sum('installationCost'),
+    installationGST: sum('installationGST'),
+    installationTotal: sum('installationTotal'),
+    addonsCost: sum('addonsCost'),
+    addonsGST: sum('addonsGST'),
+    addonsTotal: sum('addonsTotal'),
+    customAddons: addons,
+    customAddonsTotal: addonsTotal,
+    customAddonsIncludedInGrandTotal: true,
+    grandTotal
+  };
+  const originalProductTotal = Math.round(items.reduce((total, item, index) => total +
+      (item.discount?.originalProductTotal ?? prices[index].productTotal ?? 0), 0) * 100) / 100;
+  const originalProcessorTotal = Math.round(items.reduce((total, item, index) => total +
+      (item.discount?.originalProcessorTotal ?? prices[index].processorTotal ?? 0), 0) * 100) / 100;
+  const originalBreakdown = {
+    pricingScope: breakdown.pricingScope,
+    lineItemCount: items.length,
+    subtotal: originalProductTotal - sum('productGST'),
+    productSubtotal: originalProductTotal - sum('productGST'),
+    productGST: sum('productGST'),
+    productTotal: originalProductTotal,
+    processorPrice: originalProcessorTotal - sum('processorGST'),
+    processorGST: sum('processorGST'),
+    processorTotal: originalProcessorTotal,
+    structureTotal: sum('structureTotal'),
+    installationTotal: sum('installationTotal'),
+    addonsTotal: sum('addonsTotal'),
+    customAddons: addons,
+    customAddonsTotal: addonsTotal,
+    customAddonsIncludedInGrandTotal: true,
+    grandTotal: originalTotal,
+  };
+  return { lineTotal, grandTotal, originalTotal, breakdown, originalBreakdown };
+}
+
 /**
  * Display / persist total for a quotation.
- * Valid non-negative stored totals are kept as-is.
+ * Complete saved line items are authoritative; legacy quotations keep their stored total.
  * Invalid negative totals (override subtracted from an already-replaced price)
  * are rebuilt from saved components instead of being clamped to zero.
  */
@@ -317,6 +423,14 @@ export function getQuotationDisplayTotal(quotation: any): number {
   const stored = Number(quotation?.totalPrice);
   const breakdown = quotation?.exactPricingBreakdown;
   const breakdownTotal = Number(breakdown?.grandTotal);
+
+  const rawLines = quotation?.quotationData?.lineItems;
+  if (Array.isArray(rawLines) && rawLines.length > 0 &&
+      rawLines.every((line: any) => typeof line?.pricing?.grandTotal === 'number' && Number.isFinite(line.pricing.grandTotal) && line.pricing.grandTotal >= 0 &&
+        !(line.pricing.customAddonsIncludedInGrandTotal && line.pricing.customAddonsTotal > 0))) {
+    const addons = readQuotationAddons(quotation?.quotationData?.customAddons, breakdown?.customAddons);
+    return addQuotationAddonsToTotal(sumLineItemGrandTotals(rawLines), sumQuotationAddons(addons));
+  }
 
   if (Number.isFinite(stored) && stored >= 0) {
     return Math.round(stored);
@@ -459,7 +573,11 @@ export function normalizeQuotationLineItems(quotation: any, fallbackProduct?: Pr
 }
 
 export function toPersistedLineItems(items: QuotationLineItem[]): PersistedQuotationLineItem[] {
-  return items.map(li => ({
+  return items.map(li => {
+    if (li.unitPricingSnapshot?.customAddonsIncludedInGrandTotal && li.unitPricingSnapshot.customAddonsTotal > 0) {
+      throw new Error('Quotation-level add-ons cannot be embedded in a line item snapshot.');
+    }
+    return ({
     id: li.id,
     productId: li.product.id,
     productName: li.product.name,
@@ -511,7 +629,8 @@ export function toPersistedLineItems(items: QuotationLineItem[]): PersistedQuota
             : {})
         }
       : undefined
-  }));
+    });
+  });
 }
 
 /**

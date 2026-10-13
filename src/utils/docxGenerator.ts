@@ -7,6 +7,7 @@ import { calculateCentralizedPricing } from './centralizedPricing';
 import { resolveDisplayedProductSubtotal } from './exactPricingBreakdownForPdf';
 import { getControllerOverrideFromDiscount, getLedOverrideFromDiscount } from './discountCalculator';
 import { normalizeOrderQuantity } from './orderQuantity';
+import { billableAreaSqFt, formatDimensionInput } from './displayMeasurements';
 import type { PdfQuotationLineItem } from './quotationLineItems';
 import { buildMultiProductQuotationBodyHtml, buildMultiProductContinuationPagesHtml, fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from './multiProductQuotationHtml';
 import {
@@ -316,7 +317,7 @@ export const generateConfigurationHtml = (
       installationPrice: number | null;
     };
     discount?: {
-      discountType?: 'led' | 'controller' | null;
+      discountType?: string | null;
       discountAmountPerUnit?: number;
       numberOfUnits?: number;
       ledDiscountMode?: string;
@@ -341,13 +342,8 @@ export const generateConfigurationHtml = (
   quotationLineItems?: PdfQuotationLineItem[]
 ): string => {
 
-  const METERS_TO_FEET = 3.2808399;
   const toDisplayUnit = (mm: number, unit: string) => {
-    const meters = mm / 1000;
-    if (unit === 'ft') {
-      return (meters * METERS_TO_FEET).toFixed(2);
-    }
-    return meters.toFixed(2);
+    return formatDimensionInput(mm, unit === 'ft' ? 'ft' : 'm');
   };
 
   const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
@@ -454,21 +450,9 @@ export const generateConfigurationHtml = (
     quantity = 1;
   } else if (isJumboSeries) {
     // Jumbo: quantity = display area in sq ft (from config dimensions in mm)
-    const widthInMeters = effectiveWidth / 1000;
-    const heightInMeters = effectiveHeight / 1000;
-    const widthInFeet = widthInMeters * METERS_TO_FEET;
-    const heightInFeet = heightInMeters * METERS_TO_FEET;
-    const rawQuantity = widthInFeet * heightInFeet;
-    quantity = Math.round(rawQuantity * 100) / 100;
+    quantity = billableAreaSqFt(effectiveWidth, effectiveHeight);
   } else {
-
-    const widthInMeters = effectiveWidth / 1000;
-    const heightInMeters = effectiveHeight / 1000;
-    const widthInFeet = widthInMeters * METERS_TO_FEET;
-    const heightInFeet = heightInMeters * METERS_TO_FEET;
-    const rawQuantity = widthInFeet * heightInFeet;
-
-    quantity = Math.round(rawQuantity * 100) / 100;
+    quantity = billableAreaSqFt(effectiveWidth, effectiveHeight);
   }
 
   let totalProduct: number;
@@ -504,11 +488,7 @@ export const generateConfigurationHtml = (
   }
   let gstController = 0;
 
-  const widthInMeters = effectiveWidth / 1000;
-  const heightInMeters = effectiveHeight / 1000;
-  const widthInFeet = widthInMeters * METERS_TO_FEET;
-  const heightInFeet = heightInMeters * METERS_TO_FEET;
-  const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
+  const screenAreaSqFt = billableAreaSqFt(effectiveWidth, effectiveHeight);
 
   let structureBasePrice: number;
   let installationBasePrice: number;

@@ -40,7 +40,7 @@ export type ExactPricingBreakdownSource = {
     installationPrice: number | null;
   };
   discount?: {
-    discountType?: 'led' | 'controller' | null;
+    discountType?: string | null;
     discountPercent?: number;
     discountAmountPerUnit?: number;
     numberOfUnits?: number;

@@ -12,6 +12,7 @@
  */
 
 import { PricingCalculationResult } from './centralizedPricing';
+import { billableAreaSqFt } from './displayMeasurements';
 import { Product } from '../types';
 import { normalizeOrderQuantity } from './orderQuantity';
 
@@ -69,8 +70,6 @@ export function getDiscountUnits(
   config?: { width: number; height: number; unit: string }
 ): number {
   const mode = getLedDiscountMode(product);
-  const METERS_TO_FEET = 3.2808399;
-
   if (mode === 'per_cabinet') {
     return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
   }
@@ -81,11 +80,7 @@ export function getDiscountUnits(
     const widthMm = cabinetGrid?.totalWidth || config?.width;
     const heightMm = cabinetGrid?.totalHeight || config?.height;
     if (!(widthMm && heightMm)) return 0;
-    const widthInMeters = widthMm / 1000;
-    const heightInMeters = heightMm / 1000;
-    const widthInFeet = widthInMeters * METERS_TO_FEET;
-    const heightInFeet = heightInMeters * METERS_TO_FEET;
-    return Math.round((widthInFeet * heightInFeet) * 100) / 100;
+    return billableAreaSqFt(widthMm, heightMm);
   }
 
   if (mode === 'per_unit') {
@@ -430,6 +425,13 @@ export function applySavedPriceOverrides(
 
   return {
     ...discounted,
+    // Replacing the controller after an LED override must not redefine the
+    // undiscounted baseline as the already-discounted LED price.
+    originalProductTotal: catalogPricing.productTotal,
+    originalProcessorTotal: catalogPricing.processorTotal,
+    originalGrandTotal: catalogPricing.grandTotal,
+    discountAmount: Math.round((catalogPricing.productTotal - discounted.productTotal +
+      catalogPricing.processorTotal - discounted.processorTotal) * 100) / 100,
     discountInfo: {
       discountType: led ? 'led' : 'controller',
       discountPercent: 0,

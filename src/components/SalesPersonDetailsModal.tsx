@@ -4,8 +4,8 @@ import { salesAPI } from '../api/sales';
 import { PdfViewModal } from './PdfViewModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
 import { buildExactPricingBreakdownForPdf, resolveDisplayedProductSubtotal } from '../utils/exactPricingBreakdownForPdf';
-import { addQuotationAddonsToTotal, readQuotationAddons, sumQuotationAddons } from '../utils/quotationAddons';
-import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel, rebuildGrandTotalFromComponents } from '../utils/discountCalculator';
+import { readQuotationAddons, sumQuotationAddons } from '../utils/quotationAddons';
+import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel } from '../utils/discountCalculator';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
 import {
   getQuotationItemSummary,
@@ -15,7 +15,8 @@ import {
   toPdfQuotationLineItems,
   priceLineItem,
   toPricingUserTypeCode,
-  PersistedQuotationLineItem
+  PersistedQuotationLineItem,
+  buildQuotationAccounting
 } from '../utils/quotationLineItems';
 import { QuotationProductSelectionModal } from './QuotationProductSelectionModal';
 import { products } from '../data/products';
@@ -51,9 +52,10 @@ interface Quotation {
   clientId?: string;
 
   exactPricingBreakdown?: {
-    unitPrice: number;
-    quantity: number;
-    subtotal: number;
+    pricingScope?: 'line' | 'quotation';
+    unitPrice?: number;
+    quantity?: number;
+    subtotal?: number;
     gstRate: number;
     gstAmount: number;
     processorPrice: number;
@@ -73,6 +75,7 @@ interface Quotation {
     addonsGST?: number;
     addonsTotal?: number;
     appliedAddons?: any[];
+    customAddons?: { description: string; price: number }[];
     customPricing?: any;
     discount?: {
       discountType?: string;
@@ -458,39 +461,14 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       quotation.quotationData?.customAddons,
       quotation.exactPricingBreakdown?.customAddons
     );
-    const quotationAddonsTotal = sumQuotationAddons(quotationAddons);
-    const lineSum = Math.round(updatedLineItems.reduce((sum, li) => {
-      const stored = Number(li.pricing?.grandTotal) || 0;
-      if (stored >= 0) return sum + stored;
-      return sum + rebuildGrandTotalFromComponents(li.pricing || {});
-    }, 0));
-    const multiGrandTotal = addQuotationAddonsToTotal(lineSum, quotationAddonsTotal);
-    const multiOriginalTotal = addQuotationAddonsToTotal(
-      Math.round(updatedLineItems.reduce((sum, li) => {
-        const original = li.discount?.originalGrandTotal ?? li.pricing?.grandTotal ?? 0;
-        return sum + (Number(original) || 0);
-      }, 0)),
-      quotationAddonsTotal
-    );
+    const accounting = buildQuotationAccounting(updatedLineItems, quotationAddons);
+    const multiGrandTotal = accounting.grandTotal;
+    const multiOriginalTotal = accounting.originalTotal;
 
     const anyDiscount = updatedLineItems.some(lineItemHasDiscount);
     const selectedDiscount = selectedItem.discount;
 
-    // Keep quotation-level breakdown aligned with selected product for backward compatibility
-    const selectedPricing = selectedItem.pricing || {};
-    const overriddenSubtotal = selectedPricing.productSubtotal;
-    const newExactPricingBreakdown = {
-      ...quotation.exactPricingBreakdown,
-      ...selectedPricing,
-      ...(overriddenSubtotal != null
-        ? { subtotal: overriddenSubtotal, productSubtotal: overriddenSubtotal }
-        : {}),
-      customAddons: quotationAddons,
-      customAddonsTotal: quotationAddonsTotal,
-      customAddonsIncludedInGrandTotal: true,
-      grandTotal: multiGrandTotal,
-      discount: selectedDiscount || undefined
-    };
+    const newExactPricingBreakdown = accounting.breakdown;
 
     const productDetails = quotation.productDetails;
     const exactSpecs = (quotation.exactProductSpecs || {}) as any;
@@ -560,6 +538,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       totalPrice: multiGrandTotal,
       originalTotalPrice: multiOriginalTotal,
       exactPricingBreakdown: newExactPricingBreakdown,
+      originalPricingBreakdown: accounting.originalBreakdown,
       pdfBase64,
       quotationData: {
         ...quotation.quotationData,
@@ -696,13 +675,14 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         ledDiscountMode: discountInfo.ledDiscountMode,
         ledOverride: preservedLedOverride,
         controllerOverride: preservedControllerOverride,
-        originalProductTotal: discountedPricing.originalProductTotal,
-        originalProcessorTotal: discountedPricing.originalProcessorTotal,
-        originalGrandTotal: discountedPricing.originalGrandTotal,
+        originalProductTotal: basePricing.productTotal,
+        originalProcessorTotal: basePricing.processorTotal,
+        originalGrandTotal: basePricing.grandTotal,
         discountedProductTotal: discountedPricing.discountedProductTotal,
         discountedProcessorTotal: discountedPricing.discountedProcessorTotal,
         discountedGrandTotal: discountedPricing.grandTotal,
-        discountAmount: discountedPricing.discountAmount
+        discountAmount: Math.round((basePricing.productTotal - discountedPricing.productTotal +
+          basePricing.processorTotal - discountedPricing.processorTotal) * 100) / 100
       };
 
       const updatedPricing = {
@@ -1216,6 +1196,23 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                 const processorAmount = breakdown.processorTotal ?? breakdown.processorPrice ?? 0;
                                                 const structureAmount = breakdown.structureTotal ?? breakdown.structureCost ?? 0;
                                                 const installationAmount = breakdown.installationTotal ?? breakdown.installationCost ?? 0;
+                                                const savedLines = normalizeQuotationLineItems(quotation);
+                                                if (savedLines.length > 1) {
+                                                  return <>
+                                                    {savedLines.map((line, index) => (
+                                                      <div key={line.id || index} className="border-b border-gray-200 pb-1">
+                                                        <div className="flex justify-between font-medium">
+                                                          <span>Product {index + 1}: {line.productName}</span>
+                                                          <span>₹{Number(line.pricing?.grandTotal || 0).toLocaleString('en-IN')}</span>
+                                                        </div>
+                                                        <div className="text-gray-500">
+                                                          {line.cabinetGrid?.columns} × {line.cabinetGrid?.rows} cabinets · {line.cabinetGrid?.totalWidth} × {line.cabinetGrid?.totalHeight} mm
+                                                          {line.orderQuantity > 1 ? ` · ${line.orderQuantity} units` : ''}
+                                                        </div>
+                                                      </div>
+                                                    ))}
+                                                  </>;
+                                                }
                                                 return (
                                                   <>
                                               <div className="flex justify-between">

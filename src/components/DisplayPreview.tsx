@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { hasDimensionConstraints } from '../utils/dimensionConstraints';
+import { formatDimensionInput } from '../utils/displayMeasurements';
 
 interface DisplayPreviewProps {
   config: DisplayConfig;
@@ -348,18 +349,8 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
     return modules;
   };
 
-  const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
-  const MM_TO_FEET = 1 / FEET_TO_MM;
-  
   const toDisplayUnit = (mm: number): string => {
-    if (config.unit === 'ft') {
-
-      const feet = mm * MM_TO_FEET;
-      return feet.toFixed(2);
-    }
-
-    const meters = mm / 1000;
-    return meters.toFixed(2);
+    return formatDimensionInput(mm, config.unit === 'ft' ? 'ft' : 'm');
   };
 
   let previewWidthMM = cabinetGrid?.totalWidth || config.width;

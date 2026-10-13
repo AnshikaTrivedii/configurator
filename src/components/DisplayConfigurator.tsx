@@ -2114,7 +2114,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           cabinetGrid={fixedCabinetGrid}
           processor={effectiveProcessor}
           mode={selectedMode}
-          userInfo={userInfo && userInfo.userType !== 'SI/Channel Partner' ? userInfo : undefined}
+          userInfo={userInfo}
           customAddons={userInfo?.customAddons}
           title={(userRole === 'sales' || userRole === 'partner' || userRole === 'super' || userRole === 'super_admin') && salesUser ? 'Sales Quote' : 'Get a Quote'}
           submitButtonText={(userRole === 'sales' || userRole === 'partner' || userRole === 'super' || userRole === 'super_admin') && salesUser ? 'Submit Sales Quote' : 'Submit Quote Request'}
