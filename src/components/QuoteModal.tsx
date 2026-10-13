@@ -14,7 +14,7 @@ import {
   readQuotationAddons,
   sumQuotationAddons
 } from '../utils/quotationAddons';
-import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel, mergeUiDiscountIntoLine, savedLineDiscountHasOverride, SavedLineDiscount } from '../utils/discountCalculator';
+import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel, discountForQuotationSave, savedLineDiscountHasOverride, SavedLineDiscount } from '../utils/discountCalculator';
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { isCrystalSeries } from '../utils/productSeries';
@@ -29,7 +29,8 @@ import {
   repriceCartLineItem,
   toPdfQuotationLineItems,
   toPricingUserTypeCode,
-  normalizeDisplayUserType
+  normalizeDisplayUserType,
+  applyLiveMatrixToSingleLineItem
 } from '../utils/quotationLineItems';
 
 interface ProductWithPricing extends Product {
@@ -114,6 +115,7 @@ function repriceQuoteLineItems(
   uiMerge?: {
     type: 'led' | 'controller' | null;
     amount: number;
+    formReady: boolean;
     product: Product;
     cabinetGrid: { columns: number; rows: number } | null | undefined;
     config: { width: number; height: number; unit: string };
@@ -128,10 +130,11 @@ function repriceQuoteLineItems(
       ? (li.customPricing.enabled ? li.customPricing : undefined)
       : (fallbackCustomPricing?.enabled ? fallbackCustomPricing : undefined);
     const discount = applyUi
-      ? mergeUiDiscountIntoLine(
+      ? discountForQuotationSave(
           li.discount,
           uiMerge!.type,
           uiMerge!.amount,
+          uiMerge!.formReady,
           uiMerge!.product,
           uiMerge!.cabinetGrid,
           uiMerge!.config
@@ -349,12 +352,28 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const [discountType, setDiscountType] = useState<'led' | 'controller' | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [discountAmountPerUnit, setDiscountAmountPerUnit] = useState<number>(0);
+  const [discountFormReady, setDiscountFormReady] = useState(false);
+  const discountTouchedRef = React.useRef(false);
+
+  const markDiscountTouched = () => {
+    discountTouchedRef.current = true;
+    setDiscountFormReady(true);
+  };
 
   React.useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      discountTouchedRef.current = false;
+      setDiscountFormReady(false);
+      return;
+    }
+    if (discountTouchedRef.current) {
+      setDiscountFormReady(true);
+      return;
+    }
     const sourceItem = lineItems.length === 1
       ? lineItems[0]
       : null;
+    if (!sourceItem && lineItems.length === 0) return;
     const d = sourceItem?.discount;
     if (savedLineDiscountHasOverride(d)) {
       const type = (d!.discountType === 'led' || d!.discountType === 'controller')
@@ -371,7 +390,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       setDiscountPercent(0);
       setDiscountAmountPerUnit(0);
     }
-  }, [isOpen]);
+    setDiscountFormReady(true);
+  }, [isOpen, lineItems]);
 
   const [internalCustomPricingEnabled, setInternalCustomPricingEnabled] = useState(externalCustomPricing?.enabled || false);
   const [internalCustomStructurePrice, setInternalCustomStructurePrice] = useState<number | null>(externalCustomPricing?.structurePrice || null);
@@ -581,14 +601,16 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           ? {
               type: discountType,
               amount: discountAmountPerUnit,
+              formReady: discountFormReady,
               product: selectedProduct,
               cabinetGrid,
               config: configForCalc
             }
           : null;
 
-        const effectiveLineItems = lineItems.length > 0
-          ? repriceQuoteLineItems(lineItems, userType, customPricingObj, uiMerge)
+        const linesWithLiveMatrix = applyLiveMatrixToSingleLineItem(lineItems, configForCalc, cabinetGrid);
+        const effectiveLineItems = linesWithLiveMatrix.length > 0
+          ? repriceQuoteLineItems(linesWithLiveMatrix, userType, customPricingObj, uiMerge)
           : [];
 
         const persistedLineItems = effectiveLineItems.length > 0
@@ -619,10 +641,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                   orderQuantity,
                   unitPricingSnapshot: pricingForUpdate,
                   discount: uiMerge
-                    ? mergeUiDiscountIntoLine(
+                    ? discountForQuotationSave(
                         undefined,
                         uiMerge.type,
                         uiMerge.amount,
+                        uiMerge.formReady,
                         uiMerge.product,
                         uiMerge.cabinetGrid,
                         uiMerge.config
@@ -1060,14 +1083,16 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             ? {
                 type: discountType,
                 amount: discountAmountPerUnit,
+                formReady: discountFormReady,
                 product: selectedProduct,
                 cabinetGrid,
                 config: configForDiscount
               }
             : null;
 
-          const effectiveLineItems = lineItems.length > 0
-            ? repriceQuoteLineItems(lineItems, userType, customPricingObj, uiMerge)
+          const linesWithLiveMatrix = applyLiveMatrixToSingleLineItem(lineItems, configForDiscount, cabinetGrid);
+          const effectiveLineItems = linesWithLiveMatrix.length > 0
+            ? repriceQuoteLineItems(linesWithLiveMatrix, userType, customPricingObj, uiMerge)
             : [];
 
           const multiItemTotal = effectiveLineItems.length > 1
@@ -1146,10 +1171,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 orderQuantity,
                 unitPricingSnapshot: finalPricingResult,
                 discount: discountInfo
-                  ? mergeUiDiscountIntoLine(
+                  ? discountForQuotationSave(
                       undefined,
                       discountInfo.discountType,
                       discountInfo.discountAmountPerUnit,
+                      true,
                       selectedProduct,
                       cabinetGrid,
                       configForDiscount
@@ -1688,7 +1714,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   name="discountType"
                                   value="led"
                                   checked={discountType === 'led'}
-                                  onChange={() => setDiscountType('led')}
+                                  onChange={() => { markDiscountTouched(); setDiscountType('led'); }}
                                   disabled={isSubmitting}
                                   className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
                                 />
@@ -1700,7 +1726,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   name="discountType"
                                   value="controller"
                                   checked={discountType === 'controller'}
-                                  onChange={() => setDiscountType('controller')}
+                                  onChange={() => { markDiscountTouched(); setDiscountType('controller'); }}
                                   disabled={isSubmitting}
                                   className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
                                 />
@@ -1712,7 +1738,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   name="discountType"
                                   value=""
                                   checked={discountType === null}
-                                  onChange={() => setDiscountType(null)}
+                                  onChange={() => { markDiscountTouched(); setDiscountType(null); }}
                                   disabled={isSubmitting}
                                   className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
                                 />
@@ -1753,6 +1779,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                     value={discountAmountPerUnit || ''}
                                     onChange={(e) => {
                                       const value = parseFloat(e.target.value) || 0;
+                                      markDiscountTouched();
                                       setDiscountAmountPerUnit(Math.max(0, value));
                                     }}
                                     disabled={isSubmitting}
@@ -1797,6 +1824,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   value={discountAmountPerUnit || ''}
                                   onChange={(e) => {
                                     const value = parseFloat(e.target.value) || 0;
+                                    markDiscountTouched();
                                     setDiscountAmountPerUnit(Math.max(0, value));
                                   }}
                                   disabled={isSubmitting}

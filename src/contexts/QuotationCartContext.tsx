@@ -55,7 +55,7 @@ interface QuotationCartContextType {
     }
   ) => void;
   removeLineItem: (id: string) => void;
-  setLineItems: (items: QuotationLineItem[]) => void;
+  setLineItems: (items: QuotationLineItem[], editingId?: string | null) => void;
   clearCart: () => void;
   totalOrderQuantity: number;
   cartGrandTotal: number;
@@ -216,9 +216,9 @@ export const QuotationCartProvider: React.FC<{ children: ReactNode }> = ({ child
     setEditingItemId(prev => (prev === id ? null : prev));
   }, []);
 
-  const setLineItems = useCallback((items: QuotationLineItem[]) => {
+  const setLineItems = useCallback((items: QuotationLineItem[], editingId?: string | null) => {
     setLineItemsState(items);
-    setEditingItemId(null);
+    setEditingItemId(editingId === undefined ? null : editingId);
   }, []);
 
   const clearCart = useCallback(() => {

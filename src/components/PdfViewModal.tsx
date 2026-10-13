@@ -25,7 +25,8 @@ import {
   formatQuotationProductLabel,
   sumLineItemGrandTotals,
   toPdfQuotationLineItems,
-  buildExactPricingBreakdownFromCartItem
+  buildExactPricingBreakdownFromCartItem,
+  syncSingleProductLineForSave
 } from '../utils/quotationLineItems';
 import { savedLineDiscountHasOverride } from '../utils/discountCalculator';
 import { fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from '../utils/multiProductQuotationHtml';
@@ -757,11 +758,42 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     const customerName = userInfo?.fullName?.trim() || userInfo?.customerName?.trim() || '';
     const customerEmail = userInfo?.email?.trim() || userInfo?.customerEmail?.trim() || '';
     const customerPhone = userInfo?.phoneNumber?.trim() || userInfo?.customerPhone?.trim() || '';
-    const persistedLineItems = lineItems.length > 0 ? toPersistedLineItems(lineItems) : null;
-    const multiItemTotal = lineItems.length > 1 ? sumLineItemGrandTotals(lineItems) : null;
-    const productName = lineItems.length > 1
-      ? formatQuotationProductLabel(lineItems)
+    const syncedLineItems = lineItems.length > 0
+      ? syncSingleProductLineForSave(
+          lineItems,
+          config,
+          cabinetGrid,
+          userTypeForCalc,
+          customPricing,
+          exactPricingBreakdown?.discount
+        )
+      : lineItems;
+    const persistedLineItems = syncedLineItems.length > 0
+      ? toPersistedLineItems(syncedLineItems)
+      : null;
+    const multiItemTotal = syncedLineItems.length > 1 ? sumLineItemGrandTotals(syncedLineItems) : null;
+    const productName = syncedLineItems.length > 1
+      ? formatQuotationProductLabel(syncedLineItems)
       : (selectedProduct?.name || selectedProduct?.productName || 'Unknown Product');
+    const syncedPrimary = syncedLineItems.length === 1 ? syncedLineItems[0] : primaryCartItem;
+    if (
+      syncedLineItems.length === 1 &&
+      savedLineDiscountHasOverride(syncedPrimary?.discount) &&
+      syncedPrimary?.unitPricingSnapshot?.isAvailable
+    ) {
+      const lineGrand = Number(syncedPrimary.unitPricingSnapshot.grandTotal) || 0;
+      finalTotalPrice = addQuotationAddonsToTotal(lineGrand, quotationAddonsTotal);
+      const lineBreakdown = buildExactPricingBreakdownFromCartItem(syncedPrimary) || {};
+      finalPricingResult = {
+        ...finalPricingResult,
+        ...lineBreakdown,
+        customAddons: quotationAddons,
+        customAddonsTotal: quotationAddonsTotal,
+        customAddonsIncludedInGrandTotal: true,
+        grandTotal: finalTotalPrice,
+        discount: syncedPrimary.discount
+      };
+    }
     if (multiItemTotal != null) {
       finalTotalPrice = addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal);
     }
@@ -807,8 +839,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       salesUserId: finalSalesUserId,
       salesUserName: finalSalesUserName,
 
-      discountType: primaryCartItem?.discount?.discountType || exactPricingBreakdown?.discount?.discountType || null,
-      discountPercent: primaryCartItem?.discount?.discountPercent || 0,
+      discountType: syncedPrimary?.discount?.discountType || exactPricingBreakdown?.discount?.discountType || null,
+      discountPercent: syncedPrimary?.discount?.discountPercent || 0,
 
       exactPricingBreakdown: {
         unitPrice: finalPricingResult.unitPrice,
@@ -834,8 +866,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         customAddonsTotal: quotationAddonsTotal,
         customAddonsIncludedInGrandTotal: true,
         grandTotal: finalTotalPrice,
-        ...((primaryCartItem?.discount || finalPricingResult.discount)
-          ? { discount: primaryCartItem?.discount || finalPricingResult.discount }
+        ...((syncedPrimary?.discount || finalPricingResult.discount)
+          ? { discount: syncedPrimary?.discount || finalPricingResult.discount }
           : {}),
         customPricing: customPricing?.enabled ? {
           enabled: true,
@@ -866,16 +898,16 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         ...(persistedLineItems
           ? { lineItems: persistedLineItems, itemCount: persistedLineItems.length }
           : {}),
-        discountApplied: lineItems.some(li => savedLineDiscountHasOverride(li.discount))
+        discountApplied: syncedLineItems.some(li => savedLineDiscountHasOverride(li.discount))
           || !!finalPricingResult.discount,
-        discountInfo: primaryCartItem?.discount
+        discountInfo: syncedPrimary?.discount
           ? {
-              type: primaryCartItem.discount.discountType,
-              percent: primaryCartItem.discount.discountPercent || 0,
-              amount: primaryCartItem.discount.discountAmount || 0,
-              amountPerUnit: primaryCartItem.discount.discountAmountPerUnit || 0,
-              numberOfUnits: primaryCartItem.discount.numberOfUnits || 0,
-              ledDiscountMode: primaryCartItem.discount.ledDiscountMode || 'none'
+              type: syncedPrimary.discount.discountType,
+              percent: syncedPrimary.discount.discountPercent || 0,
+              amount: syncedPrimary.discount.discountAmount || 0,
+              amountPerUnit: syncedPrimary.discount.discountAmountPerUnit || 0,
+              numberOfUnits: syncedPrimary.discount.numberOfUnits || 0,
+              ledDiscountMode: syncedPrimary.discount.ledDiscountMode || 'none'
             }
           : (finalPricingResult.discount
             ? {

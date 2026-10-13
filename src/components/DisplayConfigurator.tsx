@@ -36,7 +36,8 @@ import {
   toPdfQuotationLineItems,
   buildLineItemConfigurationKey,
   toPricingUserTypeCode,
-  normalizeDisplayUserType
+  normalizeDisplayUserType,
+  chooseHydratedLinePricing
 } from '../utils/quotationLineItems';
 import { QuotationBuilderPanel } from './QuotationBuilderPanel';
 import { validateDimensions, hasDimensionConstraints, clampAndSnapDimensions } from '../utils/dimensionConstraints';
@@ -145,6 +146,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     matched: boolean;
   } | null>(null);
   const hydratedQuotationKeyRef = useRef<string | null>(null);
+  const addingAnotherProductRef = useRef(false);
   // Product id whose dimensions were already set explicitly (restore / fresh start), so the
   // delayed product-switch sizing effect must not overwrite them.
   const dimensionsSetForProductIdRef = useRef<string | null>(null);
@@ -482,8 +484,9 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             toPricingUserTypeCode(restoredUserType),
             restoredCustomPricing?.enabled ? restoredCustomPricing : undefined
           );
+          const chosen = chooseHydratedLinePricing(repriced, pricingFromSaved, activeQuotation);
           return {
-            ...repriced,
+            ...chosen,
             configurationKey: buildLineItemConfigurationKey({
               product: lineProduct,
               config,
@@ -493,17 +496,14 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
               wireType: li.wireType,
               nexaAddons: li.nexaAddons || [],
               selectedCabinetSize
-            }),
-            unitPricingSnapshot: repriced.unitPricingSnapshot || pricingFromSaved
+            })
           } as QuotationLineItem;
         }).filter(Boolean) as QuotationLineItem[];
 
         if (hydrated.length > 0) {
-          setLineItems(hydrated);
+          addingAnotherProductRef.current = false;
+          setLineItems(hydrated, hydrated[0].id);
           applyLineItemToConfigurator(hydrated[0]);
-          // setLineItems clears editingItemId; re-mark the line now on screen so
-          // matrix edits update this saved item instead of adding a new one.
-          setEditingItemId(hydrated[0].id);
         }
       } catch (err) {
         console.warn('Failed to restore quotation line items:', err);
@@ -1202,8 +1202,16 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const getActiveLineDiscount = () => {
-    if (!editingItemId) return undefined;
-    return lineItems.find(li => li.id === editingItemId)?.discount;
+    if (editingItemId) {
+      return lineItems.find(li => li.id === editingItemId)?.discount;
+    }
+    // A matrix update clears edit mode, but the saved per-unit override still
+    // belongs to this product. Do not apply it once the user starts a new product.
+    if (addingAnotherProductRef.current) return undefined;
+    if (lineItems.length !== 1 || !effectiveProduct) return undefined;
+    const only = lineItems[0];
+    if (only.product?.id !== effectiveProduct.id) return undefined;
+    return only.discount;
   };
 
   const buildCurrentLineInput = () => {
@@ -1345,6 +1353,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const handleAddAnotherProduct = () => {
+    addingAnotherProductRef.current = true;
     setEditingItemId(null);
     resetConfigOnNextProductSelectRef.current = true;
     setIsProductSelectorOpen(true);
@@ -1359,6 +1368,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const handleEditCartItem = (item: QuotationLineItem) => {
+    addingAnotherProductRef.current = false;
     setEditingItemId(item.id);
     setShowLeftPanel(true);
     applyLineItemToConfigurator(item);

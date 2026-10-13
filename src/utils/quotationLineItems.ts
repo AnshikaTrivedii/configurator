@@ -8,6 +8,7 @@ import { calculateCentralizedPricing, PricingCalculationResult } from './central
 import {
   applySavedPriceOverrides,
   buildPersistedDiscount,
+  getLedDiscountMode,
   rebuildGrandTotalFromComponents,
   SavedLineDiscount,
   savedLineDiscountHasOverride
@@ -511,6 +512,195 @@ export function toPersistedLineItems(items: QuotationLineItem[]): PersistedQuota
         }
       : undefined
   }));
+}
+
+/**
+ * Single-product quotations show the live matrix on the PDF via exactProductSpecs,
+ * while the Sales Dashboard reads quotationData.lineItems[0].cabinetGrid.
+ * If the cart line was not updated after a matrix edit, copy the live grid onto
+ * that one line so both fields persist the same dimensions. Multi-product carts
+ * are left unchanged.
+ */
+export function applyLiveMatrixToSingleLineItem<T extends {
+  config: DisplayConfig;
+  cabinetGrid: CabinetGrid;
+}>(
+  items: T[],
+  liveConfig: { width?: number; height?: number; unit?: string; aspectRatio?: string | null } | null | undefined,
+  liveGrid: { columns?: number; rows?: number; totalWidth?: number; totalHeight?: number } | null | undefined
+): T[] {
+  if (items.length !== 1 || !liveGrid) return items;
+  const columns = Number(liveGrid.columns);
+  const rows = Number(liveGrid.rows);
+  if (!Number.isFinite(columns) || !Number.isFinite(rows) || columns <= 0 || rows <= 0) {
+    return items;
+  }
+
+  const item = items[0];
+  const width = liveConfig?.width ?? item.config?.width;
+  const height = liveConfig?.height ?? item.config?.height;
+  const nextGrid: CabinetGrid = {
+    columns,
+    rows,
+    totalWidth: liveGrid.totalWidth || width || item.cabinetGrid?.totalWidth || 0,
+    totalHeight: liveGrid.totalHeight || height || item.cabinetGrid?.totalHeight || 0
+  };
+  if (
+    item.cabinetGrid?.columns === nextGrid.columns &&
+    item.cabinetGrid?.rows === nextGrid.rows &&
+    item.config?.width === width &&
+    item.config?.height === height
+  ) {
+    return items;
+  }
+
+  return [{
+    ...item,
+    config: {
+      ...item.config,
+      width: width ?? item.config.width,
+      height: height ?? item.config.height,
+      unit: (liveConfig?.unit as DisplayConfig['unit']) || item.config?.unit || 'mm',
+      aspectRatio: (liveConfig?.aspectRatio ?? item.config?.aspectRatio) as DisplayConfig['aspectRatio']
+    },
+    cabinetGrid: nextGrid
+  }];
+}
+
+function moneyClose(a: unknown, b: unknown): boolean {
+  const left = Number(a);
+  const right = Number(b);
+  return Number.isFinite(left) && Number.isFinite(right) && Math.abs(left - right) < 1;
+}
+
+/**
+ * Single-product save: copy the live matrix onto the line and reprice it with
+ * the line override, or the breakdown override when the line never received it.
+ * Multi-product carts are returned unchanged.
+ */
+export function syncSingleProductLineForSave(
+  items: QuotationLineItem[],
+  liveConfig: { width?: number; height?: number; unit?: string; aspectRatio?: string | null } | null | undefined,
+  liveGrid: { columns?: number; rows?: number; totalWidth?: number; totalHeight?: number } | null | undefined,
+  userType: string,
+  customPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  },
+  breakdownDiscount?: SavedLineDiscount | null
+): QuotationLineItem[] {
+  const aligned = applyLiveMatrixToSingleLineItem(items, liveConfig, liveGrid);
+  if (aligned.length !== 1) return aligned;
+  const line = aligned[0];
+  const discount = savedLineDiscountHasOverride(line.discount)
+    ? line.discount
+    : (savedLineDiscountHasOverride(breakdownDiscount) ? breakdownDiscount || undefined : line.discount);
+  return [repriceCartLineItem(
+    { ...line, discount },
+    userType,
+    customPricing?.enabled ? customPricing : undefined
+  )];
+}
+
+/**
+ * Edit hydration must not replace the latest saved price with a catalog recalculation.
+ * A recognized override is applied once, on top of the catalog price.
+ * When the line still holds an older catalog snapshot but the quotation total was
+ * saved from a replacement unit price, restore that unit price before display.
+ */
+export function chooseHydratedLinePricing(
+  repriced: QuotationLineItem,
+  pricingFromSaved: PricingCalculationResult | null | undefined,
+  quotation: any
+): QuotationLineItem {
+  const snapshot = repriced.unitPricingSnapshot;
+  if (savedLineDiscountHasOverride(repriced.discount) && snapshot?.isAvailable) {
+    return {
+      ...repriced,
+      unitPricingSnapshot: snapshot
+    };
+  }
+
+  const withSavedFallback = (): QuotationLineItem => ({
+    ...repriced,
+    unitPricingSnapshot: snapshot?.isAvailable ? snapshot : (pricingFromSaved || snapshot)
+  });
+
+  const breakdown = quotation?.exactPricingBreakdown;
+  const savedTotal = Number(quotation?.totalPrice);
+  const breakdownTotal = Number(breakdown?.grandTotal);
+  const repricedTotal = Number(snapshot?.grandTotal);
+  const savedUnit = Number(breakdown?.unitPrice);
+  const catalogUnit = Number(snapshot?.unitPrice);
+  const breakdownIsLatestSavedPrice =
+    !!breakdown &&
+    moneyClose(breakdownTotal, savedTotal) &&
+    !moneyClose(repricedTotal, breakdownTotal) &&
+    savedUnit > 0 &&
+    !moneyClose(savedUnit, catalogUnit);
+
+  if (!breakdownIsLatestSavedPrice) {
+    return withSavedFallback();
+  }
+
+  const ledMode = getLedDiscountMode(repriced.product);
+  if (ledMode !== 'none') {
+    const synthesized: SavedLineDiscount = {
+      discountType: 'led',
+      discountPercent: 0,
+      discountAmountPerUnit: savedUnit,
+      ledDiscountMode: ledMode,
+      ledOverride: { amountPerUnit: savedUnit, ledDiscountMode: ledMode }
+    };
+    const again = repriceCartLineItem(
+      { ...repriced, discount: synthesized },
+      toPricingUserTypeCode(repriced.userType),
+      repriced.customPricing?.enabled ? repriced.customPricing : undefined
+    );
+    const againTotal = Number(again.unitPricingSnapshot?.grandTotal);
+    const addonTotal = breakdown.customAddonsIncludedInGrandTotal ? Number(breakdown.customAddonsTotal) || 0 : 0;
+    const comparableTotal = breakdownTotal - addonTotal;
+    if (
+      again.unitPricingSnapshot?.isAvailable &&
+      moneyClose(again.unitPricingSnapshot.unitPrice, savedUnit) &&
+      (moneyClose(againTotal, comparableTotal) || moneyClose(againTotal, breakdownTotal))
+    ) {
+      return again;
+    }
+  }
+
+  return {
+    ...repriced,
+    discount: resolveQuotationLevelDiscount(quotation) || repriced.discount,
+    unitPricingSnapshot: {
+      ...(snapshot || {}),
+      unitPrice: savedUnit,
+      quantity: breakdown.quantity ?? snapshot?.quantity ?? 1,
+      orderQuantity: normalizeOrderQuantity(repriced.orderQuantity),
+      unitGrandTotal: breakdown.unitGrandTotal ?? breakdown.grandTotal ?? 0,
+      productSubtotal: breakdown.productSubtotal ?? breakdown.subtotal ?? snapshot?.productSubtotal ?? 0,
+      productGST: breakdown.productGST ?? breakdown.gstAmount ?? 0,
+      productTotal: breakdown.productTotal ?? breakdown.subtotal ?? snapshot?.productTotal ?? 0,
+      processorPrice: breakdown.processorPrice ?? snapshot?.processorPrice ?? 0,
+      processorGST: breakdown.processorGST ?? breakdown.processorGst ?? 0,
+      processorTotal: breakdown.processorTotal ?? breakdown.processorPrice ?? snapshot?.processorTotal ?? 0,
+      structureCost: breakdown.structureCost ?? snapshot?.structureCost ?? 0,
+      structureGST: breakdown.structureGST ?? 0,
+      structureTotal: breakdown.structureTotal ?? breakdown.structureCost ?? snapshot?.structureTotal ?? 0,
+      installationCost: breakdown.installationCost ?? snapshot?.installationCost ?? 0,
+      installationGST: breakdown.installationGST ?? 0,
+      installationTotal: breakdown.installationTotal ?? breakdown.installationCost ?? snapshot?.installationTotal ?? 0,
+      addonsCost: breakdown.addonsCost ?? snapshot?.addonsCost ?? 0,
+      addonsGST: breakdown.addonsGST ?? 0,
+      addonsTotal: breakdown.addonsTotal ?? snapshot?.addonsTotal ?? 0,
+      appliedAddons: breakdown.appliedAddons ?? snapshot?.appliedAddons ?? [],
+      grandTotal: breakdownTotal,
+      userType: snapshot?.userType || 'End User',
+      productName: repriced.product?.name || snapshot?.productName || '',
+      isAvailable: true
+    } as PricingCalculationResult
+  };
 }
 
 export function buildLineItemConfigurationKey(item: {

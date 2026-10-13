@@ -10,7 +10,8 @@ import {
   DiscountInfo,
   getLedDiscountMode,
   getDiscountUnits,
-  mergeUiDiscountIntoLine
+  mergeUiDiscountIntoLine,
+  discountForQuotationSave
 } from './discountCalculator';
 import { PricingCalculationResult } from './centralizedPricing';
 import {
@@ -18,7 +19,10 @@ import {
   resolveLineItemDiscount,
   resolveQuotationLevelDiscount,
   toPersistedLineItems,
-  normalizeQuotationLineItems
+  normalizeQuotationLineItems,
+  applyLiveMatrixToSingleLineItem,
+  chooseHydratedLinePricing,
+  syncSingleProductLineForSave
 } from './quotationLineItems';
 
 function makePricing(overrides: Partial<PricingCalculationResult> = {}): PricingCalculationResult {
@@ -525,6 +529,199 @@ console.log('Price override / Grand Total tests');
     'UI LED override preserves an existing controller override',
     merged?.ledOverride?.amountPerUnit === 4500 && merged?.controllerOverride?.amountPerUnit === 12_000
   );
+}
+
+{
+  const stale = [{
+    config: { width: 1800, height: 3712.5, unit: 'mm' as const, aspectRatio: null },
+    cabinetGrid: { columns: 3, rows: 11, totalWidth: 1800, totalHeight: 3712.5 },
+    productName: 'Screen'
+  }];
+  const aligned = applyLiveMatrixToSingleLineItem(
+    stale,
+    { width: 1800, height: 675, unit: 'mm' },
+    { columns: 3, rows: 2, totalWidth: 1800, totalHeight: 675 }
+  );
+  assert('single-product save copies the edited matrix onto the line item', aligned[0].cabinetGrid.columns === 3 && aligned[0].cabinetGrid.rows === 2);
+  assert('single-product save copies the edited height onto the line config', aligned[0].config.height === 675);
+
+  const persisted = toPersistedLineItems([{
+    id: 'qli-matrix',
+    configurationKey: 'k',
+    product: { id: 'core-1', name: 'Core P2.5', category: 'Core Series Indoor' } as any,
+    config: aligned[0].config,
+    cabinetGrid: aligned[0].cabinetGrid,
+    processor: null,
+    mode: null,
+    orderQuantity: 1
+  }]);
+  const dashboardGrid = normalizeQuotationLineItems({
+    exactProductSpecs: { cabinetGrid: { columns: 3, rows: 2 } },
+    quotationData: { lineItems: persisted }
+  })[0].cabinetGrid;
+  assert(
+    'dashboard line-item matrix matches the saved 3 x 2 grid',
+    dashboardGrid.columns === 3 && dashboardGrid.rows === 2
+  );
+
+  const multi = applyLiveMatrixToSingleLineItem(
+    [
+      { ...stale[0] },
+      { config: { width: 600, height: 337.5, unit: 'mm' as const, aspectRatio: null }, cabinetGrid: { columns: 1, rows: 1, totalWidth: 600, totalHeight: 337.5 } }
+    ],
+    { width: 1800, height: 675, unit: 'mm' },
+    { columns: 3, rows: 2 }
+  );
+  assert('multi-product quotations keep each line matrix', multi[0].cabinetGrid.rows === 11 && multi[1].cabinetGrid.rows === 1);
+
+  const unchanged = applyLiveMatrixToSingleLineItem(aligned, aligned[0].config, aligned[0].cabinetGrid);
+  assert('matching matrix is not rewritten', unchanged === aligned);
+}
+
+{
+  const existing = {
+    discountType: 'led' as const,
+    discountAmountPerUnit: 1200,
+    ledOverride: { amountPerUnit: 1200, ledDiscountMode: 'per_sqft' }
+  };
+  const product = { category: 'Core Series', name: 'Core' };
+  const grid = { columns: 6, rows: 7 };
+  const config = { width: 3600, height: 2362.5, unit: 'mm' };
+  const kept = discountForQuotationSave(existing, null, 0, false, product, grid, config);
+  assert('save before the discount form loads keeps the saved override', kept?.ledOverride?.amountPerUnit === 1200);
+  const cleared = discountForQuotationSave(existing, null, 0, true, product, grid, config);
+  assert('explicit No Discount clears the saved override', cleared === undefined);
+  const replaced = discountForQuotationSave(existing, 'led', 1500, true, product, grid, config);
+  assert('a new LED override replaces the saved unit price', replaced?.ledOverride?.amountPerUnit === 1500);
+  assert('a new LED override does not invent a controller override', !replaced?.controllerOverride);
+}
+
+{
+  const product = {
+    id: 'core-stale',
+    name: 'Sigma Core P1.25',
+    category: 'Core Series',
+    price: 27200,
+    siChannelPrice: 24480,
+    resellerPrice: 23120,
+    cabinetDimensions: { width: 600, height: 337.5 },
+    resolution: { width: 480, height: 270 }
+  };
+  const staleLine = {
+    id: 'line-1',
+    configurationKey: 'k',
+    product,
+    config: { width: 3600, height: 2362.5, unit: 'mm' as const, aspectRatio: null },
+    cabinetGrid: { columns: 6, rows: 7, totalWidth: 3600, totalHeight: 2362.5 },
+    processor: 'VX1000',
+    mode: null,
+    orderQuantity: 1,
+    userType: 'End User' as const,
+    discount: undefined,
+    unitPricingSnapshot: makePricing({ unitPrice: 27200, productSubtotal: 2490160, productTotal: 2490160, grandTotal: 2861435, processorPrice: 157500, processorTotal: 157500 })
+  };
+  const quotation = {
+    totalPrice: 481135,
+    userType: 'endUser',
+    exactPricingBreakdown: {
+      unitPrice: 1200,
+      quantity: 91.55,
+      grandTotal: 481135,
+      productSubtotal: 109860,
+      productTotal: 109860,
+      processorPrice: 157500,
+      processorTotal: 157500,
+      structureCost: 0,
+      structureTotal: 0,
+      installationCost: 0,
+      installationTotal: 0,
+      discount: {
+        discountType: 'led',
+        discountAmountPerUnit: 1200,
+        ledDiscountMode: 'per_sqft',
+        ledOverride: { amountPerUnit: 1200, numberOfUnits: 91.55, ledDiscountMode: 'per_sqft' }
+      }
+    },
+    quotationData: {
+      lineItems: [{
+        ...staleLine,
+        productId: product.id,
+        productName: product.name,
+        pricing: { unitPrice: 27200, grandTotal: 2861435 }
+      }]
+    }
+  };
+  const normalized = normalizeQuotationLineItems(quotation);
+  assert(
+    'a line saved at the catalog price still resolves the breakdown override',
+    normalized[0].discount?.ledOverride?.amountPerUnit === 1200
+  );
+  const repriced = {
+    ...staleLine,
+    discount: normalized[0].discount
+  };
+  const chosen = chooseHydratedLinePricing(
+    {
+      ...repriced,
+      unitPricingSnapshot: makePricing({ unitPrice: 1200, grandTotal: 481135, productTotal: 109860 })
+    } as any,
+    staleLine.unitPricingSnapshot,
+    quotation
+  );
+  assert(
+    'edit keeps the saved override instead of the stale catalog snapshot',
+    chosen.discount?.ledOverride?.amountPerUnit === 1200
+      && chosen.unitPricingSnapshot?.unitPrice === 1200
+      && chosen.unitPricingSnapshot?.grandTotal === 481135
+  );
+
+  const catalogOnly = chooseHydratedLinePricing(
+    { ...staleLine, discount: undefined, unitPricingSnapshot: makePricing({ unitPrice: 27200, grandTotal: 2861435 }) } as any,
+    staleLine.unitPricingSnapshot,
+    {
+      totalPrice: 481135,
+      exactPricingBreakdown: {
+        unitPrice: 1200,
+        quantity: 91.55,
+        grandTotal: 481135,
+        productSubtotal: 109860,
+        productTotal: 109860,
+        processorPrice: 157500,
+        processorTotal: 157500,
+        structureTotal: 0,
+        installationTotal: 0
+      }
+    }
+  );
+  assert(
+    'edit restores a saved replacement unit price when the line snapshot is still the catalog price',
+    catalogOnly.unitPricingSnapshot?.unitPrice === 1200 && catalogOnly.unitPricingSnapshot?.grandTotal !== 2861435
+  );
+
+  const synced = syncSingleProductLineForSave(
+    [{
+      ...staleLine,
+      config: { width: 1800, height: 1012.5, unit: 'mm' as const, aspectRatio: null },
+      cabinetGrid: { columns: 3, rows: 3, totalWidth: 1800, totalHeight: 1012.5 },
+      discount: { discountType: 'led', discountAmountPerUnit: 1200, ledOverride: { amountPerUnit: 1200, ledDiscountMode: 'per_sqft' } },
+      unitPricingSnapshot: makePricing({ unitPrice: 27200, grandTotal: 900000 })
+    }] as any,
+    { width: 3600, height: 2362.5, unit: 'mm' },
+    { columns: 6, rows: 7, totalWidth: 3600, totalHeight: 2362.5 },
+    'endUser',
+    undefined,
+    null
+  );
+  assert('matrix save keeps the per-unit override on the updated line', synced[0].discount?.ledOverride?.amountPerUnit === 1200);
+  assert('matrix save stores the updated grid with the override', synced[0].cabinetGrid.rows === 7 && synced[0].cabinetGrid.columns === 6);
+  assert('matrix save does not persist the previous catalog unit price', synced[0].unitPricingSnapshot?.unitPrice === 1200);
+
+  const fresh = chooseHydratedLinePricing(
+    { ...staleLine, unitPricingSnapshot: makePricing({ unitPrice: 27200, grandTotal: 2861435 }) } as any,
+    staleLine.unitPricingSnapshot,
+    { totalPrice: 2861435, exactPricingBreakdown: { unitPrice: 27200, grandTotal: 2861435 } }
+  );
+  assert('a new quotation without an override stays on the catalog price', fresh.unitPricingSnapshot?.unitPrice === 27200 && !fresh.discount);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

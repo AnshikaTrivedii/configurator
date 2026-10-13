@@ -525,3 +525,22 @@ export function mergeUiDiscountIntoLine(
 
   return undefined;
 }
+
+/**
+ * QuoteModal save merge.
+ * Until the discount form has loaded the saved line, keep that line's override.
+ * After it has loaded, "No Discount" clears both overrides and a positive
+ * LED or controller value replaces only that side.
+ */
+export function discountForQuotationSave(
+  existing: SavedLineDiscount | null | undefined,
+  uiType: 'led' | 'controller' | null,
+  uiAmount: number,
+  formReady: boolean,
+  product: Product | any,
+  cabinetGrid: { columns: number; rows: number } | null | undefined,
+  config?: { width: number; height: number; unit: string }
+): SavedLineDiscount | undefined {
+  if (!formReady) return existing || undefined;
+  return mergeUiDiscountIntoLine(existing, uiType, uiAmount, product, cabinetGrid, config);
+}
