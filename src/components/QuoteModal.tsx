@@ -666,9 +666,15 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           : null;
 
         const appliedAddons = primaryUpdatePricing.appliedAddons;
+        const pricedFromLine = !!(
+          primaryUpdateItem?.unitPricingSnapshot
+          || (persistedLineItems.length === 1 && persistedLineItems[0].pricing)
+        );
         const updateGrandTotal = multiItemTotal != null
           ? addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal)
-          : (primaryUpdatePricing.grandTotal ?? pricingForUpdate.grandTotal);
+          : (pricedFromLine
+              ? addQuotationAddonsToTotal(primaryUpdatePricing.grandTotal ?? 0, quotationAddonsTotal)
+              : (primaryUpdatePricing.grandTotal ?? pricingForUpdate.grandTotal));
         const updateDiscountMeta = quotationDiscountFieldsFromLine(
           primaryUpdateItem || (effectiveLineItems.length <= 1 ? {
             discount: persistedLineItems[0]?.discount
@@ -1143,6 +1149,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
           if (multiItemTotal != null) {
             finalTotalPrice = addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal);
+          } else if (primaryPricedItem?.unitPricingSnapshot?.isAvailable) {
+            finalTotalPrice = addQuotationAddonsToTotal(
+              Number(primaryPricedItem.unitPricingSnapshot.grandTotal) || 0,
+              quotationAddonsTotal
+            );
           }
 
           const persistedLineItems = effectiveLineItems.length > 0
@@ -1185,12 +1196,27 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
           if (discountInfo && persistedLineItems.length === 1 && 'discountAmount' in finalPricingResult) {
             const discounted = finalPricingResult as any;
+            const existingLineDiscount = persistedLineItems[0].discount;
+            const keptLed = existingLineDiscount?.ledOverride?.amountPerUnit
+              ? existingLineDiscount.ledOverride
+              : (discountInfo.discountType === 'led'
+                  ? {
+                      amountPerUnit: discountInfo.discountAmountPerUnit,
+                      numberOfUnits: discountInfo.numberOfUnits,
+                      ledDiscountMode: discountInfo.ledDiscountMode
+                    }
+                  : undefined);
+            const keptController = existingLineDiscount?.controllerOverride?.amountPerUnit
+              ? existingLineDiscount.controllerOverride
+              : (discountInfo.discountType === 'controller'
+                  ? { amountPerUnit: discountInfo.discountAmountPerUnit }
+                  : undefined);
             persistedLineItems[0].discount = {
-              discountType: discountInfo.discountType || undefined,
+              discountType: keptLed ? 'led' : (keptController ? 'controller' : discountInfo.discountType || undefined),
               discountPercent: discountInfo.discountPercent,
-              discountAmountPerUnit: discountInfo.discountAmountPerUnit,
-              numberOfUnits: discountInfo.numberOfUnits,
-              ledDiscountMode: discountInfo.ledDiscountMode,
+              discountAmountPerUnit: keptLed?.amountPerUnit || keptController?.amountPerUnit || discountInfo.discountAmountPerUnit,
+              numberOfUnits: keptLed ? (keptLed.numberOfUnits || discountInfo.numberOfUnits) : discountInfo.numberOfUnits,
+              ledDiscountMode: keptLed?.ledDiscountMode || discountInfo.ledDiscountMode,
               originalProductTotal: discounted.originalProductTotal,
               originalProcessorTotal: discounted.originalProcessorTotal,
               originalGrandTotal: discounted.originalGrandTotal,
@@ -1198,18 +1224,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               discountedProcessorTotal: discounted.discountedProcessorTotal,
               discountedGrandTotal: discounted.grandTotal,
               discountAmount: discounted.discountAmount,
-              ...(discountInfo.discountType === 'led'
-                ? {
-                    ledOverride: {
-                      amountPerUnit: discountInfo.discountAmountPerUnit,
-                      numberOfUnits: discountInfo.numberOfUnits,
-                      ledDiscountMode: discountInfo.ledDiscountMode
-                    }
-                  }
-                : {}),
-              ...(discountInfo.discountType === 'controller'
-                ? { controllerOverride: { amountPerUnit: discountInfo.discountAmountPerUnit } }
-                : {})
+              ...(keptLed ? { ledOverride: keptLed } : {}),
+              ...(keptController ? { controllerOverride: keptController } : {})
             };
             if (persistedLineItems[0].pricing) {
               persistedLineItems[0].pricing = {

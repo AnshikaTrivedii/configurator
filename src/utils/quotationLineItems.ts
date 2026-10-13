@@ -627,6 +627,15 @@ export function chooseHydratedLinePricing(
     unitPricingSnapshot: snapshot?.isAvailable ? snapshot : (pricingFromSaved || snapshot)
   });
 
+  // A multi-product breakdown stores one product's components beside the
+  // quotation sum. It must not be synthesized onto the other lines.
+  const savedLineCount = Array.isArray(quotation?.quotationData?.lineItems)
+    ? quotation.quotationData.lineItems.length
+    : 1;
+  if (savedLineCount > 1) {
+    return withSavedFallback();
+  }
+
   const breakdown = quotation?.exactPricingBreakdown;
   const savedTotal = Number(quotation?.totalPrice);
   const breakdownTotal = Number(breakdown?.grandTotal);

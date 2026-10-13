@@ -4,7 +4,7 @@
  * breakdown is available (including override / discount replacement prices).
  */
 
-import { getLedOverrideFromDiscount, rebuildGrandTotalFromComponents } from './discountCalculator';
+import { getControllerOverrideFromDiscount, getLedOverrideFromDiscount, rebuildGrandTotalFromComponents } from './discountCalculator';
 
 export type ExactPricingBreakdownSource = {
   unitPrice?: number;
@@ -147,20 +147,12 @@ export function buildExactPricingBreakdownForPdf(
   if (!source) return undefined;
 
   const discount = source.discount;
-  const isLedOverride =
-    discount?.discountType === 'led' &&
-    typeof discount.discountAmountPerUnit === 'number' &&
-    discount.discountAmountPerUnit > 0;
-  const isControllerOverride =
-    discount?.discountType === 'controller' &&
-    typeof discount.discountAmountPerUnit === 'number' &&
-    discount.discountAmountPerUnit > 0;
+  const ledOverride = getLedOverrideFromDiscount(discount as any);
+  const controllerOverride = getControllerOverrideFromDiscount(discount as any);
 
-  const effectiveUnitPrice = isLedOverride
-    ? discount!.discountAmountPerUnit
-    : source.unitPrice;
-  const effectiveProcessorPrice = isControllerOverride
-    ? discount!.discountAmountPerUnit
+  const effectiveUnitPrice = ledOverride ? ledOverride.amountPerUnit : source.unitPrice;
+  const effectiveProcessorPrice = controllerOverride
+    ? (discount?.discountedProcessorTotal ?? controllerOverride.amountPerUnit)
     : source.processorPrice;
 
   const payload: PdfPricingBreakdown = {
@@ -205,7 +197,7 @@ export function buildExactPricingBreakdownForPdf(
           ...discount,
           discountedProcessorTotal:
             discount.discountedProcessorTotal ??
-            (isControllerOverride ? discount.discountAmountPerUnit : undefined)
+            (controllerOverride ? controllerOverride.amountPerUnit : undefined)
         }
       : undefined
   };

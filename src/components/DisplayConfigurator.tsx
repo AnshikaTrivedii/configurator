@@ -671,8 +671,19 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
   const controllerSelection = createControllerSelection() || undefined;
-  // Use redundancy-aware controller for display (Configuration Summary, PDF, Quote) so controller changes when redundancy is enabled
-  const effectiveProcessor = controllerSelection?.selectedController?.name ?? selectedController;
+  // Edit restores the saved controller. Auto-selection must not replace it
+  // (and change Grand Total) until the product or matrix actually changes.
+  const restoredForPricing = restoredControllerRef.current;
+  const keepRestoredProcessor = !!(
+    restoredForPricing &&
+    effectiveProduct &&
+    restoredForPricing.productId === effectiveProduct.id &&
+    restoredForPricing.width === config.width &&
+    restoredForPricing.height === config.height
+  );
+  const effectiveProcessor = keepRestoredProcessor
+    ? restoredForPricing!.name
+    : (controllerSelection?.selectedController?.name ?? selectedController);
 
   // For dropdown: processors with capacity >= totalPixels, suggested first, then higher capacity only
   const totalPixelsForProcessor = (effectiveProduct || selectedProduct)

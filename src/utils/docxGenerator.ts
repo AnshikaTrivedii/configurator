@@ -5,6 +5,7 @@ import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { getProcessorPrice } from './processorPrices';
 import { calculateCentralizedPricing } from './centralizedPricing';
 import { resolveDisplayedProductSubtotal } from './exactPricingBreakdownForPdf';
+import { getControllerOverrideFromDiscount, getLedOverrideFromDiscount } from './discountCalculator';
 import { normalizeOrderQuantity } from './orderQuantity';
 import type { PdfQuotationLineItem } from './quotationLineItems';
 import { buildMultiProductQuotationBodyHtml, buildMultiProductContinuationPagesHtml, fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from './multiProductQuotationHtml';
@@ -317,10 +318,14 @@ export const generateConfigurationHtml = (
     discount?: {
       discountType?: 'led' | 'controller' | null;
       discountAmountPerUnit?: number;
+      numberOfUnits?: number;
+      ledDiscountMode?: string;
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
       discountedGrandTotal?: number;
       originalProductTotal?: number;
+      ledOverride?: { amountPerUnit?: number; numberOfUnits?: number; ledDiscountMode?: string };
+      controllerOverride?: { amountPerUnit?: number };
     };
     addonsCost?: number;
     addonsGST?: number;
@@ -594,9 +599,14 @@ export const generateConfigurationHtml = (
       unitGrandTotal = exactPricingBreakdown.unitGrandTotal;
     }
 
+    const ledOverride = getLedOverrideFromDiscount(savedDiscount);
+    const controllerOverride = getControllerOverrideFromDiscount(savedDiscount);
+
     if (exactPricingBreakdown.unitPrice !== undefined) unitPrice = exactPricingBreakdown.unitPrice;
-    if (savedDiscount?.discountType === 'led' && savedDiscount.discountAmountPerUnit && savedDiscount.discountAmountPerUnit > 0) {
-      unitPrice = savedDiscount.discountAmountPerUnit;
+    // discountType records only the last side edited. The other replacement still
+    // lives on ledOverride / controllerOverride and must be applied as well.
+    if (ledOverride) {
+      unitPrice = ledOverride.amountPerUnit;
     }
 
     if (exactPricingBreakdown.quantity !== undefined) {
@@ -615,9 +625,8 @@ export const generateConfigurationHtml = (
 
     if (exactPricingBreakdown.processorPrice !== undefined) controllerPrice = exactPricingBreakdown.processorPrice;
     if (exactPricingBreakdown.processorGst !== undefined) gstController = exactPricingBreakdown.processorGst;
-    if (savedDiscount?.discountType === 'controller' && savedDiscount.discountAmountPerUnit && savedDiscount.discountAmountPerUnit > 0) {
-      // Stored override is per-controller unit price; display/total use scaled values from breakdown when present
-      controllerPrice = savedDiscount.discountedProcessorTotal ?? Math.round(savedDiscount.discountAmountPerUnit * orderQuantity * 100) / 100;
+    if (controllerOverride) {
+      controllerPrice = savedDiscount?.discountedProcessorTotal ?? Math.round(controllerOverride.amountPerUnit * orderQuantity * 100) / 100;
       gstController = 0;
     }
 
@@ -625,16 +634,12 @@ export const generateConfigurationHtml = (
       savedDiscount?.discountedProductTotal ??
       (exactPricingBreakdown as { productTotal?: number }).productTotal ??
       subtotal;
-    if (
-      savedDiscount?.discountType === 'led' &&
-      savedDiscount.discountAmountPerUnit &&
-      savedDiscount.discountAmountPerUnit > 0 &&
-      Math.abs((totalProduct || 0) - subtotal) > 1
-    ) {
+    if (ledOverride && Math.abs((totalProduct || 0) - subtotal) > 1) {
       totalProduct = subtotal;
     }
     totalController =
       savedDiscount?.discountedProcessorTotal ??
+      (controllerOverride ? controllerPrice : undefined) ??
       (exactPricingBreakdown as { processorTotal?: number }).processorTotal ??
       controllerPrice;
 

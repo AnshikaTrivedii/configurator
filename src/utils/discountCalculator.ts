@@ -65,7 +65,7 @@ export function getLedDiscountMode(product: Product | any): LedDiscountMode {
  */
 export function getDiscountUnits(
   product: Product | any,
-  cabinetGrid: { columns: number; rows: number } | null | undefined,
+  cabinetGrid: { columns: number; rows: number; totalWidth?: number; totalHeight?: number } | null | undefined,
   config?: { width: number; height: number; unit: string }
 ): number {
   const mode = getLedDiscountMode(product);
@@ -75,9 +75,14 @@ export function getDiscountUnits(
     return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
   }
 
-  if (mode === 'per_sqft' && config) {
-    const widthInMeters = config.width / 1000;
-    const heightInMeters = config.height / 1000;
+  if (mode === 'per_sqft' && (cabinetGrid || config)) {
+    // Same basis as calculateQuantity: the cabinet grid's millimetre totals,
+    // then the config size. A later matrix edit must not price a different area.
+    const widthMm = cabinetGrid?.totalWidth || config?.width;
+    const heightMm = cabinetGrid?.totalHeight || config?.height;
+    if (!(widthMm && heightMm)) return 0;
+    const widthInMeters = widthMm / 1000;
+    const heightInMeters = heightMm / 1000;
     const widthInFeet = widthInMeters * METERS_TO_FEET;
     const heightInFeet = heightInMeters * METERS_TO_FEET;
     return Math.round((widthInFeet * heightInFeet) * 100) / 100;
