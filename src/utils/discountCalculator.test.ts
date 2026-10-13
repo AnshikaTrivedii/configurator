@@ -14,6 +14,7 @@ import {
   discountForQuotationSave
 } from './discountCalculator';
 import { PricingCalculationResult } from './centralizedPricing';
+import { resolveDisplayedProductSubtotal } from './exactPricingBreakdownForPdf';
 import {
   getQuotationDisplayTotal,
   resolveLineItemDiscount,
@@ -300,6 +301,8 @@ console.log('Price override / Grand Total tests');
 {
   const product = { category: 'Core Series Indoor', name: 'Core P2.5' };
   assert('standard products use per_sqft override mode', getLedDiscountMode(product) === 'per_sqft');
+  assert('rental products use per_cabinet override mode', getLedDiscountMode({ category: 'Rental Series', name: 'Bellatrix Series-O P4.8' }) === 'per_cabinet');
+  assert('fixed Nexa products use per_unit override mode', getLedDiscountMode({ category: 'Nexa-S', isFixed: true, name: 'Nexa Series 108" P1.25', id: 'nexa-p125-108' }) === 'per_unit');
   const units = getDiscountUnits(
     product,
     { columns: 3, rows: 3 },
@@ -722,6 +725,34 @@ console.log('Price override / Grand Total tests');
     { totalPrice: 2861435, exactPricingBreakdown: { unitPrice: 27200, grandTotal: 2861435 } }
   );
   assert('a new quotation without an override stays on the catalog price', fresh.unitPricingSnapshot?.unitPrice === 27200 && !fresh.discount);
+}
+
+{
+  const staleCatalogSubtotal = resolveDisplayedProductSubtotal({
+    unitPrice: 1000,
+    quantity: 89.28,
+    orderQuantity: 1,
+    subtotal: 1178496,
+    productSubtotal: 89280,
+    grandTotal: 392120,
+    discount: {
+      discountType: 'led',
+      discountAmountPerUnit: 1000,
+      discountedProductTotal: 89280,
+      ledOverride: { amountPerUnit: 1000 }
+    }
+  });
+  assert('a stale catalog subtotal is replaced by the LED override × area', staleCatalogSubtotal === 89280, `got ${staleCatalogSubtotal}`);
+
+  const alreadyCorrect = resolveDisplayedProductSubtotal({
+    unitPrice: 2000,
+    quantity: 261.56,
+    orderQuantity: 1,
+    subtotal: 523120,
+    productSubtotal: 523120,
+    discount: { discountType: 'led', discountAmountPerUnit: 2000, discountedProductTotal: 523120 }
+  });
+  assert('a subtotal that already matches the override is kept', alreadyCorrect === 523120);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

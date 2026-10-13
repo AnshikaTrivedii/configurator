@@ -3,7 +3,7 @@ import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, 
 import { salesAPI } from '../api/sales';
 import { PdfViewModal } from './PdfViewModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
-import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
+import { buildExactPricingBreakdownForPdf, resolveDisplayedProductSubtotal } from '../utils/exactPricingBreakdownForPdf';
 import { addQuotationAddonsToTotal, readQuotationAddons, sumQuotationAddons } from '../utils/quotationAddons';
 import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel, rebuildGrandTotalFromComponents } from '../utils/discountCalculator';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
@@ -87,6 +87,8 @@ interface Quotation {
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
       discountedGrandTotal?: number;
+      ledOverride?: { amountPerUnit?: number };
+      controllerOverride?: { amountPerUnit?: number };
     };
   };
   exactProductSpecs?: {
@@ -476,9 +478,13 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
     // Keep quotation-level breakdown aligned with selected product for backward compatibility
     const selectedPricing = selectedItem.pricing || {};
+    const overriddenSubtotal = selectedPricing.productSubtotal;
     const newExactPricingBreakdown = {
       ...quotation.exactPricingBreakdown,
       ...selectedPricing,
+      ...(overriddenSubtotal != null
+        ? { subtotal: overriddenSubtotal, productSubtotal: overriddenSubtotal }
+        : {}),
       customAddons: quotationAddons,
       customAddonsTotal: quotationAddonsTotal,
       customAddonsIncludedInGrandTotal: true,
@@ -1198,33 +1204,47 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                               📊 Exact Pricing Breakdown (As Shown on Page):
                                             </div>
                                             <div className="space-y-1 text-xs">
+                                              {(() => {
+                                                const breakdown = quotation.exactPricingBreakdown;
+                                                const displayedSubtotal = resolveDisplayedProductSubtotal(breakdown);
+                                                const ledAmount = breakdown.discount?.discountType === 'led'
+                                                  ? breakdown.discount.discountAmountPerUnit
+                                                  : breakdown.discount?.ledOverride?.amountPerUnit;
+                                                const displayedUnit = ledAmount && ledAmount > 0
+                                                  ? ledAmount
+                                                  : breakdown.unitPrice;
+                                                const processorAmount = breakdown.processorTotal ?? breakdown.processorPrice ?? 0;
+                                                const structureAmount = breakdown.structureTotal ?? breakdown.structureCost ?? 0;
+                                                const installationAmount = breakdown.installationTotal ?? breakdown.installationCost ?? 0;
+                                                return (
+                                                  <>
                                               <div className="flex justify-between">
                                                 <span>Unit Price:</span>
-                                                <span>₹{quotation.exactPricingBreakdown.unitPrice?.toLocaleString('en-IN')}</span>
+                                                <span>₹{displayedUnit?.toLocaleString('en-IN')}</span>
                                               </div>
                                               <div className="flex justify-between">
                                                 <span>Quantity:</span>
-                                                <span>{quotation.exactPricingBreakdown.quantity}</span>
+                                                <span>{breakdown.quantity}</span>
                                               </div>
                                               <div className="flex justify-between">
                                                 <span>Units:</span>
-                                                <span>{(quotation.exactPricingBreakdown as any).orderQuantity
+                                                <span>{(breakdown as any).orderQuantity
                                                   || (quotation.quotationData as any)?.orderQuantity
                                                   || 1}</span>
                                               </div>
                                               <div className="flex justify-between">
                                                 <span>Subtotal:</span>
-                                                <span>₹{quotation.exactPricingBreakdown.subtotal?.toLocaleString('en-IN')}</span>
+                                                <span>₹{displayedSubtotal.toLocaleString('en-IN')}</span>
                                               </div>
                                               <div className="flex justify-between">
                                                 <span>GST</span>
                                                 <span>18%</span>
                                               </div>
-                                              {quotation.exactPricingBreakdown.processorPrice > 0 && (
+                                              {processorAmount > 0 && (
                                                 <>
                                                   <div className="flex justify-between">
                                                     <span>Processor:</span>
-                                                    <span>₹{quotation.exactPricingBreakdown.processorPrice?.toLocaleString('en-IN')}</span>
+                                                    <span>₹{processorAmount.toLocaleString('en-IN')}</span>
                                                   </div>
                                                   <div className="flex justify-between">
                                                     <span>Processor GST</span>
@@ -1232,6 +1252,21 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                   </div>
                                                 </>
                                               )}
+                                              {structureAmount > 0 && (
+                                                <div className="flex justify-between">
+                                                  <span>Structure:</span>
+                                                  <span>₹{structureAmount.toLocaleString('en-IN')}</span>
+                                                </div>
+                                              )}
+                                              {installationAmount > 0 && (
+                                                <div className="flex justify-between">
+                                                  <span>Installation:</span>
+                                                  <span>₹{installationAmount.toLocaleString('en-IN')}</span>
+                                                </div>
+                                              )}
+                                                  </>
+                                                );
+                                              })()}
                                               {(() => {
                                                 const savedAddons = readQuotationAddons(
                                                   (quotation.quotationData as any)?.customAddons,
@@ -1248,7 +1283,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                               })()}
                                               <div className="flex justify-between font-semibold border-t pt-1">
                                                 <span>Grand Total:</span>
-                                                <span className="text-green-600">₹{quotation.exactPricingBreakdown.grandTotal?.toLocaleString('en-IN')}</span>
+                                                <span className="text-green-600">₹{getQuotationDisplayTotal(quotation).toLocaleString('en-IN')}</span>
                                               </div>
 
                                             </div>

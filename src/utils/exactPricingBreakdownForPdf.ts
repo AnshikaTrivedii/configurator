@@ -4,7 +4,7 @@
  * breakdown is available (including override / discount replacement prices).
  */
 
-import { rebuildGrandTotalFromComponents } from './discountCalculator';
+import { getLedOverrideFromDiscount, rebuildGrandTotalFromComponents } from './discountCalculator';
 
 export type ExactPricingBreakdownSource = {
   unitPrice?: number;
@@ -52,6 +52,8 @@ export type ExactPricingBreakdownSource = {
     discountedProcessorTotal?: number;
     discountedGrandTotal?: number;
     discountAmount?: number;
+    ledOverride?: { amountPerUnit?: number; numberOfUnits?: number; ledDiscountMode?: string };
+    controllerOverride?: { amountPerUnit?: number };
   };
 };
 
@@ -85,6 +87,50 @@ export type PdfPricingBreakdown = {
   };
   discount?: ExactPricingBreakdownSource['discount'];
 };
+
+function moneyClose(a: number, b: number): boolean {
+  return Math.abs(a - b) <= 1;
+}
+
+/**
+ * Product subtotal shown on the dashboard and PDF.
+ * An LED replacement price is unit price × quantity × order quantity.
+ * A leftover catalog `subtotal` must not win over that amount.
+ */
+export function resolveDisplayedProductSubtotal(source: ExactPricingBreakdownSource | null | undefined): number {
+  if (!source) return 0;
+  const orderQty = source.orderQuantity != null && source.orderQuantity > 0 ? source.orderQuantity : 1;
+  const quantity = typeof source.quantity === 'number' ? source.quantity : undefined;
+  const led = getLedOverrideFromDiscount(source.discount as any);
+  const fromOverride =
+    led && quantity != null && quantity > 0
+      ? Math.round(led.amountPerUnit * quantity * orderQty * 100) / 100
+      : undefined;
+  const productSubtotal = typeof source.productSubtotal === 'number' ? source.productSubtotal : undefined;
+  const productTotal = typeof source.productTotal === 'number' ? source.productTotal : undefined;
+  const discounted = source.discount?.discountedProductTotal;
+  const subtotal = typeof source.subtotal === 'number' ? source.subtotal : undefined;
+
+  if (fromOverride != null) {
+    if (productSubtotal != null && moneyClose(productSubtotal, fromOverride)) return productSubtotal;
+    if (productTotal != null && moneyClose(productTotal, fromOverride)) return productTotal;
+    if (typeof discounted === 'number' && moneyClose(discounted, fromOverride)) return discounted;
+    return fromOverride;
+  }
+
+  if (productSubtotal != null && subtotal != null && !moneyClose(productSubtotal, subtotal)) {
+    const unit = source.unitPrice;
+    if (unit != null && quantity != null && quantity > 0) {
+      const fromUnit = Math.round(unit * quantity * orderQty * 100) / 100;
+      if (moneyClose(productSubtotal, fromUnit)) return productSubtotal;
+    }
+  }
+
+  if (subtotal != null) return subtotal;
+  if (productSubtotal != null) return productSubtotal;
+  if (productTotal != null) return productTotal;
+  return 0;
+}
 
 export function buildExactPricingBreakdownForPdf(
   source: ExactPricingBreakdownSource | null | undefined,
@@ -124,7 +170,10 @@ export function buildExactPricingBreakdownForPdf(
     // fallback applies instead of silently forcing a single unit.
     orderQuantity: source.orderQuantity,
     unitGrandTotal: source.unitGrandTotal,
-    subtotal: source.subtotal ?? source.productSubtotal,
+    subtotal: resolveDisplayedProductSubtotal({
+      ...source,
+      unitPrice: effectiveUnitPrice
+    }),
     gstAmount: source.gstAmount ?? source.productGST,
     processorPrice: effectiveProcessorPrice,
     processorGst: source.processorGst ?? source.processorGST,

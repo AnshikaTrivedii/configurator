@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { getProcessorPrice } from './processorPrices';
 import { calculateCentralizedPricing } from './centralizedPricing';
+import { resolveDisplayedProductSubtotal } from './exactPricingBreakdownForPdf';
 import { normalizeOrderQuantity } from './orderQuantity';
 import type { PdfQuotationLineItem } from './quotationLineItems';
 import { buildMultiProductQuotationBodyHtml, buildMultiProductContinuationPagesHtml, fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from './multiProductQuotationHtml';
@@ -603,7 +604,13 @@ export const generateConfigurationHtml = (
       safeQuantity = quantity;
     }
 
-    if (exactPricingBreakdown.subtotal !== undefined) subtotal = exactPricingBreakdown.subtotal;
+    subtotal = resolveDisplayedProductSubtotal({
+      ...exactPricingBreakdown,
+      unitPrice,
+      quantity: exactPricingBreakdown.quantity ?? safeQuantity,
+      orderQuantity,
+      subtotal: exactPricingBreakdown.subtotal ?? subtotal
+    });
     if (exactPricingBreakdown.gstAmount !== undefined) gstProduct = exactPricingBreakdown.gstAmount;
 
     if (exactPricingBreakdown.processorPrice !== undefined) controllerPrice = exactPricingBreakdown.processorPrice;
@@ -618,6 +625,14 @@ export const generateConfigurationHtml = (
       savedDiscount?.discountedProductTotal ??
       (exactPricingBreakdown as { productTotal?: number }).productTotal ??
       subtotal;
+    if (
+      savedDiscount?.discountType === 'led' &&
+      savedDiscount.discountAmountPerUnit &&
+      savedDiscount.discountAmountPerUnit > 0 &&
+      Math.abs((totalProduct || 0) - subtotal) > 1
+    ) {
+      totalProduct = subtotal;
+    }
     totalController =
       savedDiscount?.discountedProcessorTotal ??
       (exactPricingBreakdown as { processorTotal?: number }).processorTotal ??

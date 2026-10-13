@@ -44,6 +44,16 @@ export function getLedDiscountMode(product: Product | any): LedDiscountMode {
     return 'per_cabinet';
   }
 
+  // Fixed / Nexa — one unit, so the override replaces that unit price
+  if (
+    product?.isFixed === true ||
+    category.includes('nexa') ||
+    id.startsWith('nexa-') ||
+    name.includes('nexa series')
+  ) {
+    return 'per_unit';
+  }
+
   // Everything else — per sqft
   return 'per_sqft';
 }
