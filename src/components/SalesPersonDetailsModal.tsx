@@ -1715,6 +1715,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           isEditing={true}
           clientId={selectedQuotation.clientId as string | undefined}
           exactPricingBreakdown={buildExactPricingBreakdownForPdf(selectedQuotation.exactPricingBreakdown)}
+          savedQuotation={selectedQuotation}
           wireType={selectedQuotation.quotationData?.wireType}
           nexaAddons={selectedQuotation.quotationData?.nexaAddons || selectedQuotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)}
         />

@@ -21,12 +21,13 @@ import {
   logPdfPricingFromCalculation
 } from '../utils/exactPricingBreakdownForPdf';
 import {
-  toPersistedLineItems,
   formatQuotationProductLabel,
   toPdfQuotationLineItems,
   buildExactPricingBreakdownFromCartItem,
   syncSingleProductLineForSave,
-  buildQuotationAccounting
+  buildQuotationAccounting,
+  persistedLinesForPdfSave,
+  PersistedQuotationLineItem
 } from '../utils/quotationLineItems';
 import { savedLineDiscountHasOverride } from '../utils/discountCalculator';
 import { fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from '../utils/multiProductQuotationHtml';
@@ -187,6 +188,10 @@ interface PdfViewModalProps {
   };
 
   exactPricingBreakdown?: any;
+  savedQuotation?: {
+    originalTotalPrice?: number;
+    quotationData?: { lineItems?: PersistedQuotationLineItem[]; customAddons?: unknown; [key: string]: unknown };
+  };
   wireType?: 'gold' | 'copper';
   nexaAddons?: string[];
 }
@@ -211,6 +216,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   clientId: propClientId,
   customPricing,
   exactPricingBreakdown,
+  savedQuotation,
   wireType: propWireType,
   nexaAddons: propNexaAddons
 }) => {
@@ -542,7 +548,9 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           effectiveWireType(fullProduct),
           nexaAddons,
           orderQuantity,
-          lineItems.length > 0 ? toPdfQuotationLineItems(lineItems) : undefined
+          savedQuotation?.quotationData?.lineItems?.length
+            ? toPdfQuotationLineItems(savedQuotation.quotationData.lineItems)
+            : (!savedQuotation && lineItems.length > 0 ? toPdfQuotationLineItems(lineItems) : undefined)
         );
     };
 
@@ -678,13 +686,15 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     };
 
     const userTypeForCalc = getUserType();
-    const quotationAddons = readQuotationAddons(userInfo?.customAddons, exactPricingBreakdown?.customAddons);
+    const quotationAddons = savedQuotation
+      ? readQuotationAddons(savedQuotation.quotationData?.customAddons, exactPricingBreakdown?.customAddons)
+      : readQuotationAddons(userInfo?.customAddons, exactPricingBreakdown?.customAddons);
     const quotationAddonsTotal = sumQuotationAddons(quotationAddons);
     const breakdownIncludesCustomAddons = exactPricingBreakdown?.customAddonsIncludedInGrandTotal === true;
 
     let finalPricingResult: any;
     let finalTotalPrice: number;
-    const primaryCartItem = lineItems.length === 1 ? lineItems[0] : null;
+    const primaryCartItem = !savedQuotation && lineItems.length === 1 ? lineItems[0] : null;
     const cartBreakdown = buildExactPricingBreakdownFromCartItem(primaryCartItem);
 
     // Prefer saved/live overridden breakdown, then the cart snapshot, then catalog.
@@ -758,7 +768,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     const customerName = userInfo?.fullName?.trim() || userInfo?.customerName?.trim() || '';
     const customerEmail = userInfo?.email?.trim() || userInfo?.customerEmail?.trim() || '';
     const customerPhone = userInfo?.phoneNumber?.trim() || userInfo?.customerPhone?.trim() || '';
-    const syncedLineItems = lineItems.length > 0
+    const syncedLineItems = !savedQuotation && lineItems.length > 0
       ? syncSingleProductLineForSave(
           lineItems,
           config,
@@ -767,15 +777,13 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           customPricing,
           exactPricingBreakdown?.discount
         )
-      : lineItems;
-    const persistedLineItems = syncedLineItems.length > 0
-      ? toPersistedLineItems(syncedLineItems)
-      : null;
+      : (savedQuotation ? [] : lineItems);
+    const persistedLineItems = persistedLinesForPdfSave(syncedLineItems, savedQuotation);
     const accounting = persistedLineItems
       ? buildQuotationAccounting(persistedLineItems, quotationAddons)
       : null;
-    const productName = syncedLineItems.length > 1
-      ? formatQuotationProductLabel(syncedLineItems)
+    const productName = (persistedLineItems?.length || 0) > 1
+      ? formatQuotationProductLabel(persistedLineItems!)
       : (selectedProduct?.name || selectedProduct?.productName || 'Unknown Product');
     const syncedPrimary = syncedLineItems.length === 1 ? syncedLineItems[0] : primaryCartItem;
     if (
@@ -831,7 +839,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       userType: userTypeForCalc,
       userTypeDisplayName: getUserTypeDisplayName(userTypeForCalc),
       totalPrice: finalTotalPrice,  // CRITICAL: Grand Total with GST (and discount if applied) - matches PDF exactly
-      originalTotalPrice: accounting?.originalTotal ?? finalTotalPrice,
+      originalTotalPrice: accounting?.originalTotal ?? savedQuotation?.originalTotalPrice ?? finalTotalPrice,
       originalPricingBreakdown: accounting?.originalBreakdown,
 
       pdfBase64: undefined as string | undefined,
@@ -883,8 +891,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
       },
 
       quotationData: {
+        ...(savedQuotation?.quotationData || {}),
         config: config || { width: 2400, height: 1010, unit: 'mm' },
         userInfo: {
+          ...((savedQuotation?.quotationData?.userInfo as Record<string, unknown>) || {}),
           projectTitle: userInfo?.projectTitle?.trim() || '',
           address: userInfo?.address?.trim() || '',
           validity: userInfo?.validity,
@@ -904,7 +914,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         ...(persistedLineItems
           ? { lineItems: persistedLineItems, itemCount: persistedLineItems.length }
           : {}),
-        discountApplied: syncedLineItems.some(li => savedLineDiscountHasOverride(li.discount))
+        discountApplied: (persistedLineItems || []).some(li => savedLineDiscountHasOverride(li.discount))
           || !!finalPricingResult.discount,
         discountInfo: syncedPrimary?.discount
           ? {
@@ -924,7 +934,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
                 numberOfUnits: finalPricingResult.discount.numberOfUnits || 0,
                 ledDiscountMode: finalPricingResult.discount.ledDiscountMode || 'none'
               }
-            : undefined)
+            : savedQuotation?.quotationData?.discountInfo)
       },
 
       exactProductSpecs: {
@@ -1079,7 +1089,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
       setSaveSuccess(true);
       saveSuccessful = true;
-      clearCart();
+      if (!savedQuotation) clearCart();
 
       setGeneratedPdfBlob(pdfBlob);
       const url = window.URL.createObjectURL(pdfBlob);
@@ -1104,7 +1114,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
 
           setSaveSuccess(true);
           saveSuccessful = true;
-          clearCart();
+          if (!savedQuotation) clearCart();
 
           if (pdfBlob) {
             setGeneratedPdfBlob(pdfBlob);

@@ -1080,8 +1080,10 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             } : null}
             userRole="sales"
             quotationId={selectedQuotation.quotationId}
+            isEditing={true}
             clientId={selectedQuotation.clientId as string | undefined} // Fix type error here if clientId is object
             exactPricingBreakdown={buildExactPricingBreakdownForPdf(selectedQuotation.exactPricingBreakdown)}
+            savedQuotation={selectedQuotation}
             wireType={selectedQuotation.quotationData?.wireType}
             nexaAddons={selectedQuotation.quotationData?.nexaAddons || selectedQuotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)}
           />

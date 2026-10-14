@@ -2,7 +2,7 @@
 import { products } from '../data/products';
 import { calculateCentralizedPricing } from './centralizedPricing';
 import { applySavedPriceOverrides } from './discountCalculator';
-import { buildQuotationAccounting, getQuotationDisplayTotal } from './quotationLineItems';
+import { buildQuotationAccounting, getQuotationDisplayTotal, persistedLinesForPdfSave } from './quotationLineItems';
 import { billableAreaSqFt, cabinetCountForTarget, formatDimensionInput, parseDimensionInput } from './displayMeasurements';
 import { buildMultiProductQuotationBodyHtml } from './multiProductQuotationHtml';
 import { calculateQuantity as calculatePdfQuantity } from './pdfPriceCalculator';
@@ -58,6 +58,28 @@ const actualLineAccounting = buildQuotationAccounting([{
 }]);
 assert('a real discounted line reconciles with the quote summary', actualLineAccounting.grandTotal === bothOverrides.grandTotal);
 assert('its original summary retains the catalog total', actualLineAccounting.originalTotal === priced.grandTotal);
+
+const savedDiscountedLine = {
+  productId: product.id,
+  productName: product.name,
+  product,
+  config: { ...config, unit: 'mm' as const, aspectRatio: null },
+  cabinetGrid: grid,
+  orderQuantity: 1,
+  pricing: { grandTotal: bothOverrides.grandTotal },
+  discount: { originalGrandTotal: priced.grandTotal }
+};
+const savedQuotation = { quotationData: { lineItems: [savedDiscountedLine] } };
+const selectedSavedLines = persistedLinesForPdfSave([], savedQuotation);
+assert('dashboard PDF save uses the saved discounted line when the cart is empty',
+  selectedSavedLines === savedQuotation.quotationData.lineItems);
+assert('dashboard PDF save keeps the saved original total',
+  selectedSavedLines !== null && buildQuotationAccounting(selectedSavedLines).originalTotal === priced.grandTotal);
+assert('dashboard PDF save ignores an unrelated configurator cart',
+  persistedLinesForPdfSave([{ product, config, cabinetGrid: grid, orderQuantity: 1 } as any], savedQuotation)
+    === savedQuotation.quotationData.lineItems);
+assert('legacy dashboard PDF save cannot import an unrelated cart line',
+  persistedLinesForPdfSave([{ product, config, cabinetGrid: grid, orderQuantity: 1 } as any], { quotationData: {} }) === null);
 
 const lines = [
   { pricing: { grandTotal: 100, productSubtotal: 80, productTotal: 80, processorTotal: 20 },

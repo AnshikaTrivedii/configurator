@@ -633,6 +633,18 @@ export function toPersistedLineItems(items: QuotationLineItem[]): PersistedQuota
   });
 }
 
+/** A dashboard PDF save belongs to its selected quotation, never the configurator cart. */
+export function persistedLinesForPdfSave(
+  cartLines: QuotationLineItem[],
+  savedQuotation?: { quotationData?: { lineItems?: PersistedQuotationLineItem[] | null } } | null
+): PersistedQuotationLineItem[] | null {
+  if (savedQuotation) {
+    const savedLines = savedQuotation.quotationData?.lineItems;
+    return Array.isArray(savedLines) && savedLines.length > 0 ? savedLines : null;
+  }
+  return cartLines.length > 0 ? toPersistedLineItems(cartLines) : null;
+}
+
 /**
  * Single-product quotations show the live matrix on the PDF via exactProductSpecs,
  * while the Sales Dashboard reads quotationData.lineItems[0].cabinetGrid.

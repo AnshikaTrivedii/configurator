@@ -45,6 +45,23 @@ test('rejects invalid line prices', () => {
 test('validates a partial price update against existing lines', () => {
   assert.match(validateQuotationAccounting({ totalPrice: 999 }, valid), /does not match/);
 });
+test('discounted PDF update must carry the selected quotation lines and original total', () => {
+  const previous = {
+    totalPrice: 1200000,
+    originalTotalPrice: 8394112,
+    quotationData: { lineItems: [{ pricing: { grandTotal: 1200000 }, discount: { originalGrandTotal: 8394112 } }] }
+  };
+  assert.match(validateQuotationAccounting({ totalPrice: 1200000, originalTotalPrice: 1200000 }, previous),
+    /Original quotation total/);
+  const updated = {
+    totalPrice: 1200000,
+    originalTotalPrice: 8394112,
+    exactPricingBreakdown: { grandTotal: 1200000 },
+    originalPricingBreakdown: { grandTotal: 8394112 },
+    quotationData: { lineItems: previous.quotationData.lineItems }
+  };
+  assert.equal(validateQuotationAccounting(updated, previous), null);
+});
 test('dashboard read repairs an older stale stored total', () => {
   assert.equal(getQuotationAccountingTotal({ ...valid, totalPrice: 999 }), 312.5);
 });
