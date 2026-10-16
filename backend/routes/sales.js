@@ -9,16 +9,7 @@ import Client from '../models/Client.js';
 import { authenticateToken, generateToken } from '../middleware/auth.js';
 import { validateLogin, validateSetPassword, validateChangePassword } from '../middleware/validation.js';
 import { uploadPdfToS3, uploadDiscountPdfToS3, getPdfPresignedUrl } from '../utils/s3Service.js';
-
-// NOTE: This function is NOT used for displaying prices in the dashboard.
-// The dashboard displays the stored totalPrice directly from the database,
-// which was calculated using the correct PDF pricing logic when the quotation was saved.
-// This function exists only for reference and potential future use.
-function calculateCorrectPrice(quotation) {
-  // IMPORTANT: Always return the stored price from the database
-  // Do NOT recalculate prices for display - this can cause mismatches with the PDF
-  return quotation.totalPrice || 0;
-}
+import { getQuotationAccountingTotal, validateQuotationAccounting } from '../utils/quotationAccounting.js';
 
 function quotationHasDiscount(quotation) {
   const quotationData = quotation.quotationData || {};
@@ -866,6 +857,9 @@ router.post('/public/quotation', async (req, res) => {
       });
     }
 
+    const accountingError = validateQuotationAccounting(req.body);
+    if (accountingError) return res.status(400).json({ success: false, message: accountingError });
+
     // 1. Find or Create Client
     let client = await Client.findOne({ email: customerEmail.toLowerCase().trim() });
 
@@ -1026,6 +1020,9 @@ router.post('/quotation', authenticateToken, async (req, res) => {
         message: 'Missing required fields: quotationId, customerName, customerEmail, productName'
       });
     }
+
+    const accountingError = validateQuotationAccounting(req.body);
+    if (accountingError) return res.status(400).json({ success: false, message: accountingError });
 
     // Check if quotation ID already exists (safety check)
     const existingQuotation = await Quotation.findOne({ quotationId });
@@ -1290,6 +1287,9 @@ router.post('/quotation/update', authenticateToken, async (req, res) => {
       });
     }
 
+    const accountingError = validateQuotationAccounting(updateData, quotation);
+    if (accountingError) return res.status(400).json({ success: false, message: accountingError });
+
     // Handle PDF upload/replacement if new PDF data is provided
     let pdfS3Key = quotation.pdfS3Key;
     let pdfS3Url = quotation.pdfS3Url;
@@ -1318,6 +1318,8 @@ router.post('/quotation/update', authenticateToken, async (req, res) => {
     if (updateData.exactPricingBreakdown !== undefined) quotation.exactPricingBreakdown = updateData.exactPricingBreakdown;
     if (updateData.originalPricingBreakdown !== undefined) quotation.originalPricingBreakdown = updateData.originalPricingBreakdown;
     if (updateData.exactProductSpecs !== undefined) quotation.exactProductSpecs = updateData.exactProductSpecs;
+    if (updateData.productDetails !== undefined) quotation.productDetails = updateData.productDetails;
+    if (updateData.productName !== undefined) quotation.productName = updateData.productName;
 
     if (updateData.customerName !== undefined) quotation.customerName = updateData.customerName;
     if (updateData.customerEmail !== undefined) quotation.customerEmail = updateData.customerEmail;
@@ -1411,6 +1413,9 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
       });
     }
 
+    const accountingError = validateQuotationAccounting(updateData, quotation);
+    if (accountingError) return res.status(400).json({ success: false, message: accountingError });
+
     // Handle PDF upload/replacement if new PDF data is provided
     let pdfS3Key = quotation.pdfS3Key;
     let pdfS3Url = quotation.pdfS3Url;
@@ -1446,6 +1451,8 @@ router.put('/quotation/:quotationId', authenticateToken, async (req, res) => {
     if (updateData.exactPricingBreakdown !== undefined) quotation.exactPricingBreakdown = updateData.exactPricingBreakdown;
     if (updateData.originalPricingBreakdown !== undefined) quotation.originalPricingBreakdown = updateData.originalPricingBreakdown;
     if (updateData.exactProductSpecs !== undefined) quotation.exactProductSpecs = updateData.exactProductSpecs;
+    if (updateData.productDetails !== undefined) quotation.productDetails = updateData.productDetails;
+    if (updateData.productName !== undefined) quotation.productName = updateData.productName;
 
     // Update customer information fields
     if (updateData.customerName !== undefined) quotation.customerName = updateData.customerName;
@@ -1733,6 +1740,29 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
       .select('name email location contactNumber createdAt role allowedCustomerTypes')
       .lean();
 
+    // Existing quotations may predate the accounting guard. Apply read-only
+    // corrections to dashboard aggregates when their saved line snapshots are complete.
+    const correctionQuotations = await Quotation.find({
+      ...dateFilter,
+      'quotationData.lineItems.0': { $exists: true }
+    }).select('salesUserId totalPrice quotationData.lineItems quotationData.customAddons exactPricingBreakdown.customAddons createdAt').lean();
+    const revenueCorrectionByUser = new Map();
+    const revenueCorrectionByMonth = new Map();
+    let totalRevenueCorrection = 0;
+    for (const quotation of correctionQuotations) {
+      const stored = Number(quotation.totalPrice) || 0;
+      const correction = Math.round((getQuotationAccountingTotal(quotation) - stored) * 100) / 100;
+      if (!correction) continue;
+      totalRevenueCorrection = Math.round((totalRevenueCorrection + correction) * 100) / 100;
+      const userKey = quotation.salesUserId?.toString();
+      if (userKey) revenueCorrectionByUser.set(userKey, (revenueCorrectionByUser.get(userKey) || 0) + correction);
+      if (quotation.createdAt) {
+        const createdAt = new Date(quotation.createdAt);
+        const monthKey = `${createdAt.getUTCFullYear()}-${createdAt.getUTCMonth() + 1}`;
+        revenueCorrectionByMonth.set(monthKey, (revenueCorrectionByMonth.get(monthKey) || 0) + correction);
+      }
+    }
+
     // CRITICAL: Get quotation counts for each user
     // Uses salesUserId field in quotations to determine attribution
     // This ensures quotations assigned by superadmin to other users are counted correctly
@@ -1783,7 +1813,8 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
           location: user.location,
           contactNumber: user.contactNumber,
           quotationCount,  // Count based on salesUserId
-          revenue: revenueResult.length > 0 ? revenueResult[0].totalRevenue : 0,  // Revenue based on salesUserId
+          revenue: Math.round(((revenueResult.length > 0 ? revenueResult[0].totalRevenue : 0)
+            + (revenueCorrectionByUser.get(user._id.toString()) || 0)) * 100) / 100,
           createdAt: user.createdAt,
           role: user.role
         };
@@ -1840,9 +1871,12 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
         totalQuotations: totalQuotations,
         activeUsers: activeUsers,
         topPerformers: topPerformers,
-        totalRevenue: totalRevenue.length > 0 ? totalRevenue[0].total : 0,
+        totalRevenue: Math.round(((totalRevenue.length > 0 ? totalRevenue[0].total : 0) + totalRevenueCorrection) * 100) / 100,
         averageQuotationsPerUser: activeUsers > 0 ? Math.round(totalQuotations / activeUsers) : 0,
-        quotationsByMonth: quotationsByMonth
+        quotationsByMonth: quotationsByMonth.map(month => ({
+          ...month,
+          revenue: Math.round((month.revenue + (revenueCorrectionByMonth.get(`${month._id.year}-${month._id.month}`) || 0)) * 100) / 100
+        }))
       },
       filters: {
         startDate: startDate || null,
@@ -1935,7 +1969,8 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
         });
       }
 
-      totalRevenue += quotation.totalPrice || 0;
+      const displayTotal = getQuotationAccountingTotal(quotation);
+      totalRevenue += displayTotal;
 
       customerMap.get(customerKey).quotations.push({
         projectTitle: quotation.quotationData?.userInfo?.projectTitle ||
@@ -1945,7 +1980,7 @@ router.get('/my-dashboard', authenticateToken, async (req, res) => {
         quotationId: quotation.quotationId,
         productName: quotation.productName,
         productDetails: quotation.productDetails,
-        totalPrice: quotation.totalPrice,
+        totalPrice: displayTotal,
         message: quotation.message,
         userType: quotation.userType,
         userTypeDisplayName: quotation.userTypeDisplayName,
@@ -2096,7 +2131,7 @@ router.get('/salesperson/:id', authenticateToken, async (req, res) => {
         quotationId: quotation.quotationId,
         productName: quotation.productName,
         productDetails: quotation.productDetails,
-        totalPrice: quotation.totalPrice, // Grand Total with 18% GST - matches PDF exactly
+        totalPrice: getQuotationAccountingTotal(quotation),
         message: quotation.message,
         userType: quotation.userType,
         userTypeDisplayName: quotation.userTypeDisplayName,

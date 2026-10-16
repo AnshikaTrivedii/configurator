@@ -12,7 +12,7 @@
 
 import { Product } from '../types';
 import { getProcessorPrice } from './processorPrices';
-import { calculateCentralizedPricing } from './centralizedPricing';
+import { calculateCentralizedPricing, calculatePricingQuantity, getCatalogUnitPrice } from './centralizedPricing';
 
 export interface PricingBreakdown {
 
@@ -45,43 +45,8 @@ export interface PricingBreakdown {
 /**
  * Get product unit price based on user type (matches PDF logic exactly)
  */
-export function getProductUnitPrice(product: Product, userType: string): number {
-  try {
-
-    if (product.category?.toLowerCase().includes('rental') && product.prices) {
-      const isCurveLock = product.rentalOption === 'curve lock' || product.rentalOption === 'curveLock';
-      let cabinetPrice: number;
-      let curveLockAddOn = 0;
-      if (userType === 'Reseller') {
-        cabinetPrice = product.prices.cabinet.reseller;
-        if (isCurveLock && product.prices.curveLock) curveLockAddOn = product.prices.curveLock.reseller;
-      } else if (userType === 'Channel') {
-        cabinetPrice = product.prices.cabinet.siChannel;
-        if (isCurveLock && product.prices.curveLock) curveLockAddOn = product.prices.curveLock.siChannel;
-      } else {
-        cabinetPrice = product.prices.cabinet.endCustomer;
-        if (isCurveLock && product.prices.curveLock) curveLockAddOn = product.prices.curveLock.endCustomer;
-      }
-      return cabinetPrice + curveLockAddOn;
-    }
-
-    if (userType === 'Reseller' && typeof product.resellerPrice === 'number') {
-      return product.resellerPrice;
-    } else if (userType === 'Channel' && typeof product.siChannelPrice === 'number') {
-      return product.siChannelPrice;
-    } else if (typeof product.price === 'number') {
-      return product.price;
-    } else if (typeof product.price === 'string') {
-      const parsedPrice = parseFloat(product.price);
-      return isNaN(parsedPrice) ? 5300 : parsedPrice;
-    }
-
-    return 5300;
-    
-  } catch (error) {
-
-    return 5300;
-  }
+export function getProductUnitPrice(product: Product, userType: string): number | null {
+  return getCatalogUnitPrice(product, userType);
 }
 
 /**
@@ -118,48 +83,10 @@ export function getProcessorPriceForProduct(processorName: string, userType: str
  */
 export function calculateQuantity(
   product: Product,
-  cabinetGrid: { columns: number; rows: number } | null,
+  cabinetGrid: { columns: number; rows: number; totalWidth?: number; totalHeight?: number } | null,
   config: { width: number; height: number; unit: string }
 ): number {
-  try {
-    const METERS_TO_FEET = 3.2808399;
-    
-    if (product.category?.toLowerCase().includes('rental')) {
-
-      return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
-    } else if (product.category?.toLowerCase().includes('digital standee')) {
-      return 1;
-    } else if (isJumboSeriesProduct(product)) {
-      // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
-      const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
-      const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
-      const widthInMeters = effectiveWidth / 1000;
-      const heightInMeters = effectiveHeight / 1000;
-      const widthInFeet = widthInMeters * METERS_TO_FEET;
-      const heightInFeet = heightInMeters * METERS_TO_FEET;
-      const quantity = widthInFeet * heightInFeet;
-      const roundedQuantity = Math.round(quantity * 100) / 100;
-      return isNaN(roundedQuantity) || roundedQuantity <= 0 ? 1 : Math.max(0.01, Math.min(roundedQuantity, 10000));
-    } else {
-
-      const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
-      const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
-      const widthInMeters = effectiveWidth / 1000;
-      const heightInMeters = effectiveHeight / 1000;
-      const widthInFeet = widthInMeters * METERS_TO_FEET;
-      const heightInFeet = heightInMeters * METERS_TO_FEET;
-      const quantity = widthInFeet * heightInFeet;
-
-      const roundedQuantity = Math.round(quantity * 100) / 100;
-
-      return isNaN(roundedQuantity) || roundedQuantity <= 0 ? 1 : Math.max(0.01, Math.min(roundedQuantity, 10000));
-    }
-
-    return 1;
-  } catch (error) {
-
-    return 1;
-  }
+  return calculatePricingQuantity(product, cabinetGrid, config);
 }
 
 /**
@@ -173,7 +100,7 @@ export function calculateQuantity(
  */
 export function calculatePricingBreakdown(
   product: Product,
-  cabinetGrid: { columns: number; rows: number } | null,
+  cabinetGrid: { columns: number; rows: number; totalWidth?: number; totalHeight?: number } | null,
   processor: string | null,
   userType: string,
   config: { width: number; height: number; unit: string },
@@ -194,6 +121,7 @@ export function calculatePricingBreakdown(
       nexaAddons,
       orderQuantity
     );
+    if (!pricingResult.isAvailable) throw new Error('Price is unavailable for this product configuration.');
 
     const breakdown: PricingBreakdown = {
       unitPrice: pricingResult.unitPrice,
@@ -221,26 +149,7 @@ export function calculatePricingBreakdown(
     return breakdown;
     
   } catch (error) {
-
-    return {
-      unitPrice: 5300,
-      quantity: 1,
-      orderQuantity: 1,
-      unitGrandTotal: 5300,
-      productSubtotal: 5300,
-      productGST: 0,
-      productTotal: 5300,
-      processorPrice: 0,
-      processorGST: 0,
-      processorTotal: 0,
-      addonsCost: 0,
-      addonsGST: 0,
-      addonsTotal: 0,
-      appliedAddons: [],
-      grandTotal: 5300,
-      userType: 'End User',
-      productName: product.name
-    };
+    throw error;
   }
 }
 
@@ -251,7 +160,7 @@ export function calculatePricingBreakdown(
 export function validatePriceConsistency(
   storedPrice: number,
   product: Product,
-  cabinetGrid: { columns: number; rows: number } | null,
+  cabinetGrid: { columns: number; rows: number; totalWidth?: number; totalHeight?: number } | null,
   processor: string | null,
   userType: string,
   config: { width: number; height: number; unit: string },
@@ -283,7 +192,7 @@ export function validatePriceConsistency(
       isValid: false,
       calculatedPrice: 0,
       difference: storedPrice,
-      message: `❌ Price validation failed: ${error.message}`
+      message: `❌ Price validation failed: ${error instanceof Error ? error.message : String(error)}`
     };
   }
 }

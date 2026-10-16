@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { DisplayConfig, AspectRatio, CabinetGrid, Product } from '../types';
 import { clampAndSnapDimensions, hasDimensionConstraints } from '../utils/dimensionConstraints';
+import { cabinetCountForTarget } from '../utils/displayMeasurements';
 
 const aspectRatios: AspectRatio[] = [
   { label: '16:9', value: 16 / 9, name: '16:9' },
@@ -144,11 +145,8 @@ export const useDisplayCalculations = (selectedProduct?: Product) => {
       ? { width: c.moduleWidth, height: c.moduleHeight }
       : (selectedProduct?.cabinetDimensions || defaultCabinet);
 
-    let columns = Math.floor(config.width / cabinet.width);
-    let rows = Math.floor(config.height / cabinet.height);
-
-    if (!Number.isFinite(columns) || columns <= 0) columns = 1;
-    if (!Number.isFinite(rows) || rows <= 0) rows = 1;
+    const columns = cabinetCountForTarget(config.width, cabinet.width);
+    const rows = cabinetCountForTarget(config.height, cabinet.height);
 
     const totalWidth = columns * cabinet.width;
     const totalHeight = rows * cabinet.height;

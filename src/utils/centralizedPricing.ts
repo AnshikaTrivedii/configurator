@@ -12,6 +12,7 @@ import { Product } from '../types';
 import { getProcessorPrice } from './processorPrices';
 import { normalizeOrderQuantity } from './orderQuantity';
 import { QuotationAddon, sanitizeQuotationAddons, sumQuotationAddons, addQuotationAddonsToTotal } from './quotationAddons';
+import { billableAreaSqFt } from './displayMeasurements';
 
 export interface PricingCalculationResult {
 
@@ -96,7 +97,7 @@ function isNexaSeriesProduct(product: Product): boolean {
     false;
 }
 
-const NEXA_ADDON_PRICES: Record<string, number> = {
+export const NEXA_ADDON_PRICES: Record<string, number> = {
   'IR Touch': 75000,
   'Floor Mount Stand': 85000
 };
@@ -161,8 +162,8 @@ function getProductUnitPrice(
         cabinetPrice = product.prices.cabinet.endCustomer as number;
         if (isCurveLock && product.prices.curveLock) curveLockAddOn = product.prices.curveLock.endCustomer as number;
       }
-      const price = cabinetPrice + curveLockAddOn;
-      return ((cabinetPrice as any) === 'NA' || (cabinetPrice as any) === 'N/A') ? null : price;
+      const price = Number(cabinetPrice) + Number(curveLockAddOn);
+      return Number.isFinite(price) && price >= 0 ? price : null;
     }
 
     let selectedPrice: any;
@@ -180,33 +181,44 @@ function getProductUnitPrice(
     }
 
     if (typeof selectedPrice === 'number') {
-      return selectedPrice;
+      return Number.isFinite(selectedPrice) && selectedPrice >= 0 ? selectedPrice : null;
     }
 
     if (typeof selectedPrice === 'string') {
-      const parsedPrice = parseFloat(selectedPrice);
-      return isNaN(parsedPrice) ? 5300 : parsedPrice;
+      if (selectedPrice.trim() === '') return null;
+      const parsedPrice = Number(selectedPrice);
+      return Number.isFinite(parsedPrice) && parsedPrice >= 0 ? parsedPrice : null;
     }
 
-    return 5300;
+    return null;
 
   } catch (error) {
 
-    return 5300;
+    return null;
   }
+}
+
+/**
+ * Catalog / base unit price used by quotation generation.
+ * Does not apply Super Admin overrides, quotation discounts, or customer-specific pricing.
+ */
+export function getCatalogUnitPrice(
+  product: Product,
+  userType: string,
+  wireType?: 'gold' | 'copper'
+): number | null {
+  return getProductUnitPrice(product, userType, wireType);
 }
 
 /**
  * Calculate quantity based on product type and configuration
  */
-function calculateQuantity(
+export function calculatePricingQuantity(
   product: Product,
-  cabinetGrid: { columns: number; rows: number } | null | undefined,
+  cabinetGrid: { columns: number; rows: number; totalWidth?: number; totalHeight?: number } | null | undefined,
   config: { width: number; height: number; unit: string }
 ): number {
   try {
-    const METERS_TO_FEET = 3.2808399;
-
     if (product.category?.toLowerCase().includes('rental')) {
 
       return cabinetGrid ? (cabinetGrid.columns * cabinetGrid.rows) : 1;
@@ -216,24 +228,13 @@ function calculateQuantity(
       // Jumbo: prices are per ft² (controller included). Quantity = display area in sq ft.
       const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
       const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
-      const widthInMeters = effectiveWidth / 1000;
-      const heightInMeters = effectiveHeight / 1000;
-      const widthInFeet = widthInMeters * METERS_TO_FEET;
-      const heightInFeet = heightInMeters * METERS_TO_FEET;
-      const quantity = widthInFeet * heightInFeet;
-      const roundedQuantity = Math.round(quantity * 100) / 100;
+      const roundedQuantity = billableAreaSqFt(effectiveWidth, effectiveHeight);
       return isNaN(roundedQuantity) || roundedQuantity <= 0 ? 1 : Math.max(0.01, Math.min(roundedQuantity, 10000));
     } else {
 
       const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
       const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
-      const widthInMeters = effectiveWidth / 1000;
-      const heightInMeters = effectiveHeight / 1000;
-      const widthInFeet = widthInMeters * METERS_TO_FEET;
-      const heightInFeet = heightInMeters * METERS_TO_FEET;
-      const quantity = widthInFeet * heightInFeet;
-
-      const roundedQuantity = Math.round(quantity * 100) / 100;
+      const roundedQuantity = billableAreaSqFt(effectiveWidth, effectiveHeight);
 
       return isNaN(roundedQuantity) || roundedQuantity <= 0 ? 1 : Math.max(0.01, Math.min(roundedQuantity, 10000));
     }
@@ -254,7 +255,7 @@ function calculateQuantity(
  */
 export function calculateStructureCost(
   environment: string | null | undefined,
-  cabinetGrid: { columns: number; rows: number } | null | undefined,
+  cabinetGrid: { columns: number; rows: number; totalWidth?: number; totalHeight?: number } | null | undefined,
   area: number
 ): number {
   const normalizedEnv = environment?.toLowerCase().trim();
@@ -300,7 +301,7 @@ export function calculateInstallationCost(
  */
 export function calculateCentralizedPricing(
   product: Product,
-  cabinetGrid: { columns: number; rows: number } | null | undefined,
+  cabinetGrid: { columns: number; rows: number; totalWidth?: number; totalHeight?: number } | null | undefined,
   processor: string | null | undefined,
   userType: string,
   config: { width: number; height: number; unit: string },
@@ -318,6 +319,11 @@ export function calculateCentralizedPricing(
   const customAddonsTotal = sumQuotationAddons(customAddons);
   try {
     const orderQuantity = normalizeOrderQuantity(orderQuantityInput);
+    const widthMm = cabinetGrid?.totalWidth ?? config.width;
+    const heightMm = cabinetGrid?.totalHeight ?? config.height;
+    if (!Number.isFinite(widthMm) || !Number.isFinite(heightMm) || widthMm <= 0 || heightMm <= 0) {
+      throw new Error('Display dimensions must be positive finite millimetre values.');
+    }
 
     let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
     if (userType === 'reseller') {
@@ -367,7 +373,7 @@ export function calculateCentralizedPricing(
       };
     }
 
-    const quantity = calculateQuantity(product, cabinetGrid, config);
+    const quantity = calculatePricingQuantity(product, cabinetGrid, config);
 
     const roundedQuantity = Math.round(quantity * 100) / 100;
     // Per-display product math (existing quantity = Ft² / cabinets / 1)
@@ -386,14 +392,9 @@ export function calculateCentralizedPricing(
     const processorPrice = Math.round((perUnitProcessorPrice * orderQuantity) * 100) / 100;
     const processorTotal = processorPrice;
 
-    const METERS_TO_FEET = 3.2808399;
     const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
     const effectiveHeight = cabinetGrid?.totalHeight ?? config.height;
-    const widthInMeters = effectiveWidth / 1000;
-    const heightInMeters = effectiveHeight / 1000;
-    const widthInFeet = widthInMeters * METERS_TO_FEET;
-    const heightInFeet = heightInMeters * METERS_TO_FEET;
-    const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
+    const screenAreaSqFt = billableAreaSqFt(effectiveWidth, effectiveHeight);
 
     let structureBasePrice: number;
     let installationBasePrice: number;
@@ -421,8 +422,15 @@ export function calculateCentralizedPricing(
       installationBasePrice = calculateInstallationCost(screenAreaSqFt, 'per_sqft', 500);
     }
 
-    // Digital Standee & Fixed Products: quotations are product-only (no structure / installation add-ons).
-    if (isDigitalStandeeProduct(product) || isFixedProduct(product)) {
+    // Digital standee and fixed products are product-only.
+    // Rental quotations are product + processor. Structure and installation are
+    // omitted here so the cart, save payload, and multi-product quotation match
+    // the one-product rental total. Custom structure/installation prices do not apply.
+    if (
+      isDigitalStandeeProduct(product) ||
+      isFixedProduct(product) ||
+      product.category?.toLowerCase().includes('rental')
+    ) {
       structureBasePrice = 0;
       installationBasePrice = 0;
     }
@@ -452,7 +460,9 @@ export function calculateCentralizedPricing(
     const unitGrandTotal = Math.round(
       perUnitProductSubtotal + perUnitProcessorPrice + structureBasePrice + installationBasePrice + perUnitAddonsCost
     );
-    const grandTotal = addQuotationAddonsToTotal(Math.round(unitGrandTotal * orderQuantity), customAddonsTotal);
+    // The total must reconcile with the rounded components shown in the quote.
+    const componentTotal = productTotal + processorTotal + structureTotal + installationTotal + addonsTotal;
+    const grandTotal = addQuotationAddonsToTotal(Math.round(componentTotal), customAddonsTotal);
 
     const result: PricingCalculationResult = {
       unitPrice,
@@ -495,13 +505,13 @@ export function calculateCentralizedPricing(
   } catch (error) {
 
     return {
-      unitPrice: 5300,
-      quantity: 1,
-      orderQuantity: 1,
-      unitGrandTotal: 5300,
-      productSubtotal: 5300,
+      unitPrice: 0,
+      quantity: 0,
+      orderQuantity: normalizeOrderQuantity(orderQuantityInput),
+      unitGrandTotal: 0,
+      productSubtotal: 0,
       productGST: 0,
-      productTotal: 5300,
+      productTotal: 0,
       processorPrice: 0,
       processorGST: 0,
       processorTotal: 0,
@@ -518,10 +528,10 @@ export function calculateCentralizedPricing(
       customAddons: [],
       customAddonsTotal: 0,
       customAddonsIncludedInGrandTotal: false,
-      grandTotal: 6254,
+      grandTotal: 0,
       userType: 'End User',
-      productName: product.name,
-      isAvailable: true
+      productName: product?.name || 'Unknown Product',
+      isAvailable: false
     };
   }
 }
@@ -532,7 +542,7 @@ export function calculateCentralizedPricing(
 export function validatePriceConsistency(
   storedPrice: number,
   product: Product,
-  cabinetGrid: { columns: number; rows: number } | null | undefined,
+  cabinetGrid: { columns: number; rows: number; totalWidth?: number; totalHeight?: number } | null | undefined,
   processor: string | null | undefined,
   userType: string,
   config: { width: number; height: number; unit: string },

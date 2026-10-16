@@ -7,6 +7,7 @@
 
 import { PdfQuotationLineItem } from './quotationLineItems';
 import { normalizeOrderQuantity } from './orderQuantity';
+import { billableAreaSqFt, formatDimensionInput } from './displayMeasurements';
 import {
   QuotationAddon,
   addQuotationAddonsToTotal,
@@ -18,7 +19,6 @@ import {
 export const PRODUCTS_PER_QUOTATION_PAGE = 2;
 
 const GST_RATE = '18%';
-const METERS_TO_FEET = 3.2808399;
 
 const formatIndianNumber = (x: number): string => {
   const n = Math.round(Number(x) || 0);
@@ -26,19 +26,16 @@ const formatIndianNumber = (x: number): string => {
 };
 
 const formatTotalWithDecimals = (x: number): string =>
-  `${formatIndianNumber(x)}.00`;
+  (Number(x) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const toDisplayUnit = (mm: number | undefined, unit: 'm' | 'ft'): string => {
   if (!mm || !Number.isFinite(mm)) return '—';
-  const meters = mm / 1000;
-  if (unit === 'ft') return (meters * METERS_TO_FEET).toFixed(2);
-  return meters.toFixed(2);
+  return formatDimensionInput(mm, unit);
 };
 
 const screenAreaSqFt = (widthMm?: number, heightMm?: number): number => {
   if (!widthMm || !heightMm) return 0;
-  const area = (widthMm / 1000) * METERS_TO_FEET * ((heightMm / 1000) * METERS_TO_FEET);
-  return Math.round(area * 100) / 100;
+  return billableAreaSqFt(widthMm, heightMm);
 };
 
 const sectionLabel = (index: number): string => {
@@ -199,7 +196,7 @@ const buildProductsRow = (pageItems: PdfQuotationLineItem[], startIndex: number)
 };
 
 const buildSummaryAndGrandTotal = (allItems: PdfQuotationLineItem[], customAddons: QuotationAddon[] = []): string => {
-  const productsTotal = allItems.reduce((sum, item) => sum + (item.pricing?.grandTotal || 0), 0);
+  const productsTotal = Math.round(allItems.reduce((sum, item) => sum + (item.pricing?.grandTotal || 0), 0));
   const addonsTotal = sumQuotationAddons(customAddons);
   const grandTotal = addQuotationAddonsToTotal(productsTotal, addonsTotal);
   return `

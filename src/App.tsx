@@ -8,6 +8,8 @@ import { SalesUser, salesAPI } from './api/sales';
 import { Product, Quotation } from './types';
 import { useDisplayConfig } from './contexts/DisplayConfigContext';
 import { verifyUserObject } from './utils/clearAuthCache';
+import { products } from './data/products';
+import { normalizeQuotationLineItems } from './utils/quotationLineItems';
 
 type UserRole = 'normal' | 'sales' | 'super' | 'super_admin' | 'partner';
 
@@ -250,30 +252,34 @@ function App() {
 
     setActiveQuotation(quotation);
 
-    const product = quotation.exactProductSpecs?.product || quotation.productDetails?.product || quotation.productDetails;
-    const cabinetGrid = quotation.exactProductSpecs?.cabinetGrid || quotation.productDetails?.cabinetGrid || quotation.quotationData?.cabinetGrid;
+    // Bootstrap from the first saved product line; the top-level specs only describe
+    // whichever product was on screen when the quotation was saved.
+    const firstLine = normalizeQuotationLineItems(quotation)[0];
+    const savedProductName = firstLine?.productName || (quotation as any).productName;
+    const product: Product | undefined =
+      products.find(p => p.id === firstLine?.productId) ||
+      products.find(p => p.id === (quotation.productDetails as any)?.productId) ||
+      (savedProductName ? products.find(p => p.name === savedProductName) : undefined) ||
+      quotation.exactProductSpecs?.product ||
+      quotation.productDetails?.product;
+    const cabinetGrid = firstLine?.cabinetGrid || quotation.exactProductSpecs?.cabinetGrid || quotation.quotationData?.cabinetGrid;
 
     let configWidth = 0;
     let configHeight = 0;
 
-    if (quotation.exactProductSpecs?.displaySize) {
+    if (firstLine?.config?.width && firstLine?.config?.height) {
+      configWidth = firstLine.config.width;
+      configHeight = firstLine.config.height;
+    } else if (quotation.exactProductSpecs?.displaySize) {
       configWidth = quotation.exactProductSpecs.displaySize.width * 1000; // stored in m, convert to mm
       configHeight = quotation.exactProductSpecs.displaySize.height * 1000;
-    } else if (quotation.quotationData?.config) {
-
-      configWidth = quotation.quotationData.config.width;
-      configHeight = quotation.quotationData.config.height;
-      if (quotation.quotationData.config.unit === 'm') {
-        configWidth *= 1000;
-        configHeight *= 1000;
-      }
     } else if (product && cabinetGrid && product.cabinetDimensions) {
       configWidth = cabinetGrid.columns * product.cabinetDimensions.width;
       configHeight = cabinetGrid.rows * product.cabinetDimensions.height;
     }
 
     if (configWidth && configHeight && product) {
-      const quotationWireType = (quotation.quotationData as any)?.wireType;
+      const quotationWireType = firstLine?.wireType ?? (quotation.quotationData as any)?.wireType;
       if (quotationWireType) {
         updateConfig({ wireType: quotationWireType });
       }

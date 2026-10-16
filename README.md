@@ -1,5 +1,12 @@
 #Deployment
 
+## Quotation calculation regression checks
+
+After `npm install`, run `npm run test:quotation-edit` from the repository root.
+It checks discount edit/reopen cycles, multi-product totals, dimensions, PDF amounts,
+and the API accounting guard. Run `npm run build` as the frontend compilation check.
+These are local tests; they do not change saved quotations or connect to the database.
+
 ## How to Deploy
 
 To Development

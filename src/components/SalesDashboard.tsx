@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, FileText, Package, RefreshCw, LogOut, Plus, Eye, Edit, Search, Clock, MapPin, Trash2, UserCheck } from 'lucide-react';
+import { X, User, Mail, Phone, FileText, Package, RefreshCw, LogOut, Plus, Eye, Edit, Search, Clock, MapPin, Trash2, UserCheck, IndianRupee } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { clientAPI } from '../api/clients';
 import { leadsAPI, Lead } from '../api/leads';
@@ -8,11 +8,14 @@ import { QuoteModal } from './QuoteModal';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { LeadDetailsModal } from './LeadDetailsModal';
 import { LeadStatusModal } from './LeadStatusModal';
+import { ProductRatesModal } from './ProductRatesModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
+import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
 import { Quotation } from '../types';
 import { products as productsImport } from '../data/products';
 import {
   getQuotationItemSummary,
+  getQuotationDisplayTotal,
   normalizeQuotationLineItems,
   toPdfQuotationLineItems
 } from '../utils/quotationLineItems';
@@ -82,6 +85,10 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRatesModalOpen, setIsRatesModalOpen] = useState(false);
+
+  const dashboardRole = (loggedInUser?.role || salesPerson?.role || 'sales').toLowerCase();
+  const canViewProductRates = dashboardRole === 'sales';
 
   // Filter filtered customers based on search query
   const filteredCustomers = customers.filter(customer => {
@@ -178,85 +185,50 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     });
   };
 
+  /** Saved product details merged onto the catalog entry (keeps catalog prices/specs the PDF needs). */
+  const resolveQuotationProduct = (quotation: Quotation) => {
+    const productDetails = quotation.productDetails;
+    const productId = productDetails?.productId || (productDetails as any)?.product?.id || productDetails?.id;
+    let product = productId ? products.find(p => p.id === productId) : null;
+    if (!product) {
+      product = (productDetails as any)?.product || productDetails;
+      if (product && !product.id && productId) {
+        product = { ...product, id: productId };
+      }
+    } else {
+      const productFromDetails = (productDetails as any)?.product || productDetails;
+      product = {
+        ...product,
+        ...productFromDetails,
+        price: product.price ?? productFromDetails.price,
+        resellerPrice: product.resellerPrice ?? productFromDetails.resellerPrice,
+        siChannelPrice: product.siChannelPrice ?? productFromDetails.siChannelPrice,
+        prices: product.prices ?? productFromDetails.prices,
+        id: product.id
+      };
+    }
+    return product;
+  };
+
   const handleViewPdf = async (quotation: Quotation) => {
     try {
       setSelectedQuotation(quotation);
 
-      if (quotation.pdfPage6HTML) {
-        setPdfHtmlContent(quotation.pdfPage6HTML);
-        setIsPdfModalOpen(true);
-        return;
+      // Regenerate from the saved line items so the PDF always matches the current saved
+      // data; the cached HTML can be stale after an edit that did not re-upload a PDF.
+      let htmlContent: string | null = null;
+      if (quotation.exactPricingBreakdown && quotation.exactProductSpecs) {
+        try {
+          htmlContent = buildQuotationHtml(quotation);
+        } catch (regenError) {
+          console.error('Failed to regenerate quotation PDF view:', regenError);
+        }
+      }
+      if (!htmlContent && quotation.pdfPage6HTML) {
+        htmlContent = quotation.pdfPage6HTML;
       }
 
-      if (quotation.exactPricingBreakdown && quotation.exactProductSpecs) {
-        const productDetails = quotation.productDetails;
-        const exactSpecs = quotation.exactProductSpecs;
-
-        const product = productDetails?.product || productDetails;
-
-        let config = quotation.quotationData?.config;
-        if (!config && exactSpecs.displaySize) {
-
-          config = {
-            width: (exactSpecs.displaySize.width * 1000) || 0,
-            height: (exactSpecs.displaySize.height * 1000) || 0,
-            unit: 'mm'
-          };
-        } else if (!config) {
-
-          config = {
-            width: productDetails?.width || productDetails?.displaySize?.width || 0,
-            height: productDetails?.height || productDetails?.displaySize?.height || 0,
-            unit: productDetails?.unit || 'mm'
-          };
-        }
-
-        const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
-        const processor = exactSpecs.processor || productDetails?.processor || null;
-        const mode = exactSpecs.mode || productDetails?.mode || undefined;
-
-        const customer = customers.find(c =>
-          c.quotations.some(q => q.quotationId === quotation.quotationId)
-        );
-
-        let userTypeForHtml: 'End User' | 'Reseller' | 'Channel' = 'End User';
-        if (quotation.userType === 'siChannel') {
-          userTypeForHtml = 'Channel';
-        } else if (quotation.userType === 'reseller') {
-          userTypeForHtml = 'Reseller';
-        }
-
-        const userInfo = {
-          userType: userTypeForHtml,
-          fullName: customer?.customerName || '',
-          email: customer?.customerEmail || '',
-          phoneNumber: customer?.customerPhone || ''
-        };
-
-        const htmlContent = generateConfigurationHtml(
-          config,
-          product,
-          cabinetGrid,
-          processor,
-          mode,
-          userInfo,
-          salesPerson ? {
-            email: salesPerson.email,
-            name: salesPerson.name,
-            contactNumber: salesPerson.contactNumber,
-            location: salesPerson.location
-          } : null,
-          quotation.quotationId,
-          quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
-          quotation.exactPricingBreakdown,
-          quotation.quotationData?.wireType,
-          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name),
-          quotation.quotationData?.orderQuantity
-            ?? quotation.exactPricingBreakdown?.orderQuantity
-            ?? 1,
-          toPdfQuotationLineItems(normalizeQuotationLineItems(quotation))
-        );
-
+      if (htmlContent) {
         setPdfHtmlContent(htmlContent);
         setIsPdfModalOpen(true);
       } else if (quotation.pdfS3Key || quotation.pdfS3Url) {
@@ -275,6 +247,78 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
     }
   };
 
+  const buildQuotationHtml = (quotation: Quotation): string => {
+    const productDetails = quotation.productDetails;
+    const exactSpecs = quotation.exactProductSpecs;
+
+    const product = resolveQuotationProduct(quotation) as any;
+
+    let config = quotation.quotationData?.config;
+    if (!config && exactSpecs.displaySize) {
+
+      config = {
+        width: (exactSpecs.displaySize.width * 1000) || 0,
+        height: (exactSpecs.displaySize.height * 1000) || 0,
+        unit: 'mm'
+      };
+    } else if (!config) {
+
+      config = {
+        width: productDetails?.width || productDetails?.displaySize?.width || 0,
+        height: productDetails?.height || productDetails?.displaySize?.height || 0,
+        unit: productDetails?.unit || 'mm'
+      };
+    }
+
+    const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
+    const processor = exactSpecs.processor || productDetails?.processor || null;
+    const mode = exactSpecs.mode || productDetails?.mode || undefined;
+
+    const customer = customers.find(c =>
+      c.quotations.some(q => q.quotationId === quotation.quotationId)
+    );
+
+    let userTypeForHtml: 'End User' | 'Reseller' | 'Channel' = 'End User';
+    if (quotation.userType === 'siChannel') {
+      userTypeForHtml = 'Channel';
+    } else if (quotation.userType === 'reseller') {
+      userTypeForHtml = 'Reseller';
+    }
+
+    const userInfo = {
+      userType: userTypeForHtml,
+      fullName: customer?.customerName || '',
+      email: customer?.customerEmail || '',
+      phoneNumber: customer?.customerPhone || ''
+    };
+
+    return generateConfigurationHtml(
+      config,
+      product,
+      cabinetGrid,
+      processor,
+      mode,
+      userInfo,
+      salesPerson ? {
+        email: salesPerson.email,
+        name: salesPerson.name,
+        contactNumber: salesPerson.contactNumber,
+        location: salesPerson.location
+      } : null,
+      quotation.quotationId,
+      quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
+      buildExactPricingBreakdownForPdf(quotation.exactPricingBreakdown, {
+        logContext: `salesDashboardPdf (quotationId=${quotation.quotationId})`
+      }),
+      quotation.quotationData?.wireType,
+      quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name),
+      quotation.quotationData?.orderQuantity
+        ?? quotation.exactPricingBreakdown?.orderQuantity
+        ?? 1,
+      toPdfQuotationLineItems(normalizeQuotationLineItems(quotation))
+    );
+  };
+
   const handleAlternatePdf = async (quotation: Quotation) => {
     try {
       if (!quotation.exactPricingBreakdown || !quotation.exactProductSpecs) {
@@ -286,25 +330,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
       const exactSpecs = quotation.exactProductSpecs;
 
       // Look up the full product from products.ts (same as PDF view modal)
-      const productId = productDetails?.productId || (productDetails as any)?.product?.id || productDetails?.id;
-      let product = productId ? products.find(p => p.id === productId) : null;
-      if (!product) {
-        product = (productDetails as any)?.product || productDetails;
-        if (product && !product.id && productId) {
-          product = { ...product, id: productId };
-        }
-      } else {
-        const productFromDetails = (productDetails as any)?.product || productDetails;
-        product = {
-          ...product,
-          ...productFromDetails,
-          price: product.price ?? productFromDetails.price,
-          resellerPrice: product.resellerPrice ?? productFromDetails.resellerPrice,
-          siChannelPrice: product.siChannelPrice ?? productFromDetails.siChannelPrice,
-          prices: product.prices ?? productFromDetails.prices,
-          id: product.id
-        };
-      }
+      const product = resolveQuotationProduct(quotation);
 
       let config = quotation.quotationData?.config;
       if (!config && exactSpecs.displaySize) {
@@ -385,7 +411,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
         } : null,
         quotation.quotationId,
         quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
-        quotation.exactPricingBreakdown,
+        buildExactPricingBreakdownForPdf(quotation.exactPricingBreakdown, {
+          logContext: `salesDashboardAlternatePdf (quotationId=${quotation.quotationId})`
+        }),
         quotation.quotationData?.wireType,
         quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name),
         quotation.quotationData?.orderQuantity
@@ -598,6 +626,17 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                 <RefreshCw size={16} />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
+              {canViewProductRates && (
+                <button
+                  onClick={() => setIsRatesModalOpen(true)}
+                  className="px-4 py-2 bg-white/10 text-white text-sm font-medium rounded-lg hover:bg-white/20 transition-all flex items-center gap-2 backdrop-blur-sm border border-white/10"
+                  title="View catalog unit prices for all products"
+                >
+                  <IndianRupee size={16} />
+                  <span className="hidden lg:inline">View Rates for All Products</span>
+                  <span className="lg:hidden">View Rates</span>
+                </button>
+              )}
               <button
                 onClick={onBack}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-500 transition-all flex items-center gap-2 shadow-lg shadow-blue-900/20 active:transform active:scale-95"
@@ -876,12 +915,15 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                             <h4 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-1" title={quotation.productName}>
                               {quotation.productName}
                             </h4>
-                            <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2">
-                              {(() => {
-                                const itemSummary = getQuotationItemSummary(quotation);
-                                return (
-                                  <>
-                                    {itemSummary.itemCount > 1 && (
+                            {(() => {
+                              const itemSummary = getQuotationItemSummary(quotation);
+                              const lineItems = normalizeQuotationLineItems(quotation);
+                              const isMultiProduct = lineItems.length > 1;
+                              const singleGrid = lineItems[0]?.cabinetGrid || quotation.exactProductSpecs?.cabinetGrid;
+                              return (
+                                <>
+                                  <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2">
+                                    {isMultiProduct && (
                                       <span className="flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 text-blue-700">
                                         {itemSummary.itemCount} items
                                       </span>
@@ -889,20 +931,34 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                                     <span className="flex items-center gap-1 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 text-indigo-700">
                                       Qty {itemSummary.totalQuantity}
                                     </span>
-                                  </>
-                                );
-                              })()}
-                              {quotation.exactProductSpecs?.cabinetGrid && (
-                                <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
-                                  {quotation.exactProductSpecs.cabinetGrid.columns}x{quotation.exactProductSpecs.cabinetGrid.rows}
-                                </span>
-                              )}
-                              {quotation.exactProductSpecs?.displaySize && !quotation.exactProductSpecs?.isFixed && (
-                                <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
-                                  {quotation.exactProductSpecs.displaySize.width?.toFixed(2)}m x {quotation.exactProductSpecs.displaySize.height?.toFixed(2)}m
-                                </span>
-                              )}
-                            </div>
+                                    {!isMultiProduct && singleGrid && (
+                                      <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                                        {singleGrid.columns}x{singleGrid.rows}
+                                      </span>
+                                    )}
+                                    {!isMultiProduct && quotation.exactProductSpecs?.displaySize && !quotation.exactProductSpecs?.isFixed && (
+                                      <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                                        {quotation.exactProductSpecs.displaySize.width?.toFixed(2)}m x {quotation.exactProductSpecs.displaySize.height?.toFixed(2)}m
+                                      </span>
+                                    )}
+                                  </div>
+                                  {isMultiProduct && (
+                                    <ul className="mb-2 space-y-1 text-xs text-gray-600">
+                                      {lineItems.map((item, index) => (
+                                        <li key={item.id || index} className="flex items-center justify-between gap-2">
+                                          <span className="truncate" title={item.productName}>
+                                            {index + 1}. {item.productName}
+                                          </span>
+                                          <span className="shrink-0 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 text-gray-500">
+                                            {item.cabinetGrid?.columns || 1}x{item.cabinetGrid?.rows || 1}
+                                          </span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </>
+                              );
+                            })()}
                             <p className="text-sm text-gray-600 line-clamp-2 min-h-[2.5rem]">
                               {quotation.message || "No additional notes."}
                             </p>
@@ -910,7 +966,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
 
                           <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-auto">
                             <p className="text-lg font-bold text-gray-900">
-                              {formatCurrency(quotation.totalPrice)}
+                              {formatCurrency(getQuotationDisplayTotal(quotation))}
                             </p>
                             <div className="flex items-center gap-2">
                               <button
@@ -1006,7 +1062,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
               height: selectedQuotation.productDetails?.height || 0,
               unit: selectedQuotation.productDetails?.unit || 'mm'
             }}
-            cabinetGrid={selectedQuotation.productDetails?.cabinetGrid || selectedQuotation.quotationData?.cabinetGrid}
+            cabinetGrid={selectedQuotation.exactProductSpecs?.cabinetGrid || selectedQuotation.productDetails?.cabinetGrid || selectedQuotation.quotationData?.cabinetGrid}
             processor={selectedQuotation.productDetails?.processor || selectedQuotation.quotationData?.processor || null}
             userInfo={{
               userType: selectedQuotation.userTypeDisplayName,
@@ -1024,8 +1080,10 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             } : null}
             userRole="sales"
             quotationId={selectedQuotation.quotationId}
+            isEditing={true}
             clientId={selectedQuotation.clientId as string | undefined} // Fix type error here if clientId is object
-            exactPricingBreakdown={selectedQuotation.exactPricingBreakdown}
+            exactPricingBreakdown={buildExactPricingBreakdownForPdf(selectedQuotation.exactPricingBreakdown)}
+            savedQuotation={selectedQuotation}
             wireType={selectedQuotation.quotationData?.wireType}
             nexaAddons={selectedQuotation.quotationData?.nexaAddons || selectedQuotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)}
           />
@@ -1152,6 +1210,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           />
         );
       })()}
+
+      {canViewProductRates && (
+        <ProductRatesModal
+          isOpen={isRatesModalOpen}
+          onClose={() => setIsRatesModalOpen(false)}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal

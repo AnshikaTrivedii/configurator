@@ -3,19 +3,20 @@ import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, 
 import { salesAPI } from '../api/sales';
 import { PdfViewModal } from './PdfViewModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
-import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
-import { addQuotationAddonsToTotal, readQuotationAddons, sumQuotationAddons } from '../utils/quotationAddons';
+import { buildExactPricingBreakdownForPdf, resolveDisplayedProductSubtotal } from '../utils/exactPricingBreakdownForPdf';
+import { readQuotationAddons, sumQuotationAddons } from '../utils/quotationAddons';
 import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel } from '../utils/discountCalculator';
-import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
 import {
   getQuotationItemSummary,
+  getQuotationDisplayTotal,
   normalizeQuotationLineItems,
   sortCustomersWithDiscountedQuotationsFirst,
   toPdfQuotationLineItems,
   priceLineItem,
   toPricingUserTypeCode,
-  PersistedQuotationLineItem
+  PersistedQuotationLineItem,
+  buildQuotationAccounting
 } from '../utils/quotationLineItems';
 import { QuotationProductSelectionModal } from './QuotationProductSelectionModal';
 import { products } from '../data/products';
@@ -51,9 +52,10 @@ interface Quotation {
   clientId?: string;
 
   exactPricingBreakdown?: {
-    unitPrice: number;
-    quantity: number;
-    subtotal: number;
+    pricingScope?: 'line' | 'quotation';
+    unitPrice?: number;
+    quantity?: number;
+    subtotal?: number;
     gstRate: number;
     gstAmount: number;
     processorPrice: number;
@@ -73,6 +75,7 @@ interface Quotation {
     addonsGST?: number;
     addonsTotal?: number;
     appliedAddons?: any[];
+    customAddons?: { description: string; price: number }[];
     customPricing?: any;
     discount?: {
       discountType?: string;
@@ -87,6 +90,8 @@ interface Quotation {
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
       discountedGrandTotal?: number;
+      ledOverride?: { amountPerUnit?: number };
+      controllerOverride?: { amountPerUnit?: number };
     };
   };
   exactProductSpecs?: {
@@ -123,79 +128,6 @@ interface SalesPersonDetailsModalProps {
     name?: string;
     email?: string;
   };
-}
-
-function getBreakdownProductTotal(breakdown: any): number {
-  if (!breakdown) return 0;
-  return breakdown.productTotal
-    ?? breakdown.discount?.discountedProductTotal
-    ?? breakdown.productSubtotal
-    ?? breakdown.subtotal
-    ?? 0;
-}
-
-function getBreakdownProcessorTotal(breakdown: any): number {
-  if (!breakdown) return 0;
-  return breakdown.processorTotal
-    ?? breakdown.discount?.discountedProcessorTotal
-    ?? breakdown.processorPrice
-    ?? 0;
-}
-
-function hasLedPriceOverride(quotation: Quotation): boolean {
-  const eb = quotation.exactPricingBreakdown as any;
-  const ob = quotation.originalPricingBreakdown;
-  if (!eb) return false;
-
-  const ledAmount = quotation.quotationData?.discountInfo?.ledAmountPerUnit
-    ?? (quotation.quotationData?.discountInfo?.type === 'led'
-      ? quotation.quotationData?.discountInfo?.amountPerUnit
-      : undefined)
-    ?? eb.discount?.ledOverride?.amountPerUnit
-    ?? (eb.discount?.discountType === 'led' ? eb.discount?.discountAmountPerUnit : undefined);
-
-  if (ledAmount && ledAmount > 0) return true;
-  if (!ob) return eb.discount?.discountType === 'led';
-
-  if (eb.unitPrice != null && ob.unitPrice != null && eb.unitPrice !== ob.unitPrice) return true;
-
-  const ebSubtotal = eb.productSubtotal ?? eb.subtotal;
-  const obSubtotal = ob.productSubtotal ?? ob.subtotal;
-  return ebSubtotal != null && obSubtotal != null && ebSubtotal !== obSubtotal;
-}
-
-function hasControllerPriceOverride(quotation: Quotation): boolean {
-  const eb = quotation.exactPricingBreakdown as any;
-  const ob = quotation.originalPricingBreakdown;
-  if (!eb) return false;
-
-  const controllerAmount = quotation.quotationData?.discountInfo?.controllerAmountPerUnit
-    ?? (quotation.quotationData?.discountInfo?.type === 'controller'
-      ? quotation.quotationData?.discountInfo?.amountPerUnit
-      : undefined)
-    ?? eb.discount?.controllerOverride?.amountPerUnit
-    ?? (eb.discount?.discountType === 'controller' ? eb.discount?.discountAmountPerUnit : undefined);
-
-  if (controllerAmount && controllerAmount > 0) return true;
-  if (!ob) return eb.discount?.discountType === 'controller';
-
-  return eb.processorPrice != null
-    && ob.processorPrice != null
-    && eb.processorPrice !== ob.processorPrice;
-}
-
-function copyProductPricingFromBreakdown(target: any, source: any) {
-  target.unitPrice = source.unitPrice ?? target.unitPrice;
-  target.quantity = source.quantity ?? target.quantity;
-  target.productSubtotal = source.productSubtotal ?? source.subtotal ?? target.productSubtotal;
-  target.productGST = source.productGST ?? source.gstAmount ?? 0;
-  target.productTotal = getBreakdownProductTotal(source);
-}
-
-function copyProcessorPricingFromBreakdown(target: any, source: any) {
-  target.processorPrice = source.processorPrice ?? target.processorPrice;
-  target.processorGST = source.processorGst ?? source.processorGST ?? 0;
-  target.processorTotal = getBreakdownProcessorTotal(source);
 }
 
 function resolveLineItemProduct(item: PersistedQuotationLineItem): any {
@@ -368,7 +300,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           } : null,
           quotation.quotationId,
           quotation.quotationData?.customPricing || quotation.exactPricingBreakdown?.customPricing || undefined,
-          quotation.exactPricingBreakdown,
+          buildExactPricingBreakdownForPdf(quotation.exactPricingBreakdown, {
+            logContext: `viewPdf (quotationId=${quotation.quotationId})`
+          }),
           quotation.quotationData?.wireType,
           quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name),
           normalizeOrderQuantity(
@@ -527,33 +461,14 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       quotation.quotationData?.customAddons,
       quotation.exactPricingBreakdown?.customAddons
     );
-    const quotationAddonsTotal = sumQuotationAddons(quotationAddons);
-    const multiGrandTotal = addQuotationAddonsToTotal(
-      Math.round(updatedLineItems.reduce((sum, li) => sum + (Number(li.pricing?.grandTotal) || 0), 0)),
-      quotationAddonsTotal
-    );
-    const multiOriginalTotal = addQuotationAddonsToTotal(
-      Math.round(updatedLineItems.reduce((sum, li) => {
-        const original = li.discount?.originalGrandTotal ?? li.pricing?.grandTotal ?? 0;
-        return sum + (Number(original) || 0);
-      }, 0)),
-      quotationAddonsTotal
-    );
+    const accounting = buildQuotationAccounting(updatedLineItems, quotationAddons);
+    const multiGrandTotal = accounting.grandTotal;
+    const multiOriginalTotal = accounting.originalTotal;
 
     const anyDiscount = updatedLineItems.some(lineItemHasDiscount);
     const selectedDiscount = selectedItem.discount;
 
-    // Keep quotation-level breakdown aligned with selected product for backward compatibility
-    const selectedPricing = selectedItem.pricing || {};
-    const newExactPricingBreakdown = {
-      ...quotation.exactPricingBreakdown,
-      ...selectedPricing,
-      customAddons: quotationAddons,
-      customAddonsTotal: quotationAddonsTotal,
-      customAddonsIncludedInGrandTotal: true,
-      grandTotal: multiGrandTotal,
-      discount: selectedDiscount || undefined
-    };
+    const newExactPricingBreakdown = accounting.breakdown;
 
     const productDetails = quotation.productDetails;
     const exactSpecs = (quotation.exactProductSpecs || {}) as any;
@@ -623,6 +538,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       totalPrice: multiGrandTotal,
       originalTotalPrice: multiOriginalTotal,
       exactPricingBreakdown: newExactPricingBreakdown,
+      originalPricingBreakdown: accounting.originalBreakdown,
       pdfBase64,
       quotationData: {
         ...quotation.quotationData,
@@ -650,20 +566,23 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
     fetchSalesPersonDetails();
   };
 
-  const handleApplyDiscountToSelectedProduct = async (quotation: Quotation) => {
+  const handleApplyDiscountToSelectedProduct = async (
+    quotation: Quotation,
+    lineItemId = selectedDiscountLineItemId
+  ) => {
     if (!discountType) {
       alert('Please select a discount type');
       return;
     }
     if (discountType === 'led' && discountAmountPerUnit <= 0) {
-      alert('Please enter a valid discount amount per unit');
+      alert('Please enter a valid override unit price');
       return;
     }
     if (discountType === 'controller' && discountAmountPerUnit <= 0) {
       alert('Please enter a valid controller override price > 0');
       return;
     }
-    if (!selectedDiscountLineItemId) {
+    if (!lineItemId) {
       alert('Please select a product to apply the discount to.');
       return;
     }
@@ -672,7 +591,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       setIsUpdatingDiscount(true);
       const lineItems = normalizeQuotationLineItems(quotation);
       const targetIndex = lineItems.findIndex(
-        li => (li.id || '') === selectedDiscountLineItemId
+        li => (li.id || '') === lineItemId
       );
       if (targetIndex < 0) {
         throw new Error('Selected product was not found on this quotation.');
@@ -756,13 +675,14 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
         ledDiscountMode: discountInfo.ledDiscountMode,
         ledOverride: preservedLedOverride,
         controllerOverride: preservedControllerOverride,
-        originalProductTotal: discountedPricing.originalProductTotal,
-        originalProcessorTotal: discountedPricing.originalProcessorTotal,
-        originalGrandTotal: discountedPricing.originalGrandTotal,
+        originalProductTotal: basePricing.productTotal,
+        originalProcessorTotal: basePricing.processorTotal,
+        originalGrandTotal: basePricing.grandTotal,
         discountedProductTotal: discountedPricing.discountedProductTotal,
         discountedProcessorTotal: discountedPricing.discountedProcessorTotal,
         discountedGrandTotal: discountedPricing.grandTotal,
-        discountAmount: discountedPricing.discountAmount
+        discountAmount: Math.round((basePricing.productTotal - discountedPricing.productTotal +
+          basePricing.processorTotal - discountedPricing.processorTotal) * 100) / 100
       };
 
       const updatedPricing = {
@@ -875,501 +795,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
   const handleApplyDiscount = async (quotation: Quotation) => {
     const lineItems = normalizeQuotationLineItems(quotation);
-    if (lineItems.length > 1) {
-      await handleApplyDiscountToSelectedProduct(quotation);
-      return;
-    }
-
-    if (!discountType) {
-      alert('Please select a discount type');
-      return;
-    }
-    if (discountType === 'led' && discountAmountPerUnit <= 0) {
-      alert('Please enter a valid discount amount per unit');
-      return;
-    }
-    if (discountType === 'controller' && discountAmountPerUnit <= 0) {
-      alert('Please enter a valid controller override price > 0');
-      return;
-    }
-
-    try {
-      setIsUpdatingDiscount(true);
-
-      let finalPricingResult: any = null;
-
-      const productDetails = quotation.productDetails;
-      const exactSpecs = (quotation.exactProductSpecs || {}) as any;
-      const product = productDetails?.product || productDetails;
-
-      // Applying a discount rebuilds pricing from saved data, so the configured unit
-      // count has to be recovered here or every total collapses to a single unit.
-      const resolvedOrderQuantity = normalizeOrderQuantity(
-        (quotation.quotationData as any)?.orderQuantity ??
-        (quotation.exactPricingBreakdown as any)?.orderQuantity ??
-        (quotation.originalPricingBreakdown as any)?.orderQuantity ??
-        1
-      );
-
-      let config = quotation.quotationData?.config;
-
-      if (!config && exactSpecs?.displaySize) {
-        config = {
-          width: (exactSpecs.displaySize.width * 1000) || 0,
-          height: (exactSpecs.displaySize.height * 1000) || 0,
-          unit: 'mm'
-        };
-      }
-
-      if (!config && productDetails?.displaySize) {
-        config = {
-          width: (productDetails.displaySize.width * 1000) || 0,
-          height: (productDetails.displaySize.height * 1000) || 0,
-          unit: 'mm'
-        };
-      }
-
-      let isRestoredFromOriginalBreakdown = false;
-      if (quotation.originalPricingBreakdown) {
-
-        isRestoredFromOriginalBreakdown = true;
-        const ob = quotation.originalPricingBreakdown;
-
-        finalPricingResult = {
-          unitPrice: ob.unitPrice || 0,
-          quantity: ob.quantity || 0,
-          orderQuantity: normalizeOrderQuantity((ob as any).orderQuantity ?? resolvedOrderQuantity),
-          unitGrandTotal: (ob as any).unitGrandTotal,
-          productSubtotal: ob.productSubtotal || ob.subtotal || 0,
-          productGST: 0,
-          productTotal: ob.productSubtotal || ob.subtotal || 0,
-
-          processorPrice: ob.processorPrice || 0,
-          processorGST: 0,
-          processorTotal: ob.processorPrice || 0,
-
-          structureCost: ob.structureCost || 0,
-          structureGST: 0,
-          structureTotal: ob.structureCost || ob.structureTotal || 0,
-
-          installationCost: ob.installationCost || 0,
-          installationGST: 0,
-          installationTotal: ob.installationCost || ob.installationTotal || 0,
-
-          grandTotal: ob.grandTotal || 0,
-
-          userType: quotation.userTypeDisplayName || 'End User',
-          productName: quotation.productName || 'Unknown Product',
-          isAvailable: true
-        };
-
-        (finalPricingResult as any).originalProductTotal = getBreakdownProductTotal(ob);
-        (finalPricingResult as any).originalProcessorTotal = getBreakdownProcessorTotal(ob);
-        (finalPricingResult as any).originalGrandTotal = quotation.originalTotalPrice ?? ob.grandTotal ?? finalPricingResult.grandTotal;
-
-        const eb = quotation.exactPricingBreakdown as any;
-        if (eb) {
-          if (discountType === 'controller' && hasLedPriceOverride(quotation)) {
-            copyProductPricingFromBreakdown(finalPricingResult, eb);
-          }
-          if (discountType === 'led' && hasControllerPriceOverride(quotation)) {
-            copyProcessorPricingFromBreakdown(finalPricingResult, eb);
-          }
-        }
-      }
-
-      else if (quotation.exactPricingBreakdown && !quotation.quotationData?.discountApplied && !(quotation.exactPricingBreakdown as any)?.discount?.discountAmount) {
-
-        const eb = quotation.exactPricingBreakdown as any;
-
-        finalPricingResult = {
-          unitPrice: eb.unitPrice || 0,
-          quantity: eb.quantity || 0,
-          orderQuantity: normalizeOrderQuantity(eb.orderQuantity ?? resolvedOrderQuantity),
-          unitGrandTotal: eb.unitGrandTotal,
-          productSubtotal: eb.productSubtotal || eb.subtotal || 0,
-          productGST: 0,
-          productTotal: eb.productSubtotal || eb.subtotal || 0,
-
-          processorPrice: eb.processorPrice || 0,
-          processorGST: 0,
-          processorTotal: eb.processorPrice || 0,
-
-          structureCost: eb.structureCost || 0,
-          structureGST: 0,
-          structureTotal: eb.structureCost || eb.structureTotal || 0,
-
-          installationCost: eb.installationCost || 0,
-          installationGST: 0,
-          installationTotal: eb.installationCost || eb.installationTotal || 0,
-
-          grandTotal: eb.grandTotal || 0,
-
-          originalProductTotal: undefined,
-          originalProcessorTotal: undefined,
-          originalGrandTotal: undefined,
-
-          userType: quotation.userTypeDisplayName || 'End User',
-          productName: quotation.productName || 'Unknown Product',
-          isAvailable: true
-        };
-      }
-
-      if (!finalPricingResult && product && config) {
-
-        const userType = quotation.userTypeDisplayName === 'Reseller' ? 'reseller' : (quotation.userTypeDisplayName === 'SI/Channel Partner' ? 'siChannel' : 'endUser');
-        const cabinetGrid = exactSpecs.cabinetGrid || productDetails?.cabinetGrid;
-        const processor = exactSpecs.processor || productDetails?.processor || null;
-        const customPricing = quotation.quotationData?.customPricing;
-
-        const pricingResult = calculateCentralizedPricing(
-          product,
-          cabinetGrid,
-          processor,
-          userType,
-          config,
-          customPricing,
-          quotation.quotationData?.wireType,
-          quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name),
-          resolvedOrderQuantity
-        );
-
-        if (pricingResult.isAvailable) {
-
-          finalPricingResult = pricingResult;
-        }
-      }
-
-      if (!finalPricingResult && quotation.exactPricingBreakdown && (quotation.quotationData?.discountApplied || (quotation.exactPricingBreakdown as any)?.discount?.discountAmount)) {
-
-        const eb = quotation.exactPricingBreakdown as any;
-        // Get discount info from quotationData first, then fallback to exactPricingBreakdown.discount
-        const di = quotation.quotationData?.discountInfo;
-        const ebDiscount = eb.discount;
-        const discountAmount = di?.amount || ebDiscount?.discountAmount || 0;
-        const discType = di?.type || ebDiscount?.discountType;
-
-        finalPricingResult = {
-          unitPrice: eb.unitPrice || 0,
-          quantity: eb.quantity || 0,
-          orderQuantity: normalizeOrderQuantity(eb.orderQuantity ?? resolvedOrderQuantity),
-          unitGrandTotal: eb.unitGrandTotal,
-          productSubtotal: eb.productSubtotal || eb.subtotal || 0,
-          productGST: 0,
-          productTotal: eb.productSubtotal || eb.subtotal || 0,
-
-          processorPrice: eb.processorPrice || 0,
-          processorGST: 0,
-          processorTotal: eb.processorPrice || 0,
-
-          structureCost: eb.structureCost || 0,
-          structureGST: 0,
-          structureTotal: eb.structureCost || eb.structureTotal || 0,
-
-          installationCost: eb.installationCost || 0,
-          installationGST: 0,
-          installationTotal: eb.installationCost || eb.installationTotal || 0,
-
-          grandTotal: eb.grandTotal || 0,
-
-          userType: quotation.userTypeDisplayName || 'End User',
-          productName: quotation.productName || 'Unknown Product',
-          isAvailable: true
-        };
-
-        if (discountAmount > 0 && discType) {
-
-          finalPricingResult.grandTotal += discountAmount;
-
-          if (discType === 'led') {
-
-            finalPricingResult.productTotal += discountAmount;
-            finalPricingResult.productSubtotal += discountAmount; // Approximation
-          } else if (discType === 'controller') {
-            finalPricingResult.processorTotal += discountAmount;
-            finalPricingResult.processorPrice += discountAmount; // Approximation
-          }
-        }
-      }
-
-      if (finalPricingResult && !isRestoredFromOriginalBreakdown) {
-
-        let restoredGrandTotal = 0;
-        let restoreInfoFromDiscountData = false;
-
-        // Check for discount info from either quotationData or exactPricingBreakdown.discount
-        const hasDiscountInQuotationData = quotation.quotationData?.discountApplied && quotation.quotationData.discountInfo;
-        const hasDiscountInBreakdown = (quotation.exactPricingBreakdown as any)?.discount?.discountAmount > 0;
-        const hasAnyDiscount = hasDiscountInQuotationData || hasDiscountInBreakdown;
-
-        if (quotation.originalTotalPrice && quotation.originalTotalPrice > 0) {
-
-          restoredGrandTotal = quotation.originalTotalPrice;
-          (finalPricingResult as any).originalGrandTotal = restoredGrandTotal;
-          finalPricingResult.grandTotal = restoredGrandTotal; // RESET grandTotal to original
-
-          if (hasAnyDiscount) {
-            restoreInfoFromDiscountData = true;
-          }
-        } else if (hasAnyDiscount) {
-          restoreInfoFromDiscountData = true;
-        }
-
-        if (restoreInfoFromDiscountData) {
-          // Get discount info from quotationData first, then fallback to exactPricingBreakdown.discount
-          const di = quotation.quotationData?.discountInfo;
-          const ebDiscount = (quotation.exactPricingBreakdown as any)?.discount;
-          const amount = di?.amount || ebDiscount?.discountAmount || 0;
-          const type = di?.type || ebDiscount?.discountType;
-
-          if (!restoredGrandTotal) {
-            restoredGrandTotal = (finalPricingResult.grandTotal || 0) + amount;
-            (finalPricingResult as any).originalGrandTotal = restoredGrandTotal;
-            finalPricingResult.grandTotal = restoredGrandTotal;
-          }
-
-          if (type === 'led' && discountType === 'led') {
-            const originalProduct = (finalPricingResult.productTotal || 0) + amount;
-            (finalPricingResult as any).originalProductTotal = originalProduct;
-            finalPricingResult.productTotal = originalProduct;
-          } else if (type === 'controller' && discountType === 'controller') {
-            const originalProcessor = (finalPricingResult.processorTotal || 0) + amount;
-            (finalPricingResult as any).originalProcessorTotal = originalProcessor;
-            finalPricingResult.processorTotal = originalProcessor;
-          } else if (type === 'total') {
-            (finalPricingResult as any).originalProductTotal = finalPricingResult.productTotal;
-            (finalPricingResult as any).originalProcessorTotal = finalPricingResult.processorTotal;
-          }
-
-          const eb = quotation.exactPricingBreakdown as any;
-          if (eb) {
-            if (discountType === 'controller' && hasLedPriceOverride(quotation)) {
-              copyProductPricingFromBreakdown(finalPricingResult, eb);
-            }
-            if (discountType === 'led' && hasControllerPriceOverride(quotation)) {
-              copyProcessorPricingFromBreakdown(finalPricingResult, eb);
-            }
-          }
-        }
-      }
-
-      if (!finalPricingResult) {
-        throw new Error("Could not calculate base pricing. Missing configuration data and valid breakdown.");
-      }
-
-      let newOriginalPricingBreakdown = quotation.originalPricingBreakdown;
-
-      if (!newOriginalPricingBreakdown) {
-
-        newOriginalPricingBreakdown = {
-          unitPrice: finalPricingResult.unitPrice,
-          quantity: finalPricingResult.quantity,
-          orderQuantity: normalizeOrderQuantity(finalPricingResult.orderQuantity ?? resolvedOrderQuantity),
-          unitGrandTotal: finalPricingResult.unitGrandTotal,
-          subtotal: finalPricingResult.productSubtotal,
-          gstAmount: finalPricingResult.productGST,
-          processorPrice: finalPricingResult.processorPrice,
-          processorGst: finalPricingResult.processorGST,
-          structureCost: finalPricingResult.structureCost,
-          structureGST: finalPricingResult.structureGST,
-          structureTotal: finalPricingResult.structureTotal,
-          installationCost: finalPricingResult.installationCost,
-          installationGST: finalPricingResult.installationGST,
-          installationTotal: finalPricingResult.installationTotal,
-          grandTotal: finalPricingResult.grandTotal
-        };
-
-      }
-
-      // Build DiscountInfo based on type
-      let discountInfo: DiscountInfo;
-      if (discountType === 'led') {
-        const ledMode = getLedDiscountMode(product);
-        const cabinetGrid = exactSpecs?.cabinetGrid || productDetails?.cabinetGrid;
-        const units = getDiscountUnits(product, cabinetGrid, config);
-        discountInfo = {
-          discountType: 'led',
-          discountPercent: 0,
-          discountAmountPerUnit,
-          numberOfUnits: units,
-          ledDiscountMode: ledMode
-        };
-      } else {
-        discountInfo = {
-          discountType: 'controller',
-          discountPercent: 0,
-          discountAmountPerUnit: discountAmountPerUnit,
-          numberOfUnits: 1,
-          ledDiscountMode: 'none'
-        };
-      }
-
-      const discountedPricing = applyDiscount(finalPricingResult, discountInfo);
-
-      const existingDiscountInfo = quotation.quotationData?.discountInfo;
-      const existingDiscount = (quotation.exactPricingBreakdown as any)?.discount;
-      const preservedLedOverride = discountType === 'led'
-        ? {
-            amountPerUnit: discountAmountPerUnit,
-            numberOfUnits: discountInfo.numberOfUnits,
-            ledDiscountMode: discountInfo.ledDiscountMode
-          }
-        : existingDiscount?.ledOverride ?? (hasLedPriceOverride(quotation) ? {
-            amountPerUnit: existingDiscountInfo?.ledAmountPerUnit
-              ?? (existingDiscountInfo?.type === 'led' ? existingDiscountInfo?.amountPerUnit : discountedPricing.unitPrice),
-            numberOfUnits: existingDiscountInfo?.numberOfUnits ?? existingDiscount?.numberOfUnits,
-            ledDiscountMode: existingDiscountInfo?.ledDiscountMode ?? existingDiscount?.ledDiscountMode
-          } : undefined);
-      const preservedControllerOverride = discountType === 'controller'
-        ? { amountPerUnit: discountAmountPerUnit }
-        : existingDiscount?.controllerOverride ?? (hasControllerPriceOverride(quotation) ? {
-            amountPerUnit: existingDiscountInfo?.controllerAmountPerUnit
-              ?? (existingDiscountInfo?.type === 'controller' ? existingDiscountInfo?.amountPerUnit : discountedPricing.processorPrice)
-          } : undefined);
-
-      const newExactPricingBreakdown = {
-        unitPrice: discountedPricing.unitPrice,
-        quantity: discountedPricing.quantity,
-        orderQuantity: normalizeOrderQuantity((discountedPricing as any).orderQuantity ?? resolvedOrderQuantity),
-        unitGrandTotal: (discountedPricing as any).unitGrandTotal,
-        subtotal: discountedPricing.productSubtotal,
-        productSubtotal: discountedPricing.productSubtotal,
-        gstAmount: discountedPricing.productGST,
-        productGST: discountedPricing.productGST,
-        productTotal: discountedPricing.productTotal,
-        gstRate: 18,
-        processorPrice: discountedPricing.processorPrice,
-        processorGst: discountedPricing.processorGST,
-        processorTotal: discountedPricing.processorTotal,
-        structureCost: discountedPricing.structureCost,
-        structureTotal: discountedPricing.structureTotal,
-        installationCost: discountedPricing.installationCost,
-        installationTotal: discountedPricing.installationTotal,
-        addonsCost: discountedPricing.addonsCost,
-        addonsGST: discountedPricing.addonsGST,
-        addonsTotal: discountedPricing.addonsTotal,
-        appliedAddons: discountedPricing.appliedAddons,
-        customAddons: readQuotationAddons(
-          quotation.quotationData?.customAddons,
-          (quotation.exactPricingBreakdown as any)?.customAddons
-        ),
-        customAddonsTotal: sumQuotationAddons(readQuotationAddons(
-          quotation.quotationData?.customAddons,
-          (quotation.exactPricingBreakdown as any)?.customAddons
-        )),
-        customAddonsIncludedInGrandTotal: true,
-        grandTotal: discountedPricing.grandTotal,
-        discount: {
-          discountType: discountType,
-          discountPercent: 0,
-          discountAmountPerUnit,
-          numberOfUnits: discountInfo.numberOfUnits,
-          ledDiscountMode: discountInfo.ledDiscountMode,
-          ledOverride: preservedLedOverride,
-          controllerOverride: preservedControllerOverride,
-          originalProductTotal: discountedPricing.originalProductTotal,
-          originalProcessorTotal: discountedPricing.originalProcessorTotal,
-          originalGrandTotal: discountedPricing.originalGrandTotal,
-          discountedProductTotal: discountedPricing.discountedProductTotal,
-          discountedProcessorTotal: discountedPricing.discountedProcessorTotal,
-          discountedGrandTotal: discountedPricing.grandTotal,
-          discountAmount: discountedPricing.discountAmount
-        }
-      };
-
-      let userTypeForHtml = 'End User';
-      if (quotation.userType === 'siChannel') {
-        userTypeForHtml = 'SI/Channel Partner';
-      } else if (quotation.userType === 'reseller') {
-        userTypeForHtml = 'Reseller';
-      }
-
-      const customer = customers.find(c =>
-        c.quotations.some(q => q.quotationId === quotation.quotationId)
-      );
-
-      const userInfo = {
-        userType: userTypeForHtml as any,
-        fullName: customer?.customerName || '',
-        email: customer?.customerEmail || '',
-        phoneNumber: customer?.customerPhone || ''
-      };
-
-      const pdfPricingBreakdown = buildExactPricingBreakdownForPdf(newExactPricingBreakdown, {
-        logContext: `applyDiscount PDF (quotationId=${quotation.quotationId})`
-      });
-
-      const previewHtml = generateConfigurationHtml(
-        config,
-        product,
-        exactSpecs.cabinetGrid || productDetails?.cabinetGrid,
-        exactSpecs.processor || productDetails?.processor || null,
-        exactSpecs.mode || productDetails?.mode || undefined,
-        userInfo,
-        salesPerson ? {
-          email: salesPerson.email,
-          name: salesPerson.name,
-          contactNumber: salesPerson.contactNumber,
-          location: salesPerson.location
-        } : null,
-        quotation.quotationId,
-        quotation.quotationData?.customPricing,
-        pdfPricingBreakdown,
-        quotation.quotationData?.wireType,
-        quotation.quotationData?.nexaAddons || quotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name),
-        resolvedOrderQuantity,
-        toPdfQuotationLineItems(normalizeQuotationLineItems(quotation))
-      );
-
-      const { generatePdfFromHtml } = await import('../utils/docxGenerator');
-      const pdfBlob = await generatePdfFromHtml(previewHtml);
-
-      const pdfBase64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64String = (reader.result as string).split(',')[1];
-          resolve(base64String);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(pdfBlob);
-      });
-
-      const updateData = {
-        totalPrice: discountedPricing.grandTotal,
-        originalTotalPrice: discountedPricing.originalGrandTotal,
-        exactPricingBreakdown: newExactPricingBreakdown,
-        originalPricingBreakdown: newOriginalPricingBreakdown, // SAVE THE SOURCE OF TRUTH
-        pdfBase64: pdfBase64,
-        quotationData: {
-          ...quotation.quotationData,
-          orderQuantity: resolvedOrderQuantity,
-          updatedAt: new Date().toISOString(),
-          discountApplied: discountedPricing.discountAmount > 0,
-          discountInfo: {
-            type: discountType,
-            percent: 0,
-            amount: discountedPricing.discountAmount,
-            amountPerUnit: (discountType === 'led' || discountType === 'controller') ? discountAmountPerUnit : 0,
-            numberOfUnits: discountType === 'led' ? discountInfo.numberOfUnits : 1,
-            ledDiscountMode: discountType === 'led' ? discountInfo.ledDiscountMode : 'none',
-            ledAmountPerUnit: preservedLedOverride?.amountPerUnit,
-            controllerAmountPerUnit: preservedControllerOverride?.amountPerUnit
-          }
-        }
-      };
-
-      const result = await salesAPI.updateQuotation(quotation.quotationId, updateData);
-
-      clearDiscountFormState();
-
-      fetchSalesPersonDetails();
-
-    } catch (error: any) {
-
-      alert(`Failed to update discount: ${error.message}`);
-    } finally {
-      setIsUpdatingDiscount(false);
-    }
+    const lineItemId = selectedDiscountLineItemId || lineItems[0]?.id || 'legacy-0';
+    await handleApplyDiscountToSelectedProduct(quotation, lineItemId);
   };
 
   const handleDeleteQuotation = async (quotationId: string) => {
@@ -1730,7 +1157,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                           <div className="text-right">
                                             {(() => {
 
-                                              const actualPrice = quotation.totalPrice || 0;
+                                              const actualPrice = getQuotationDisplayTotal(quotation);
                                               const userTypeDisplayName = quotation.userTypeDisplayName || 'End User';
 
                                               return (
@@ -1757,33 +1184,64 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                               📊 Exact Pricing Breakdown (As Shown on Page):
                                             </div>
                                             <div className="space-y-1 text-xs">
+                                              {(() => {
+                                                const breakdown = quotation.exactPricingBreakdown;
+                                                const displayedSubtotal = resolveDisplayedProductSubtotal(breakdown);
+                                                const ledAmount = breakdown.discount?.discountType === 'led'
+                                                  ? breakdown.discount.discountAmountPerUnit
+                                                  : breakdown.discount?.ledOverride?.amountPerUnit;
+                                                const displayedUnit = ledAmount && ledAmount > 0
+                                                  ? ledAmount
+                                                  : breakdown.unitPrice;
+                                                const processorAmount = breakdown.processorTotal ?? breakdown.processorPrice ?? 0;
+                                                const structureAmount = breakdown.structureTotal ?? breakdown.structureCost ?? 0;
+                                                const installationAmount = breakdown.installationTotal ?? breakdown.installationCost ?? 0;
+                                                const savedLines = normalizeQuotationLineItems(quotation);
+                                                if (savedLines.length > 1) {
+                                                  return <>
+                                                    {savedLines.map((line, index) => (
+                                                      <div key={line.id || index} className="border-b border-gray-200 pb-1">
+                                                        <div className="flex justify-between font-medium">
+                                                          <span>Product {index + 1}: {line.productName}</span>
+                                                          <span>₹{Number(line.pricing?.grandTotal || 0).toLocaleString('en-IN')}</span>
+                                                        </div>
+                                                        <div className="text-gray-500">
+                                                          {line.cabinetGrid?.columns} × {line.cabinetGrid?.rows} cabinets · {line.cabinetGrid?.totalWidth} × {line.cabinetGrid?.totalHeight} mm
+                                                          {line.orderQuantity > 1 ? ` · ${line.orderQuantity} units` : ''}
+                                                        </div>
+                                                      </div>
+                                                    ))}
+                                                  </>;
+                                                }
+                                                return (
+                                                  <>
                                               <div className="flex justify-between">
                                                 <span>Unit Price:</span>
-                                                <span>₹{quotation.exactPricingBreakdown.unitPrice?.toLocaleString('en-IN')}</span>
+                                                <span>₹{displayedUnit?.toLocaleString('en-IN')}</span>
                                               </div>
                                               <div className="flex justify-between">
                                                 <span>Quantity:</span>
-                                                <span>{quotation.exactPricingBreakdown.quantity}</span>
+                                                <span>{breakdown.quantity}</span>
                                               </div>
                                               <div className="flex justify-between">
                                                 <span>Units:</span>
-                                                <span>{(quotation.exactPricingBreakdown as any).orderQuantity
+                                                <span>{(breakdown as any).orderQuantity
                                                   || (quotation.quotationData as any)?.orderQuantity
                                                   || 1}</span>
                                               </div>
                                               <div className="flex justify-between">
                                                 <span>Subtotal:</span>
-                                                <span>₹{quotation.exactPricingBreakdown.subtotal?.toLocaleString('en-IN')}</span>
+                                                <span>₹{displayedSubtotal.toLocaleString('en-IN')}</span>
                                               </div>
                                               <div className="flex justify-between">
                                                 <span>GST</span>
                                                 <span>18%</span>
                                               </div>
-                                              {quotation.exactPricingBreakdown.processorPrice > 0 && (
+                                              {processorAmount > 0 && (
                                                 <>
                                                   <div className="flex justify-between">
                                                     <span>Processor:</span>
-                                                    <span>₹{quotation.exactPricingBreakdown.processorPrice?.toLocaleString('en-IN')}</span>
+                                                    <span>₹{processorAmount.toLocaleString('en-IN')}</span>
                                                   </div>
                                                   <div className="flex justify-between">
                                                     <span>Processor GST</span>
@@ -1791,6 +1249,21 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                   </div>
                                                 </>
                                               )}
+                                              {structureAmount > 0 && (
+                                                <div className="flex justify-between">
+                                                  <span>Structure:</span>
+                                                  <span>₹{structureAmount.toLocaleString('en-IN')}</span>
+                                                </div>
+                                              )}
+                                              {installationAmount > 0 && (
+                                                <div className="flex justify-between">
+                                                  <span>Installation:</span>
+                                                  <span>₹{installationAmount.toLocaleString('en-IN')}</span>
+                                                </div>
+                                              )}
+                                                  </>
+                                                );
+                                              })()}
                                               {(() => {
                                                 const savedAddons = readQuotationAddons(
                                                   (quotation.quotationData as any)?.customAddons,
@@ -1807,7 +1280,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                               })()}
                                               <div className="flex justify-between font-semibold border-t pt-1">
                                                 <span>Grand Total:</span>
-                                                <span className="text-green-600">₹{quotation.exactPricingBreakdown.grandTotal?.toLocaleString('en-IN')}</span>
+                                                <span className="text-green-600">₹{getQuotationDisplayTotal(quotation).toLocaleString('en-IN')}</span>
                                               </div>
 
                                             </div>
@@ -1927,7 +1400,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                       return (
                                                         <div className="space-y-2">
                                                           <div>
-                                                            <label className="text-xs text-gray-600 block mb-1">Amount (₹ {unitLabel})</label>
+                                                            <label className="text-xs text-gray-600 block mb-1">Override unit price (₹ {unitLabel})</label>
                                                             <div className="flex items-center space-x-2">
                                                               <input
                                                                 type="number"
@@ -1958,7 +1431,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                                                               <span className="font-medium">{ledMode === 'per_cabinet' ? Math.round(units) : units}</span>
                                                             </div>
                                                             <div className="flex justify-between font-semibold text-blue-700">
-                                                              <span>Total Discount:</span>
+                                                              <span>New LED subtotal:</span>
                                                               <span>₹{totalDiscount.toLocaleString('en-IN')}</span>
                                                             </div>
                                                           </div>
@@ -2241,7 +1714,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           quotationId={selectedQuotation.quotationId}
           isEditing={true}
           clientId={selectedQuotation.clientId as string | undefined}
-          exactPricingBreakdown={selectedQuotation.exactPricingBreakdown}
+          exactPricingBreakdown={buildExactPricingBreakdownForPdf(selectedQuotation.exactPricingBreakdown)}
+          savedQuotation={selectedQuotation}
           wireType={selectedQuotation.quotationData?.wireType}
           nexaAddons={selectedQuotation.quotationData?.nexaAddons || selectedQuotation.exactPricingBreakdown?.appliedAddons?.map((addon: any) => addon.name)}
         />

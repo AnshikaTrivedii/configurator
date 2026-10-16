@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Minus, Plus, X, ChevronDown, AlertCircle } from 'lucide-react';
 import { DisplayConfig, Product } from '../types';
 import { validateDimensions, hasDimensionConstraints } from '../utils/dimensionConstraints';
+import { formatDimensionInput, parseDimensionInput } from '../utils/displayMeasurements';
 
 interface DimensionControlsProps {
   config: DisplayConfig;
@@ -18,47 +19,37 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
   onUnitChange,
   selectedProduct
 }) => {
+  const [widthDraft, setWidthDraft] = useState<string | null>(null);
+  const [heightDraft, setHeightDraft] = useState<string | null>(null);
+
+  const commitDimension = (draft: string | null, currentMm: number, change: (mm: number) => void, clear: () => void) => {
+    const unit = config.unit === 'ft' ? 'ft' : 'm';
+    if (draft !== null && draft.trim() !== '' && draft !== formatDimensionInput(currentMm, unit)) {
+      const value = Number(draft);
+      if (Number.isFinite(value) && value > 0) {
+        change(parseDimensionInput(value, unit));
+      }
+    }
+    clear();
+  };
 
   const c = selectedProduct?.dimensionConstraints;
   const cabinetWidth = c ? c.moduleWidth : (selectedProduct?.cabinetDimensions?.width ?? 600);
   const cabinetHeight = c ? c.moduleHeight : (selectedProduct?.cabinetDimensions?.height ?? 337.5);
 
-  const METERS_TO_FEET = 3.2808399;
-  const FEET_TO_METERS = 1 / METERS_TO_FEET;
-  const FEET_TO_MM = 304.8; // Exact: 1 ft = 304.8 mm
-  const MM_TO_FEET = 1 / FEET_TO_MM;
-
-  const toDisplayUnit = (mm: number, unit: 'm' | 'ft') => {
-    if (unit === 'ft') {
-      const feet = mm * MM_TO_FEET;
-      if (hasConstraints) {
-        return (Math.floor(feet * 100) / 100).toFixed(2);
-      }
-      return feet.toFixed(2);
-    }
-    const meters = mm / 1000;
-    return meters.toFixed(2);
-  };
-
-  const fromDisplayUnit = (value: number, unit: 'm' | 'ft') => {
-    if (unit === 'ft') {
-      return value * FEET_TO_MM;
-    }
-    return value * 1000;
-  };
-
-  const stepSize = config.unit === 'ft' ? 0.33 : 0.1; // ~1ft or 0.1m
+  const MM_TO_FEET = 1 / 304.8;
+  const stepSize = 0.000001;
 
   const minWidthDisplay = c ? (config.unit === 'ft' ? c.minWidth * MM_TO_FEET : c.minWidth / 1000) : 0.1;
   const maxWidthDisplay = c
     ? config.unit === 'ft'
-      ? Math.floor(c.maxWidth * MM_TO_FEET * 100) / 100
+      ? Number(formatDimensionInput(c.maxWidth, 'ft'))
       : c.maxWidth / 1000
     : 100;
   const minHeightDisplay = c ? (config.unit === 'ft' ? c.minHeight * MM_TO_FEET : c.minHeight / 1000) : 0.1;
   const maxHeightDisplay = c
     ? config.unit === 'ft'
-      ? Math.floor(c.maxHeight * MM_TO_FEET * 100) / 100
+      ? Number(formatDimensionInput(c.maxHeight, 'ft'))
       : c.maxHeight / 1000
     : 100;
 
@@ -76,7 +67,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
   const isJumbo = selectedProduct && selectedProduct.category?.toLowerCase().includes('jumbo');
   const isNexa = selectedProduct && (selectedProduct.isFixed || selectedProduct.category?.toLowerCase().includes('nexa'));
   const hasConstraints = selectedProduct ? hasDimensionConstraints(selectedProduct) : false;
-  const isFixedGrid = isDigitalStandee || isNexa || (isJumbo && !hasConstraints);
+  const isFixedGrid = !!(isDigitalStandee || isNexa || (isJumbo && !hasConstraints));
 
   const dimensionValidation = selectedProduct
     ? validateDimensions(selectedProduct, config.width, config.height)
@@ -126,8 +117,11 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
             <div className="flex items-center gap-1 bg-white border rounded-lg px-1.5 sm:px-2 lg:px-3 py-1 sm:py-1.5 lg:py-2 min-w-[60px] sm:min-w-[80px] lg:min-w-[100px]">
               <input
                 type="number"
-                value={toDisplayUnit(config.width, config.unit)}
-                onChange={(e) => onWidthChange(fromDisplayUnit(Number(e.target.value), config.unit))}
+                value={widthDraft ?? formatDimensionInput(config.width, config.unit === 'ft' ? 'ft' : 'm')}
+                onFocus={() => setWidthDraft(formatDimensionInput(config.width, config.unit === 'ft' ? 'ft' : 'm'))}
+                onChange={(e) => setWidthDraft(e.target.value)}
+                onBlur={() => commitDimension(widthDraft, config.width, onWidthChange, () => setWidthDraft(null))}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                 className="w-full text-center outline-none text-xs sm:text-sm lg:text-base"
                 step={stepSize}
                 min={hasConstraints ? minWidthDisplay : 0.1}
@@ -162,8 +156,11 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
             <div className="flex items-center gap-1 bg-white border rounded-lg px-1.5 sm:px-2 lg:px-3 py-1 sm:py-1.5 lg:py-2 min-w-[60px] sm:min-w-[80px] lg:min-w-[100px]">
               <input
                 type="number"
-                value={toDisplayUnit(config.height, config.unit)}
-                onChange={(e) => onHeightChange(fromDisplayUnit(Number(e.target.value), config.unit))}
+                value={heightDraft ?? formatDimensionInput(config.height, config.unit === 'ft' ? 'ft' : 'm')}
+                onFocus={() => setHeightDraft(formatDimensionInput(config.height, config.unit === 'ft' ? 'ft' : 'm'))}
+                onChange={(e) => setHeightDraft(e.target.value)}
+                onBlur={() => commitDimension(heightDraft, config.height, onHeightChange, () => setHeightDraft(null))}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                 className="w-full text-center outline-none text-xs sm:text-sm lg:text-base"
                 step={stepSize}
                 min={hasConstraints ? minHeightDisplay : 0.1}

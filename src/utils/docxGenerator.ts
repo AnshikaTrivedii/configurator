@@ -4,7 +4,10 @@ import html2canvas from 'html2canvas';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { getProcessorPrice } from './processorPrices';
 import { calculateCentralizedPricing } from './centralizedPricing';
+import { resolveDisplayedProductSubtotal } from './exactPricingBreakdownForPdf';
+import { getControllerOverrideFromDiscount, getLedOverrideFromDiscount } from './discountCalculator';
 import { normalizeOrderQuantity } from './orderQuantity';
+import { billableAreaSqFt, formatDimensionInput } from './displayMeasurements';
 import type { PdfQuotationLineItem } from './quotationLineItems';
 import { buildMultiProductQuotationBodyHtml, buildMultiProductContinuationPagesHtml, fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from './multiProductQuotationHtml';
 import {
@@ -314,12 +317,16 @@ export const generateConfigurationHtml = (
       installationPrice: number | null;
     };
     discount?: {
-      discountType?: 'led' | 'controller' | null;
+      discountType?: string | null;
       discountAmountPerUnit?: number;
+      numberOfUnits?: number;
+      ledDiscountMode?: string;
       discountedProductTotal?: number;
       discountedProcessorTotal?: number;
       discountedGrandTotal?: number;
       originalProductTotal?: number;
+      ledOverride?: { amountPerUnit?: number; numberOfUnits?: number; ledDiscountMode?: string };
+      controllerOverride?: { amountPerUnit?: number };
     };
     addonsCost?: number;
     addonsGST?: number;
@@ -335,13 +342,8 @@ export const generateConfigurationHtml = (
   quotationLineItems?: PdfQuotationLineItem[]
 ): string => {
 
-  const METERS_TO_FEET = 3.2808399;
   const toDisplayUnit = (mm: number, unit: string) => {
-    const meters = mm / 1000;
-    if (unit === 'ft') {
-      return (meters * METERS_TO_FEET).toFixed(2);
-    }
-    return meters.toFixed(2);
+    return formatDimensionInput(mm, unit === 'ft' ? 'ft' : 'm');
   };
 
   const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
@@ -448,21 +450,9 @@ export const generateConfigurationHtml = (
     quantity = 1;
   } else if (isJumboSeries) {
     // Jumbo: quantity = display area in sq ft (from config dimensions in mm)
-    const widthInMeters = effectiveWidth / 1000;
-    const heightInMeters = effectiveHeight / 1000;
-    const widthInFeet = widthInMeters * METERS_TO_FEET;
-    const heightInFeet = heightInMeters * METERS_TO_FEET;
-    const rawQuantity = widthInFeet * heightInFeet;
-    quantity = Math.round(rawQuantity * 100) / 100;
+    quantity = billableAreaSqFt(effectiveWidth, effectiveHeight);
   } else {
-
-    const widthInMeters = effectiveWidth / 1000;
-    const heightInMeters = effectiveHeight / 1000;
-    const widthInFeet = widthInMeters * METERS_TO_FEET;
-    const heightInFeet = heightInMeters * METERS_TO_FEET;
-    const rawQuantity = widthInFeet * heightInFeet;
-
-    quantity = Math.round(rawQuantity * 100) / 100;
+    quantity = billableAreaSqFt(effectiveWidth, effectiveHeight);
   }
 
   let totalProduct: number;
@@ -498,11 +488,7 @@ export const generateConfigurationHtml = (
   }
   let gstController = 0;
 
-  const widthInMeters = effectiveWidth / 1000;
-  const heightInMeters = effectiveHeight / 1000;
-  const widthInFeet = widthInMeters * METERS_TO_FEET;
-  const heightInFeet = heightInMeters * METERS_TO_FEET;
-  const screenAreaSqFt = Math.round((widthInFeet * heightInFeet) * 100) / 100;
+  const screenAreaSqFt = billableAreaSqFt(effectiveWidth, effectiveHeight);
 
   let structureBasePrice: number;
   let installationBasePrice: number;
@@ -593,9 +579,14 @@ export const generateConfigurationHtml = (
       unitGrandTotal = exactPricingBreakdown.unitGrandTotal;
     }
 
+    const ledOverride = getLedOverrideFromDiscount(savedDiscount);
+    const controllerOverride = getControllerOverrideFromDiscount(savedDiscount);
+
     if (exactPricingBreakdown.unitPrice !== undefined) unitPrice = exactPricingBreakdown.unitPrice;
-    if (savedDiscount?.discountType === 'led' && savedDiscount.discountAmountPerUnit && savedDiscount.discountAmountPerUnit > 0) {
-      unitPrice = savedDiscount.discountAmountPerUnit;
+    // discountType records only the last side edited. The other replacement still
+    // lives on ledOverride / controllerOverride and must be applied as well.
+    if (ledOverride) {
+      unitPrice = ledOverride.amountPerUnit;
     }
 
     if (exactPricingBreakdown.quantity !== undefined) {
@@ -603,14 +594,19 @@ export const generateConfigurationHtml = (
       safeQuantity = quantity;
     }
 
-    if (exactPricingBreakdown.subtotal !== undefined) subtotal = exactPricingBreakdown.subtotal;
+    subtotal = resolveDisplayedProductSubtotal({
+      ...exactPricingBreakdown,
+      unitPrice,
+      quantity: exactPricingBreakdown.quantity ?? safeQuantity,
+      orderQuantity,
+      subtotal: exactPricingBreakdown.subtotal ?? subtotal
+    });
     if (exactPricingBreakdown.gstAmount !== undefined) gstProduct = exactPricingBreakdown.gstAmount;
 
     if (exactPricingBreakdown.processorPrice !== undefined) controllerPrice = exactPricingBreakdown.processorPrice;
     if (exactPricingBreakdown.processorGst !== undefined) gstController = exactPricingBreakdown.processorGst;
-    if (savedDiscount?.discountType === 'controller' && savedDiscount.discountAmountPerUnit && savedDiscount.discountAmountPerUnit > 0) {
-      // Stored override is per-controller unit price; display/total use scaled values from breakdown when present
-      controllerPrice = savedDiscount.discountedProcessorTotal ?? Math.round(savedDiscount.discountAmountPerUnit * orderQuantity * 100) / 100;
+    if (controllerOverride) {
+      controllerPrice = savedDiscount?.discountedProcessorTotal ?? Math.round(controllerOverride.amountPerUnit * orderQuantity * 100) / 100;
       gstController = 0;
     }
 
@@ -618,8 +614,12 @@ export const generateConfigurationHtml = (
       savedDiscount?.discountedProductTotal ??
       (exactPricingBreakdown as { productTotal?: number }).productTotal ??
       subtotal;
+    if (ledOverride && Math.abs((totalProduct || 0) - subtotal) > 1) {
+      totalProduct = subtotal;
+    }
     totalController =
       savedDiscount?.discountedProcessorTotal ??
+      (controllerOverride ? controllerPrice : undefined) ??
       (exactPricingBreakdown as { processorTotal?: number }).processorTotal ??
       controllerPrice;
 
@@ -785,6 +785,17 @@ export const generateConfigurationHtml = (
       grandTotal = totalProduct + totalController + totalInstallation + addonsTotal;
       customAddonsAlreadyInGrandTotal = false;
     }
+  }
+
+  if (typeof grandTotal === 'number' && grandTotal < 0) {
+    grandTotal = Math.round(
+      (totalProduct || 0) +
+      (totalController || 0) +
+      (totalStructure || 0) +
+      (totalInstallation || 0) +
+      (addonsTotal || 0)
+    );
+    customAddonsAlreadyInGrandTotal = false;
   }
 
   if (!customAddonsAlreadyInGrandTotal) {

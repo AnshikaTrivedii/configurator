@@ -14,22 +14,24 @@ import {
   readQuotationAddons,
   sumQuotationAddons
 } from '../utils/quotationAddons';
-import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel } from '../utils/discountCalculator';
+import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel, discountForQuotationSave, savedLineDiscountHasOverride, SavedLineDiscount } from '../utils/discountCalculator';
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
 import { isCrystalSeries } from '../utils/productSeries';
 import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
 import { OrderQuantityInput } from './OrderQuantityInput';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
-import { useQuotationCart } from '../contexts/QuotationCartContext';
+import { useQuotationCart, QuotationLineItem } from '../contexts/QuotationCartContext';
 import {
   toPersistedLineItems,
   formatQuotationProductLabel,
   sumLineItemGrandTotals,
-  priceLineItem,
+  repriceCartLineItem,
   toPdfQuotationLineItems,
   toPricingUserTypeCode,
-  normalizeDisplayUserType
+  normalizeDisplayUserType,
+  applyLiveMatrixToSingleLineItem,
+  buildQuotationAccounting
 } from '../utils/quotationLineItems';
 
 interface ProductWithPricing extends Product {
@@ -103,6 +105,89 @@ function calculateCorrectTotalPrice(
   return result.grandTotal;
 }
 
+function repriceQuoteLineItems(
+  items: QuotationLineItem[],
+  fallbackUserTypeCode: string,
+  fallbackCustomPricing?: {
+    enabled: boolean;
+    structurePrice: number | null;
+    installationPrice: number | null;
+  },
+  uiMerge?: {
+    type: 'led' | 'controller' | null;
+    amount: number;
+    formReady: boolean;
+    product: Product;
+    cabinetGrid: { columns: number; rows: number } | null | undefined;
+    config: { width: number; height: number; unit: string };
+  } | null
+): QuotationLineItem[] {
+  const applyUi = !!uiMerge && items.length <= 1;
+  return items.map(li => {
+    const lineUserType = li.userType
+      ? toPricingUserTypeCode(li.userType)
+      : fallbackUserTypeCode;
+    const lineCustomPricing = li.customPricing
+      ? (li.customPricing.enabled ? li.customPricing : undefined)
+      : (fallbackCustomPricing?.enabled ? fallbackCustomPricing : undefined);
+    const discount = applyUi
+      ? discountForQuotationSave(
+          li.discount,
+          uiMerge!.type,
+          uiMerge!.amount,
+          uiMerge!.formReady,
+          uiMerge!.product,
+          uiMerge!.cabinetGrid,
+          uiMerge!.config
+        )
+      : li.discount;
+    return repriceCartLineItem(
+      {
+        ...li,
+        discount,
+        userType: li.userType || normalizeDisplayUserType(fallbackUserTypeCode),
+        customPricing: li.customPricing || (fallbackCustomPricing
+          ? {
+              enabled: !!fallbackCustomPricing.enabled,
+              structurePrice: fallbackCustomPricing.structurePrice ?? null,
+              installationPrice: fallbackCustomPricing.installationPrice ?? null
+            }
+          : { enabled: false, structurePrice: null, installationPrice: null })
+      },
+      lineUserType,
+      lineCustomPricing
+    );
+  });
+}
+
+function quotationDiscountFieldsFromLine(item?: QuotationLineItem | null): {
+  discountApplied: boolean;
+  discountInfo: {
+    type: SavedLineDiscount['discountType'];
+    percent: number;
+    amount: number;
+    amountPerUnit: number;
+    numberOfUnits: number;
+    ledDiscountMode: string;
+  } | null;
+} {
+  const d = item?.discount;
+  if (!savedLineDiscountHasOverride(d)) {
+    return { discountApplied: false, discountInfo: null };
+  }
+  return {
+    discountApplied: true,
+    discountInfo: {
+      type: d!.discountType || (d!.ledOverride ? 'led' : 'controller'),
+      percent: d!.discountPercent || 0,
+      amount: d!.discountAmount || 0,
+      amountPerUnit: d!.discountAmountPerUnit || 0,
+      numberOfUnits: d!.numberOfUnits || 0,
+      ledDiscountMode: d!.ledDiscountMode || 'none'
+    }
+  };
+}
+
 type QuoteModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -121,7 +206,7 @@ type QuoteModalProps = {
     height: number;
     unit: string;
   };
-  cabinetGrid?: { columns: number; rows: number };
+  cabinetGrid?: { columns: number; rows: number; totalWidth?: number; totalHeight?: number };
   processor?: string;
   mode?: string;
   userInfo?: {
@@ -268,6 +353,46 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const [discountType, setDiscountType] = useState<'led' | 'controller' | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [discountAmountPerUnit, setDiscountAmountPerUnit] = useState<number>(0);
+  const [discountFormReady, setDiscountFormReady] = useState(false);
+  const discountTouchedRef = React.useRef(false);
+
+  const markDiscountTouched = () => {
+    discountTouchedRef.current = true;
+    setDiscountFormReady(true);
+  };
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      discountTouchedRef.current = false;
+      setDiscountFormReady(false);
+      return;
+    }
+    if (discountTouchedRef.current) {
+      setDiscountFormReady(true);
+      return;
+    }
+    const sourceItem = lineItems.length === 1
+      ? lineItems[0]
+      : null;
+    if (!sourceItem && lineItems.length === 0) return;
+    const d = sourceItem?.discount;
+    if (savedLineDiscountHasOverride(d)) {
+      const type = (d!.discountType === 'led' || d!.discountType === 'controller')
+        ? d!.discountType
+        : (d!.ledOverride ? 'led' : 'controller');
+      setDiscountType(type);
+      setDiscountAmountPerUnit(
+        type === 'led'
+          ? (d!.ledOverride?.amountPerUnit ?? d!.discountAmountPerUnit ?? 0)
+          : (d!.controllerOverride?.amountPerUnit ?? d!.discountAmountPerUnit ?? 0)
+      );
+    } else {
+      setDiscountType(null);
+      setDiscountPercent(0);
+      setDiscountAmountPerUnit(0);
+    }
+    setDiscountFormReady(true);
+  }, [isOpen, lineItems]);
 
   const [internalCustomPricingEnabled, setInternalCustomPricingEnabled] = useState(externalCustomPricing?.enabled || false);
   const [internalCustomStructurePrice, setInternalCustomStructurePrice] = useState<number | null>(externalCustomPricing?.structurePrice || null);
@@ -434,8 +559,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         },
         cabinetGrid: cabinetGrid,
         displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
-          width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
-          height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+          width: (cabinetGrid.totalWidth ?? selectedProduct.cabinetDimensions.width * cabinetGrid.columns) / 1000,
+          height: (cabinetGrid.totalHeight ?? selectedProduct.cabinetDimensions.height * cabinetGrid.rows) / 1000
         } : undefined,
         aspectRatio: selectedProduct.resolution ?
           calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
@@ -462,8 +587,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           customPricingObj,
           selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
           nexaAddons,
-          orderQuantity,
-          quotationAddons
+          orderQuantity
         );
 
         if (!pricingForUpdate.isAvailable) {
@@ -472,117 +596,84 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           return;
         }
 
-        const effectiveLineItems = lineItems.length > 0
-          ? lineItems.map(li => {
-              const lineUserType = li.userType
-                ? toPricingUserTypeCode(li.userType)
-                : userType;
-              const lineCustomPricing = li.customPricing
-                ? (li.customPricing.enabled ? li.customPricing : undefined)
-                : customPricingObj;
-              const snap = priceLineItem(
-                {
-                  product: li.product,
-                  config: li.config,
-                  cabinetGrid: li.cabinetGrid,
-                  processor: li.processor,
-                  wireType: li.wireType,
-                  nexaAddons: li.nexaAddons,
-                  orderQuantity: li.orderQuantity
-                },
-                lineUserType,
-                lineCustomPricing
-              );
-              return {
-                ...li,
-                userType: li.userType || normalizeDisplayUserType(userType),
-                customPricing: li.customPricing || (customPricingObj
-                  ? {
-                      enabled: true,
-                      structurePrice: customPricingObj.structurePrice ?? null,
-                      installationPrice: customPricingObj.installationPrice ?? null
-                    }
-                  : { enabled: false, structurePrice: null, installationPrice: null }),
-                unitPricingSnapshot: snap.isAvailable ? snap : li.unitPricingSnapshot
-              };
-            })
+        const isSuperAdminUpdate = userRole === 'super' || userRole === 'super_admin';
+        const uiMerge = isSuperAdminUpdate
+          ? {
+              type: discountType,
+              amount: discountAmountPerUnit,
+              formReady: discountFormReady,
+              product: selectedProduct,
+              cabinetGrid,
+              config: configForCalc
+            }
+          : null;
+
+        const linesWithLiveMatrix = applyLiveMatrixToSingleLineItem(lineItems, configForCalc, cabinetGrid);
+        const effectiveLineItems = linesWithLiveMatrix.length > 0
+          ? repriceQuoteLineItems(linesWithLiveMatrix, userType, customPricingObj, uiMerge)
           : [];
 
         const persistedLineItems = effectiveLineItems.length > 0
           ? toPersistedLineItems(effectiveLineItems)
-          : toPersistedLineItems([{
-              id: 'current',
-              configurationKey: 'current',
-              product: selectedProduct,
-              config: {
-                width: configForCalc.width,
-                height: configForCalc.height,
-                aspectRatio: null,
-                unit: (configForCalc.unit as 'mm' | 'm' | 'ft') || 'mm'
-              },
-              cabinetGrid: {
-                columns: cabinetGrid?.columns || 1,
-                rows: cabinetGrid?.rows || 1,
-                totalWidth: (cabinetGrid as any)?.totalWidth || configForCalc.width,
-                totalHeight: (cabinetGrid as any)?.totalHeight || configForCalc.height
-              },
-              processor: processor || null,
-              mode: mode || null,
-              wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
-              nexaAddons,
-              selectedCabinetSize: globalConfig.selectedCabinetSize,
-              orderQuantity,
-              unitPricingSnapshot: pricingForUpdate
-            }]);
+          : toPersistedLineItems([
+              repriceCartLineItem(
+                {
+                  id: 'current',
+                  configurationKey: 'current',
+                  product: selectedProduct,
+                  config: {
+                    width: configForCalc.width,
+                    height: configForCalc.height,
+                    aspectRatio: null,
+                    unit: (configForCalc.unit as 'mm' | 'm' | 'ft') || 'mm'
+                  },
+                  cabinetGrid: {
+                    columns: cabinetGrid?.columns || 1,
+                    rows: cabinetGrid?.rows || 1,
+                    totalWidth: (cabinetGrid as any)?.totalWidth || configForCalc.width,
+                    totalHeight: (cabinetGrid as any)?.totalHeight || configForCalc.height
+                  },
+                  processor: processor || null,
+                  mode: mode || null,
+                  wireType: selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
+                  nexaAddons,
+                  selectedCabinetSize: globalConfig.selectedCabinetSize,
+                  orderQuantity,
+                  unitPricingSnapshot: pricingForUpdate,
+                  discount: uiMerge
+                    ? discountForQuotationSave(
+                        undefined,
+                        uiMerge.type,
+                        uiMerge.amount,
+                        uiMerge.formReady,
+                        uiMerge.product,
+                        uiMerge.cabinetGrid,
+                        uiMerge.config
+                      )
+                    : undefined
+                },
+                userType,
+                customPricingObj
+              )
+            ]);
 
-        const multiItemTotal = effectiveLineItems.length > 1
-          ? sumLineItemGrandTotals(effectiveLineItems)
-          : null;
-
-        const appliedAddons = pricingForUpdate.appliedAddons;
-        const updateGrandTotal = multiItemTotal != null
-          ? addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal)
-          : pricingForUpdate.grandTotal;
+        const primaryUpdateItem = effectiveLineItems.length === 1 ? effectiveLineItems[0] : null;
+        const primaryUpdatePricing = primaryUpdateItem?.unitPricingSnapshot
+          || (persistedLineItems.length === 1 ? persistedLineItems[0].pricing as typeof pricingForUpdate : undefined)
+          || pricingForUpdate;
+        const appliedAddons = primaryUpdatePricing.appliedAddons;
+        const accounting = buildQuotationAccounting(persistedLineItems, quotationAddons);
+        const updateGrandTotal = accounting.grandTotal;
+        const updateDiscountMeta = quotationDiscountFieldsFromLine(
+          primaryUpdateItem || (effectiveLineItems.length <= 1 ? {
+            discount: persistedLineItems[0]?.discount
+          } as QuotationLineItem : null)
+        );
         const quotationProductName = formatQuotationProductLabel(
           effectiveLineItems.length > 0 ? effectiveLineItems : [{ product: selectedProduct } as any]
         );
 
-        const breakdown = {
-          unitPrice: pricingForUpdate.unitPrice,
-          quantity: pricingForUpdate.quantity,
-          orderQuantity: pricingForUpdate.orderQuantity,
-          unitGrandTotal: pricingForUpdate.unitGrandTotal,
-          subtotal: pricingForUpdate.productSubtotal,
-          gstRate: 18,
-          gstAmount: pricingForUpdate.productGST,
-          productSubtotal: pricingForUpdate.productSubtotal,
-          productGST: pricingForUpdate.productGST,
-          productTotal: pricingForUpdate.productTotal,
-
-          processorPrice: pricingForUpdate.processorPrice,
-          processorGst: pricingForUpdate.processorGST,
-          processorGST: pricingForUpdate.processorGST,
-          processorTotal: pricingForUpdate.processorTotal,
-
-          structureCost: pricingForUpdate.structureCost,
-          structureGST: pricingForUpdate.structureGST,
-          structureTotal: pricingForUpdate.structureTotal,
-
-          installationCost: pricingForUpdate.installationCost,
-          installationGST: pricingForUpdate.installationGST,
-          installationTotal: pricingForUpdate.installationTotal,
-
-          addonsCost: pricingForUpdate.addonsCost,
-          addonsGST: pricingForUpdate.addonsGST,
-          addonsTotal: pricingForUpdate.addonsTotal,
-          appliedAddons: appliedAddons,
-          customAddons: quotationAddons,
-          customAddonsTotal: quotationAddonsTotal,
-          customAddonsIncludedInGrandTotal: true,
-          lineItemCount: persistedLineItems.length,
-
-          grandTotal: updateGrandTotal
-        };
+        const breakdown = { ...accounting.breakdown, gstRate: 18, customPricing: customPricingObj };
 
         const updateData = {
           customerName: customerName.trim(),
@@ -593,14 +684,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           userType: userType,
           userTypeDisplayName: getUserTypeDisplayName(getUserType()),
           totalPrice: updateGrandTotal,
-          originalTotalPrice: updateGrandTotal,
+          originalTotalPrice: accounting.originalTotal,
 
           exactPricingBreakdown: breakdown,
 
-          originalPricingBreakdown: {
-            ...breakdown,
-            grandTotal: updateGrandTotal
-          },
+          originalPricingBreakdown: accounting.originalBreakdown,
 
           exactProductSpecs: {
             productName: selectedProduct.name,
@@ -609,8 +697,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             resolution: selectedProduct.resolution,
             cabinetDimensions: selectedProduct.cabinetDimensions,
             displaySize: {
-              width: configForCalc.width / 1000,
-              height: configForCalc.height / 1000
+              width: (cabinetGrid?.totalWidth ?? configForCalc.width) / 1000,
+              height: (cabinetGrid?.totalHeight ?? configForCalc.height) / 1000
             },
             aspectRatio: calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height),
             processor: processor,
@@ -643,8 +731,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             nexaAddonsWithPrices: appliedAddons,
             customAddons: quotationAddons,
             updatedAt: new Date().toISOString(),
-            discountApplied: false,
-            discountInfo: null
+            discountApplied: updateDiscountMeta.discountApplied || effectiveLineItems.some(li => savedLineDiscountHasOverride(li.discount)),
+            discountInfo: updateDiscountMeta.discountInfo
           }
         };
 
@@ -892,8 +980,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
             cabinetGrid: cabinetGrid,
             displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
-              width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
-              height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+              width: (cabinetGrid.totalWidth ?? selectedProduct.cabinetDimensions.width * cabinetGrid.columns) / 1000,
+              height: (cabinetGrid.totalHeight ?? selectedProduct.cabinetDimensions.height * cabinetGrid.rows) / 1000
             } : undefined,
             aspectRatio: selectedProduct.resolution ?
               calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
@@ -919,8 +1007,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             customPricingObj,
             selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
             nexaAddons,
-            orderQuantity,
-            quotationAddons
+            orderQuantity
           );
 
           const pricingResult = calculateCentralizedPricing(
@@ -932,8 +1019,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             customPricingObj,
             selectedProduct && isModularSeriesProduct(selectedProduct as any) ? wireType : undefined,
             nexaAddons,
-            orderQuantity,
-            quotationAddons
+            orderQuantity
           );
 
           if (!pricingResult.isAvailable) {
@@ -946,49 +1032,41 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           let discountInfo: DiscountInfo | null = null;
 
           const configForDiscount = config || { width: 2400, height: 1010, unit: 'mm' };
+          const uiMerge = isSuperAdmin
+            ? {
+                type: discountType,
+                amount: discountAmountPerUnit,
+                formReady: discountFormReady,
+                product: selectedProduct,
+                cabinetGrid,
+                config: configForDiscount
+              }
+            : null;
 
-          // Reprice each line with its own userType/customPricing when present
-          const effectiveLineItems = lineItems.length > 0
-            ? lineItems.map(li => {
-                const lineUserType = li.userType
-                  ? toPricingUserTypeCode(li.userType)
-                  : userType;
-                const lineCustomPricing = li.customPricing
-                  ? (li.customPricing.enabled ? li.customPricing : undefined)
-                  : customPricingObj;
-                const snap = priceLineItem(
-                  {
-                    product: li.product,
-                    config: li.config,
-                    cabinetGrid: li.cabinetGrid,
-                    processor: li.processor,
-                    wireType: li.wireType,
-                    nexaAddons: li.nexaAddons,
-                    orderQuantity: li.orderQuantity
-                  },
-                  lineUserType,
-                  lineCustomPricing
-                );
-                return {
-                  ...li,
-                  userType: li.userType || normalizeDisplayUserType(userType),
-                  customPricing: li.customPricing || (customPricingObj
-                    ? {
-                        enabled: true,
-                        structurePrice: customPricingObj.structurePrice ?? null,
-                        installationPrice: customPricingObj.installationPrice ?? null
-                      }
-                    : { enabled: false, structurePrice: null, installationPrice: null }),
-                  unitPricingSnapshot: snap.isAvailable ? snap : li.unitPricingSnapshot
-                };
-              })
+          const linesWithLiveMatrix = applyLiveMatrixToSingleLineItem(lineItems, configForDiscount, cabinetGrid);
+          const effectiveLineItems = linesWithLiveMatrix.length > 0
+            ? repriceQuoteLineItems(linesWithLiveMatrix, userType, customPricingObj, uiMerge)
             : [];
 
           const multiItemTotal = effectiveLineItems.length > 1
             ? sumLineItemGrandTotals(effectiveLineItems)
             : null;
 
-          if (isSuperAdmin && discountType === 'led' && discountAmountPerUnit > 0 && effectiveLineItems.length <= 1) {
+          const primaryPricedItem = effectiveLineItems.length === 1 ? effectiveLineItems[0] : null;
+          if (primaryPricedItem?.unitPricingSnapshot?.isAvailable) {
+            finalPricingResult = primaryPricedItem.unitPricingSnapshot;
+            finalTotalPrice = primaryPricedItem.unitPricingSnapshot.grandTotal;
+            const lineDiscount = primaryPricedItem.discount;
+            if (savedLineDiscountHasOverride(lineDiscount)) {
+              discountInfo = {
+                discountType: (lineDiscount!.discountType as DiscountInfo['discountType']) || 'led',
+                discountPercent: 0,
+                discountAmountPerUnit: lineDiscount!.discountAmountPerUnit || 0,
+                numberOfUnits: lineDiscount!.numberOfUnits || 0,
+                ledDiscountMode: (lineDiscount!.ledDiscountMode as DiscountInfo['ledDiscountMode']) || 'none'
+              };
+            }
+          } else if (isSuperAdmin && discountType === 'led' && discountAmountPerUnit > 0 && effectiveLineItems.length <= 1) {
             const ledMode = getLedDiscountMode(selectedProduct);
             const units = getDiscountUnits(selectedProduct, cabinetGrid, configForDiscount);
             discountInfo = {
@@ -1018,6 +1096,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
           if (multiItemTotal != null) {
             finalTotalPrice = addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal);
+          } else if (primaryPricedItem?.unitPricingSnapshot?.isAvailable) {
+            finalTotalPrice = addQuotationAddonsToTotal(
+              Number(primaryPricedItem.unitPricingSnapshot.grandTotal) || 0,
+              quotationAddonsTotal
+            );
           }
 
           const persistedLineItems = effectiveLineItems.length > 0
@@ -1044,8 +1127,68 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 nexaAddons,
                 selectedCabinetSize: globalConfig.selectedCabinetSize,
                 orderQuantity,
-                unitPricingSnapshot: finalPricingResult
+                unitPricingSnapshot: finalPricingResult,
+                discount: discountInfo
+                  ? discountForQuotationSave(
+                      undefined,
+                      discountInfo.discountType,
+                      discountInfo.discountAmountPerUnit,
+                      true,
+                      selectedProduct,
+                      cabinetGrid,
+                      configForDiscount
+                    )
+                  : undefined
               }]);
+
+          if (discountInfo && persistedLineItems.length === 1 && 'discountAmount' in finalPricingResult) {
+            const discounted = finalPricingResult as any;
+            const existingLineDiscount = persistedLineItems[0].discount;
+            const keptLed = existingLineDiscount?.ledOverride?.amountPerUnit
+              ? existingLineDiscount.ledOverride
+              : (discountInfo.discountType === 'led'
+                  ? {
+                      amountPerUnit: discountInfo.discountAmountPerUnit,
+                      numberOfUnits: discountInfo.numberOfUnits,
+                      ledDiscountMode: discountInfo.ledDiscountMode
+                    }
+                  : undefined);
+            const keptController = existingLineDiscount?.controllerOverride?.amountPerUnit
+              ? existingLineDiscount.controllerOverride
+              : (discountInfo.discountType === 'controller'
+                  ? { amountPerUnit: discountInfo.discountAmountPerUnit }
+                  : undefined);
+            persistedLineItems[0].discount = {
+              discountType: keptLed ? 'led' : (keptController ? 'controller' : discountInfo.discountType || undefined),
+              discountPercent: discountInfo.discountPercent,
+              discountAmountPerUnit: keptLed?.amountPerUnit || keptController?.amountPerUnit || discountInfo.discountAmountPerUnit,
+              numberOfUnits: keptLed ? (keptLed.numberOfUnits || discountInfo.numberOfUnits) : discountInfo.numberOfUnits,
+              ledDiscountMode: keptLed?.ledDiscountMode || discountInfo.ledDiscountMode,
+              originalProductTotal: discounted.originalProductTotal,
+              originalProcessorTotal: discounted.originalProcessorTotal,
+              originalGrandTotal: discounted.originalGrandTotal,
+              discountedProductTotal: discounted.discountedProductTotal,
+              discountedProcessorTotal: discounted.discountedProcessorTotal,
+              discountedGrandTotal: discounted.grandTotal,
+              discountAmount: discounted.discountAmount,
+              ...(keptLed ? { ledOverride: keptLed } : {}),
+              ...(keptController ? { controllerOverride: keptController } : {})
+            };
+            if (persistedLineItems[0].pricing) {
+              persistedLineItems[0].pricing = {
+                ...persistedLineItems[0].pricing,
+                unitPrice: discounted.unitPrice,
+                productSubtotal: discounted.productSubtotal,
+                productTotal: discounted.productTotal,
+                processorPrice: discounted.processorPrice,
+                processorTotal: discounted.processorTotal,
+                grandTotal: discounted.grandTotal
+              };
+            }
+          }
+
+          const accounting = buildQuotationAccounting(persistedLineItems, quotationAddons);
+          finalTotalPrice = accounting.grandTotal;
 
           const quotationProductName = formatQuotationProductLabel(
             effectiveLineItems.length > 0 ? effectiveLineItems : [{ product: selectedProduct } as any]
@@ -1062,14 +1205,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
             userType: userType,
             userTypeDisplayName: getUserTypeDisplayName(userType),
             totalPrice: finalTotalPrice,  // CRITICAL: Grand Total with GST (and discount if applied) - matches PDF exactly
-            originalTotalPrice: multiItemTotal != null
-              ? addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal)
-              : correctTotalPrice, // Store original total price before discount
+            originalTotalPrice: accounting.originalTotal,
 
             salesUserId: finalSalesUserId,
             salesUserName: finalSalesUserName,
 
             exactPricingBreakdown: {
+              ...accounting.breakdown,
+              ...(persistedLineItems.length > 1 ? {} : {
               unitPrice: finalPricingResult.unitPrice,
               quantity: finalPricingResult.quantity,
               orderQuantity: finalPricingResult.orderQuantity ?? orderQuantity,
@@ -1099,12 +1242,21 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               installationGST: finalPricingResult.installationGST,
               installationTotal: finalPricingResult.installationTotal,
 
-              discount: discountInfo ? {
+              discount: primaryPricedItem?.discount || (discountInfo ? {
                 discountType: discountInfo.discountType,
                 discountPercent: discountInfo.discountPercent,
                 discountAmountPerUnit: discountInfo.discountAmountPerUnit,
                 numberOfUnits: discountInfo.numberOfUnits,
                 ledDiscountMode: discountInfo.ledDiscountMode,
+                ...(discountInfo.discountType === 'led'
+                  ? {
+                      ledOverride: {
+                        amountPerUnit: discountInfo.discountAmountPerUnit,
+                        numberOfUnits: discountInfo.numberOfUnits,
+                        ledDiscountMode: discountInfo.ledDiscountMode
+                      }
+                    }
+                  : { controllerOverride: { amountPerUnit: discountInfo.discountAmountPerUnit } }),
 
                 originalProductTotal: 'originalProductTotal' in finalPricingResult ? finalPricingResult.originalProductTotal : finalPricingResult.productTotal,
                 originalProcessorTotal: 'originalProcessorTotal' in finalPricingResult ? finalPricingResult.originalProcessorTotal : finalPricingResult.processorTotal,
@@ -1114,10 +1266,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                 discountedProcessorTotal: 'discountedProcessorTotal' in finalPricingResult ? finalPricingResult.discountedProcessorTotal : finalPricingResult.processorTotal,
                 discountedGrandTotal: finalTotalPrice,
                 discountAmount: 'discountAmount' in finalPricingResult ? finalPricingResult.discountAmount : 0
-              } : undefined
+              } : undefined)
+              }),
+              grandTotal: accounting.grandTotal
             },
 
-            originalPricingBreakdown: {
+            originalPricingBreakdown: persistedLineItems.length > 1
+              ? accounting.originalBreakdown : {
               unitPrice: pricingResult.unitPrice,
               quantity: pricingResult.quantity,
               orderQuantity: pricingResult.orderQuantity,
@@ -1140,9 +1295,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               customAddons: quotationAddons,
               customAddonsTotal: quotationAddonsTotal,
               customAddonsIncludedInGrandTotal: true,
-              grandTotal: multiItemTotal != null
-                ? addQuotationAddonsToTotal(multiItemTotal, quotationAddonsTotal)
-                : pricingResult.grandTotal // Always clean total
+              grandTotal: accounting.originalTotal
             },
 
             discountType: discountInfo?.discountType || null,
@@ -1158,8 +1311,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               resolution: selectedProduct.resolution,
               cabinetDimensions: selectedProduct.cabinetDimensions,
               displaySize: selectedProduct.cabinetDimensions && cabinetGrid ? {
-                width: Number((selectedProduct.cabinetDimensions.width * (cabinetGrid?.columns || 1) / 1000).toFixed(2)),
-                height: Number((selectedProduct.cabinetDimensions.height * (cabinetGrid?.rows || 1) / 1000).toFixed(2))
+                width: (cabinetGrid.totalWidth ?? selectedProduct.cabinetDimensions.width * cabinetGrid.columns) / 1000,
+                height: (cabinetGrid.totalHeight ?? selectedProduct.cabinetDimensions.height * cabinetGrid.rows) / 1000
               } : undefined,
               aspectRatio: selectedProduct.resolution ?
                 calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height) : undefined,
@@ -1199,15 +1352,15 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
               customAddons: quotationAddons,
               // Store discount state in quotationData so SalesPersonDetailsModal
               // can correctly detect and manage discounts applied at creation time
-              discountApplied: discountInfo ? ('discountAmount' in finalPricingResult ? (finalPricingResult as any).discountAmount > 0 : false) : false,
+              discountApplied: !!(discountInfo || effectiveLineItems.some(li => savedLineDiscountHasOverride(li.discount))),
               discountInfo: discountInfo ? {
                 type: discountInfo.discountType,
-                percent: discountInfo.discountType === 'controller' ? discountInfo.discountPercent : 0,
+                percent: discountInfo.discountPercent || 0,
                 amount: 'discountAmount' in finalPricingResult ? (finalPricingResult as any).discountAmount : 0,
-                amountPerUnit: discountInfo.discountType === 'led' ? discountInfo.discountAmountPerUnit : 0,
-                numberOfUnits: discountInfo.discountType === 'led' ? discountInfo.numberOfUnits : 0,
-                ledDiscountMode: discountInfo.discountType === 'led' ? discountInfo.ledDiscountMode : 'none'
-              } : null
+                amountPerUnit: discountInfo.discountAmountPerUnit,
+                numberOfUnits: discountInfo.numberOfUnits,
+                ledDiscountMode: discountInfo.ledDiscountMode || 'none'
+              } : (quotationDiscountFieldsFromLine(primaryPricedItem).discountInfo)
             },
 
             createdAt: new Date().toISOString()
@@ -1528,7 +1681,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   name="discountType"
                                   value="led"
                                   checked={discountType === 'led'}
-                                  onChange={() => setDiscountType('led')}
+                                  onChange={() => { markDiscountTouched(); setDiscountType('led'); }}
                                   disabled={isSubmitting}
                                   className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
                                 />
@@ -1540,7 +1693,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   name="discountType"
                                   value="controller"
                                   checked={discountType === 'controller'}
-                                  onChange={() => setDiscountType('controller')}
+                                  onChange={() => { markDiscountTouched(); setDiscountType('controller'); }}
                                   disabled={isSubmitting}
                                   className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
                                 />
@@ -1552,7 +1705,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   name="discountType"
                                   value=""
                                   checked={discountType === null}
-                                  onChange={() => setDiscountType(null)}
+                                  onChange={() => { markDiscountTouched(); setDiscountType(null); }}
                                   disabled={isSubmitting}
                                   className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500 mr-2"
                                 />
@@ -1583,7 +1736,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                               <div className="space-y-3">
                                 <div>
                                   <label htmlFor="discountAmountPerUnit" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Discount Amount (₹ {unitLabel})
+                                    Override unit price (₹ {unitLabel})
                                   </label>
                                   <input
                                     type="number"
@@ -1593,10 +1746,11 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                     value={discountAmountPerUnit || ''}
                                     onChange={(e) => {
                                       const value = parseFloat(e.target.value) || 0;
+                                      markDiscountTouched();
                                       setDiscountAmountPerUnit(Math.max(0, value));
                                     }}
                                     disabled={isSubmitting}
-                                    placeholder={`Enter ₹ amount ${unitLabel}`}
+                                    placeholder={`Enter replacement ₹ ${unitLabel}`}
                                     className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base"
                                   />
                                 </div>
@@ -1614,7 +1768,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                     <span className="font-medium text-gray-900">₹{discountAmountPerUnit.toLocaleString('en-IN')}</span>
                                   </div>
                                   <div className="flex justify-between text-sm font-semibold border-t border-blue-300 pt-1">
-                                    <span className="text-blue-700">Total Discount:</span>
+                                    <span className="text-blue-700">New LED subtotal:</span>
                                     <span className="text-blue-700">₹{totalDiscount.toLocaleString('en-IN')}</span>
                                   </div>
                                 </div>
@@ -1637,6 +1791,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                                   value={discountAmountPerUnit || ''}
                                   onChange={(e) => {
                                     const value = parseFloat(e.target.value) || 0;
+                                    markDiscountTouched();
                                     setDiscountAmountPerUnit(Math.max(0, value));
                                   }}
                                   disabled={isSubmitting}
