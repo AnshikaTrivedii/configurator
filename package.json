@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:quotation-edit": "node --import tsx src/utils/editPricingCycle.test.ts && node --import tsx src/utils/discountCalculator.test.ts && node --import tsx src/utils/centralizedPricing.rental.test.ts && node --import tsx src/utils/quotationAccounting.test.ts && node --test backend/utils/quotationAccounting.test.js"
+    "test:quotation-edit": "node --import tsx src/utils/editPricingCycle.test.ts && node --import tsx src/utils/discountCalculator.test.ts && node --import tsx src/utils/centralizedPricing.rental.test.ts && node --import tsx src/utils/quotationAccounting.test.ts && node --import tsx src/utils/quotationListOrder.test.ts && node --test backend/utils/quotationAccounting.test.js backend/utils/quotationListOrder.test.js"
   },
   "dependencies": {
     "@react-email/components": "^0.1.0",

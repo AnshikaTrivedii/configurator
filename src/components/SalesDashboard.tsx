@@ -17,7 +17,9 @@ import {
   getQuotationItemSummary,
   getQuotationDisplayTotal,
   normalizeQuotationLineItems,
-  toPdfQuotationLineItems
+  toPdfQuotationLineItems,
+  filterCustomersByQuotationSearch,
+  expandCustomersByQuotationDate
 } from '../utils/quotationLineItems';
 
 const products: import('../types').Product[] = Array.isArray(productsImport) ? productsImport : [];
@@ -50,6 +52,7 @@ interface Customer {
   customerPhone: string;
   userType: string;
   userTypeDisplayName: string;
+  company?: string;
   quotations: Quotation[];
 }
 
@@ -90,16 +93,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
   const dashboardRole = (loggedInUser?.role || salesPerson?.role || 'sales').toLowerCase();
   const canViewProductRates = dashboardRole === 'sales';
 
-  // Filter filtered customers based on search query
-  const filteredCustomers = customers.filter(customer => {
-    const query = searchQuery.toLowerCase();
-    return (
-      customer.customerName?.toLowerCase().includes(query) ||
-      customer.customerEmail?.toLowerCase().includes(query) ||
-      customer.customerPhone?.includes(query) ||
-      customer.quotations.some(q => q.quotationId.toLowerCase().includes(query))
-    );
-  });
+  const filteredCustomers = expandCustomersByQuotationDate(
+    filterCustomersByQuotationSearch(
+      customers,
+      searchQuery,
+      salesPerson?.name || loggedInUser?.name
+    )
+  );
 
   useEffect(() => {
 
@@ -797,17 +797,28 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
             </h2>
 
             {/* Search Bar */}
-            <div className="relative w-full sm:w-80">
+            <div className="relative w-full sm:w-96">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search size={16} className="text-gray-400" />
               </div>
               <input
                 type="text"
-                placeholder="Search customers, emails, or quotes..."
-                className="pl-10 pr-4 py-2.5 w-full bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+                placeholder="Search quotation ID, customer, or company..."
+                className="pl-10 pr-10 py-2.5 w-full bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search quotations"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  aria-label="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -816,9 +827,11 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Search className="text-gray-400" size={24} />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-1">No customers found</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">
+                {searchQuery.trim() ? 'No quotations found' : 'No customers found'}
+              </h3>
               <p className="text-gray-500 text-sm mb-6">
-                {searchQuery ? `No results matching "${searchQuery}"` : "Get started by creating your first quotation."}
+                {searchQuery.trim() ? `No quotations match "${searchQuery.trim()}".` : "Get started by creating your first quotation."}
               </p>
               {!searchQuery && (
                 <button
@@ -833,7 +846,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
           ) : (
             <div className="grid grid-cols-1 gap-6">
               {filteredCustomers.map((customer, customerIndex) => (
-                <div key={customerIndex} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+                <div key={customer.quotations[0]?.quotationId || customerIndex} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
                   {/* Customer Header */}
                   <div className="bg-gray-50/50 px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
@@ -858,8 +871,8 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
                       </div>
                     </div>
                     <div className="text-right hidden sm:block">
-                      <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Total Quotes</p>
-                      <p className="text-xl font-bold text-gray-900">{customer.quotations.length}</p>
+                      <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Quotation date</p>
+                      <p className="text-sm font-semibold text-gray-900">{formatDate(customer.quotations[0]?.createdAt)}</p>
                     </div>
                   </div>
 

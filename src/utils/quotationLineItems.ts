@@ -1040,6 +1040,95 @@ export function sortQuotationsWithDiscountFirst<T extends { createdAt?: string }
   });
 }
 
+function quotationCreatedAtMillis(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const time = new Date(value as string | number | Date).getTime();
+  return Number.isFinite(time) ? time : null;
+}
+
+/**
+ * Newest creation date first. Invalid timestamps sort last.
+ * Equal timestamps use quotation ID descending so the order stays stable.
+ * updatedAt is intentionally ignored.
+ */
+export function compareQuotationsByCreatedAtDesc(
+  a: { createdAt?: string | Date | null; quotationId?: string | null },
+  b: { createdAt?: string | Date | null; quotationId?: string | null }
+): number {
+  const aTime = quotationCreatedAtMillis(a?.createdAt);
+  const bTime = quotationCreatedAtMillis(b?.createdAt);
+  if (aTime == null && bTime == null) {
+    return String(b?.quotationId || '').localeCompare(String(a?.quotationId || ''));
+  }
+  if (aTime == null) return 1;
+  if (bTime == null) return -1;
+  if (aTime !== bTime) return bTime - aTime;
+  return String(b?.quotationId || '').localeCompare(String(a?.quotationId || ''));
+}
+
+/**
+ * One customer card per quotation, ordered by that quotation's createdAt.
+ * Grouping every quotation under its customer would place older quotations
+ * above newer quotations that belong to someone else.
+ */
+export function expandCustomersByQuotationDate<T extends {
+  customerName?: string;
+  quotations: Array<{ createdAt?: string | Date | null; quotationId?: string | null }>;
+}>(customers: T[]): T[] {
+  const rows: T[] = [];
+  for (const customer of customers) {
+    for (const quotation of customer.quotations || []) {
+      rows.push({ ...customer, quotations: [quotation] });
+    }
+  }
+  return rows.sort((a, b) => compareQuotationsByCreatedAtDesc(a.quotations[0] || {}, b.quotations[0] || {}));
+}
+
+/** Newest quotation first within each customer, then customers by that newest quotation. */
+export function sortCustomersByNewestQuotation<T extends {
+  customerName?: string;
+  quotations: Array<{ createdAt?: string | Date | null; quotationId?: string | null }>;
+}>(customers: T[]): T[] {
+  return [...customers]
+    .map(customer => ({
+      ...customer,
+      quotations: [...(customer.quotations || [])].sort(compareQuotationsByCreatedAtDesc)
+    }))
+    .sort((a, b) => {
+      const byQuote = compareQuotationsByCreatedAtDesc(a.quotations[0] || {}, b.quotations[0] || {});
+      if (byQuote !== 0) return byQuote;
+      return String(a.customerName || '').localeCompare(String(b.customerName || ''));
+    });
+}
+
+export function filterCustomersByQuotationSearch<T extends {
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  company?: string;
+  quotations: Array<{ quotationId?: string; createdAt?: string | Date | null }>;
+}>(customers: T[], query: string, salesPersonName?: string | null): T[] {
+  const sorted = sortCustomersByNewestQuotation(customers);
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return sorted;
+
+  const salesName = (salesPersonName || '').trim().toLowerCase();
+  return sorted.flatMap(customer => {
+    const customerText = [customer.customerName, customer.customerEmail, customer.customerPhone, customer.company]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    if (customerText.includes(normalized) || (salesName && salesName.includes(normalized))) {
+      return [customer];
+    }
+    const quotations = customer.quotations.filter(quotation =>
+      String(quotation.quotationId || '').toLowerCase().includes(normalized)
+    );
+    if (!quotations.length) return [];
+    return [{ ...customer, quotations }];
+  });
+}
+
 /** Sort each customer's quotations and prioritize customers with discounted quotes. */
 export function sortCustomersWithDiscountedQuotationsFirst<T extends { quotations: any[] }>(
   customers: T[]

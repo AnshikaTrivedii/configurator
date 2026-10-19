@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, Clock, MessageSquare, RefreshCw, Percent, Trash2 } from 'lucide-react';
+import { X, User, Mail, Phone, MapPin, Calendar, FileText, DollarSign, Package, Clock, MessageSquare, RefreshCw, Percent, Trash2, Search } from 'lucide-react';
 import { salesAPI } from '../api/sales';
 import { PdfViewModal } from './PdfViewModal';
 import { generateConfigurationHtml } from '../utils/docxGenerator';
@@ -11,7 +11,8 @@ import {
   getQuotationItemSummary,
   getQuotationDisplayTotal,
   normalizeQuotationLineItems,
-  sortCustomersWithDiscountedQuotationsFirst,
+  filterCustomersByQuotationSearch,
+  expandCustomersByQuotationDate,
   toPdfQuotationLineItems,
   priceLineItem,
   toPricingUserTypeCode,
@@ -116,6 +117,7 @@ interface Customer {
   customerPhone: string;
   userType: string;
   userTypeDisplayName: string;
+  company?: string;
   quotations: Quotation[];
 }
 
@@ -175,6 +177,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 }) => {
   const [salesPerson, setSalesPerson] = useState<SalesPerson | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [totalQuotations, setTotalQuotations] = useState(0);
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -195,6 +198,9 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
   useEffect(() => {
     if (isOpen && salesPersonId) {
       fetchSalesPersonDetails();
+    }
+    if (!isOpen) {
+      setSearchQuery('');
     }
   }, [isOpen, salesPersonId]);
 
@@ -231,7 +237,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
       const uniquePrices = [...new Set(allQuotationPrices)];
 
       setSalesPerson(response.salesPerson);
-      setCustomers(sortCustomersWithDiscountedQuotationsFirst(response.customers || []));
+      setCustomers(response.customers || []);
       setTotalQuotations(response.totalQuotations);
       setTotalCustomers(response.totalCustomers);
     } catch (err) {
@@ -820,6 +826,14 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
     }
   };
 
+  const filteredCustomers = expandCustomersByQuotationDate(
+    filterCustomersByQuotationSearch(
+      customers,
+      searchQuery,
+      salesPerson?.name
+    )
+  );
+
   if (!isOpen) return null;
 
   return (
@@ -921,18 +935,48 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
 
               {/* Customers and Quotations */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Clients & Quotations ({totalCustomers} clients, {totalQuotations} quotations)
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Clients & Quotations ({totalCustomers} clients, {totalQuotations} quotations)
+                  </h3>
+                  <div className="relative w-full sm:w-80">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Search quotation ID, customer, or company..."
+                      className="pl-9 pr-9 py-2 w-full bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      aria-label="Search quotations"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        aria-label="Clear search"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
 
                 {customers.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                     <p>No quotations found for this sales person.</p>
                   </div>
+                ) : filteredCustomers.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Search className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>No quotations match "{searchQuery.trim()}".</p>
+                  </div>
                 ) : (
                   <div className="space-y-6">
-                    {customers.map((customer, customerIndex) => (
+                    {filteredCustomers.map((customer, customerIndex) => (
                       <div key={`customer-${customer.customerEmail}-${customerIndex}`} className="border border-gray-200 rounded-lg p-6">
                         {/* Customer Info */}
                         <div className="mb-4">
@@ -956,7 +1000,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
                         {/* Quotations */}
                         <div>
                           <h5 className="text-sm font-medium text-gray-700 mb-3">
-                            Quotations ({customer.quotations.length})
+                            Quotation
                           </h5>
                           <div className="space-y-3">
                             {customer.quotations.map((quotation, quotationIndex) => {
