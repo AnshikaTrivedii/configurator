@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Minus, Plus, X, ChevronDown, AlertCircle } from 'lucide-react';
 import { DisplayConfig, Product } from '../types';
 import { validateDimensions, hasDimensionConstraints } from '../utils/dimensionConstraints';
-import { formatDimensionInput, parseDimensionInput } from '../utils/displayMeasurements';
+import { formatDimensionInput, formatDimensionLabel, parseDimensionInput } from '../utils/displayMeasurements';
 
 interface DimensionControlsProps {
   config: DisplayConfig;
@@ -24,7 +24,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
 
   const commitDimension = (draft: string | null, currentMm: number, change: (mm: number) => void, clear: () => void) => {
     const unit = config.unit === 'ft' ? 'ft' : 'm';
-    if (draft !== null && draft.trim() !== '' && draft !== formatDimensionInput(currentMm, unit)) {
+    if (draft !== null && draft.trim() !== '' && draft !== formatDimensionLabel(currentMm, unit)) {
       const value = Number(draft);
       if (Number.isFinite(value) && value > 0) {
         change(parseDimensionInput(value, unit));
@@ -117,8 +117,8 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
             <div className="flex items-center gap-1 bg-white border rounded-lg px-1.5 sm:px-2 lg:px-3 py-1 sm:py-1.5 lg:py-2 min-w-[60px] sm:min-w-[80px] lg:min-w-[100px]">
               <input
                 type="number"
-                value={widthDraft ?? formatDimensionInput(config.width, config.unit === 'ft' ? 'ft' : 'm')}
-                onFocus={() => setWidthDraft(formatDimensionInput(config.width, config.unit === 'ft' ? 'ft' : 'm'))}
+                value={widthDraft ?? formatDimensionLabel(config.width, config.unit === 'ft' ? 'ft' : 'm')}
+                onFocus={() => setWidthDraft(formatDimensionLabel(config.width, config.unit === 'ft' ? 'ft' : 'm'))}
                 onChange={(e) => setWidthDraft(e.target.value)}
                 onBlur={() => commitDimension(widthDraft, config.width, onWidthChange, () => setWidthDraft(null))}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
@@ -156,8 +156,8 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({
             <div className="flex items-center gap-1 bg-white border rounded-lg px-1.5 sm:px-2 lg:px-3 py-1 sm:py-1.5 lg:py-2 min-w-[60px] sm:min-w-[80px] lg:min-w-[100px]">
               <input
                 type="number"
-                value={heightDraft ?? formatDimensionInput(config.height, config.unit === 'ft' ? 'ft' : 'm')}
-                onFocus={() => setHeightDraft(formatDimensionInput(config.height, config.unit === 'ft' ? 'ft' : 'm'))}
+                value={heightDraft ?? formatDimensionLabel(config.height, config.unit === 'ft' ? 'ft' : 'm')}
+                onFocus={() => setHeightDraft(formatDimensionLabel(config.height, config.unit === 'ft' ? 'ft' : 'm'))}
                 onChange={(e) => setHeightDraft(e.target.value)}
                 onBlur={() => commitDimension(heightDraft, config.height, onHeightChange, () => setHeightDraft(null))}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}

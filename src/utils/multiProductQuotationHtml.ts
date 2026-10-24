@@ -7,7 +7,7 @@
 
 import { PdfQuotationLineItem } from './quotationLineItems';
 import { normalizeOrderQuantity } from './orderQuantity';
-import { billableAreaSqFt, formatDimensionInput } from './displayMeasurements';
+import { billableAreaSqFt, formatDimensionLabel } from './displayMeasurements';
 import {
   QuotationAddon,
   addQuotationAddonsToTotal,
@@ -30,7 +30,7 @@ const formatTotalWithDecimals = (x: number): string =>
 
 const toDisplayUnit = (mm: number | undefined, unit: 'm' | 'ft'): string => {
   if (!mm || !Number.isFinite(mm)) return '—';
-  return formatDimensionInput(mm, unit);
+  return formatDimensionLabel(mm, unit);
 };
 
 const screenAreaSqFt = (widthMm?: number, heightMm?: number): number => {

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DisplayConfig, Product, CabinetGrid } from '../types';
 import { hasDimensionConstraints } from '../utils/dimensionConstraints';
-import { formatDimensionInput } from '../utils/displayMeasurements';
+import { formatDimensionLabel } from '../utils/displayMeasurements';
 
 interface DisplayPreviewProps {
   config: DisplayConfig;
@@ -350,7 +350,7 @@ export const DisplayPreview: React.FC<DisplayPreviewProps> = ({
   };
 
   const toDisplayUnit = (mm: number): string => {
-    return formatDimensionInput(mm, config.unit === 'ft' ? 'ft' : 'm');
+    return formatDimensionLabel(mm, config.unit === 'ft' ? 'ft' : 'm');
   };
 
   let previewWidthMM = cabinetGrid?.totalWidth || config.width;
