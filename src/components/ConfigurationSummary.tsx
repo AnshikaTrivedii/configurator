@@ -8,7 +8,7 @@ import { getDisplayPower } from '../utils/displayPower';
 import { usesModuleSizeInsteadOfCabinetSize } from '../utils/productSeries';
 import { OrderQuantityInput } from './OrderQuantityInput';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
-import { billableAreaSqFt, formatDimensionInput } from '../utils/displayMeasurements';
+import { billableAreaSqFt, formatDimensionLabel } from '../utils/displayMeasurements';
 
 // Processor specifications - matches DisplayConfigurator.tsx
 const PROCESSOR_SPECS: Record<string, { inputs?: number; outputs?: number; maxResolution?: string; pixelCapacity?: number }> = {
@@ -99,7 +99,7 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     isJumboSeries || isModuleGridSeries || isDigitalStandee || isFlexibleSeries || isNexa || (moduleSizeProduct && !isStandardTransparent);
 
   const toDisplayUnit = (mm: number, unit: string) => {
-    return formatDimensionInput(mm, unit === 'ft' ? 'ft' : 'm');
+    return formatDimensionLabel(mm, unit === 'ft' ? 'ft' : 'm');
   };
 
   // Calculate both units from the actual grid, never from a rounded display string.

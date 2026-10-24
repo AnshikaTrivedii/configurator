@@ -3,7 +3,7 @@ import { products } from '../data/products';
 import { calculateCentralizedPricing } from './centralizedPricing';
 import { applySavedPriceOverrides } from './discountCalculator';
 import { buildQuotationAccounting, getQuotationDisplayTotal, persistedLinesForPdfSave } from './quotationLineItems';
-import { billableAreaSqFt, cabinetCountForTarget, formatDimensionInput, parseDimensionInput } from './displayMeasurements';
+import { billableAreaSqFt, cabinetCountForTarget, formatDimensionInput, formatDimensionLabel, parseDimensionInput } from './displayMeasurements';
 import { buildMultiProductQuotationBodyHtml } from './multiProductQuotationHtml';
 import { calculateQuantity as calculatePdfQuantity } from './pdfPriceCalculator';
 
@@ -22,6 +22,8 @@ for (const unit of ['m', 'ft'] as const) {
   assert(`${unit} dimension input round-trips in millimetres`, parsed === heightMm);
   assert(`${unit} input keeps all three cabinet rows`, cabinetCountForTarget(parsed, 337.5) === 3);
 }
+assert('feet labels show two decimal places', formatDimensionLabel(heightMm, 'ft') === '3.32');
+assert('feet labels keep the stored millimetres exact', formatDimensionInput(heightMm, 'ft') === '3.32185');
 assert('an intentionally smaller target changes the grid', cabinetCountForTarget(1010, 337.5) === 2);
 assert('billable area uses the precise grid', billableAreaSqFt(1800, 1012.5) === 19.62);
 

@@ -4,6 +4,13 @@ export function formatDimensionInput(mm: number, unit: 'm' | 'ft'): string {
   return Number(converted.toFixed(6)).toString();
 }
 
+/** Visible size text. Feet show two decimal places; the stored millimetre value stays exact. */
+export function formatDimensionLabel(mm: number, unit: 'm' | 'ft'): string {
+  const converted = unit === 'ft' ? mm / 304.8 : mm / 1000;
+  if (unit === 'ft') return converted.toFixed(2);
+  return Number(converted.toFixed(6)).toString();
+}
+
 export function parseDimensionInput(value: number, unit: 'm' | 'ft'): number {
   const mm = unit === 'ft' ? value * 304.8 : value * 1000;
   return Math.round(mm * 1000) / 1000;

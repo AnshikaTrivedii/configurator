@@ -7,7 +7,7 @@ import { calculateCentralizedPricing } from './centralizedPricing';
 import { resolveDisplayedProductSubtotal } from './exactPricingBreakdownForPdf';
 import { getControllerOverrideFromDiscount, getLedOverrideFromDiscount } from './discountCalculator';
 import { normalizeOrderQuantity } from './orderQuantity';
-import { billableAreaSqFt, formatDimensionInput } from './displayMeasurements';
+import { billableAreaSqFt, formatDimensionLabel } from './displayMeasurements';
 import type { PdfQuotationLineItem } from './quotationLineItems';
 import { buildMultiProductQuotationBodyHtml, buildMultiProductContinuationPagesHtml, fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from './multiProductQuotationHtml';
 import {
@@ -343,7 +343,7 @@ export const generateConfigurationHtml = (
 ): string => {
 
   const toDisplayUnit = (mm: number, unit: string) => {
-    return formatDimensionInput(mm, unit === 'ft' ? 'ft' : 'm');
+    return formatDimensionLabel(mm, unit === 'ft' ? 'ft' : 'm');
   };
 
   const effectiveWidth = cabinetGrid?.totalWidth ?? config.width;
