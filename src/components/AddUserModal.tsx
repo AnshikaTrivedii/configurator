@@ -214,6 +214,16 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onU
                                     />
                                     <span className="text-sm text-gray-700">SI / Channel</span>
                                 </label>
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        value="competitive"
+                                        checked={formData.allowedCustomerTypes.includes('competitive')}
+                                        onChange={handleCheckboxChange}
+                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span className="text-sm text-gray-700">Low Cost Model Price</span>
+                                </label>
                             </div>
                         </div>
                     )}

@@ -6,6 +6,7 @@ import QuotationIdGenerator from '../utils/quotationIdGenerator';
 import { products as productsImport } from '../data/products';
 
 const products: import('../types').Product[] = Array.isArray(productsImport) ? productsImport : [];
+import { PROPOSED_COMPETITIVE_PRICE_LABEL, isCompetitiveUserType } from '../utils/userTypes';
 import { calculateCentralizedPricing } from '../utils/centralizedPricing';
 import {
   addQuotationAddonsToTotal,
@@ -121,6 +122,8 @@ const getUserTypeDisplayName = (type: string): string => {
       return 'SI/Channel Partner';
     case 'reseller':
       return 'Reseller';
+    case 'competitive':
+      return PROPOSED_COMPETITIVE_PRICE_LABEL;
     default:
       return 'End Customer';
   }
@@ -275,7 +278,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
     }
   }, [htmlContent]);
 
-  const getUserType = (): 'endUser' | 'reseller' | 'siChannel' => {
+  const getUserType = (): 'endUser' | 'reseller' | 'siChannel' | 'competitive' => {
+    if (isCompetitiveUserType(userInfo?.userType)) return 'competitive';
     switch (userInfo?.userType) {
       case 'Reseller':
         return 'reseller';
@@ -529,8 +533,10 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
         }
 
         const uiUserType: string | undefined = userInfo?.userType;
-        const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
-          uiUserType === 'SI/Channel Partner'
+        const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' | 'Low Cost Model Price' =
+          isCompetitiveUserType(uiUserType)
+            ? PROPOSED_COMPETITIVE_PRICE_LABEL
+            : uiUserType === 'SI/Channel Partner'
             ? 'Channel'
             : (uiUserType === 'Reseller' ? 'Reseller' : 'End User');
 

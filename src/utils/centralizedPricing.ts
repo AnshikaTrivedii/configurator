@@ -13,6 +13,7 @@ import { getProcessorPrice } from './processorPrices';
 import { normalizeOrderQuantity } from './orderQuantity';
 import { QuotationAddon, sanitizeQuotationAddons, sumQuotationAddons, addQuotationAddonsToTotal } from './quotationAddons';
 import { billableAreaSqFt } from './displayMeasurements';
+import { isCompetitiveUserType } from './userTypes';
 
 export interface PricingCalculationResult {
 
@@ -168,7 +169,9 @@ function getProductUnitPrice(
 
     let selectedPrice: any;
 
-    if (userType === 'Reseller') {
+    if (isCompetitiveUserType(userType)) {
+      selectedPrice = product.competitivePrice;
+    } else if (userType === 'Reseller') {
       selectedPrice = product.resellerPrice;
     } else if (userType === 'Channel') {
       selectedPrice = product.siChannelPrice;
@@ -325,8 +328,10 @@ export function calculateCentralizedPricing(
       throw new Error('Display dimensions must be positive finite millimetre values.');
     }
 
-    let pdfUserType: 'End User' | 'Reseller' | 'Channel' = 'End User';
-    if (userType === 'reseller') {
+    let pdfUserType: 'End User' | 'Reseller' | 'Channel' | 'Competitive' = 'End User';
+    if (isCompetitiveUserType(userType)) {
+      pdfUserType = 'Competitive';
+    } else if (userType === 'reseller') {
       pdfUserType = 'Reseller';
     } else if (userType === 'siChannel') {
       pdfUserType = 'Channel';

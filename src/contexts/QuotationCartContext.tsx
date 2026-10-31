@@ -4,7 +4,7 @@ import { buildConfigurationKey, normalizeOrderQuantity } from '../utils/orderQua
 import { PricingCalculationResult } from '../utils/centralizedPricing';
 import { SavedLineDiscount } from '../utils/discountCalculator';
 
-export type LineItemUserType = 'End User' | 'Reseller' | 'SI/Channel Partner';
+export type LineItemUserType = 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price';
 
 export type LineItemCustomPricing = {
   enabled: boolean;

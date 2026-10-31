@@ -33,6 +33,7 @@ import {
   applyLiveMatrixToSingleLineItem,
   buildQuotationAccounting
 } from '../utils/quotationLineItems';
+import { isCompetitiveUserType, productHasCompetitivePrice, PROPOSED_COMPETITIVE_PRICE_LABEL } from '../utils/userTypes';
 
 interface ProductWithPricing extends Product {
   prices?: {
@@ -198,7 +199,7 @@ type QuoteModalProps = {
     customerEmail: string;
     customerPhone: string;
     message: string;
-    userType: 'End User' | 'SI/Channel Partner' | 'Reseller';
+    userType: 'End User' | 'SI/Channel Partner' | 'Reseller' | 'Low Cost Model Price';
   };
   selectedProduct?: Product;
   config?: {
@@ -218,7 +219,7 @@ type QuoteModalProps = {
     validity?: string;
     paymentTerms?: string;
     warranty?: string;
-    userType: 'End User' | 'SI/Channel Partner' | 'Reseller';
+    userType: 'End User' | 'SI/Channel Partner' | 'Reseller' | 'Low Cost Model Price';
     customAddons?: { description: string; price: number }[];
   };
   customAddons?: { description: string; price: number }[];
@@ -255,6 +256,8 @@ const getUserTypeDisplayName = (type: string): string => {
       return 'SI/Channel Partner';
     case 'reseller':
       return 'Reseller';
+    case 'competitive':
+      return PROPOSED_COMPETITIVE_PRICE_LABEL;
     default:
       return 'End Customer';
   }
@@ -317,9 +320,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState<string | null>(null);
   const [loadingSalesPersons, setLoadingSalesPersons] = useState(false);
 
-  type UserTypeDisplay = 'End User' | 'SI/Channel Partner' | 'Reseller';
+  type UserTypeDisplay = 'End User' | 'SI/Channel Partner' | 'Reseller' | 'Low Cost Model Price';
   const [selectedUserType, setSelectedUserType] = useState<UserTypeDisplay>(
-    userInfo?.userType === 'Reseller' ? 'Reseller' :
+    isCompetitiveUserType(userInfo?.userType) ? PROPOSED_COMPETITIVE_PRICE_LABEL :
+      userInfo?.userType === 'Reseller' ? 'Reseller' :
       userInfo?.userType === 'SI/Channel Partner' ? 'SI/Channel Partner' :
         existingQuotation?.userType ? existingQuotation.userType :
           'End User'
@@ -335,20 +339,22 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
       if (allowedCustomerTypes.includes('endUser')) types.push('End User');
       if (allowedCustomerTypes.includes('siChannel')) types.push('SI/Channel Partner');
       if (allowedCustomerTypes.includes('reseller')) types.push('Reseller');
+      if (allowedCustomerTypes.includes('competitive') && productHasCompetitivePrice(selectedProduct)) {
+        types.push(PROPOSED_COMPETITIVE_PRICE_LABEL);
+      }
       return types.length > 0 ? types : ['End User']; // Fallback to End User if empty
     }
 
-    return ['End User', 'SI/Channel Partner', 'Reseller'];
-  }, [isPartner, allowedCustomerTypes]);
+    const types: UserTypeDisplay[] = ['End User', 'SI/Channel Partner', 'Reseller'];
+    if (productHasCompetitivePrice(selectedProduct)) types.push(PROPOSED_COMPETITIVE_PRICE_LABEL);
+    return types;
+  }, [isPartner, allowedCustomerTypes, selectedProduct]);
 
   React.useEffect(() => {
-    if (isPartner && allowedCustomerTypes.length > 0) {
-      if (!availableUserTypes.includes(selectedUserType)) {
-
-        setSelectedUserType(availableUserTypes[0]);
-      }
+    if (!availableUserTypes.includes(selectedUserType)) {
+      setSelectedUserType(availableUserTypes[0]);
     }
-  }, [isPartner, allowedCustomerTypes, availableUserTypes, selectedUserType]);
+  }, [availableUserTypes, selectedUserType]);
 
   const [discountType, setDiscountType] = useState<'led' | 'controller' | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
@@ -472,12 +478,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
   if (!isOpen) return null;
 
-  const getUserType = (): 'endUser' | 'reseller' | 'siChannel' => {
+  const getUserType = (): 'endUser' | 'reseller' | 'siChannel' | 'competitive' => {
     switch (selectedUserType) {
       case 'Reseller':
         return 'reseller';
       case 'SI/Channel Partner':
         return 'siChannel';
+      case PROPOSED_COMPETITIVE_PRICE_LABEL:
+        return 'competitive';
       case 'End User':
       default:
         return 'endUser';
@@ -777,7 +785,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
           // We need to construct the full objects expected by the generator
           const currentType = getUserType();
           const pdfUserType = currentType === 'siChannel' ? 'Channel' :
-            (currentType === 'reseller' ? 'Reseller' : 'End User');
+            (currentType === 'reseller' ? 'Reseller' :
+              currentType === 'competitive' ? PROPOSED_COMPETITIVE_PRICE_LABEL : 'End User');
 
           // Calculate aspect ratio for PDF if not present in config
           const aspectRatio = calculateAspectRatio(selectedProduct.resolution.width, selectedProduct.resolution.height);

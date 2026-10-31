@@ -30,6 +30,9 @@ function getProductPriceForPdf(productDetails, userType = 'End User') {
     }
 
     // For regular products, use the appropriate price field based on user type
+    if ((userType === 'Competitive' || userType === 'Low Cost Model Price' || userType === 'Proposed Competitive Price' || userType === 'competitive') && typeof productDetails.competitivePrice === 'number') {
+      return productDetails.competitivePrice;
+    }
     if (userType === 'Reseller' && typeof productDetails.resellerPrice === 'number') {
       return productDetails.resellerPrice;
     } else if (userType === 'Channel' && typeof productDetails.siChannelPrice === 'number') {

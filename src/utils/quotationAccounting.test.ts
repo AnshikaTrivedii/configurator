@@ -1,6 +1,6 @@
 /** Cross-surface quotation invariants. Run with npm run test:quotation-edit. */
 import { products } from '../data/products';
-import { calculateCentralizedPricing } from './centralizedPricing';
+import { calculateCentralizedPricing, getCatalogUnitPrice } from './centralizedPricing';
 import { applySavedPriceOverrides } from './discountCalculator';
 import { buildQuotationAccounting, getQuotationDisplayTotal, persistedLinesForPdfSave } from './quotationLineItems';
 import { billableAreaSqFt, cabinetCountForTarget, formatDimensionInput, formatDimensionLabel, parseDimensionInput } from './displayMeasurements';
@@ -24,6 +24,35 @@ for (const unit of ['m', 'ft'] as const) {
 }
 assert('feet labels show two decimal places', formatDimensionLabel(heightMm, 'ft') === '3.32');
 assert('feet labels keep the stored millimetres exact', formatDimensionInput(heightMm, 'ft') === '3.32185');
+
+const competitiveProducts: Array<[string, number]> = [
+  ['bellatrix-indoor-smd-p1.8', 8500],
+  ['bellatrix-indoor-smd-p2.5', 6500],
+  ['bellatrix-outdoor-smd-p3', 7800],
+  ['bellatrix-outdoor-smd-p4', 4800],
+  ['orion-module-grid-p18', 7920],
+  ['orion-module-grid-p25', 5800]
+];
+for (const [productId, expected] of competitiveProducts) {
+  const pricedProduct = products.find(item => item.id === productId);
+  if (!pricedProduct) throw new Error(`Missing ${productId}`);
+  assert(`${productId} proposed competitive price`, getCatalogUnitPrice(pricedProduct, 'competitive') === expected);
+  const quoted = calculateCentralizedPricing(
+    pricedProduct,
+    { columns: 1, rows: 1, totalWidth: pricedProduct.cabinetDimensions.width, totalHeight: pricedProduct.cabinetDimensions.height },
+    null,
+    'competitive',
+    { width: pricedProduct.cabinetDimensions.width, height: pricedProduct.cabinetDimensions.height, unit: 'mm' }
+  );
+  assert(`${productId} quotation uses the proposed competitive unit price`, quoted.isAvailable && quoted.unitPrice === expected);
+  assert(`${productId} end user price is unchanged`, getCatalogUnitPrice(pricedProduct, 'End User') !== expected);
+}
+const coreWithoutCompetitive = products.find(item => item.id === 'bellatrix-indoor-cob-p0.9');
+if (!coreWithoutCompetitive) throw new Error('Missing Sigma Core P0.9');
+assert(
+  'pitches without a proposed competitive price stay unavailable',
+  getCatalogUnitPrice(coreWithoutCompetitive, 'competitive') === null
+);
 assert('an intentionally smaller target changes the grid', cabinetCountForTarget(1010, 337.5) === 2);
 assert('billable area uses the precise grid', billableAreaSqFt(1800, 1012.5) === 19.62);
 

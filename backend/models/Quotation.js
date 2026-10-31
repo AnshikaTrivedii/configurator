@@ -48,7 +48,7 @@ const quotationSchema = new mongoose.Schema({
   },
   userType: {
     type: String,
-    enum: ['endUser', 'siChannel', 'reseller'],
+    enum: ['endUser', 'siChannel', 'reseller', 'competitive'],
     required: true
   },
   userTypeDisplayName: {

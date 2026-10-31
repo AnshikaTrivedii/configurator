@@ -268,7 +268,8 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
       setQuotationId(activeQuotation.quotationId);
       setIsEditMode(true);
 
-      const getUserType = (type: string): 'End User' | 'Reseller' | 'SI/Channel Partner' => {
+      const getUserType = (type: string): 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price' => {
+        if (type === 'competitive' || type === 'Low Cost Model Price' || type === 'Proposed Competitive Price') return 'Low Cost Model Price';
         if (type === 'reseller' || type === 'Reseller') return 'Reseller';
         if (type === 'siChannel' || type === 'Channel' || type === 'SI/Channel Partner') return 'SI/Channel Partner';
         return 'End User';
@@ -554,7 +555,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   const [isUserInfoFormOpen, setIsUserInfoFormOpen] = useState(false);
   const [isEditProductSelectionOpen, setIsEditProductSelectionOpen] = useState(false);
   const [selectedEditLineItemId, setSelectedEditLineItemId] = useState<string | null>(null);
-  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string; validity?: string; customAddons?: { description: string; price: number }[] } | undefined>(undefined);
+  const [userInfo, setUserInfo] = useState<{ fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price'; paymentTerms?: string; warranty?: string; validity?: string; customAddons?: { description: string; price: number }[] } | undefined>(undefined);
   const [pendingAction, setPendingAction] = useState<'quote' | 'pdf' | null>(null);
   const [isMandatoryFormSubmitted, setIsMandatoryFormSubmitted] = useState(false);
   const [quotationId, setQuotationId] = useState<string>('');
@@ -786,7 +787,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
   };
 
 
-  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner'; paymentTerms?: string; warranty?: string; validity?: string; customAddons?: { description: string; price: number }[] }) => {
+  const handleUserInfoSubmit = async (userData: { fullName: string; email: string; phoneNumber: string; projectTitle: string; address: string; userType: 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price'; paymentTerms?: string; warranty?: string; validity?: string; customAddons?: { description: string; price: number }[] }) => {
     // Quotation-level client fields (shared across products)
     const quotationLevelUserInfo = {
       ...userData,
@@ -1055,7 +1056,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
 
       const currentUserType = userInfo?.userType || 'End User';
 
-      const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' =
+      const legacyUserTypeForPricing: 'End User' | 'Reseller' | 'Channel' | 'Low Cost Model Price' =
         currentUserType === 'SI/Channel Partner'
           ? 'Channel'
           : currentUserType;
@@ -1206,10 +1207,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     : cabinetGrid;
 
   const resolvePricingUserType = (): string => {
-    const t = userInfo?.userType || 'End User';
-    if (t === 'Reseller') return 'reseller';
-    if (t === 'SI/Channel Partner') return 'siChannel';
-    return 'endUser';
+    return toPricingUserTypeCode(userInfo?.userType);
   };
 
   const getActiveLineDiscount = () => {
@@ -2129,7 +2127,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             customerEmail: activeQuotation.customerEmail,
             customerPhone: activeQuotation.customerPhone,
             message: activeQuotation.message,
-            userType: activeQuotation.userType === 'reseller' ? 'Reseller' : (activeQuotation.userType === 'siChannel' ? 'SI/Channel Partner' : 'End User')
+            userType: activeQuotation.userType === 'reseller' ? 'Reseller' : (activeQuotation.userType === 'siChannel' ? 'SI/Channel Partner' : activeQuotation.userType === 'competitive' ? 'Low Cost Model Price' : 'End User')
           } : undefined}
         />
       )}
@@ -2271,7 +2269,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
             address: qUser.address || '',
             userType: editingItem?.userType
               ? normalizeDisplayUserType(editingItem.userType)
-              : ((qUser.userType === 'Reseller' ? 'Reseller' : qUser.userType === 'SI/Channel Partner' || qUser.userType === 'Channel' ? 'SI/Channel Partner' : 'End User') as 'End User' | 'Reseller' | 'SI/Channel Partner'),
+              : (normalizeDisplayUserType(qUser.userType) as 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price'),
             validity: qUser.validity,
             paymentTerms: qUser.paymentTerms,
             warranty: qUser.warranty,

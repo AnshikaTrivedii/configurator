@@ -516,6 +516,7 @@ export const products: Product[] = [
     price: 16200,
     siChannelPrice: 14580,
     resellerPrice: 13770,
+    competitivePrice: 8500,
   },
   {
     id: 'bellatrix-indoor-smd-p2.5',
@@ -556,6 +557,7 @@ export const products: Product[] = [
     price: 8800,
     siChannelPrice: 7920,
     resellerPrice: 7480,
+    competitivePrice: 6500,
   },
   {
     id: 'bellatrix-outdoor-smd-p2.5',
@@ -640,6 +642,7 @@ export const products: Product[] = [
     price: 10600,
     siChannelPrice: 9540,
     resellerPrice: 9010,
+    competitivePrice: 7800,
     cabinetVariations: [
       { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 312, height: 312 }, weightPerCabinet: 27, moduleQuantity: 18 },
       { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 208, height: 208 }, weightPerCabinet: 20, moduleQuantity: 8 }
@@ -684,6 +687,7 @@ export const products: Product[] = [
     price: 8100,
     siChannelPrice: 7290,
     resellerPrice: 6885,
+    competitivePrice: 4800,
     cabinetVariations: [
       { label: '960x960', cabinetDimensions: { width: 960, height: 960 }, resolution: { width: 240, height: 240 }, weightPerCabinet: 27, moduleQuantity: 18 },
       { label: '640x640', cabinetDimensions: { width: 640, height: 640 }, resolution: { width: 160, height: 160 }, weightPerCabinet: 20, moduleQuantity: 8 }
@@ -3281,6 +3285,7 @@ export const products: Product[] = [
     price: 9640,        // per ft² — End Customer
     siChannelPrice: 8740,  // per ft² — SI/Channel
     resellerPrice: 8194,   // per ft² — Reseller
+    competitivePrice: 7920, // per ft² — Low Cost Model Price
     prices: {
       cabinet: { endCustomer: 9640, siChannel: 8740, reseller: 8194 }
     }
@@ -3316,6 +3321,7 @@ export const products: Product[] = [
     price: 7279,        // per ft² — End Customer
     siChannelPrice: 6600,  // per ft² — SI/Channel
     resellerPrice: 6188,   // per ft² — Reseller
+    competitivePrice: 5800, // per ft² — Low Cost Model Price
     prices: {
       cabinet: { endCustomer: 7279, siChannel: 6600, reseller: 6188 }
     }

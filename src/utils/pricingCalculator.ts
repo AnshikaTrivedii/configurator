@@ -216,7 +216,9 @@ export function getUserTypeFromQuotation(quotation: any): string {
 
   if (quotation.userTypeDisplayName) {
     const displayName = quotation.userTypeDisplayName.toLowerCase();
-    if (displayName.includes('reseller')) {
+    if (displayName.includes('competitive') || displayName.includes('low cost')) {
+      return 'competitive';
+    } else if (displayName.includes('reseller')) {
       return 'reseller';
     } else if (displayName.includes('channel') || displayName.includes('si')) {
       return 'siChannel';
