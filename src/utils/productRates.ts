@@ -27,6 +27,7 @@ export interface ProductRateRow {
   endUserPrice: number | null;
   siChannelPrice: number | null;
   resellerPrice: number | null;
+  competitivePrice: number | null;
 }
 
 export const SERIES_DISPLAY_ORDER = [
@@ -73,7 +74,8 @@ function catalogPrices(product: Product, wireType?: 'gold' | 'copper') {
   return {
     endUserPrice: getCatalogUnitPrice(product, 'End User', wireType),
     siChannelPrice: getCatalogUnitPrice(product, 'Channel', wireType),
-    resellerPrice: getCatalogUnitPrice(product, 'Reseller', wireType)
+    resellerPrice: getCatalogUnitPrice(product, 'Reseller', wireType),
+    competitivePrice: getCatalogUnitPrice(product, 'Competitive', wireType)
   };
 }
 
@@ -181,7 +183,8 @@ function buildControllerRows(): ProductRateRow[] {
     priceUnit: 'per unit',
     endUserPrice: getProcessorPrice(name, 'End User'),
     siChannelPrice: getProcessorPrice(name, 'Channel'),
-    resellerPrice: getProcessorPrice(name, 'Reseller')
+    resellerPrice: getProcessorPrice(name, 'Reseller'),
+    competitivePrice: null
   }));
 }
 
@@ -194,7 +197,8 @@ function buildAddonRows(): ProductRateRow[] {
     priceUnit: 'per unit',
     endUserPrice: price,
     siChannelPrice: price,
-    resellerPrice: price
+    resellerPrice: price,
+    competitivePrice: null
   }));
 }
 

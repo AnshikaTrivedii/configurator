@@ -8,6 +8,7 @@ import { resolveDisplayedProductSubtotal } from './exactPricingBreakdownForPdf';
 import { getControllerOverrideFromDiscount, getLedOverrideFromDiscount } from './discountCalculator';
 import { normalizeOrderQuantity } from './orderQuantity';
 import { billableAreaSqFt, formatDimensionLabel } from './displayMeasurements';
+import { isCompetitiveUserType } from './userTypes';
 import type { PdfQuotationLineItem } from './quotationLineItems';
 import { buildMultiProductQuotationBodyHtml, buildMultiProductContinuationPagesHtml, fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from './multiProductQuotationHtml';
 import {
@@ -274,7 +275,7 @@ interface UserInfo {
   phoneNumber: string;
   projectTitle?: string;
   address?: string;
-  userType?: 'End User' | 'Reseller' | 'Channel';
+  userType?: 'End User' | 'Reseller' | 'Channel' | 'Low Cost Model Price' | 'SI/Channel Partner';
   paymentTerms?: string;
   warranty?: string;
   validity?: string;
@@ -362,8 +363,11 @@ export const generateConfigurationHtml = (
   void cabinetGrid; void selectedProduct;
 
   const normalizeLegacyUserType = (
-    userType: 'End User' | 'Reseller' | 'Channel' | 'SI/Channel Partner' | undefined
-  ): 'End User' | 'Reseller' | 'Channel' => {
+    userType: 'End User' | 'Reseller' | 'Channel' | 'SI/Channel Partner' | 'Low Cost Model Price' | undefined
+  ): 'End User' | 'Reseller' | 'Channel' | 'Competitive' => {
+    if (isCompetitiveUserType(userType)) {
+      return 'Competitive';
+    }
     if (userType === 'SI/Channel Partner' || userType === 'Channel') {
       return 'Channel';
     }
@@ -393,6 +397,8 @@ export const generateConfigurationHtml = (
       return product.resellerPrice;
     } else if (normalizedUserType === 'Channel' && typeof product.siChannelPrice === 'number') {
       return product.siChannelPrice;
+    } else if (normalizedUserType === 'Competitive' && typeof product.competitivePrice === 'number') {
+      return product.competitivePrice;
     } else if (typeof product.price === 'number') {
       return product.price;
     } else if (typeof product.price === 'string') {
@@ -534,7 +540,9 @@ export const generateConfigurationHtml = (
       ? 'reseller'
       : normalizedUserType === 'Channel'
         ? 'siChannel'
-        : 'endUser';
+        : normalizedUserType === 'Competitive'
+          ? 'competitive'
+          : 'endUser';
     const pricingResult = calculateCentralizedPricing(
       selectedProduct,
       cabinetGrid,

@@ -16,8 +16,9 @@ import {
 import { normalizeOrderQuantity, buildConfigurationKey } from './orderQuantity';
 import { QuotationLineItem } from '../contexts/QuotationCartContext';
 import { addQuotationAddonsToTotal, QuotationAddon, readQuotationAddons, sumQuotationAddons } from './quotationAddons';
+import { isCompetitiveUserType, PROPOSED_COMPETITIVE_PRICE_LABEL } from './userTypes';
 
-export type PersistedLineItemUserType = 'End User' | 'Reseller' | 'SI/Channel Partner';
+export type PersistedLineItemUserType = 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price';
 
 export type PersistedLineItemCustomPricing = {
   enabled: boolean;
@@ -28,6 +29,7 @@ export type PersistedLineItemCustomPricing = {
 /** Convert display / internal user type strings into pricing calculator codes. */
 export function toPricingUserTypeCode(userType?: string | null): string {
   if (!userType) return 'endUser';
+  if (isCompetitiveUserType(userType)) return 'competitive';
   if (userType === 'Reseller' || userType === 'reseller') return 'reseller';
   if (
     userType === 'SI/Channel Partner' ||
@@ -42,6 +44,7 @@ export function toPricingUserTypeCode(userType?: string | null): string {
 export function normalizeDisplayUserType(
   userType?: string | null
 ): PersistedLineItemUserType {
+  if (isCompetitiveUserType(userType)) return PROPOSED_COMPETITIVE_PRICE_LABEL;
   if (userType === 'Reseller' || userType === 'reseller') return 'Reseller';
   if (
     userType === 'SI/Channel Partner' ||

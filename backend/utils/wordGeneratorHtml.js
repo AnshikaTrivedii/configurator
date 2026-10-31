@@ -80,6 +80,9 @@ const toDisplayUnit = (mm, unit) => {
 
 // Normalize user type coming from UI/legacy flows to the values expected by pricing helpers
 const normalizeLegacyUserType = (userType) => {
+  if (userType === 'Low Cost Model Price' || userType === 'Proposed Competitive Price' || userType === 'competitive' || userType === 'Competitive') {
+    return 'Competitive';
+  }
   if (userType === 'SI/Channel Partner' || userType === 'Channel') {
     return 'Channel';
   }
@@ -109,6 +112,8 @@ const getProductPriceForWord = (product, userType = 'End User') => {
     return product.resellerPrice;
   } else if (normalizedUserType === 'Channel' && typeof product.siChannelPrice === 'number') {
     return product.siChannelPrice;
+  } else if ((normalizedUserType === 'Competitive' || userType === 'Low Cost Model Price' || userType === 'Proposed Competitive Price' || userType === 'competitive') && typeof product.competitivePrice === 'number') {
+    return product.competitivePrice;
   } else if (typeof product.price === 'number') {
     return product.price;
   } else if (typeof product.price === 'string') {

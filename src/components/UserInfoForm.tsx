@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, CheckCircle, ChevronDown, FileText, MapPin, Plus, Trash2 } from 'lucide-react';
 import { Product } from '../types';
 import { isCrystalSeries } from '../utils/productSeries';
+import { productHasCompetitivePrice, PROPOSED_COMPETITIVE_PRICE_LABEL } from '../utils/userTypes';
 import {
   QuotationAddon,
   QuotationAddonDraft,
@@ -16,7 +17,7 @@ interface UserInfo {
   phoneNumber: string;
   projectTitle: string;
   address: string;
-  userType: 'End User' | 'Reseller' | 'SI/Channel Partner';
+  userType: 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price';
   validity?: string;
   paymentTerms?: string;
   warranty?: string;
@@ -84,7 +85,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   const DEFAULT_PAYMENT_TERMS = '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation';
   const DEFAULT_WARRANTY = 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier.\nController: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.';
 
-  const getDefaultUserType = (): 'End User' | 'Reseller' | 'SI/Channel Partner' => {
+  const getDefaultUserType = (): 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price' => {
     if (initialData?.userType) {
       return initialData.userType;
     }
@@ -186,10 +187,13 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingProductContext?.productId]);
 
-  const allUserTypeOptions: Array<{ value: 'End User' | 'Reseller' | 'SI/Channel Partner'; label: string; internalValue: string }> = [
+  const allUserTypeOptions: Array<{ value: 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price'; label: string; internalValue: string }> = [
     { value: 'End User', label: 'End User', internalValue: 'endUser' },
     { value: 'Reseller', label: 'Reseller', internalValue: 'reseller' },
-    { value: 'SI/Channel Partner', label: 'SI/Channel Partner', internalValue: 'siChannel' }
+    { value: 'SI/Channel Partner', label: 'SI/Channel Partner', internalValue: 'siChannel' },
+    ...(productHasCompetitivePrice(selectedProduct)
+      ? [{ value: PROPOSED_COMPETITIVE_PRICE_LABEL, label: PROPOSED_COMPETITIVE_PRICE_LABEL, internalValue: 'competitive' }]
+      : [])
   ];
 
   const partnerAllowedTypes = allowedCustomerTypes || salesUser?.allowedCustomerTypes || [];
@@ -202,14 +206,15 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     }
 
     return allUserTypeOptions;
-  }, [isPartner, partnerAllowedTypes]);
+  }, [isPartner, partnerAllowedTypes, selectedProduct]);
 
   React.useEffect(() => {
     if (isPartner && partnerAllowedTypes.length > 0) {
 
       const currentInternalValue = formData.userType === 'End User' ? 'endUser' :
         formData.userType === 'Reseller' ? 'reseller' :
-          formData.userType === 'SI/Channel Partner' ? 'siChannel' : null;
+          formData.userType === 'SI/Channel Partner' ? 'siChannel' :
+            formData.userType === PROPOSED_COMPETITIVE_PRICE_LABEL ? 'competitive' : null;
 
       if (currentInternalValue && !partnerAllowedTypes.includes(currentInternalValue)) {
         const firstAllowedOption = userTypeOptions[0];
@@ -219,6 +224,12 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
       }
     }
   }, [isPartner, partnerAllowedTypes, userTypeOptions, formData.userType]);
+
+  React.useEffect(() => {
+    if (formData.userType === PROPOSED_COMPETITIVE_PRICE_LABEL && !productHasCompetitivePrice(selectedProduct)) {
+      setFormData(prev => ({ ...prev, userType: 'End User' }));
+    }
+  }, [selectedProduct, formData.userType]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof UserInfo, string>> = {};
@@ -302,7 +313,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     }
   };
 
-  const handleUserTypeSelect = (userType: 'End User' | 'Reseller' | 'SI/Channel Partner') => {
+  const handleUserTypeSelect = (userType: 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price') => {
     setFormData(prev => ({ ...prev, userType }));
     setIsUserTypeDropdownOpen(false);
     if (errors.userType) {

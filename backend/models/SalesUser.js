@@ -45,7 +45,7 @@ const salesUserSchema = new mongoose.Schema({
   // Only used when role is 'partner'
   allowedCustomerTypes: {
     type: [String],
-    enum: ['endUser', 'reseller', 'siChannel'],
+    enum: ['endUser', 'reseller', 'siChannel', 'competitive'],
     default: []
   }
 }, {

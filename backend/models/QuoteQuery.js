@@ -168,7 +168,7 @@ const quoteQuerySchema = new mongoose.Schema({
   // User type for reference
   userType: {
     type: String,
-    enum: ['endUser', 'siChannel', 'reseller'],
+    enum: ['endUser', 'siChannel', 'reseller', 'competitive'],
     required: false
   },
   

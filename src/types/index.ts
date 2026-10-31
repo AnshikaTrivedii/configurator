@@ -47,6 +47,8 @@ export interface Product {
   price?: number | string;
   siChannelPrice?: number | string;
   resellerPrice?: number | string;
+  /** Per ft². Only set for the Core and Module/Grid pitches that offer this user price. */
+  competitivePrice?: number;
 
   cabinetDimensions: {
     width: number;

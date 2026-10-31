@@ -278,11 +278,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
       c.quotations.some(q => q.quotationId === quotation.quotationId)
     );
 
-    let userTypeForHtml: 'End User' | 'Reseller' | 'Channel' = 'End User';
+    let userTypeForHtml: 'End User' | 'Reseller' | 'Channel' | 'Low Cost Model Price' = 'End User';
     if (quotation.userType === 'siChannel') {
       userTypeForHtml = 'Channel';
     } else if (quotation.userType === 'reseller') {
       userTypeForHtml = 'Reseller';
+    } else if (quotation.userType === 'competitive') {
+      userTypeForHtml = 'Low Cost Model Price';
     }
 
     const userInfo = {
@@ -355,11 +357,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
         c.quotations.some(q => q.quotationId === quotation.quotationId)
       );
 
-      let userTypeForHtml: 'End User' | 'Reseller' | 'Channel' = 'End User';
+      let userTypeForHtml: 'End User' | 'Reseller' | 'Channel' | 'Low Cost Model Price' = 'End User';
       if (quotation.userType === 'siChannel') {
         userTypeForHtml = 'Channel';
       } else if (quotation.userType === 'reseller') {
         userTypeForHtml = 'Reseller';
+      } else if (quotation.userType === 'competitive') {
+        userTypeForHtml = 'Low Cost Model Price';
       }
 
       // Fetch client data if clientId exists
@@ -1217,7 +1221,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({ onBack, onLogout
               customerEmail: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerEmail || '',
               customerPhone: customers.find(c => c.quotations.some(q => q.quotationId === editingQuotation.quotationId))?.customerPhone || '',
               message: editingQuotation.message || '',
-              userType: (editingQuotation.userType === 'siChannel' ? 'SI/Channel Partner' : editingQuotation.userType === 'reseller' ? 'Reseller' : 'End User')
+              userType: (editingQuotation.userType === 'siChannel' ? 'SI/Channel Partner' : editingQuotation.userType === 'reseller' ? 'Reseller' : editingQuotation.userType === 'competitive' ? 'Low Cost Model Price' : 'End User')
             }}
             customPricing={editingQuotation.quotationData?.customPricing}
           />

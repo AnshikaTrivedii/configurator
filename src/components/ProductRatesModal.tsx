@@ -204,7 +204,7 @@ export const ProductRatesModal: React.FC<ProductRatesModalProps> = ({ isOpen, on
                         <p className="text-xs text-gray-500 mt-0.5">
                           {row.series} · {row.variant} · {row.priceUnit}
                         </p>
-                        <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                           <div>
                             <p className="text-gray-500">End User</p>
                             <p className="font-semibold text-gray-900">{formatCurrency(row.endUserPrice)}</p>
@@ -216,6 +216,10 @@ export const ProductRatesModal: React.FC<ProductRatesModalProps> = ({ isOpen, on
                           <div>
                             <p className="text-gray-500">Reseller</p>
                             <p className="font-semibold text-gray-900">{formatCurrency(row.resellerPrice)}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500">Low Cost Model Price</p>
+                            <p className="font-semibold text-gray-900">{formatCurrency(row.competitivePrice)}</p>
                           </div>
                         </div>
                       </div>
@@ -235,13 +239,14 @@ export const ProductRatesModal: React.FC<ProductRatesModalProps> = ({ isOpen, on
                       <th className="px-4 sm:px-6 py-3 whitespace-nowrap text-right">End User</th>
                       <th className="px-4 sm:px-6 py-3 whitespace-nowrap text-right">SI / Channel</th>
                       <th className="px-4 sm:px-6 py-3 whitespace-nowrap text-right">Reseller</th>
+                      <th className="px-4 sm:px-6 py-3 whitespace-nowrap text-right">Low Cost Model Price</th>
                     </tr>
                   </thead>
                   <tbody>
                     {groupedRows.map((group) => (
                       <React.Fragment key={group.series}>
                         <tr className="bg-slate-800 text-white">
-                          <td colSpan={7} className="px-4 sm:px-6 py-2.5 text-xs font-semibold tracking-wide uppercase">
+                          <td colSpan={8} className="px-4 sm:px-6 py-2.5 text-xs font-semibold tracking-wide uppercase">
                             {group.series}
                             <span className="ml-2 font-normal text-slate-300 normal-case">
                               {group.rows.length} {group.rows.length === 1 ? 'item' : 'items'}
@@ -264,6 +269,9 @@ export const ProductRatesModal: React.FC<ProductRatesModalProps> = ({ isOpen, on
                             </td>
                             <td className="px-4 sm:px-6 py-3 text-right text-gray-800 whitespace-nowrap">
                               {formatCurrency(row.resellerPrice)}
+                            </td>
+                            <td className="px-4 sm:px-6 py-3 text-right text-gray-800 whitespace-nowrap">
+                              {formatCurrency(row.competitivePrice)}
                             </td>
                           </tr>
                         ))}

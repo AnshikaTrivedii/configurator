@@ -280,6 +280,8 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
           userTypeForHtml = 'SI/Channel Partner';
         } else if (quotation.userType === 'reseller') {
           userTypeForHtml = 'Reseller';
+        } else if (quotation.userType === 'competitive') {
+          userTypeForHtml = 'Low Cost Model Price';
         }
 
         const userInfo = {
@@ -491,6 +493,7 @@ export const SalesPersonDetailsModal: React.FC<SalesPersonDetailsModalProps> = (
     let userTypeForHtml = 'End User';
     if (quotation.userType === 'siChannel') userTypeForHtml = 'SI/Channel Partner';
     else if (quotation.userType === 'reseller') userTypeForHtml = 'Reseller';
+    else if (quotation.userType === 'competitive') userTypeForHtml = 'Low Cost Model Price';
 
     const customer = customers.find(c =>
       c.quotations.some(q => q.quotationId === quotation.quotationId)
