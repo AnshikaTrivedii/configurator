@@ -17,7 +17,7 @@ import {
 import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel, discountForQuotationSave, savedLineDiscountHasOverride, SavedLineDiscount } from '../utils/discountCalculator';
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
-import { isCrystalSeries } from '../utils/productSeries';
+import { isCrystalSeries, omitsStructureAndInstallation } from '../utils/productSeries';
 import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
 import { OrderQuantityInput } from './OrderQuantityInput';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
@@ -1814,7 +1814,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                       )}
 
                       {/* Custom Pricing Toggle */}
-                      {(salesUser || userRole === 'super' || userRole === 'super_admin') && (
+                      {(salesUser || userRole === 'super' || userRole === 'super_admin') && !omitsStructureAndInstallation(selectedProduct) && (
                         <div className="pt-4 border-t border-gray-200">
                           <div className="flex items-center justify-between mb-4">
                             <label htmlFor="customPricing" className="flex items-center text-base font-medium text-gray-700 cursor-pointer">

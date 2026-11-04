@@ -249,6 +249,14 @@ const generateWordHtml = (data) => {
       installationBasePrice = screenAreaSqFt * 500;
     }
   }
+
+  const hideStructureAndInstallation = ['orion-module-grid-p18', 'orion-module-grid-p25'].includes(String(selectedProduct?.id || '').toLowerCase())
+    || /module\/\s*grid series smd p1\.8(?:\b|$)/i.test(selectedProduct?.name || '')
+    || /module\/\s*grid series smd p2\.5(?:\b|$)/i.test(selectedProduct?.name || '');
+  if (hideStructureAndInstallation) {
+    structureBasePrice = 0;
+    installationBasePrice = 0;
+  }
   
   const structureGST = Math.round((structureBasePrice * 0.18) * 100) / 100;
   const totalStructure = Math.round((structureBasePrice + structureGST) * 100) / 100;
@@ -493,7 +501,7 @@ const generateWordHtml = (data) => {
       </div>
       ` : ''}
       
-      <div class="quotation-section">
+      ${hideStructureAndInstallation ? '' : `<div class="quotation-section">
         <h2>C. STRUCTURE AND INSTALLATION PRICE</h2>
         <table>
           <tr>
@@ -506,12 +514,12 @@ const generateWordHtml = (data) => {
             </td>
           </tr>
         </table>
-      </div>
+      </div>`}
       
       <div class="quotation-section" style="background: rgba(51, 51, 51, 0.95); color: white; text-align: center;">
         <h2 style="color: white; border-bottom: none;">GRAND TOTAL</h2>
         <p style="font-size: 16px; font-weight: bold;">₹${formatIndianNumber(grandTotal)}</p>
-        <p style="font-size: 9px;">${(isJumboSeries || isDigitalStandee) ? '(A + B)' : '(A + B + C)'}</p>
+        <p style="font-size: 9px;">${(isJumboSeries || isDigitalStandee || hideStructureAndInstallation) ? '(A + B)' : '(A + B + C)'}</p>
       </div>
     </div>
   </div>

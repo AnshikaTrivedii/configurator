@@ -17,6 +17,7 @@ import { normalizeOrderQuantity, buildConfigurationKey } from './orderQuantity';
 import { QuotationLineItem } from '../contexts/QuotationCartContext';
 import { addQuotationAddonsToTotal, QuotationAddon, readQuotationAddons, sumQuotationAddons } from './quotationAddons';
 import { isCompetitiveUserType, PROPOSED_COMPETITIVE_PRICE_LABEL } from './userTypes';
+import { omitsStructureAndInstallation } from './productSeries';
 
 export type PersistedLineItemUserType = 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price';
 
@@ -902,6 +903,7 @@ export type PdfQuotationLineItem = {
   isCrystal?: boolean;
   isFlexible?: boolean;
   isModuleGrid?: boolean;
+  omitsStructureAndInstallation?: boolean;
   pricing?: {
     grandTotal?: number;
     unitGrandTotal?: number;
@@ -941,6 +943,43 @@ export function toPdfQuotationLineItems(
     const isCrystal = name.includes('crystal') || category.includes('transparent');
     const isFlexible = category.includes('flexible');
     const isModuleGrid = product?.category === 'Module/ Grid Series';
+    const hideStructureAndInstallation = omitsStructureAndInstallation(product || { name: productName });
+    const pdfPricing = pricing
+      ? {
+          grandTotal: (Number(pricing.grandTotal) < 0
+            ? rebuildGrandTotalFromComponents(pricing)
+            : pricing.grandTotal),
+          unitGrandTotal: pricing.unitGrandTotal,
+          unitPrice: pricing.unitPrice,
+          quantity: pricing.quantity,
+          productSubtotal: pricing.productSubtotal,
+          productTotal: pricing.productTotal,
+          processorPrice: pricing.processorPrice,
+          processorTotal: pricing.processorTotal,
+          structureCost: pricing.structureCost,
+          structureTotal: pricing.structureTotal,
+          installationCost: pricing.installationCost,
+          installationTotal: pricing.installationTotal,
+          addonsTotal: pricing.addonsTotal
+        }
+      : undefined;
+    if (hideStructureAndInstallation && pdfPricing) {
+      const structureAndInstallation = (pdfPricing.structureTotal ?? pdfPricing.structureCost ?? 0)
+        + (pdfPricing.installationTotal ?? pdfPricing.installationCost ?? 0);
+      pdfPricing.structureCost = 0;
+      pdfPricing.structureTotal = 0;
+      pdfPricing.installationCost = 0;
+      pdfPricing.installationTotal = 0;
+      if (typeof pdfPricing.grandTotal === 'number') {
+        pdfPricing.grandTotal = Math.max(0, Math.round((pdfPricing.grandTotal - structureAndInstallation) * 100) / 100);
+      }
+      if (typeof pdfPricing.unitGrandTotal === 'number') {
+        const perUnit = normalizeOrderQuantity(li.orderQuantity) > 0
+          ? structureAndInstallation / normalizeOrderQuantity(li.orderQuantity)
+          : structureAndInstallation;
+        pdfPricing.unitGrandTotal = Math.max(0, Math.round((pdfPricing.unitGrandTotal - perUnit) * 100) / 100);
+      }
+    }
 
     return {
       productName: productName || 'Product',
@@ -972,25 +1011,8 @@ export function toPdfQuotationLineItems(
       isCrystal,
       isFlexible,
       isModuleGrid,
-      pricing: pricing
-        ? {
-            grandTotal: (Number(pricing.grandTotal) < 0
-              ? rebuildGrandTotalFromComponents(pricing)
-              : pricing.grandTotal),
-            unitGrandTotal: pricing.unitGrandTotal,
-            unitPrice: pricing.unitPrice,
-            quantity: pricing.quantity,
-            productSubtotal: pricing.productSubtotal,
-            productTotal: pricing.productTotal,
-            processorPrice: pricing.processorPrice,
-            processorTotal: pricing.processorTotal,
-            structureCost: pricing.structureCost,
-            structureTotal: pricing.structureTotal,
-            installationCost: pricing.installationCost,
-            installationTotal: pricing.installationTotal,
-            addonsTotal: pricing.addonsTotal
-          }
-        : undefined
+      omitsStructureAndInstallation: hideStructureAndInstallation,
+      pricing: pdfPricing
     };
   });
 }

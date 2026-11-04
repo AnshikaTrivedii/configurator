@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, CheckCircle, ChevronDown, FileText, MapPin, Plus, Trash2 } from 'lucide-react';
 import { Product } from '../types';
-import { isCrystalSeries } from '../utils/productSeries';
+import { isCrystalSeries, omitsStructureAndInstallation, warrantyForProduct, defaultWarrantyForProduct } from '../utils/productSeries';
 import { productHasCompetitivePrice, PROPOSED_COMPETITIVE_PRICE_LABEL } from '../utils/userTypes';
 import {
   QuotationAddon,
@@ -83,7 +83,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
 
   const DEFAULT_VALIDITY = '• Offer shall remain valid for period of 30 days from the date of quotation made.\n• The current offer is based on USD=INR 88. Any increase in exchange rate beyond 1% at the time of placement of order will lead to increase in INR price';
   const DEFAULT_PAYMENT_TERMS = '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation';
-  const DEFAULT_WARRANTY = 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier.\nController: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.';
+  const defaultWarranty = defaultWarrantyForProduct(selectedProduct);
 
   const getDefaultUserType = (): 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price' => {
     if (initialData?.userType) {
@@ -115,14 +115,14 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
         userType: getDefaultUserType(),
         validity: DEFAULT_VALIDITY,
         paymentTerms: DEFAULT_PAYMENT_TERMS,
-        warranty: DEFAULT_WARRANTY
+        warranty: defaultWarranty
       };
     }
     return {
       ...data,
       validity: (data.validity?.trim() || '') || DEFAULT_VALIDITY,
       paymentTerms: (data.paymentTerms?.trim() || '') || DEFAULT_PAYMENT_TERMS,
-      warranty: (data.warranty?.trim() || '') || DEFAULT_WARRANTY
+      warranty: warrantyForProduct(data.warranty, selectedProduct)
     };
   };
 
@@ -163,7 +163,8 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   };
 
   useEffect(() => {
-    if (isOpen && initialData) {
+    if (!isOpen) return;
+    if (initialData) {
       setFormData(mergeInitialDataWithDefaults(initialData));
       setAddonRows(
         (initialData.customAddons || []).map((addon) => ({
@@ -172,7 +173,16 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
         }))
       );
       setAddonError(null);
+      return;
     }
+    // First open has no saved client details. The form mounted before a product
+    // was chosen, so replace the catalog warranty with this product's warranty.
+    setFormData(prev => ({
+      ...prev,
+      validity: prev.validity?.trim() ? prev.validity : DEFAULT_VALIDITY,
+      paymentTerms: prev.paymentTerms?.trim() ? prev.paymentTerms : DEFAULT_PAYMENT_TERMS,
+      warranty: warrantyForProduct(prev.warranty, selectedProduct)
+    }));
     // Sync when the modal opens (not on every initialData identity change)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -182,7 +192,8 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
     if (!isOpen || !editingProductContext || !initialData?.userType) return;
     setFormData(prev => ({
       ...prev,
-      userType: initialData.userType
+      userType: initialData.userType,
+      warranty: warrantyForProduct(prev.warranty, selectedProduct)
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingProductContext?.productId]);
@@ -292,7 +303,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
           address: '',
           userType: defaultUserType,
           paymentTerms: '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation',
-          warranty: DEFAULT_WARRANTY
+          warranty: defaultWarrantyForProduct(selectedProduct)
         });
         setAddonRows([]);
       }
@@ -550,7 +561,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
             </div>
 
             {/* Custom Pricing Toggle - Only for sales users */}
-            {salesUser && (
+            {salesUser && !omitsStructureAndInstallation(selectedProduct) && (
               <div className="pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <label htmlFor="customPricing" className="flex items-center text-sm font-semibold text-gray-700 cursor-pointer">
