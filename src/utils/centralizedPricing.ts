@@ -14,6 +14,7 @@ import { normalizeOrderQuantity } from './orderQuantity';
 import { QuotationAddon, sanitizeQuotationAddons, sumQuotationAddons, addQuotationAddonsToTotal } from './quotationAddons';
 import { billableAreaSqFt } from './displayMeasurements';
 import { isCompetitiveUserType } from './userTypes';
+import { omitsStructureAndInstallation } from './productSeries';
 
 export interface PricingCalculationResult {
 
@@ -434,7 +435,8 @@ export function calculateCentralizedPricing(
     if (
       isDigitalStandeeProduct(product) ||
       isFixedProduct(product) ||
-      product.category?.toLowerCase().includes('rental')
+      product.category?.toLowerCase().includes('rental') ||
+      omitsStructureAndInstallation(product)
     ) {
       structureBasePrice = 0;
       installationBasePrice = 0;
