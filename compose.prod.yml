@@ -1,0 +1,49 @@
+name: configurator
+
+services:
+  frontend:
+    image: ghcr.io/anshikatrivedii/configurator-frontend:${IMAGE_TAG:?IMAGE_TAG is required}
+    mem_limit: 192m
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/nginx-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backend:
+    image: ghcr.io/anshikatrivedii/configurator-backend:${IMAGE_TAG:?IMAGE_TAG is required}
+    mem_limit: 1g
+    env_file:
+      - /opt/configurator/config/backend.env
+    environment:
+      NODE_OPTIONS: --max-old-space-size=640
+    expose:
+      - "3001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

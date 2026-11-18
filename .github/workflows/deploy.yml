@@ -1,80 +1,72 @@
-name: Deploy to AWS
+name: Deploy production to Lightsail
 
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: lightsail-production
+  cancel-in-progress: false
 
 jobs:
-  deploy-production:
-    if: github.ref == 'refs/heads/main'
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Deploy to Production
-        uses: appleboy/ssh-action@master
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          host: ${{ secrets.EC2_HOST_PROD }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY_PROD }}
-          script: |
-            cd configurator
-            git fetch origin
-            git reset --hard origin/main
-            # Create .env file with all backend environment variables
-            cat > backend/.env << EOF
-            PORT=3001
-            MONGODB_URI=${{ secrets.MONGODB_URI_PROD }}
-            JWT_SECRET=${{ secrets.JWT_SECRET_PROD }}
-            FRONTEND_URL=${{ secrets.FRONTEND_URL_PROD }}
-            NODE_ENV=production
-            RUN_PARTNER_SCRIPT=${{ secrets.RUN_PARTNER_SCRIPT_PROD }}
-            RESEND_API_KEY=${{ secrets.RESEND_API_KEY_PROD }}
-            TO_EMAIL=${{ secrets.TO_EMAIL_PROD }}
-            DEFAULT_FROM_EMAIL=${{ secrets.DEFAULT_FROM_EMAIL_PROD }}
-            EOF
-            # Create frontend .env file if VITE_API_URL is needed
-            cat > .env << EOF
-            VITE_API_URL=${{ secrets.VITE_API_URL_PROD }}
-            EOF
-            sudo docker compose --env-file backend/.env up -d --build
-            sudo docker image prune -f
-
-  deploy-development:
-    if: github.ref == 'refs/heads/develop'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Deploy to Development
-        uses: appleboy/ssh-action@master
+          node-version: '24'
+          cache: npm
+      - name: Verify frontend and quotation behavior
+        run: |
+          npm ci
+          npm run test:quotation-edit
+          npm run build
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
-          host: ${{ secrets.EC2_HOST_DEV }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY_DEV }}
-          script: |
-            cd configurator
-            git fetch origin
-            git reset --hard origin/develop
-            # Create .env file with all backend environment variables
-            cat > backend/.env << EOF
-            PORT=3001
-            MONGODB_URI=${{ secrets.MONGODB_URI_DEV }}
-            JWT_SECRET=${{ secrets.JWT_SECRET_DEV }}
-            FRONTEND_URL=${{ secrets.FRONTEND_URL_DEV }}
-            NODE_ENV=development
-            RUN_PARTNER_SCRIPT=${{ secrets.RUN_PARTNER_SCRIPT_DEV }}
-            RESEND_API_KEY=${{ secrets.RESEND_API_KEY_DEV }}
-            TO_EMAIL=${{ secrets.TO_EMAIL_DEV }}
-            DEFAULT_FROM_EMAIL=${{ secrets.DEFAULT_FROM_EMAIL_DEV }}
-            EOF
-            # Create frontend .env file if VITE_API_URL is needed
-            cat > .env << EOF
-            VITE_API_URL=${{ secrets.VITE_API_URL_DEV }}
-            EOF
-            sudo docker compose --env-file backend/.env up -d --build
-            sudo docker image prune -f
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/anshikatrivedii/configurator-frontend:${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/anshikatrivedii/configurator-backend:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+      - name: Copy deployment files and activate release
+        env:
+          LIGHTSAIL_HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          LIGHTSAIL_USER: ${{ secrets.LIGHTSAIL_USER }}
+          LIGHTSAIL_SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$LIGHTSAIL_SSH_KEY" > "$RUNNER_TEMP/ssh/key"
+          chmod 600 "$RUNNER_TEMP/ssh/key"
+          ssh -i "$RUNNER_TEMP/ssh/key" -o StrictHostKeyChecking=accept-new \
+            "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" 'mkdir -p /opt/configurator/app'
+          scp -i "$RUNNER_TEMP/ssh/key" -o StrictHostKeyChecking=accept-new \
+            compose.prod.yml scripts/deploy-lightsail.sh scripts/certbot-renew-hook.sh \
+            "$LIGHTSAIL_USER@$LIGHTSAIL_HOST:/opt/configurator/app/"
+          ssh -i "$RUNNER_TEMP/ssh/key" -o StrictHostKeyChecking=accept-new \
+            "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" \
+            "sudo bash /opt/configurator/app/deploy-lightsail.sh $RELEASE_SHA"
