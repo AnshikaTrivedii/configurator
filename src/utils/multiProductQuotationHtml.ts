@@ -130,7 +130,7 @@ const buildProductBox = (item: PdfQuotationLineItem, index: number): string => {
   const area = screenAreaSqFt(item.displayWidthMm, item.displayHeightMm);
 
   const showController = !item.isJumbo && !item.isDigitalStandee && !item.isFixed;
-  const showStructureInstall = !item.isRental && !item.isDigitalStandee && !item.isFixed;
+  const showStructureInstall = !item.isRental && !item.isDigitalStandee && !item.isFixed && !item.omitsStructureAndInstallation;
   const showStructure = showStructureInstall && !item.isCrystal;
 
   return `

@@ -9,6 +9,7 @@ import { getControllerOverrideFromDiscount, getLedOverrideFromDiscount } from '.
 import { normalizeOrderQuantity } from './orderQuantity';
 import { billableAreaSqFt, formatDimensionLabel } from './displayMeasurements';
 import { isCompetitiveUserType } from './userTypes';
+import { omitsStructureAndInstallation, warrantyForProduct } from './productSeries';
 import type { PdfQuotationLineItem } from './quotationLineItems';
 import { buildMultiProductQuotationBodyHtml, buildMultiProductContinuationPagesHtml, fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from './multiProductQuotationHtml';
 import {
@@ -795,6 +796,20 @@ export const generateConfigurationHtml = (
     }
   }
 
+  const hideStructureAndInstallation = omitsStructureAndInstallation(selectedProduct);
+  if (hideStructureAndInstallation) {
+    const structureAndInstallation = (totalStructure || 0) + (totalInstallation || 0);
+    structureBasePrice = 0;
+    installationBasePrice = 0;
+    structureGST = 0;
+    installationGST = 0;
+    totalStructure = 0;
+    totalInstallation = 0;
+    if (typeof grandTotal === 'number' && structureAndInstallation > 0) {
+      grandTotal = Math.max(0, Math.round((grandTotal - structureAndInstallation) * 100) / 100);
+    }
+  }
+
   if (typeof grandTotal === 'number' && grandTotal < 0) {
     grandTotal = Math.round(
       (totalProduct || 0) +
@@ -1256,7 +1271,7 @@ export const generateConfigurationHtml = (
             </div>
             ` : ''}
             
-            ${!isRentalProduct && !isDigitalStandee && !isFixed ? `<!-- Structure and Installation (excluded for Rental Series, Digital Standee, and Nexa) -->
+            ${!isRentalProduct && !isDigitalStandee && !isFixed && !hideStructureAndInstallation ? `<!-- Structure and Installation (excluded for Rental Series, Digital Standee, and Nexa) -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
                     ${structureInstallationSectionTitle}
@@ -1386,7 +1401,7 @@ export const generateConfigurationHtml = (
                 ${(isDigitalStandee || isFixed)
   ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A = Product)</p>`
   : !isJumboSeries
-  ? (isRentalProduct
+  ? (isRentalProduct || hideStructureAndInstallation
     ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Processor)</p>`
     : isCrystalSeriesProduct
     ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Installation)</p>`
@@ -1419,7 +1434,7 @@ export const generateConfigurationHtml = (
                         <tr>
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Warranty</td>
                             <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">
-                                ${userInfo?.warranty ? userInfo.warranty.replace(/\n/g, '<br/>') : 'LED Display: 24 months from the date of installation or 25 months from the date of supply whichever is earlier.<br/>Controller: 12 months from the date of installation or 13 months from the date of supply whichever is earlier.'}
+                                ${warrantyForProduct(userInfo?.warranty, selectedProduct).replace(/\n/g, '<br/>')}
                             </td>
                         </tr>
                         <tr style="background: rgba(248, 249, 250, 0.5);">
@@ -1430,7 +1445,7 @@ export const generateConfigurationHtml = (
                         </tr>
                         <tr>
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Bank Account Details</td>
-                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">A/C Holder Name - Atenti Origins Photoelectricity Consort Pvt Ltd.<br/>Branch Name- ICICI Bank. Sector 50, Noida<br/>A/C Number - 167105002140<br/>IFSC Code - ICIC0000214</td>
+                            <td style="padding: 8px 12px; border: 1px solid #000000; color: #000000; font-size: 13px;">A/C Holder Name - Atenti Origins Photoelectricity Consort Pvt Ltd.<br/>Branch Name- ICICI Bank.Gomtinagar ,Lucknow<br/>A/C Number - 167105002140<br/>IFSC Code - ICIC0000214</td>
                         </tr>
                         <tr style="background: rgba(248, 249, 250, 0.5);">
                             <td style="padding: 8px 12px; border: 1px solid #000000; font-weight: 600; color: #000000; font-size: 13px;">Freight & Insurance</td>

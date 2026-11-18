@@ -460,6 +460,14 @@ const createQuotationContent = (data) => {
       installationBasePrice = screenAreaSqFt * 500;
     }
   }
+
+  const hideStructureAndInstallation = ['orion-module-grid-p18', 'orion-module-grid-p25'].includes(String(selectedProduct?.id || '').toLowerCase())
+    || /module\/\s*grid series smd p1\.8(?:\b|$)/i.test(selectedProduct?.name || '')
+    || /module\/\s*grid series smd p2\.5(?:\b|$)/i.test(selectedProduct?.name || '');
+  if (hideStructureAndInstallation) {
+    structureBasePrice = 0;
+    installationBasePrice = 0;
+  }
   
   const structureGST = Math.round((structureBasePrice * 0.18) * 100) / 100;
   const totalStructure = Math.round((structureBasePrice + structureGST) * 100) / 100;
@@ -874,6 +882,7 @@ const createQuotationContent = (data) => {
   }
 
   // Section C: Structure and Installation
+  if (!hideStructureAndInstallation) {
   children.push(
     new Paragraph({
       children: [
@@ -947,6 +956,7 @@ const createQuotationContent = (data) => {
 
   children.push(structureTable);
   children.push(new Paragraph({ text: '', spacing: { after: 240 } }));
+  }
 
   // Grand Total
   children.push(
@@ -983,7 +993,7 @@ const createQuotationContent = (data) => {
     new Paragraph({
       children: [
         new TextRun({
-          text: (isJumboSeries || isDigitalStandee) ? '(A + B)' : '(A + B + C)',
+          text: (isJumboSeries || isDigitalStandee || hideStructureAndInstallation) ? '(A + B)' : '(A + B + C)',
           size: 18,
           color: 'ffffff',
         }),

@@ -6,6 +6,7 @@ import { buildQuotationAccounting, getQuotationDisplayTotal, persistedLinesForPd
 import { billableAreaSqFt, cabinetCountForTarget, formatDimensionInput, formatDimensionLabel, parseDimensionInput } from './displayMeasurements';
 import { buildMultiProductQuotationBodyHtml } from './multiProductQuotationHtml';
 import { calculateQuantity as calculatePdfQuantity } from './pdfPriceCalculator';
+import { SHORT_LED_WARRANTY, STANDARD_LED_WARRANTY, warrantyForProduct } from './productSeries';
 
 let passed = 0;
 function assert(name: string, condition: boolean) {
@@ -52,6 +53,55 @@ if (!coreWithoutCompetitive) throw new Error('Missing Sigma Core P0.9');
 assert(
   'pitches without a proposed competitive price stay unavailable',
   getCatalogUnitPrice(coreWithoutCompetitive, 'competitive') === null
+);
+
+for (const productId of ['orion-module-grid-p18', 'orion-module-grid-p25']) {
+  const gridProduct = products.find(item => item.id === productId);
+  if (!gridProduct) throw new Error(`Missing ${productId}`);
+  const gridQuote = calculateCentralizedPricing(
+    gridProduct,
+    { columns: 2, rows: 2, totalWidth: gridProduct.cabinetDimensions.width * 2, totalHeight: gridProduct.cabinetDimensions.height * 2 },
+    'TB40',
+    'endUser',
+    { width: gridProduct.cabinetDimensions.width * 2, height: gridProduct.cabinetDimensions.height * 2, unit: 'mm' }
+  );
+  assert(`${productId} hides structure and installation`, gridQuote.isAvailable && gridQuote.structureTotal === 0 && gridQuote.installationTotal === 0);
+  assert(`${productId} total excludes structure and installation`, gridQuote.grandTotal === Math.round(gridQuote.productTotal + gridQuote.processorTotal));
+}
+const gridP4 = products.find(item => item.id === 'orion-module-grid-p4');
+if (!gridP4) throw new Error('Missing Module/Grid P4');
+const gridP4Quote = calculateCentralizedPricing(
+  gridP4,
+  { columns: 1, rows: 1, totalWidth: gridP4.cabinetDimensions.width, totalHeight: gridP4.cabinetDimensions.height },
+  null,
+  'endUser',
+  { width: gridP4.cabinetDimensions.width, height: gridP4.cabinetDimensions.height, unit: 'mm' }
+);
+assert('Module/Grid P4 still includes structure and installation', gridP4Quote.structureTotal > 0 && gridP4Quote.installationTotal > 0);
+
+for (const productId of [
+  'bellatrix-indoor-smd-p1.8',
+  'bellatrix-indoor-smd-p2.5',
+  'bellatrix-outdoor-smd-p3',
+  'bellatrix-outdoor-smd-p4',
+  'orion-module-grid-p18',
+  'orion-module-grid-p25'
+]) {
+  const warrantyProduct = products.find(item => item.id === productId);
+  if (!warrantyProduct) throw new Error(`Missing ${productId}`);
+  assert(
+    `${productId} uses the 12/13 month warranty`,
+    warrantyForProduct(undefined, warrantyProduct) === SHORT_LED_WARRANTY
+      && warrantyForProduct(STANDARD_LED_WARRANTY, warrantyProduct) === SHORT_LED_WARRANTY
+  );
+}
+assert(
+  'other products keep the 24/25 month warranty',
+  warrantyForProduct(undefined, products.find(item => item.id === 'bellatrix-indoor-cob-p0.9')) === STANDARD_LED_WARRANTY
+);
+assert(
+  'an edited warranty is left unchanged',
+  warrantyForProduct('Custom warranty text', products.find(item => item.id === 'bellatrix-indoor-smd-p1.8')) === 'Custom warranty text'
 );
 assert('an intentionally smaller target changes the grid', cabinetCountForTarget(1010, 337.5) === 2);
 assert('billable area uses the precise grid', billableAreaSqFt(1800, 1012.5) === 19.62);
