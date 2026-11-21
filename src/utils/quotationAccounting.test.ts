@@ -7,6 +7,7 @@ import { billableAreaSqFt, cabinetCountForTarget, formatDimensionInput, formatDi
 import { buildMultiProductQuotationBodyHtml } from './multiProductQuotationHtml';
 import { calculateQuantity as calculatePdfQuantity } from './pdfPriceCalculator';
 import { SHORT_LED_WARRANTY, STANDARD_LED_WARRANTY, warrantyForProduct } from './productSeries';
+import { generateConfigurationHtml } from './docxGenerator';
 
 let passed = 0;
 function assert(name: string, condition: boolean) {
@@ -78,6 +79,93 @@ const gridP4Quote = calculateCentralizedPricing(
   { width: gridP4.cabinetDimensions.width, height: gridP4.cabinetDimensions.height, unit: 'mm' }
 );
 assert('Module/Grid P4 still includes structure and installation', gridP4Quote.structureTotal > 0 && gridP4Quote.installationTotal > 0);
+
+for (const productId of ['orion-module-grid-p18', 'orion-module-grid-p25']) {
+  const gridProduct = products.find(item => item.id === productId);
+  if (!gridProduct) throw new Error(`Missing ${productId}`);
+  const grid = {
+    columns: 2,
+    rows: 2,
+    totalWidth: gridProduct.cabinetDimensions.width * 2,
+    totalHeight: gridProduct.cabinetDimensions.height * 2
+  };
+  const config = { width: grid.totalWidth, height: grid.totalHeight, unit: 'mm' as const };
+  const lowCost = calculateCentralizedPricing(
+    gridProduct,
+    grid,
+    'TB40',
+    'Low Cost Model Price',
+    config,
+    { enabled: true, structurePrice: 50000, installationPrice: 12000 }
+  );
+  assert(`${productId} low cost structure stays zero`, lowCost.structureTotal === 0 && lowCost.structureCost === 0);
+  assert(`${productId} low cost installation is entered once`, lowCost.installationTotal === 12000);
+  assert(
+    `${productId} low cost grand total is product + controller + installation`,
+    lowCost.grandTotal === Math.round(lowCost.productTotal + lowCost.processorTotal + 12000)
+  );
+  const changed = calculateCentralizedPricing(
+    gridProduct,
+    grid,
+    'TB40',
+    'competitive',
+    config,
+    { enabled: true, structurePrice: 50000, installationPrice: 8000 }
+  );
+  assert(`${productId} edited installation updates the grand total`, changed.grandTotal === lowCost.grandTotal - 4000);
+  const endUserCustom = calculateCentralizedPricing(
+    gridProduct,
+    grid,
+    'TB40',
+    'endUser',
+    config,
+    { enabled: true, structurePrice: 50000, installationPrice: 12000 }
+  );
+  assert(`${productId} end user still omits both charges`, endUserCustom.structureTotal === 0 && endUserCustom.installationTotal === 0);
+
+  const html = generateConfigurationHtml(
+    config,
+    gridProduct,
+    grid,
+    'TB40',
+    undefined,
+    { fullName: 'A', email: 'a@b.c', phoneNumber: '1', userType: 'Low Cost Model Price' },
+    null,
+    'Q-GRID',
+    { enabled: true, structurePrice: 50000, installationPrice: 12000 },
+    {
+      grandTotal: lowCost.grandTotal + 50000,
+      structureCost: 50000,
+      structureTotal: 50000,
+      installationCost: 12000,
+      installationTotal: 12000,
+      productTotal: lowCost.productTotal,
+      processorTotal: lowCost.processorTotal,
+      unitPrice: lowCost.unitPrice,
+      quantity: lowCost.quantity,
+      orderQuantity: 1,
+      customPricing: { enabled: true, structurePrice: 50000, installationPrice: 12000 }
+    }
+  );
+  assert(`${productId} PDF shows the installation price`, html.includes('INSTALLATION PRICE') && html.includes('12,000.00'));
+  assert(
+    `${productId} PDF does not show a structure charge`,
+    !html.includes('STRUCTURE AND INSTALLATION') && !html.includes('Structure Cost') && !html.includes('STRUCTURE + INSTALLATION')
+  );
+  const pdfGrand = Number((html.match(/GRAND TOTAL[\s\S]{0,400}?₹([0-9,]+\.\d{2})/) || [])[1]?.replace(/,/g, ''));
+  assert(`${productId} PDF grand total includes installation once and drops structure`, pdfGrand === lowCost.grandTotal);
+  assert(`${productId} PDF keeps GST extra`, html.includes('GST Extra'));
+}
+const astraLowCost = products.find(item => item.id === 'bellatrix-indoor-smd-p1.8');
+if (!astraLowCost) throw new Error('Missing Astra Core-I P1.8');
+const astraQuote = calculateCentralizedPricing(
+  astraLowCost,
+  { columns: 1, rows: 1, totalWidth: astraLowCost.cabinetDimensions.width, totalHeight: astraLowCost.cabinetDimensions.height },
+  null,
+  'competitive',
+  { width: astraLowCost.cabinetDimensions.width, height: astraLowCost.cabinetDimensions.height, unit: 'mm' }
+);
+assert('Astra Core low cost still prices structure', astraQuote.structureTotal > 0);
 
 for (const productId of [
   'bellatrix-indoor-smd-p1.8',

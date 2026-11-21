@@ -9,7 +9,7 @@ import { getControllerOverrideFromDiscount, getLedOverrideFromDiscount } from '.
 import { normalizeOrderQuantity } from './orderQuantity';
 import { billableAreaSqFt, formatDimensionLabel } from './displayMeasurements';
 import { isCompetitiveUserType } from './userTypes';
-import { omitsStructureAndInstallation, warrantyForProduct } from './productSeries';
+import { allowsManualInstallationPrice, omitsStructureAndInstallation, warrantyForProduct } from './productSeries';
 import type { PdfQuotationLineItem } from './quotationLineItems';
 import { buildMultiProductQuotationBodyHtml, buildMultiProductContinuationPagesHtml, fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from './multiProductQuotationHtml';
 import {
@@ -503,7 +503,10 @@ export const generateConfigurationHtml = (
   const effectiveCustomPricing = customPricing || exactPricingBreakdown?.customPricing;
   const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
 
-  if (exactPricingBreakdown?.structureCost !== undefined) {
+  const manualInstallationOnly = allowsManualInstallationPrice(selectedProduct, userInfo?.userType);
+  if (omitsStructureAndInstallation(selectedProduct)) {
+    structureBasePrice = 0;
+  } else if (exactPricingBreakdown?.structureCost !== undefined) {
     structureBasePrice = exactPricingBreakdown.structureCost;
   } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.structurePrice !== null) {
     structureBasePrice = effectiveCustomPricing.structurePrice;
@@ -520,7 +523,11 @@ export const generateConfigurationHtml = (
     structureBasePrice = screenAreaSqFt * 2500;
   }
 
-  if (exactPricingBreakdown?.installationCost !== undefined) {
+  if (omitsStructureAndInstallation(selectedProduct) && !manualInstallationOnly) {
+    installationBasePrice = 0;
+  } else if (manualInstallationOnly && !(effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null) && exactPricingBreakdown?.installationCost === undefined && exactPricingBreakdown?.installationTotal == null) {
+    installationBasePrice = 0;
+  } else if (exactPricingBreakdown?.installationCost !== undefined) {
     installationBasePrice = exactPricingBreakdown.installationCost;
   } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null) {
     installationBasePrice = effectiveCustomPricing.installationPrice;
@@ -796,7 +803,19 @@ export const generateConfigurationHtml = (
     }
   }
 
-  const hideStructureAndInstallation = omitsStructureAndInstallation(selectedProduct);
+  const hideStructureAndInstallation = omitsStructureAndInstallation(selectedProduct) && !manualInstallationOnly;
+  if (manualInstallationOnly) {
+    const structurePortion = totalStructure || 0;
+    structureBasePrice = 0;
+    structureGST = 0;
+    totalStructure = 0;
+    const withoutStructure = Math.round(
+      ((totalProduct || 0) + (totalController || 0) + (totalInstallation || 0) + (addonsTotal || 0)) * 100
+    ) / 100;
+    if (typeof grandTotal === 'number' && structurePortion > 0 && Math.abs(grandTotal - (withoutStructure + structurePortion)) < 1) {
+      grandTotal = withoutStructure;
+    }
+  }
   if (hideStructureAndInstallation) {
     const structureAndInstallation = (totalStructure || 0) + (totalInstallation || 0);
     structureBasePrice = 0;
@@ -847,7 +866,7 @@ export const generateConfigurationHtml = (
   const GST_RATE = '18%';
 
   // Jumbo PDF skips control section B; structure/installation is the second section → label as B not C.
-  const structureInstallationSectionTitle = isCrystalSeriesProduct
+  const structureInstallationSectionTitle = isCrystalSeriesProduct || manualInstallationOnly
     ? (isJumboSeries ? 'B. INSTALLATION PRICE' : 'C. INSTALLATION PRICE')
     : (isJumboSeries ? 'B. STRUCTURE AND INSTALLATION PRICE' : 'C. STRUCTURE AND INSTALLATION PRICE');
 
@@ -1271,13 +1290,39 @@ export const generateConfigurationHtml = (
             </div>
             ` : ''}
             
-            ${!isRentalProduct && !isDigitalStandee && !isFixed && !hideStructureAndInstallation ? `<!-- Structure and Installation (excluded for Rental Series, Digital Standee, and Nexa) -->
+            ${!isRentalProduct && !isDigitalStandee && !isFixed && (!hideStructureAndInstallation || manualInstallationOnly) ? `<!-- Structure and Installation (excluded for Rental Series, Digital Standee, and Nexa) -->
             <div class="quotation-section" style="background: rgba(255, 255, 255, 0.95); padding: 5px 6px; border-radius: 3px; margin: 0 0 4px 0; border: 1px solid rgba(233, 236, 239, 0.8);">
                 <h2 style="color: #2563eb; margin: 0 0 4px 0; font-size: 14px; border-bottom: 2px solid #2563eb; padding-bottom: 3px; font-weight: bold;">
                     ${structureInstallationSectionTitle}
                 </h2>
                 
-                ${isCrystalSeriesProduct ? `
+                ${manualInstallationOnly ? `
+                <div class="quotation-grid" style="grid-template-columns: 1fr; gap: 8px; align-items: stretch;">
+                    <div class="quotation-card" style="display: flex; flex-direction: column;">
+                        <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">INSTALLATION COST</h4>
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            <div class="quotation-row">
+                                <span class="quotation-label">Installation Price:</span>
+                                <span class="quotation-value" style="font-weight: 700;">₹${formatIndianNumber(totalInstallation)}</span>
+                            </div>
+                            <div class="quotation-row">
+                                <span class="quotation-label">GST</span>
+                                <span class="quotation-value" style="color: #333; font-weight: 700;">${GST_RATE}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 4px; display: flex; justify-content: flex-end;">
+                    <div class="quotation-card" style="display: flex; flex-direction: column; padding: 5px 6px; width: 100%; max-width: 50%;">
+                        <div class="quotation-total-row" style="padding: 5px 6px; margin-top: 0; min-height: 35px;">
+                            <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; padding: 3px 2px; border-bottom: none;">
+                                <span style="font-weight: 700; color: #333; font-size: 11px; text-align: left;">INSTALLATION TOTAL:</span>
+                                <span style="color: #333; font-weight: 700; font-size: 11px; text-align: right; white-space: nowrap;">₹${formatTotalWithDecimals(totalInstallation)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : isCrystalSeriesProduct ? `
                 <div class="quotation-grid" style="grid-template-columns: 1fr; gap: 8px; align-items: stretch;">
                     <div class="quotation-card" style="display: flex; flex-direction: column;">
                         <h4 style="margin: 0 0 4px 0; color: #333; font-size: 12px; font-weight: bold; border-bottom: 1px solid rgba(233, 236, 239, 0.8); padding-bottom: 3px;">INSTALLATION COST</h4>
@@ -1403,7 +1448,7 @@ export const generateConfigurationHtml = (
   : !isJumboSeries
   ? (isRentalProduct || hideStructureAndInstallation
     ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Processor)</p>`
-    : isCrystalSeriesProduct
+    : (isCrystalSeriesProduct || manualInstallationOnly)
     ? `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Installation)</p>`
     : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B + C = Product + Processor + Structure + Installation)</p>`)
   : `<p style="margin: 2px 0 0 0; font-size: 9px; opacity: 0.9; line-height: 1.1;">(A + B = Product + Structure + Installation)</p>`}

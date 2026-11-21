@@ -17,7 +17,7 @@ import { normalizeOrderQuantity, buildConfigurationKey } from './orderQuantity';
 import { QuotationLineItem } from '../contexts/QuotationCartContext';
 import { addQuotationAddonsToTotal, QuotationAddon, readQuotationAddons, sumQuotationAddons } from './quotationAddons';
 import { isCompetitiveUserType, PROPOSED_COMPETITIVE_PRICE_LABEL } from './userTypes';
-import { omitsStructureAndInstallation } from './productSeries';
+import { allowsManualInstallationPrice, omitsStructureAndInstallation } from './productSeries';
 
 export type PersistedLineItemUserType = 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price';
 
@@ -904,6 +904,7 @@ export type PdfQuotationLineItem = {
   isFlexible?: boolean;
   isModuleGrid?: boolean;
   omitsStructureAndInstallation?: boolean;
+  installationOnly?: boolean;
   pricing?: {
     grandTotal?: number;
     unitGrandTotal?: number;
@@ -943,7 +944,9 @@ export function toPdfQuotationLineItems(
     const isCrystal = name.includes('crystal') || category.includes('transparent');
     const isFlexible = category.includes('flexible');
     const isModuleGrid = product?.category === 'Module/ Grid Series';
-    const hideStructureAndInstallation = omitsStructureAndInstallation(product || { name: productName });
+    const lineUserType = 'userType' in li ? li.userType : undefined;
+    const manualInstallationOnly = allowsManualInstallationPrice(product || { name: productName }, lineUserType);
+    const hideStructureAndInstallation = omitsStructureAndInstallation(product || { name: productName }) && !manualInstallationOnly;
     const pdfPricing = pricing
       ? {
           grandTotal: (Number(pricing.grandTotal) < 0
@@ -963,20 +966,30 @@ export function toPdfQuotationLineItems(
           addonsTotal: pricing.addonsTotal
         }
       : undefined;
-    if (hideStructureAndInstallation && pdfPricing) {
-      const structureAndInstallation = (pdfPricing.structureTotal ?? pdfPricing.structureCost ?? 0)
-        + (pdfPricing.installationTotal ?? pdfPricing.installationCost ?? 0);
+    if ((hideStructureAndInstallation || manualInstallationOnly) && pdfPricing) {
+      const structurePortion = pdfPricing.structureTotal ?? pdfPricing.structureCost ?? 0;
+      const installationPortion = pdfPricing.installationTotal ?? pdfPricing.installationCost ?? 0;
+      const removed = hideStructureAndInstallation ? structurePortion + installationPortion : structurePortion;
       pdfPricing.structureCost = 0;
       pdfPricing.structureTotal = 0;
-      pdfPricing.installationCost = 0;
-      pdfPricing.installationTotal = 0;
-      if (typeof pdfPricing.grandTotal === 'number') {
-        pdfPricing.grandTotal = Math.max(0, Math.round((pdfPricing.grandTotal - structureAndInstallation) * 100) / 100);
+      if (hideStructureAndInstallation) {
+        pdfPricing.installationCost = 0;
+        pdfPricing.installationTotal = 0;
       }
-      if (typeof pdfPricing.unitGrandTotal === 'number') {
+      if (typeof pdfPricing.grandTotal === 'number' && removed > 0) {
+        const withoutRemoved = Math.round((pdfPricing.grandTotal - removed) * 100) / 100;
+        const productPart = pdfPricing.productTotal ?? pdfPricing.productSubtotal ?? 0;
+        const processorPart = pdfPricing.processorTotal ?? pdfPricing.processorPrice ?? 0;
+        const keptInstallation = hideStructureAndInstallation ? 0 : installationPortion;
+        const rebuilt = Math.round((productPart + processorPart + keptInstallation + (pdfPricing.addonsTotal ?? 0)) * 100) / 100;
+        if (Math.abs(pdfPricing.grandTotal - (rebuilt + removed)) < 1) {
+          pdfPricing.grandTotal = Math.max(0, withoutRemoved);
+        }
+      }
+      if (typeof pdfPricing.unitGrandTotal === 'number' && removed > 0) {
         const perUnit = normalizeOrderQuantity(li.orderQuantity) > 0
-          ? structureAndInstallation / normalizeOrderQuantity(li.orderQuantity)
-          : structureAndInstallation;
+          ? removed / normalizeOrderQuantity(li.orderQuantity)
+          : removed;
         pdfPricing.unitGrandTotal = Math.max(0, Math.round((pdfPricing.unitGrandTotal - perUnit) * 100) / 100);
       }
     }
@@ -1012,6 +1025,7 @@ export function toPdfQuotationLineItems(
       isFlexible,
       isModuleGrid,
       omitsStructureAndInstallation: hideStructureAndInstallation,
+      installationOnly: manualInstallationOnly,
       pricing: pdfPricing
     };
   });

@@ -131,7 +131,7 @@ const buildProductBox = (item: PdfQuotationLineItem, index: number): string => {
 
   const showController = !item.isJumbo && !item.isDigitalStandee && !item.isFixed;
   const showStructureInstall = !item.isRental && !item.isDigitalStandee && !item.isFixed && !item.omitsStructureAndInstallation;
-  const showStructure = showStructureInstall && !item.isCrystal;
+  const showStructure = showStructureInstall && !item.isCrystal && !item.installationOnly;
 
   return `
     <div class="multi-product-block" style="background:#fff; border:1px solid #c5d0dc; border-radius:4px; padding:5px 6px; display:flex; flex-direction:column; min-width:0; height:100%; box-sizing:border-box;">
