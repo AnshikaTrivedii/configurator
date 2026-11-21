@@ -17,7 +17,7 @@ import { normalizeOrderQuantity, buildConfigurationKey } from './orderQuantity';
 import { QuotationLineItem } from '../contexts/QuotationCartContext';
 import { addQuotationAddonsToTotal, QuotationAddon, readQuotationAddons, sumQuotationAddons } from './quotationAddons';
 import { isCompetitiveUserType, PROPOSED_COMPETITIVE_PRICE_LABEL } from './userTypes';
-import { allowsManualInstallationPrice, omitsStructureAndInstallation } from './productSeries';
+import { allowsManualInstallationPrice, allowsManualStructurePrice, omitsStructureAndInstallation } from './productSeries';
 
 export type PersistedLineItemUserType = 'End User' | 'Reseller' | 'SI/Channel Partner' | 'Low Cost Model Price';
 
@@ -946,7 +946,10 @@ export function toPdfQuotationLineItems(
     const isModuleGrid = product?.category === 'Module/ Grid Series';
     const lineUserType = 'userType' in li ? li.userType : undefined;
     const manualInstallationOnly = allowsManualInstallationPrice(product || { name: productName }, lineUserType);
-    const hideStructureAndInstallation = omitsStructureAndInstallation(product || { name: productName }) && !manualInstallationOnly;
+    const manualStructureAndInstallation = allowsManualStructurePrice(product || { name: productName }, lineUserType);
+    const hideStructureAndInstallation = omitsStructureAndInstallation(product || { name: productName })
+      && !manualInstallationOnly
+      && !manualStructureAndInstallation;
     const pdfPricing = pricing
       ? {
           grandTotal: (Number(pricing.grandTotal) < 0

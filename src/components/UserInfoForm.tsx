@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, CheckCircle, ChevronDown, FileText, MapPin, Plus, Trash2 } from 'lucide-react';
 import { Product } from '../types';
-import { allowsManualInstallationPrice, isCrystalSeries, omitsStructureAndInstallation, warrantyForProduct, defaultWarrantyForProduct } from '../utils/productSeries';
+import { allowsManualInstallationPrice, allowsManualStructurePrice, isCrystalSeries, omitsStructureAndInstallation, warrantyForProduct, defaultWarrantyForProduct } from '../utils/productSeries';
 import { productHasCompetitivePrice, PROPOSED_COMPETITIVE_PRICE_LABEL } from '../utils/userTypes';
 import {
   QuotationAddon,
@@ -142,6 +142,7 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   const [internalCustomStructurePrice, setInternalCustomStructurePrice] = useState<number | null>(externalCustomPricing?.structurePrice || null);
   const [internalCustomInstallationPrice, setInternalCustomInstallationPrice] = useState<number | null>(externalCustomPricing?.installationPrice || null);
 
+  const manualStructureAndInstallation = allowsManualStructurePrice(selectedProduct, formData.userType);
   const lowCostGridInstallation = allowsManualInstallationPrice(selectedProduct, formData.userType);
   const installationOnlyCustomPricing = isCrystalSeries(selectedProduct) || lowCostGridInstallation;
   const showCustomPricingFields = !omitsStructureAndInstallation(selectedProduct)
@@ -563,31 +564,55 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
               )}
             </div>
 
-            {salesUser && lowCostGridInstallation && (
-              <div>
-                <label htmlFor="customInstallationPrice" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Installation Price (₹)
-                </label>
-                <input
-                  type="number"
-                  id="customInstallationPrice"
-                  min="0"
-                  step="0.01"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Enter installation price"
-                  value={customInstallationPrice ?? ''}
-                  onChange={(e) => {
-                    const value = e.target.value === '' ? null : parseFloat(e.target.value);
-                    const newValue = value !== null && !isNaN(value) ? value : null;
-                    updateCustomPricing(true, null, newValue);
-                  }}
-                  disabled={isSubmitting}
-                />
+            {salesUser && (manualStructureAndInstallation || lowCostGridInstallation) && (
+              <div className="space-y-4">
+                {manualStructureAndInstallation && (
+                  <div>
+                    <label htmlFor="customStructurePrice" className="block text-sm font-semibold text-gray-700 mb-2">
+                      Structure Price (₹)
+                    </label>
+                    <input
+                      type="number"
+                      id="customStructurePrice"
+                      min="0"
+                      step="0.01"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder="Enter structure price"
+                      value={customStructurePrice ?? ''}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                        const newValue = value !== null && !isNaN(value) ? value : null;
+                        updateCustomPricing(true, newValue, customInstallationPrice);
+                      }}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                )}
+                <div>
+                  <label htmlFor="customInstallationPrice" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Installation Price (₹)
+                  </label>
+                  <input
+                    type="number"
+                    id="customInstallationPrice"
+                    min="0"
+                    step="0.01"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="Enter installation price"
+                    value={customInstallationPrice ?? ''}
+                    onChange={(e) => {
+                      const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                      const newValue = value !== null && !isNaN(value) ? value : null;
+                      updateCustomPricing(true, customStructurePrice, newValue);
+                    }}
+                    disabled={isSubmitting}
+                  />
+                </div>
               </div>
             )}
 
             {/* Custom Pricing Toggle - Only for sales users */}
-            {salesUser && showCustomPricingFields && !lowCostGridInstallation && (
+            {salesUser && showCustomPricingFields && !lowCostGridInstallation && !manualStructureAndInstallation && (
               <div className="pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <label htmlFor="customPricing" className="flex items-center text-sm font-semibold text-gray-700 cursor-pointer">
