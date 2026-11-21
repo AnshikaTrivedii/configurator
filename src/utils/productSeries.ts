@@ -1,4 +1,5 @@
 import type { Product } from '../types';
+import { isCompetitiveUserType } from './userTypes';
 
 /** Crystal products (Transparent Series) use module size/resolution terminology. */
 export function isCrystalSeries(
@@ -25,6 +26,17 @@ export function omitsStructureAndInstallation(
   const name = (product.name || '').toLowerCase().replace(/\s+/g, ' ');
   return /module\/\s*grid series smd p1\.8(?:\b|$)/.test(name)
     || /module\/\s*grid series smd p2\.5(?:\b|$)/.test(name);
+}
+
+/**
+ * Low Cost Model quotes for Module/Grid SMD P1.8 and P2.5 still omit structure,
+ * but the salesperson can enter an installation price.
+ */
+export function allowsManualInstallationPrice(
+  product: { id?: string; name?: string } | null | undefined,
+  userType?: string | null
+): boolean {
+  return omitsStructureAndInstallation(product) && isCompetitiveUserType(userType);
 }
 
 const SHORT_LED_WARRANTY_PRODUCT_IDS = new Set([

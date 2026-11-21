@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, CheckCircle, ChevronDown, FileText, MapPin, Plus, Trash2 } from 'lucide-react';
 import { Product } from '../types';
-import { isCrystalSeries, omitsStructureAndInstallation, warrantyForProduct, defaultWarrantyForProduct } from '../utils/productSeries';
+import { allowsManualInstallationPrice, isCrystalSeries, omitsStructureAndInstallation, warrantyForProduct, defaultWarrantyForProduct } from '../utils/productSeries';
 import { productHasCompetitivePrice, PROPOSED_COMPETITIVE_PRICE_LABEL } from '../utils/userTypes';
 import {
   QuotationAddon,
@@ -79,8 +79,6 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   onSwitchProduct
 }) => {
 
-  const installationOnlyCustomPricing = isCrystalSeries(selectedProduct);
-
   const DEFAULT_VALIDITY = '• Offer shall remain valid for period of 30 days from the date of quotation made.\n• The current offer is based on USD=INR 88. Any increase in exchange rate beyond 1% at the time of placement of order will lead to increase in INR price';
   const DEFAULT_PAYMENT_TERMS = '50% Advance at the time of placing order, 40% Before Shipment, 10% At the time of installation';
   const defaultWarranty = defaultWarrantyForProduct(selectedProduct);
@@ -143,6 +141,11 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
   const [internalCustomPricingEnabled, setInternalCustomPricingEnabled] = useState(externalCustomPricing?.enabled || false);
   const [internalCustomStructurePrice, setInternalCustomStructurePrice] = useState<number | null>(externalCustomPricing?.structurePrice || null);
   const [internalCustomInstallationPrice, setInternalCustomInstallationPrice] = useState<number | null>(externalCustomPricing?.installationPrice || null);
+
+  const lowCostGridInstallation = allowsManualInstallationPrice(selectedProduct, formData.userType);
+  const installationOnlyCustomPricing = isCrystalSeries(selectedProduct) || lowCostGridInstallation;
+  const showCustomPricingFields = !omitsStructureAndInstallation(selectedProduct)
+    || lowCostGridInstallation;
 
   const customPricingEnabled = externalCustomPricing?.enabled ?? internalCustomPricingEnabled;
   const customStructurePrice = externalCustomPricing?.structurePrice ?? internalCustomStructurePrice;
@@ -560,8 +563,31 @@ export const UserInfoForm: React.FC<UserInfoFormProps> = ({
               )}
             </div>
 
+            {salesUser && lowCostGridInstallation && (
+              <div>
+                <label htmlFor="customInstallationPrice" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Installation Price (₹)
+                </label>
+                <input
+                  type="number"
+                  id="customInstallationPrice"
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Enter installation price"
+                  value={customInstallationPrice ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                    const newValue = value !== null && !isNaN(value) ? value : null;
+                    updateCustomPricing(true, null, newValue);
+                  }}
+                  disabled={isSubmitting}
+                />
+              </div>
+            )}
+
             {/* Custom Pricing Toggle - Only for sales users */}
-            {salesUser && !omitsStructureAndInstallation(selectedProduct) && (
+            {salesUser && showCustomPricingFields && !lowCostGridInstallation && (
               <div className="pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <label htmlFor="customPricing" className="flex items-center text-sm font-semibold text-gray-700 cursor-pointer">

@@ -14,7 +14,7 @@ import { normalizeOrderQuantity } from './orderQuantity';
 import { QuotationAddon, sanitizeQuotationAddons, sumQuotationAddons, addQuotationAddonsToTotal } from './quotationAddons';
 import { billableAreaSqFt } from './displayMeasurements';
 import { isCompetitiveUserType } from './userTypes';
-import { omitsStructureAndInstallation } from './productSeries';
+import { allowsManualInstallationPrice, omitsStructureAndInstallation } from './productSeries';
 
 export interface PricingCalculationResult {
 
@@ -432,14 +432,22 @@ export function calculateCentralizedPricing(
     // Rental quotations are product + processor. Structure and installation are
     // omitted here so the cart, save payload, and multi-product quotation match
     // the one-product rental total. Custom structure/installation prices do not apply.
+    // Module/Grid P1.8 and P2.5 omit both charges, except a Low Cost Model quote
+    // may include a manually entered installation price. Structure stays zero.
+    const manualInstallationOnly = allowsManualInstallationPrice(product, userType);
     if (
       isDigitalStandeeProduct(product) ||
       isFixedProduct(product) ||
       product.category?.toLowerCase().includes('rental') ||
-      omitsStructureAndInstallation(product)
+      (omitsStructureAndInstallation(product) && !manualInstallationOnly)
     ) {
       structureBasePrice = 0;
       installationBasePrice = 0;
+    } else if (manualInstallationOnly) {
+      structureBasePrice = 0;
+      if (!(customPricing?.enabled && customPricing.installationPrice !== null)) {
+        installationBasePrice = 0;
+      }
     }
 
     const structureGST = 0;

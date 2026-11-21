@@ -17,7 +17,7 @@ import {
 import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel, discountForQuotationSave, savedLineDiscountHasOverride, SavedLineDiscount } from '../utils/discountCalculator';
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
-import { isCrystalSeries, omitsStructureAndInstallation } from '../utils/productSeries';
+import { allowsManualInstallationPrice, isCrystalSeries, omitsStructureAndInstallation } from '../utils/productSeries';
 import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
 import { OrderQuantityInput } from './OrderQuantityInput';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
@@ -303,7 +303,6 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
   const quotationAddons = readQuotationAddons(customAddonsProp, userInfo?.customAddons);
   const quotationAddonsTotal = sumQuotationAddons(quotationAddons);
   const { lineItems, clearCart } = useQuotationCart();
-  const installationOnlyCustomPricing = isCrystalSeries(selectedProduct);
 
   const isSuperAdminUser = userRole === 'super' || userRole === 'super_admin';
   const isPublicUser = !salesUser && !isSuperAdminUser && (!userRole || userRole === 'normal');
@@ -328,6 +327,10 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         existingQuotation?.userType ? existingQuotation.userType :
           'End User'
   );
+  const lowCostGridInstallation = allowsManualInstallationPrice(selectedProduct, selectedUserType);
+  const installationOnlyCustomPricing = isCrystalSeries(selectedProduct) || lowCostGridInstallation;
+  const showCustomPricingFields = !omitsStructureAndInstallation(selectedProduct)
+    || lowCostGridInstallation;
 
   const allowedCustomerTypes = salesUser?.allowedCustomerTypes || [];
   const isPartner = userRole === 'partner';
@@ -1813,8 +1816,31 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                         </div>
                       )}
 
+                      {(salesUser || userRole === 'super' || userRole === 'super_admin') && lowCostGridInstallation && (
+                        <div className="pt-4 border-t border-gray-200">
+                          <label htmlFor="customInstallationPrice" className="block text-sm font-medium text-gray-700 mb-2">
+                            Installation Price (₹)
+                          </label>
+                          <input
+                            type="number"
+                            id="customInstallationPrice"
+                            min="0"
+                            step="0.01"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base"
+                            placeholder="Enter installation price"
+                            value={customInstallationPrice ?? ''}
+                            onChange={(e) => {
+                              const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                              const newValue = value !== null && !isNaN(value) ? value : null;
+                              updateCustomPricing(true, null, newValue);
+                            }}
+                            disabled={isSubmitting}
+                          />
+                        </div>
+                      )}
+
                       {/* Custom Pricing Toggle */}
-                      {(salesUser || userRole === 'super' || userRole === 'super_admin') && !omitsStructureAndInstallation(selectedProduct) && (
+                      {(salesUser || userRole === 'super' || userRole === 'super_admin') && showCustomPricingFields && !lowCostGridInstallation && (
                         <div className="pt-4 border-t border-gray-200">
                           <div className="flex items-center justify-between mb-4">
                             <label htmlFor="customPricing" className="flex items-center text-base font-medium text-gray-700 cursor-pointer">
