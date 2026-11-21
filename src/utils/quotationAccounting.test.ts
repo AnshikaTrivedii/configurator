@@ -59,15 +59,17 @@ assert(
 for (const productId of ['orion-module-grid-p18', 'orion-module-grid-p25']) {
   const gridProduct = products.find(item => item.id === productId);
   if (!gridProduct) throw new Error(`Missing ${productId}`);
-  const gridQuote = calculateCentralizedPricing(
-    gridProduct,
-    { columns: 2, rows: 2, totalWidth: gridProduct.cabinetDimensions.width * 2, totalHeight: gridProduct.cabinetDimensions.height * 2 },
-    'TB40',
-    'endUser',
-    { width: gridProduct.cabinetDimensions.width * 2, height: gridProduct.cabinetDimensions.height * 2, unit: 'mm' }
-  );
-  assert(`${productId} hides structure and installation`, gridQuote.isAvailable && gridQuote.structureTotal === 0 && gridQuote.installationTotal === 0);
-  assert(`${productId} total excludes structure and installation`, gridQuote.grandTotal === Math.round(gridQuote.productTotal + gridQuote.processorTotal));
+  for (const userType of ['endUser', 'reseller', 'siChannel']) {
+    const gridQuote = calculateCentralizedPricing(
+      gridProduct,
+      { columns: 2, rows: 2, totalWidth: gridProduct.cabinetDimensions.width * 2, totalHeight: gridProduct.cabinetDimensions.height * 2 },
+      'TB40',
+      userType,
+      { width: gridProduct.cabinetDimensions.width * 2, height: gridProduct.cabinetDimensions.height * 2, unit: 'mm' }
+    );
+    assert(`${productId} ${userType} without entered prices stays at zero`, gridQuote.isAvailable && gridQuote.structureTotal === 0 && gridQuote.installationTotal === 0);
+    assert(`${productId} ${userType} blank total excludes structure and installation`, gridQuote.grandTotal === Math.round(gridQuote.productTotal + gridQuote.processorTotal));
+  }
 }
 const gridP4 = products.find(item => item.id === 'orion-module-grid-p4');
 if (!gridP4) throw new Error('Missing Module/Grid P4');
@@ -113,15 +115,33 @@ for (const productId of ['orion-module-grid-p18', 'orion-module-grid-p25']) {
     { enabled: true, structurePrice: 50000, installationPrice: 8000 }
   );
   assert(`${productId} edited installation updates the grand total`, changed.grandTotal === lowCost.grandTotal - 4000);
-  const endUserCustom = calculateCentralizedPricing(
+  const entered = { enabled: true, structurePrice: 10000, installationPrice: 12000 };
+  for (const userType of ['endUser', 'End User', 'reseller', 'Reseller', 'siChannel', 'SI/Channel Partner', 'Channel']) {
+    const normal = calculateCentralizedPricing(gridProduct, grid, 'TB40', userType, config, entered);
+    assert(`${productId} ${userType} enables structure and installation once`, normal.structureTotal === 10000 && normal.installationTotal === 12000);
+    assert(
+      `${productId} ${userType} grand total includes both charges once`,
+      normal.grandTotal === Math.round(normal.productTotal + normal.processorTotal + 10000 + 12000)
+    );
+  }
+  const backToLowCost = calculateCentralizedPricing(
     gridProduct,
     grid,
     'TB40',
-    'endUser',
+    'Low Cost Model Price',
     config,
-    { enabled: true, structurePrice: 50000, installationPrice: 12000 }
+    entered
   );
-  assert(`${productId} end user still omits both charges`, endUserCustom.structureTotal === 0 && endUserCustom.installationTotal === 0);
+  assert(`${productId} switching to low cost ignores the stored structure price`, backToLowCost.structureTotal === 0 && backToLowCost.installationTotal === 12000);
+  const restored = calculateCentralizedPricing(gridProduct, grid, 'TB40', 'End User', config, entered);
+  assert(
+    `${productId} switching back to normal pricing restores structure`,
+    restored.structureTotal === 10000 &&
+    restored.installationTotal === 12000 &&
+    restored.grandTotal === Math.round(restored.productTotal + restored.processorTotal + 22000) &&
+    restored.grandTotal - backToLowCost.grandTotal ===
+      Math.round(restored.productTotal + restored.processorTotal) - Math.round(backToLowCost.productTotal + backToLowCost.processorTotal) + 10000
+  );
 
   const html = generateConfigurationHtml(
     config,
@@ -155,6 +175,44 @@ for (const productId of ['orion-module-grid-p18', 'orion-module-grid-p25']) {
   const pdfGrand = Number((html.match(/GRAND TOTAL[\s\S]{0,400}?₹([0-9,]+\.\d{2})/) || [])[1]?.replace(/,/g, ''));
   assert(`${productId} PDF grand total includes installation once and drops structure`, pdfGrand === lowCost.grandTotal);
   assert(`${productId} PDF keeps GST extra`, html.includes('GST Extra'));
+
+  const normalQuote = calculateCentralizedPricing(gridProduct, grid, 'TB40', 'endUser', config, entered);
+  const normalHtml = generateConfigurationHtml(
+    config,
+    gridProduct,
+    grid,
+    'TB40',
+    undefined,
+    { fullName: 'A', email: 'a@b.c', phoneNumber: '1', userType: 'End User' },
+    null,
+    'Q-GRID',
+    entered,
+    {
+      grandTotal: normalQuote.grandTotal,
+      structureCost: normalQuote.structureCost,
+      structureTotal: normalQuote.structureTotal,
+      installationCost: normalQuote.installationCost,
+      installationTotal: normalQuote.installationTotal,
+      productTotal: normalQuote.productTotal,
+      processorTotal: normalQuote.processorTotal,
+      unitPrice: normalQuote.unitPrice,
+      quantity: normalQuote.quantity,
+      orderQuantity: 1,
+      customPricing: entered
+    }
+  );
+  assert(
+    `${productId} normal PDF shows structure and installation`,
+    normalHtml.includes('STRUCTURE AND INSTALLATION') &&
+    normalHtml.includes('STRUCTURE COST') &&
+    normalHtml.includes('INSTALLATION COST') &&
+    normalHtml.includes('10,000') &&
+    normalHtml.includes('12,000') &&
+    normalHtml.includes('22,000.00')
+  );
+  const normalGrand = Number((normalHtml.match(/GRAND TOTAL[\s\S]{0,400}?₹([0-9,]+\.\d{2})/) || [])[1]?.replace(/,/g, ''));
+  assert(`${productId} normal PDF grand total includes both charges once`, normalGrand === normalQuote.grandTotal);
+  assert(`${productId} normal PDF keeps GST extra`, normalHtml.includes('GST Extra') && normalHtml.includes('Product + Processor + Structure + Installation'));
 }
 const astraLowCost = products.find(item => item.id === 'bellatrix-indoor-smd-p1.8');
 if (!astraLowCost) throw new Error('Missing Astra Core-I P1.8');

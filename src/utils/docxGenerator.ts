@@ -9,7 +9,7 @@ import { getControllerOverrideFromDiscount, getLedOverrideFromDiscount } from '.
 import { normalizeOrderQuantity } from './orderQuantity';
 import { billableAreaSqFt, formatDimensionLabel } from './displayMeasurements';
 import { isCompetitiveUserType } from './userTypes';
-import { allowsManualInstallationPrice, omitsStructureAndInstallation, warrantyForProduct } from './productSeries';
+import { allowsManualInstallationPrice, allowsManualStructurePrice, omitsStructureAndInstallation, warrantyForProduct } from './productSeries';
 import type { PdfQuotationLineItem } from './quotationLineItems';
 import { buildMultiProductQuotationBodyHtml, buildMultiProductContinuationPagesHtml, fitMultiProductQuotationIfNeeded, paginateOverflowingQuotationAddons } from './multiProductQuotationHtml';
 import {
@@ -504,8 +504,17 @@ export const generateConfigurationHtml = (
   const normalizedEnv = selectedProduct.environment?.toLowerCase().trim();
 
   const manualInstallationOnly = allowsManualInstallationPrice(selectedProduct, userInfo?.userType);
-  if (omitsStructureAndInstallation(selectedProduct)) {
+  const manualStructureAndInstallation = allowsManualStructurePrice(selectedProduct, userInfo?.userType);
+  if (manualInstallationOnly) {
     structureBasePrice = 0;
+  } else if (manualStructureAndInstallation) {
+    if (exactPricingBreakdown?.structureCost !== undefined && exactPricingBreakdown.structureCost !== null) {
+      structureBasePrice = exactPricingBreakdown.structureCost;
+    } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.structurePrice !== null && effectiveCustomPricing.structurePrice !== undefined) {
+      structureBasePrice = effectiveCustomPricing.structurePrice;
+    } else {
+      structureBasePrice = 0;
+    }
   } else if (exactPricingBreakdown?.structureCost !== undefined) {
     structureBasePrice = exactPricingBreakdown.structureCost;
   } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.structurePrice !== null) {
@@ -523,10 +532,16 @@ export const generateConfigurationHtml = (
     structureBasePrice = screenAreaSqFt * 2500;
   }
 
-  if (omitsStructureAndInstallation(selectedProduct) && !manualInstallationOnly) {
+  if (manualInstallationOnly && !(effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null) && exactPricingBreakdown?.installationCost === undefined && exactPricingBreakdown?.installationTotal == null) {
     installationBasePrice = 0;
-  } else if (manualInstallationOnly && !(effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null) && exactPricingBreakdown?.installationCost === undefined && exactPricingBreakdown?.installationTotal == null) {
-    installationBasePrice = 0;
+  } else if (manualStructureAndInstallation) {
+    if (exactPricingBreakdown?.installationCost !== undefined && exactPricingBreakdown.installationCost !== null) {
+      installationBasePrice = exactPricingBreakdown.installationCost;
+    } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null && effectiveCustomPricing.installationPrice !== undefined) {
+      installationBasePrice = effectiveCustomPricing.installationPrice;
+    } else {
+      installationBasePrice = 0;
+    }
   } else if (exactPricingBreakdown?.installationCost !== undefined) {
     installationBasePrice = exactPricingBreakdown.installationCost;
   } else if (effectiveCustomPricing?.enabled && effectiveCustomPricing.installationPrice !== null) {
@@ -803,7 +818,9 @@ export const generateConfigurationHtml = (
     }
   }
 
-  const hideStructureAndInstallation = omitsStructureAndInstallation(selectedProduct) && !manualInstallationOnly;
+  const hideStructureAndInstallation = omitsStructureAndInstallation(selectedProduct)
+    && !manualInstallationOnly
+    && !manualStructureAndInstallation;
   if (manualInstallationOnly) {
     const structurePortion = totalStructure || 0;
     structureBasePrice = 0;

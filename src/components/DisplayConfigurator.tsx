@@ -19,7 +19,7 @@ import { PdfViewModal } from './PdfViewModal';
 import { SalesUser } from '../api/sales';
 import { clientAPI } from '../api/clients';
 import QuotationIdGenerator from '../utils/quotationIdGenerator';
-import { isCrystalSeries, omitsStructureAndInstallation } from '../utils/productSeries';
+import { isCrystalSeries } from '../utils/productSeries';
 import { SuperUserDashboard } from './SuperUserDashboard';
 import { SalesDashboard } from './SalesDashboard';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
@@ -421,13 +421,13 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
           const restoredCustomPricing = li.customPricing
             ? {
                 enabled: !!li.customPricing.enabled,
-                structurePrice: omitsStructureAndInstallation(lineProduct) ? null : (li.customPricing.structurePrice ?? null),
+                structurePrice: li.customPricing.structurePrice ?? null,
                 installationPrice: li.customPricing.installationPrice ?? null
               }
             : (activeQuotation.quotationData?.customPricing
                 ? {
                     enabled: !!activeQuotation.quotationData.customPricing.enabled,
-                    structurePrice: omitsStructureAndInstallation(lineProduct) ? null : (activeQuotation.quotationData.customPricing.structurePrice ?? null),
+                    structurePrice: activeQuotation.quotationData.customPricing.structurePrice ?? null,
                     installationPrice: activeQuotation.quotationData.customPricing.installationPrice ?? null
                   }
                 : undefined);
@@ -857,7 +857,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
         const productCustomPricing = customPricing.enabled
           ? {
               enabled: true as const,
-              structurePrice: isCrystalSeries(targetItem.product) || omitsStructureAndInstallation(targetItem.product) ? null : customPricing.structurePrice,
+              structurePrice: isCrystalSeries(targetItem.product) ? null : customPricing.structurePrice,
               installationPrice: customPricing.installationPrice
             }
           : { enabled: false as const, structurePrice: null, installationPrice: null };
@@ -1236,7 +1236,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     const custom = customPricing.enabled
       ? {
           enabled: true as const,
-          structurePrice: isCrystalSeries(effectiveProduct) || omitsStructureAndInstallation(effectiveProduct) ? null : customPricing.structurePrice,
+          structurePrice: isCrystalSeries(effectiveProduct) ? null : customPricing.structurePrice,
           installationPrice: customPricing.installationPrice
         }
       : { enabled: false as const, structurePrice: null, installationPrice: null };
@@ -1327,7 +1327,7 @@ export const DisplayConfigurator: React.FC<DisplayConfiguratorProps> = ({
     const itemCustomEnabled = !!item.customPricing?.enabled;
     const customMatch = itemCustomEnabled === customPricing.enabled && (
       !customPricing.enabled || (
-        (item.customPricing?.structurePrice ?? null) === ((isCrystalSeries(effectiveProduct) || omitsStructureAndInstallation(effectiveProduct)) ? null : customPricing.structurePrice) &&
+        (item.customPricing?.structurePrice ?? null) === (isCrystalSeries(effectiveProduct) ? null : customPricing.structurePrice) &&
         (item.customPricing?.installationPrice ?? null) === customPricing.installationPrice
       )
     );

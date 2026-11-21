@@ -16,7 +16,10 @@ const MODULE_GRID_WITHOUT_STRUCTURE_INSTALLATION = new Set([
   'orion-module-grid-p25'
 ]);
 
-/** Module/Grid SMD P1.8 and P2.5 quotes do not include structure or installation. */
+/**
+ * Module/Grid SMD P1.8 and P2.5 do not use catalog structure or installation rates.
+ * The selected pricing mode decides which of those charges the salesperson can enter.
+ */
 export function omitsStructureAndInstallation(
   product: { id?: string; name?: string } | null | undefined
 ): boolean {
@@ -29,8 +32,19 @@ export function omitsStructureAndInstallation(
 }
 
 /**
- * Low Cost Model quotes for Module/Grid SMD P1.8 and P2.5 still omit structure,
- * but the salesperson can enter an installation price.
+ * Normal pricing (End User, Reseller, SI/Channel Partner) for these two pitches:
+ * both structure and installation are entered manually.
+ */
+export function allowsManualStructurePrice(
+  product: { id?: string; name?: string } | null | undefined,
+  userType?: string | null
+): boolean {
+  return omitsStructureAndInstallation(product) && !isCompetitiveUserType(userType);
+}
+
+/**
+ * Low Cost Model Price for these two pitches: structure stays zero and only
+ * installation can be entered. This does not depend on a previous customer type.
  */
 export function allowsManualInstallationPrice(
   product: { id?: string; name?: string } | null | undefined,

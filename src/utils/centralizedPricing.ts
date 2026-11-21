@@ -14,7 +14,7 @@ import { normalizeOrderQuantity } from './orderQuantity';
 import { QuotationAddon, sanitizeQuotationAddons, sumQuotationAddons, addQuotationAddonsToTotal } from './quotationAddons';
 import { billableAreaSqFt } from './displayMeasurements';
 import { isCompetitiveUserType } from './userTypes';
-import { allowsManualInstallationPrice, omitsStructureAndInstallation } from './productSeries';
+import { allowsManualInstallationPrice, allowsManualStructurePrice } from './productSeries';
 
 export interface PricingCalculationResult {
 
@@ -432,19 +432,27 @@ export function calculateCentralizedPricing(
     // Rental quotations are product + processor. Structure and installation are
     // omitted here so the cart, save payload, and multi-product quotation match
     // the one-product rental total. Custom structure/installation prices do not apply.
-    // Module/Grid P1.8 and P2.5 omit both charges, except a Low Cost Model quote
-    // may include a manually entered installation price. Structure stays zero.
+    // Module/Grid P1.8 and P2.5 do not use the per-ft² structure/installation rates.
+    // Normal pricing includes only the amounts the salesperson entered.
+    // Low Cost Model Price ignores structure, including a previously entered amount.
     const manualInstallationOnly = allowsManualInstallationPrice(product, userType);
+    const manualStructureAndInstallation = allowsManualStructurePrice(product, userType);
     if (
       isDigitalStandeeProduct(product) ||
       isFixedProduct(product) ||
-      product.category?.toLowerCase().includes('rental') ||
-      (omitsStructureAndInstallation(product) && !manualInstallationOnly)
+      product.category?.toLowerCase().includes('rental')
     ) {
       structureBasePrice = 0;
       installationBasePrice = 0;
     } else if (manualInstallationOnly) {
       structureBasePrice = 0;
+      if (!(customPricing?.enabled && customPricing.installationPrice !== null)) {
+        installationBasePrice = 0;
+      }
+    } else if (manualStructureAndInstallation) {
+      if (!(customPricing?.enabled && customPricing.structurePrice !== null)) {
+        structureBasePrice = 0;
+      }
       if (!(customPricing?.enabled && customPricing.installationPrice !== null)) {
         installationBasePrice = 0;
       }

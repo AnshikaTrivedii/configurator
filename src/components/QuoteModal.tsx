@@ -17,7 +17,7 @@ import {
 import { applyDiscount, DiscountInfo, getLedDiscountMode, getDiscountUnits, getDiscountUnitLabel, discountForQuotationSave, savedLineDiscountHasOverride, SavedLineDiscount } from '../utils/discountCalculator';
 import { getDisplayPower } from '../utils/displayPower';
 import { useDisplayConfig } from '../contexts/DisplayConfigContext';
-import { allowsManualInstallationPrice, isCrystalSeries, omitsStructureAndInstallation } from '../utils/productSeries';
+import { allowsManualInstallationPrice, allowsManualStructurePrice, isCrystalSeries, omitsStructureAndInstallation } from '../utils/productSeries';
 import { buildExactPricingBreakdownForPdf } from '../utils/exactPricingBreakdownForPdf';
 import { OrderQuantityInput } from './OrderQuantityInput';
 import { normalizeOrderQuantity } from '../utils/orderQuantity';
@@ -327,6 +327,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
         existingQuotation?.userType ? existingQuotation.userType :
           'End User'
   );
+  const manualStructureAndInstallation = allowsManualStructurePrice(selectedProduct, selectedUserType);
   const lowCostGridInstallation = allowsManualInstallationPrice(selectedProduct, selectedUserType);
   const installationOnlyCustomPricing = isCrystalSeries(selectedProduct) || lowCostGridInstallation;
   const showCustomPricingFields = !omitsStructureAndInstallation(selectedProduct)
@@ -427,13 +428,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
 
   const buildCustomPricingObj = () => {
     if (!customPricingEnabled) return undefined;
-    const hasValues = installationOnlyCustomPricing
+    const hasValues = installationOnlyCustomPricing && !lowCostGridInstallation
       ? customInstallationPrice !== null
       : customStructurePrice !== null || customInstallationPrice !== null;
     if (!hasValues) return undefined;
     return {
       enabled: true as const,
-      structurePrice: installationOnlyCustomPricing ? null : customStructurePrice,
+      structurePrice: isCrystalSeries(selectedProduct) ? null : customStructurePrice,
       installationPrice: customInstallationPrice
     };
   };
@@ -1816,31 +1817,55 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({
                         </div>
                       )}
 
-                      {(salesUser || userRole === 'super' || userRole === 'super_admin') && lowCostGridInstallation && (
-                        <div className="pt-4 border-t border-gray-200">
-                          <label htmlFor="customInstallationPrice" className="block text-sm font-medium text-gray-700 mb-2">
-                            Installation Price (₹)
-                          </label>
-                          <input
-                            type="number"
-                            id="customInstallationPrice"
-                            min="0"
-                            step="0.01"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base"
-                            placeholder="Enter installation price"
-                            value={customInstallationPrice ?? ''}
-                            onChange={(e) => {
-                              const value = e.target.value === '' ? null : parseFloat(e.target.value);
-                              const newValue = value !== null && !isNaN(value) ? value : null;
-                              updateCustomPricing(true, null, newValue);
-                            }}
-                            disabled={isSubmitting}
-                          />
+                      {(salesUser || userRole === 'super' || userRole === 'super_admin') && (manualStructureAndInstallation || lowCostGridInstallation) && (
+                        <div className="pt-4 border-t border-gray-200 space-y-4">
+                          {manualStructureAndInstallation && (
+                            <div>
+                              <label htmlFor="customStructurePrice" className="block text-sm font-medium text-gray-700 mb-2">
+                                Structure Price (₹)
+                              </label>
+                              <input
+                                type="number"
+                                id="customStructurePrice"
+                                min="0"
+                                step="0.01"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base"
+                                placeholder="Enter structure price"
+                                value={customStructurePrice ?? ''}
+                                onChange={(e) => {
+                                  const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                                  const newValue = value !== null && !isNaN(value) ? value : null;
+                                  updateCustomPricing(true, newValue, customInstallationPrice);
+                                }}
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                          )}
+                          <div>
+                            <label htmlFor="customInstallationPrice" className="block text-sm font-medium text-gray-700 mb-2">
+                              Installation Price (₹)
+                            </label>
+                            <input
+                              type="number"
+                              id="customInstallationPrice"
+                              min="0"
+                              step="0.01"
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-base"
+                              placeholder="Enter installation price"
+                              value={customInstallationPrice ?? ''}
+                              onChange={(e) => {
+                                const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                                const newValue = value !== null && !isNaN(value) ? value : null;
+                                updateCustomPricing(true, customStructurePrice, newValue);
+                              }}
+                              disabled={isSubmitting}
+                            />
+                          </div>
                         </div>
                       )}
 
                       {/* Custom Pricing Toggle */}
-                      {(salesUser || userRole === 'super' || userRole === 'super_admin') && showCustomPricingFields && !lowCostGridInstallation && (
+                      {(salesUser || userRole === 'super' || userRole === 'super_admin') && showCustomPricingFields && !lowCostGridInstallation && !manualStructureAndInstallation && (
                         <div className="pt-4 border-t border-gray-200">
                           <div className="flex items-center justify-between mb-4">
                             <label htmlFor="customPricing" className="flex items-center text-base font-medium text-gray-700 cursor-pointer">
